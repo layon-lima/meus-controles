@@ -1,14 +1,13 @@
-# Meus Controles
+# Meus Controles — Desktop
 
-Aplicação local/offline para controles de saldo, recebimentos e pagamentos.
+Aplicativo local em Python + PySide6 + SQLite. Não usa navegador.
 
-## Dados iniciais
-O primeiro acesso cria o controle **PAGAMENTO DA VAN** com 29 lançamentos validados:
-- Valor inicial: R$ 650.000,00
-- Total abatido: R$ 288.186,29
-- Saldo: R$ 361.813,71
+## Iniciar
+Execute **INICIAR.bat**. Na primeira execução ele cria o ambiente e instala o PySide6.
 
-Os dados ficam no localStorage do navegador.
+## Dados
+Os dados ficam em `dados/controles.db`. Limpar cache/cookies do navegador não afeta o aplicativo.
 
-## Uso local
-Abra o index.html diretamente ou sirva a pasta em um servidor local.
+O banco é criado automaticamente com o controle **PAGAMENTO DA VAN**, dívida inicial de R$ 650.000,00 e os 29 pagamentos já cadastrados como entradas que reduzem o saldo devedor.
+
+Para backup, copie a pasta `dados`.
