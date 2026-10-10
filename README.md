@@ -7,7 +7,7 @@ Aplicativo web local para criar quadros e controles independentes, com formulari
 2. Clone: `git clone https://github.com/layon-lima/meus-controles.git`
 3. Entre na pasta clonada.
 4. Execute **INICIAR.vbs** para abrir sem janela de terminal; se nao abrir, use **INICIAR.bat** para ver os erros.
-5. O painel inicia o app em http://127.0.0.1:8765.
+5. O painel inicia o app em http://127.0.0.1:18765.
 
 Nao e preciso instalar bibliotecas Python.
 

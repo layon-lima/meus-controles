@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """Painel local para iniciar, atualizar e proteger os dados da Central."""
 import os
+import json
+import socket
 from pathlib import Path
 import queue
 import shutil
@@ -20,7 +22,7 @@ ROOT = Path(__file__).resolve().parent
 DB = ROOT / "data" / "controles.db"
 BACKUPS = ROOT / "backups"
 LOG = ROOT / "data" / "servidor.log"
-URL = "http://127.0.0.1:8765"
+URL = "http://127.0.0.1:18765"
 
 class Painel:
     def __init__(self,root):
@@ -82,10 +84,23 @@ class Painel:
         self.logs.configure(state="disabled")
 
     def healthy(self):
+        """Confirma a identidade exata da Central, nao apenas um servidor online."""
         try:
-            with urlopen(URL+"/api/health",timeout=.5) as r:
-                return r.status==200 and b'"ok": true' in r.read(1500)
-        except Exception:return False
+            with urlopen(URL+"/api/health",timeout=.7) as r:
+                if r.status != 200:
+                    return False
+                state = json.loads(r.read(1500).decode("utf-8"))
+                return (state.get("ok") is True and
+                        state.get("app_id") == "br.com.layon.meus-controles")
+        except Exception:
+            return False
+
+    def port_in_use(self):
+        try:
+            with socket.create_connection(("127.0.0.1",18765),timeout=.5):
+                return True
+        except OSError:
+            return False
 
     def poll(self):
         while True:
@@ -105,7 +120,13 @@ class Painel:
 
     def start(self):
         if self.healthy():
-            self.post("O servidor já está funcionando.")
+            self.post("A Central de Controles já está funcionando.")
+            return
+        if self.port_in_use():
+            self.post("BLOQUEADO: outra aplicação ocupa a porta 18765. Não será aberto outro aplicativo.")
+            messagebox.showerror("Porta ocupada",
+                "A porta 18765 está ocupada por outro serviço. A Central não será confundida com ele.\n"
+                "Consulte o log do painel.")
             return
         if self.process and self.process.poll() is None:
             self.post("Servidor iniciando...")
@@ -134,7 +155,7 @@ class Painel:
             except Exception as e:
                 self.post("Erro ao parar: "+str(e))
         elif self.healthy():
-            self.post("Há um servidor externo na porta 8765. Este painel não pode encerrá-lo.")
+            self.post("Há um serviço externo na porta 18765. Este painel não o encerrará.")
         else:self.post("Servidor já está parado.")
         self.process=None
         if self.log_handle:
@@ -143,7 +164,8 @@ class Painel:
             self.log_handle=None
 
     def open_browser(self):
-        if self.healthy():webbrowser.open(URL)
+        if self.healthy():
+            webbrowser.open(URL)
         else:self.post("Servidor ainda não responde. Verifique o log e clique em Abrir aplicativo.")
 
     def backup_database(self):

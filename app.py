@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("CONTROLES_DATA_DIR", str(ROOT / "data"))).resolve()
 DB = DATA / "controles.db"
-PORT = int(os.environ.get("CONTROLES_PORT", "8765"))
+PORT = int(os.environ.get("CONTROLES_PORT", "18765"))
 HOST = "127.0.0.1"
 MONEY = Decimal("0.01")
 SAFE_KEY = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
@@ -303,7 +303,7 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/static/app.js":
                 return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/api/health":
-                return self.send({"ok":True,"app":"Central de Controles","version":"1.0"})
+                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
                 if method=="GET" and url=="/api/state":
                     return self.send(state(con))
