@@ -68,6 +68,7 @@ FREIGHT_TYPES = [
 def initialize():
     with db() as con:
         con.executescript("""
+        CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS boards(
           id INTEGER PRIMARY KEY, name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS controls(
@@ -84,13 +85,20 @@ def initialize():
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
         CREATE INDEX IF NOT EXISTS idx_entries_control ON entries(control_id, id DESC);
         """)
-        if not con.execute("SELECT id FROM boards LIMIT 1").fetchone():
-            cur = con.execute("INSERT INTO boards(name) VALUES(?)", ("TRANSPORTADORA",))
-            con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
-                           VALUES(?,?,?,?,?,?)""",
-                        (cur.lastrowid, "Controle de Fretes", "calculo",
-                         json.dumps(FREIGHT_FIELDS), json.dumps(FREIGHT_RULES),
-                         json.dumps(FREIGHT_TYPES)))
+        if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
+            already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
+            con.execute("INSERT INTO settings(key,value) VALUES(\'seeded\',\'1\')")
+            if not already_has_boards:
+                seed_initial(con)
+
+def seed_initial(con):
+    cur = con.execute("INSERT INTO boards(name) VALUES(?)", ("TRANSPORTADORA",))
+    con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
+                   VALUES(?,?,?,?,?,?)""",
+                (cur.lastrowid, "Controle de Fretes", "calculo",
+                 json.dumps(FREIGHT_FIELDS), json.dumps(FREIGHT_RULES),
+                 json.dumps(FREIGHT_TYPES)))
+
 
 def unpack(row):
     result = dict(row)
