@@ -1,12 +1,12 @@
 @echo off
-setlocal
 cd /d "%~dp0"
-title MEUS CONTROLES
-if not exist ".venv\Scripts\python.exe" (
-  py -m venv .venv
-  ".venv\Scripts\python.exe" -m pip install --upgrade pip
-  ".venv\Scripts\python.exe" -m pip install -r requirements.txt
+where py >nul 2>&1
+if %errorlevel%==0 (
+  py -3 painel.py
+) else (
+  python painel.py
 )
-".venv\Scripts\python.exe" app.py
-if errorlevel 1 pause
-endlocal
+if errorlevel 1 (
+  echo Verifique se Python 3 e Tkinter estao instalados.
+  pause
+)

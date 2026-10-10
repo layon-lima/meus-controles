@@ -1,122 +1,417 @@
-import sys, sqlite3
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Central de Controles - servidor local, sem dependencias externas."""
+from __future__ import annotations
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from PySide6.QtCore import Qt, QDate
-from PySide6.QtWidgets import *
+import csv
+import io
+import json
+import os
+import re
+import sqlite3
+from urllib.parse import urlsplit
 
-ROOT=Path(__file__).resolve().parent
-DATA=ROOT/"dados"; DATA.mkdir(exist_ok=True)
-DB=DATA/"controles.db"
+ROOT = Path(__file__).resolve().parent
+DATA = Path(os.environ.get("CONTROLES_DATA_DIR", str(ROOT / "data"))).resolve()
+DB = DATA / "controles.db"
+PORT = int(os.environ.get("CONTROLES_PORT", "8765"))
+HOST = "127.0.0.1"
+MONEY = Decimal("0.01")
+SAFE_KEY = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
 
-SEED=[
-("01/11/2024","PAG. 1ª PARCELA",13000),("01/01/2025","PAG. 2ª PARCELA",13000),("02/01/2025","PAG. 3ª PARCELA",13000),
-("01/02/2025","PARCELA 4 - CAMINHONETA",30000),("01/03/2025","50% DO FATURAMENTO SAFRA",56315.79),
-("01/04/2025","PARCELA NA SAFRA 25",13157.89),("01/05/2025","PARCELA NA SAFRA 25",13157.89),("02/04/2025","IPVA / LANÇAMENTO",3363.90),
-("03/04/2025","LOCALIZADOR / RASTREADOR",892.96),("02/05/2025","BATERIA",700),("03/05/2025","ELETRICISTA - CAIXA BATERIA",1380),
-("04/05/2025","ELETRICISTA - SENSOR VELOCIDADE",1240),("01/06/2025","DEPÓSITO PRO PAULO",2500),("02/06/2025","DEPÓSITO JONAS",7180),
-("01/08/2025","DEPÓSITO JONAS",13000),("02/08/2025","DEP. GUINCHO R$ 540",1070.82),("01/09/2025","DEPÓSITO JONAS",5000),
-("02/09/2025","DEPÓSITO ZANETTI PRO JONAS",10000),("01/10/2025","DEPÓSITO ZANETTI PRO JONAS",10000.75),
-("01/11/2025","DEPÓSITO ZANETTI PRO JONAS",10000),("01/01/2026","PARCELA IPVA 540",581.79),("02/01/2026","BOLETO PARABRISA 540 PAULO",1100),
-("03/01/2026","IPVA 540",572.25),("01/02/2026","4 PNEUS COM RODA",8000),("02/02/2026","FRETE NIVELADORA",5000),
-("03/02/2026","2 PNEUS PRO MARCO",3000),("04/02/2026","1 IPVA 540",572.25),("01/03/2026","SEGURO 540",1400),("01/04/2026","DESCONTO DO SAFRA",50000)]
-def money(v): return f"R$ {v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
-def category(s):
- s=s.lower()
- if "ipva" in s or "seguro" in s:return "Documentação"
- if any(x in s for x in ["pneu","bateria","eletricista","parabrisa"]):return "Manutenção"
- if "guincho" in s or "frete" in s:return "Transporte"
- if "depósito" in s:return "Pagamento"
- if "safra" in s:return "Abatimento Safra"
- return "Parcela / Abatimento"
+def decimal(value):
+    if isinstance(value, bool) or value is None:
+        raise ValueError("Informe um numero valido.")
+    value = str(value).strip()
+    if "," in value:
+        value = value.replace(".", "").replace(",", ".")
+    try:
+        n = Decimal(value)
+    except (InvalidOperation, ValueError):
+        raise ValueError("Numero invalido.") from None
+    if not n.is_finite() or abs(n) > Decimal("1000000000000"):
+        raise ValueError("Numero fora do limite.")
+    return n
+
+def money(n):
+    return str(n.quantize(MONEY, rounding=ROUND_HALF_UP))
+
 def db():
- c=sqlite3.connect(DB);c.row_factory=sqlite3.Row
- c.executescript("""CREATE TABLE IF NOT EXISTS boards(id INTEGER PRIMARY KEY,name TEXT NOT NULL);
- CREATE TABLE IF NOT EXISTS controls(id INTEGER PRIMARY KEY,board_id INTEGER NOT NULL,name TEXT NOT NULL,person TEXT,unit TEXT NOT NULL DEFAULT 'R$',initial REAL NOT NULL DEFAULT 0,FOREIGN KEY(board_id) REFERENCES boards(id));
- CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY,control_id INTEGER NOT NULL,date TEXT NOT NULL,description TEXT NOT NULL,kind TEXT NOT NULL,category TEXT,value REAL NOT NULL,notes TEXT DEFAULT '',FOREIGN KEY(control_id) REFERENCES controls(id));""")
- if not c.execute("SELECT 1 FROM boards").fetchone():
-  c.execute("INSERT INTO boards(name) VALUES(?)",("Transportes",)); bid=c.execute("SELECT last_insert_rowid()").fetchone()[0]
-  c.execute("INSERT INTO controls(board_id,name,person,initial) VALUES(?,?,?,?)",(bid,"PAGAMENTO DA VAN","Ademir",650000)); cid=c.execute("SELECT last_insert_rowid()").fetchone()[0]
-  for d,desc,val in SEED:
-   q=QDate.fromString(d,"dd/MM/yyyy").toString("yyyy-MM-dd")
-   c.execute("INSERT INTO entries(control_id,date,description,kind,category,value) VALUES(?,?,?,?,?,?)",(cid,q,desc,"Entrada",category(desc),val))
- c.commit();return c
+    DATA.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB, timeout=20)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=20000")
+    return conn
 
-class Main(QMainWindow):
- def __init__(self):
-  super().__init__();self.c=db();self.cid=None;self.setWindowTitle("Meus Controles");self.resize(1450,850)
-  self.setStyleSheet("""QMainWindow{background:#e9eef4} QWidget{font-family:'Segoe UI';font-size:13px;color:#172033} QPushButton{background:#e1e8f0;border:1px solid #b8c5d3;border-radius:7px;padding:7px 11px;font-weight:600} QPushButton:hover{background:#d5dfeb} QPushButton#primary{background:#1d63d7;color:white;border:0} QLineEdit,QComboBox,QDateEdit,QDoubleSpinBox{background:white;border:1px solid #b8c5d3;border-radius:6px;padding:6px} QTableWidget{background:white;border:1px solid #aebdcc;gridline-color:#d4dce5;alternate-background-color:#f2f5f8} QHeaderView::section{background:#d9e3ed;border:0;border-right:1px solid #b8c5d3;border-bottom:1px solid #aab8c7;padding:7px;font-weight:700}""")
-  self.stack=QStackedWidget();self.setCentralWidget(self.stack);self.home=QWidget();self.detail=QWidget();self.stack.addWidget(self.home);self.stack.addWidget(self.detail);self.build_home();self.build_detail();self.refresh_home()
- def build_home(self):
-  root=QVBoxLayout(self.home);top=QHBoxLayout();title=QLabel("<b style='font-size:20px'>Meus Controles</b>");self.search=QLineEdit();self.search.setPlaceholderText("Pesquisar quadros e controles...");self.search.setMaximumWidth(420);self.search.textChanged.connect(self.refresh_home);nb=QPushButton("+ Novo quadro");nb.setObjectName("primary");nb.clicked.connect(self.new_board);top.addWidget(title);top.addWidget(self.search);top.addStretch();top.addWidget(nb);root.addLayout(top)
-  self.scroll=QScrollArea();self.scroll.setWidgetResizable(True);self.scroll.setFrameShape(QFrame.NoFrame);self.boardHost=QWidget();self.boardLay=QVBoxLayout(self.boardHost);self.boardLay.setAlignment(Qt.AlignTop);self.scroll.setWidget(self.boardHost);root.addWidget(self.scroll)
- def build_detail(self):
-  root=QVBoxLayout(self.detail);top=QHBoxLayout();back=QPushButton("← Quadros");back.clicked.connect(lambda:self.stack.setCurrentWidget(self.home));self.dt=QLabel();self.dt.setStyleSheet("font-size:18px;font-weight:800");add=QPushButton("+ Lançamento");add.setObjectName("primary");add.clicked.connect(self.add_entry);top.addWidget(back);top.addWidget(self.dt);top.addStretch();top.addWidget(add);root.addLayout(top)
-  filters=QHBoxLayout();self.q=QLineEdit();self.q.setPlaceholderText("Pesquisar lançamentos...");self.q.textChanged.connect(self.refresh_detail);self.cat=QComboBox();self.cat.currentTextChanged.connect(self.refresh_detail);filters.addWidget(self.q);filters.addWidget(self.cat);filters.addStretch();root.addLayout(filters)
-  self.summary=QLabel();self.summary.setStyleSheet("background:#f8fafc;border:1px solid #b8c5d3;border-radius:8px;padding:12px;font-size:14px;font-weight:700");root.addWidget(self.summary)
-  self.table=QTableWidget(0,8);self.table.setHorizontalHeaderLabels(["Data","Descrição","Tipo","Categoria","Valor","Impacto","Saldo","Obs"]);self.table.setAlternatingRowColors(True);self.table.setSelectionBehavior(QAbstractItemView.SelectRows);self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch);self.table.horizontalHeader().setSectionResizeMode(7,QHeaderView.Stretch);self.table.doubleClicked.connect(self.edit_entry);root.addWidget(self.table)
-  foot=QHBoxLayout();ed=QPushButton("Editar selecionado");de=QPushButton("Excluir selecionado");ed.clicked.connect(self.edit_entry);de.clicked.connect(self.delete_entry);foot.addStretch();foot.addWidget(ed);foot.addWidget(de);root.addLayout(foot)
- def clear_layout(self,l):
-  while l.count():
-   i=l.takeAt(0);w=i.widget()
-   if w:w.deleteLater()
-   elif i.layout():self.clear_layout(i.layout())
- def refresh_home(self):
-  self.clear_layout(self.boardLay);q=self.search.text().lower().strip()
-  for b in self.c.execute("SELECT * FROM boards ORDER BY id"):
-   controls=self.c.execute("SELECT * FROM controls WHERE board_id=? ORDER BY id",(b["id"],)).fetchall()
-   visible=[x for x in controls if not q or q in (b["name"]+" "+x["name"]+" "+(x["person"] or "")).lower()]
-   if q and not visible:continue
-   box=QGroupBox(b["name"]);vl=QVBoxLayout(box);head=QHBoxLayout();head.addStretch();edit=QPushButton("Editar quadro");edit.clicked.connect(lambda _,i=b["id"]:self.edit_board(i));head.addWidget(edit);vl.addLayout(head)
-   grid=QGridLayout();row=col=0
-   for x in visible:
-    paid=sum(r[0] for r in self.c.execute("SELECT value FROM entries WHERE control_id=? AND kind='Entrada'",(x["id"],)));added=sum(r[0] for r in self.c.execute("SELECT value FROM entries WHERE control_id=? AND kind='Saída'",(x["id"],)));bal=x["initial"]-paid+added
-    bt=QPushButton(f"{x['name']}\n{x['person'] or ''}\n\n{money(bal)}\nSaldo atual");bt.setMinimumHeight(120);bt.setStyleSheet("text-align:left;padding:12px;background:#fbfcfe;border-left:4px solid #2161cc");bt.clicked.connect(lambda _,i=x["id"]:self.open_control(i));grid.addWidget(bt,row,col);col+=1
-    if col==3:col=0;row+=1
-   vl.addLayout(grid);ad=QPushButton("+ Adicionar controle neste quadro");ad.clicked.connect(lambda _,i=b["id"]:self.new_control(i));vl.addWidget(ad);self.boardLay.addWidget(box)
- def text_dialog(self,title,label,value=""):
-  v,ok=QInputDialog.getText(self,title,label,text=value);return v.strip() if ok else None
- def new_board(self):
-  n=self.text_dialog("Novo quadro","Nome do quadro:"); 
-  if n:self.c.execute("INSERT INTO boards(name) VALUES(?)",(n,));self.c.commit();self.refresh_home()
- def edit_board(self,i):
-  old=self.c.execute("SELECT name FROM boards WHERE id=?",(i,)).fetchone()[0];n=self.text_dialog("Editar quadro","Nome:",old)
-  if n:self.c.execute("UPDATE boards SET name=? WHERE id=?",(n,i));self.c.commit();self.refresh_home()
- def new_control(self,bid):
-  n=self.text_dialog("Novo controle","Nome:"); 
-  if not n:return
-  p=self.text_dialog("Novo controle","Pessoa / empresa / responsável:","") or ""
-  v,ok=QInputDialog.getDouble(self,"Novo controle","Saldo inicial:",0,0,999999999,2)
-  if ok:self.c.execute("INSERT INTO controls(board_id,name,person,initial) VALUES(?,?,?,?)",(bid,n,p,v));self.c.commit();self.refresh_home()
- def open_control(self,cid):self.cid=cid;self.stack.setCurrentWidget(self.detail);self.refresh_detail()
- def refresh_detail(self):
-  if not self.cid:return
-  c=self.c.execute("SELECT * FROM controls WHERE id=?",(self.cid,)).fetchone();self.dt.setText(c["name"])
-  cats=["Todas"]+[r[0] for r in self.c.execute("SELECT DISTINCT category FROM entries WHERE control_id=? ORDER BY category",(self.cid,))]
-  old=self.cat.currentText();self.cat.blockSignals(True);self.cat.clear();self.cat.addItems(cats);self.cat.setCurrentText(old if old in cats else "Todas");self.cat.blockSignals(False)
-  rows=self.c.execute("SELECT * FROM entries WHERE control_id=? ORDER BY date,id",(self.cid,)).fetchall();q=self.q.text().lower();cat=self.cat.currentText();f=[r for r in rows if (not q or q in (r["description"]+" "+r["category"]+" "+r["notes"]).lower()) and (cat in ("","Todas") or r["category"]==cat)]
-  paid=sum(r["value"] for r in rows if r["kind"]=="Entrada");added=sum(r["value"] for r in rows if r["kind"]=="Saída");balance=c["initial"]-paid+added
-  self.summary.setText(f"Saldo inicial: {money(c['initial'])}     |     Recebido: {money(paid)}     |     Acréscimos: {money(added)}     |     SALDO ATUAL: {money(balance)}     |     {len(rows)} lançamentos")
-  running=c["initial"];balances={}
-  for r in rows:running += -r["value"] if r["kind"]=="Entrada" else r["value"];balances[r["id"]]=running
-  self.table.setRowCount(len(f))
-  for i,r in enumerate(f):
-   vals=[QDate.fromString(r["date"],"yyyy-MM-dd").toString("dd/MM/yyyy"),r["description"],r["kind"],r["category"],money(r["value"]),("- " if r["kind"]=="Entrada" else "+ ")+money(r["value"]),money(balances[r["id"]]),r["notes"]]
-   for j,v in enumerate(vals):it=QTableWidgetItem(str(v));it.setData(Qt.UserRole,r["id"]);self.table.setItem(i,j,it)
- def entry_form(self,r=None):
-  d=QDialog(self);d.setWindowTitle("Lançamento");lay=QFormLayout(d);date=QDateEdit(calendarPopup=True);date.setDate(QDate.fromString(r["date"],"yyyy-MM-dd") if r else QDate.currentDate());desc=QLineEdit(r["description"] if r else "");kind=QComboBox();kind.addItems(["Entrada","Saída"]);kind.setCurrentText(r["kind"] if r else "Entrada");cat=QLineEdit(r["category"] if r else "Pagamento");val=QDoubleSpinBox();val.setMaximum(999999999);val.setDecimals(2);val.setValue(r["value"] if r else 0);obs=QLineEdit(r["notes"] if r else "");[lay.addRow(a,b) for a,b in [("Data",date),("Descrição",desc),("Tipo",kind),("Categoria",cat),("Valor",val),("Obs",obs)]];bb=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel);bb.accepted.connect(d.accept);bb.rejected.connect(d.reject);lay.addRow(bb)
-  if d.exec()!=QDialog.Accepted:return None
-  return(date.date().toString("yyyy-MM-dd"),desc.text().strip(),kind.currentText(),cat.text().strip(),val.value(),obs.text().strip())
- def add_entry(self):
-  x=self.entry_form()
-  if x:self.c.execute("INSERT INTO entries(control_id,date,description,kind,category,value,notes) VALUES(?,?,?,?,?,?,?)",(self.cid,*x));self.c.commit();self.refresh_detail();self.refresh_home()
- def selected_id(self):
-  r=self.table.currentRow();return self.table.item(r,0).data(Qt.UserRole) if r>=0 and self.table.item(r,0) else None
- def edit_entry(self,*_):
-  i=self.selected_id()
-  if not i:return
-  r=self.c.execute("SELECT * FROM entries WHERE id=?",(i,)).fetchone();x=self.entry_form(r)
-  if x and QMessageBox.question(self,"Confirmar","Salvar alterações?")==QMessageBox.Yes:self.c.execute("UPDATE entries SET date=?,description=?,kind=?,category=?,value=?,notes=? WHERE id=?",(*x,i));self.c.commit();self.refresh_detail();self.refresh_home()
- def delete_entry(self):
-  i=self.selected_id()
-  if i and QMessageBox.question(self,"Confirmar exclusão","Excluir este lançamento?")==QMessageBox.Yes:self.c.execute("DELETE FROM entries WHERE id=?",(i,));self.c.commit();self.refresh_detail();self.refresh_home()
+FREIGHT_FIELDS = [
+    {"key":"data","label":"Data","type":"date","required":True},
+    {"key":"motorista","label":"Motorista","type":"text","required":True},
+    {"key":"peso","label":"Peso carregado (kg)","type":"number","required":True},
+    {"key":"valor_kg","label":"Valor por kg (R$)","type":"currency","required":True},
+    {"key":"comissao","label":"Comissao (%)","type":"percent","required":True,"default":"10"},
+]
+FREIGHT_RULES = [
+    {"key":"valor_frete","label":"Valor do frete","op":"multiply","a":"peso","b":"valor_kg"},
+    {"key":"comissao_valor","label":"Comissao do motorista","op":"percent","a":"valor_frete","b":"comissao"},
+    {"key":"resultado","label":"Resultado apos comissao","op":"subtract","a":"valor_frete","b":"comissao_valor"},
+]
+FREIGHT_TYPES = [
+    {"key":"frete","label":"Frete realizado","direction":1,"source":"valor_frete"},
+    {"key":"abatimento","label":"Abatimento","direction":-1,"source":"manual"},
+    {"key":"informacao","label":"Somente informacao","direction":0,"source":"manual"},
+]
+
+def initialize():
+    with db() as con:
+        con.executescript("""
+        CREATE TABLE IF NOT EXISTS boards(
+          id INTEGER PRIMARY KEY, name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS controls(
+          id INTEGER PRIMARY KEY, board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          name TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'calculo',
+          fields_json TEXT NOT NULL, rules_json TEXT NOT NULL, types_json TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS entries(
+          id INTEGER PRIMARY KEY, control_id INTEGER NOT NULL REFERENCES controls(id) ON DELETE CASCADE,
+          type_key TEXT NOT NULL, type_label TEXT NOT NULL, direction INTEGER NOT NULL,
+          category TEXT NOT NULL DEFAULT 'Geral', notes TEXT NOT NULL DEFAULT '',
+          data_json TEXT NOT NULL, calculated_json TEXT NOT NULL,
+          amount TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
+        CREATE INDEX IF NOT EXISTS idx_entries_control ON entries(control_id, id DESC);
+        """)
+        if not con.execute("SELECT id FROM boards LIMIT 1").fetchone():
+            cur = con.execute("INSERT INTO boards(name) VALUES(?)", ("TRANSPORTADORA",))
+            con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
+                           VALUES(?,?,?,?,?,?)""",
+                        (cur.lastrowid, "Controle de Fretes", "calculo",
+                         json.dumps(FREIGHT_FIELDS), json.dumps(FREIGHT_RULES),
+                         json.dumps(FREIGHT_TYPES)))
+
+def unpack(row):
+    result = dict(row)
+    for field in ("fields_json", "rules_json", "types_json"):
+        if field in result:
+            result[field[:-5]] = json.loads(result.pop(field))
+    return result
+
+def require(value, name):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Informe {name}.")
+    if len(value.strip()) > 150:
+        raise ValueError(f"{name} muito longo.")
+    return value.strip()
+
+def validate_config(p):
+    name = require(p.get("name"), "o nome")
+    board_id = int(p.get("board_id") or 0)
+    mode = p.get("mode", "calculo")
+    if mode not in ("calculo", "saldo", "financeiro"):
+        raise ValueError("Modelo de controle invalido.")
+    fields = p.get("fields", [])
+    rules = p.get("rules", [])
+    types = p.get("types", [])
+    if not isinstance(fields, list) or not 1 <= len(fields) <= 35:
+        raise ValueError("Adicione de 1 a 35 campos ao formulario.")
+    if not isinstance(rules, list) or len(rules) > 25:
+        raise ValueError("Quantidade de calculos invalida.")
+    if not isinstance(types, list) or not 1 <= len(types) <= 20:
+        raise ValueError("Adicione ao menos um tipo de lancamento.")
+    used, numeric = set(), set()
+    for f in fields:
+        key = f.get("key")
+        if not isinstance(key,str) or not SAFE_KEY.fullmatch(key) or key in used:
+            raise ValueError("Identificador de campo invalido ou repetido.")
+        f["label"] = require(f.get("label"), "o titulo do campo")
+        if f.get("type") not in ("date","text","number","currency","percent"):
+            raise ValueError("Tipo de campo nao permitido.")
+        f["required"] = bool(f.get("required"))
+        if "default" in f and len(str(f["default"])) > 150:
+            raise ValueError("Valor padrao longo demais.")
+        used.add(key)
+        if f["type"] in ("number","currency","percent"):
+            numeric.add(key)
+    for r in rules:
+        key = r.get("key")
+        if not isinstance(key,str) or not SAFE_KEY.fullmatch(key) or key in used:
+            raise ValueError("Identificador de calculo invalido ou repetido.")
+        r["label"] = require(r.get("label"), "o nome do calculo")
+        if r.get("op") not in ("add","subtract","multiply","percent"):
+            raise ValueError("Operacao nao permitida.")
+        if r.get("a") not in numeric or r.get("b") not in numeric:
+            raise ValueError("Calculo depende de campo inexistente ou de um calculo posterior.")
+        used.add(key)
+        numeric.add(key)
+    type_keys = set()
+    for t in types:
+        key = t.get("key")
+        if not isinstance(key,str) or not SAFE_KEY.fullmatch(key) or key in type_keys:
+            raise ValueError("Tipo de lancamento invalido ou repetido.")
+        t["label"] = require(t.get("label"), "o nome do lancamento")
+        if type(t.get("direction")) is not int or t["direction"] not in (-1,0,1):
+            raise ValueError("Escolha somar, subtrair ou nao alterar.")
+        if t.get("source") != "manual" and t.get("source") not in numeric:
+            raise ValueError("Origem de valor do lancamento invalida.")
+        type_keys.add(key)
+    return name, board_id, mode, fields, rules, types
+
+def evaluate(control, payload, type_key, manual=None):
+    if not isinstance(payload,dict):
+        raise ValueError("Formulario invalido.")
+    values = {}
+    nums = {}
+    for f in control["fields"]:
+        key = f["key"]
+        val = payload.get(key, f.get("default", ""))
+        if val is None:
+            val = ""
+        val = str(val).strip()
+        if f.get("required") and not val:
+            raise ValueError("Preencha o campo " + f["label"] + ".")
+        if len(val) > 2000:
+            raise ValueError("Campo excedeu o limite.")
+        if f["type"] == "date" and val:
+            try:
+                date.fromisoformat(val)
+            except ValueError:
+                raise ValueError("Data invalida.") from None
+        if f["type"] in ("number","currency","percent") and val:
+            n = decimal(val)
+            nums[key] = n
+            if f["type"] == "percent" and not 0 <= n <= 100:
+                raise ValueError("Porcentagem deve estar entre 0 e 100.")
+            val = str(n)
+        elif f["type"] in ("number","currency","percent"):
+            nums[key] = Decimal("0")
+        values[key] = val
+    computed = {}
+    for rule in control["rules"]:
+        a, b = nums[rule["a"]], nums[rule["b"]]
+        op = rule["op"]
+        answer = {"add":lambda:a+b, "subtract":lambda:a-b, "multiply":lambda:a*b,
+                  "percent":lambda:a*b/Decimal(100)}[op]()
+        answer = answer.quantize(MONEY, rounding=ROUND_HALF_UP)
+        nums[rule["key"]] = answer
+        computed[rule["key"]] = money(answer)
+    typ = next((x for x in control["types"] if x["key"] == type_key), None)
+    if typ is None:
+        raise ValueError("Selecione um tipo de lancamento valido.")
+    if typ["source"] == "manual":
+        amount = decimal(manual if manual not in (None,"") else "0")
+    else:
+        amount = nums[typ["source"]]
+    if amount < 0:
+        raise ValueError("Valor do lancamento nao pode ser negativo.")
+    return values, computed, money(amount), typ
+
+def get_control(con, control_id):
+    row = con.execute("SELECT * FROM controls WHERE id=?", (control_id,)).fetchone()
+    if not row:
+        raise LookupError("Controle nao encontrado.")
+    return unpack(row)
+
+def summarize(entries):
+    balance = Decimal("0")
+    by_category, by_type = {}, {}
+    plus = minus = Decimal("0")
+    for e in entries:
+        amt = decimal(e["amount"])
+        effect = amt * e["direction"]
+        balance += effect
+        if e["direction"] == 1: plus += amt
+        if e["direction"] == -1: minus += amt
+        cat = e["category"]
+        by_category[cat] = by_category.get(cat,Decimal(0)) + effect
+        typ = e["type_label"]
+        by_type[typ] = by_type.get(typ,Decimal(0)) + effect
+    return {"count":len(entries),"balance":money(balance),"plus":money(plus),
+            "minus":money(minus),
+            "by_category":[{"name":k,"total":money(v)} for k,v in sorted(by_category.items())],
+            "by_type":[{"name":k,"total":money(v)} for k,v in sorted(by_type.items())]}
+
+def entry_data(row):
+    obj = dict(row)
+    obj["data"] = json.loads(obj.pop("data_json"))
+    obj["calculated"] = json.loads(obj.pop("calculated_json"))
+    return obj
+
+def state(con):
+    boards = [dict(b) for b in con.execute("SELECT * FROM boards ORDER BY id")]
+    controls = [unpack(c) for c in con.execute("SELECT * FROM controls ORDER BY id")]
+    for c in controls:
+        rows = con.execute("SELECT amount,direction,category,type_label FROM entries WHERE control_id=?",
+                           (c["id"],)).fetchall()
+        c["summary"] = summarize(rows)
+    return {"boards":boards,"controls":controls}
+
+def detail(con, cid):
+    control = get_control(con,cid)
+    entries = [entry_data(e) for e in con.execute(
+        "SELECT * FROM entries WHERE control_id=? ORDER BY id DESC",(cid,))]
+    return {"control":control,"entries":entries,"summary":summarize(entries)}
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "CentralControles/1.0"
+    def log_message(self, fmt, *args):
+        print("%s %s" % (self.log_date_time_string(),fmt % args),flush=True)
+    def send(self, data, status=200, mime="application/json; charset=utf-8"):
+        body = json.dumps(data,ensure_ascii=False).encode("utf-8") if not isinstance(data,bytes) else data
+        self.send_response(status)
+        self.send_header("Content-Type",mime)
+        self.send_header("Content-Length",str(len(body)))
+        self.send_header("Cache-Control","no-store")
+        self.send_header("X-Content-Type-Options","nosniff")
+        self.end_headers()
+        self.wfile.write(body)
+    def input(self):
+        size = int(self.headers.get("Content-Length","0"))
+        if not 0 <= size <= 1024*512:
+            raise ValueError("Requisicao muito grande.")
+        try:
+            value = json.loads(self.rfile.read(size))
+        except (ValueError, UnicodeDecodeError):
+            raise ValueError("JSON invalido.") from None
+        if not isinstance(value,dict):
+            raise ValueError("Envie um objeto.")
+        return value
+    def route(self):
+        if self.headers.get("Host","").split(":")[0].lower() not in ("127.0.0.1","localhost"):
+            return self.send({"error":"Host nao permitido."},403)
+        if self.command in ("POST","PATCH","PUT","DELETE"):
+            origin = self.headers.get("Origin","")
+            if origin and origin not in (f"http://127.0.0.1:{PORT}",f"http://localhost:{PORT}"):
+                return self.send({"error":"Origem nao permitida."},403)
+        url = urlsplit(self.path).path
+        method = self.command
+        try:
+            if method=="GET" and url in ("/","/index.html"):
+                return self.send((ROOT/"static"/"index.html").read_bytes(),mime="text/html; charset=utf-8")
+            if method=="GET" and url=="/static/app.css":
+                return self.send((ROOT/"static"/"app.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/app.js":
+                return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/api/health":
+                return self.send({"ok":True,"app":"Central de Controles","version":"1.0"})
+            with db() as con:
+                if method=="GET" and url=="/api/state":
+                    return self.send(state(con))
+                if method=="POST" and url=="/api/boards":
+                    p=self.input()
+                    cur=con.execute("INSERT INTO boards(name) VALUES(?)",(require(p.get("name"),"o quadro"),))
+                    con.commit()
+                    return self.send({"id":cur.lastrowid},201)
+                m=re.fullmatch(r"/api/boards/(\d+)",url)
+                if m and method in ("PATCH","DELETE"):
+                    bid=int(m[1])
+                    if method=="PATCH":
+                        p=self.input()
+                        cur=con.execute("UPDATE boards SET name=? WHERE id=?",
+                                        (require(p.get("name"),"o quadro"),bid))
+                    else:
+                        cur=con.execute("DELETE FROM boards WHERE id=?",(bid,))
+                    if not cur.rowcount: raise LookupError("Quadro nao encontrado.")
+                    con.commit()
+                    return self.send({"ok":True})
+                if method=="POST" and url=="/api/controls":
+                    p=self.input()
+                    name,bid,mode,fields,rules,types=validate_config(p)
+                    if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
+                        raise ValueError("Escolha um quadro existente.")
+                    cur=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
+                       VALUES(?,?,?,?,?,?)""",(bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types)))
+                    con.commit()
+                    return self.send({"id":cur.lastrowid},201)
+                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|export.csv))?",url)
+                if m:
+                    cid=int(m[1]); action=m[2]
+                    if method=="GET" and action is None:
+                        return self.send(detail(con,cid))
+                    if method=="GET" and action=="export.csv":
+                        view=detail(con,cid)
+                        buf=io.StringIO()
+                        writer=csv.writer(buf,delimiter=";")
+                        columns=[f["key"] for f in view["control"]["fields"]]
+                        calcs=[f["key"] for f in view["control"]["rules"]]
+                        writer.writerow(["ID","Categoria","Tipo","Operacao","Valor","Observacoes"]+columns+calcs)
+                        for e in view["entries"]:
+                            writer.writerow([e["id"],e["category"],e["type_label"],e["direction"],e["amount"],e["notes"]]+
+                                            [e["data"].get(k,"") for k in columns]+[e["calculated"].get(k,"") for k in calcs])
+                        raw="\ufeff"+buf.getvalue()
+                        return self.send(raw.encode("utf-8"),mime="text/csv; charset=utf-8")
+                    if method=="PATCH" and action is None:
+                        get_control(con,cid)
+                        p=self.input()
+                        name,bid,mode,fields,rules,types=validate_config(p)
+                        if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
+                            raise ValueError("Quadro inexistente.")
+                        con.execute("""UPDATE controls SET board_id=?,name=?,mode=?,fields_json=?,rules_json=?,types_json=? WHERE id=?""",
+                                    (bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types),cid))
+                        con.commit()
+                        return self.send({"ok":True})
+                    if method=="DELETE" and action is None:
+                        cur=con.execute("DELETE FROM controls WHERE id=?",(cid,))
+                        if not cur.rowcount: raise LookupError("Controle nao encontrado.")
+                        con.commit()
+                        return self.send({"ok":True})
+                    if method=="POST" and action=="duplicate":
+                        c=get_control(con,cid)
+                        cur=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json) VALUES(?,?,?,?,?,?)""",
+                                        (c["board_id"],c["name"]+" (copia)",c["mode"],
+                                         json.dumps(c["fields"]),json.dumps(c["rules"]),json.dumps(c["types"])))
+                        con.commit()
+                        return self.send({"id":cur.lastrowid},201)
+                    if method=="POST" and action=="entries":
+                        c=get_control(con,cid); p=self.input()
+                        values,computed,amount,typ=evaluate(c,p.get("data",{}),p.get("type_key"),p.get("manual_amount"))
+                        category=str(p.get("category") or "Geral").strip()[:100] or "Geral"
+                        notes=str(p.get("notes") or "")[:3000]
+                        cur=con.execute("""INSERT INTO entries(control_id,type_key,type_label,direction,category,notes,
+                            data_json,calculated_json,amount) VALUES(?,?,?,?,?,?,?,?,?)""",
+                            (cid,typ["key"],typ["label"],typ["direction"],category,notes,
+                             json.dumps(values),json.dumps(computed),amount))
+                        con.commit()
+                        return self.send({"id":cur.lastrowid},201)
+                m=re.fullmatch(r"/api/entries/(\d+)",url)
+                if m and method in ("PUT","DELETE"):
+                    eid=int(m[1])
+                    original=con.execute("SELECT * FROM entries WHERE id=?",(eid,)).fetchone()
+                    if not original: raise LookupError("Lancamento nao encontrado.")
+                    if method=="DELETE":
+                        con.execute("DELETE FROM entries WHERE id=?",(eid,))
+                    else:
+                        c=get_control(con,original["control_id"]); p=self.input()
+                        values,computed,amount,typ=evaluate(c,p.get("data",{}),p.get("type_key"),p.get("manual_amount"))
+                        category=str(p.get("category") or "Geral").strip()[:100] or "Geral"
+                        notes=str(p.get("notes") or "")[:3000]
+                        con.execute("""UPDATE entries SET type_key=?,type_label=?,direction=?,category=?,notes=?,
+                            data_json=?,calculated_json=?,amount=?,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                            (typ["key"],typ["label"],typ["direction"],category,notes,json.dumps(values),
+                             json.dumps(computed),amount,eid))
+                    con.commit()
+                    return self.send({"ok":True})
+            return self.send({"error":"Rota nao encontrada."},404)
+        except LookupError as exc:
+            return self.send({"error":str(exc)},404)
+        except (ValueError, TypeError, KeyError, InvalidOperation) as exc:
+            return self.send({"error":str(exc)},400)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            return self.send({"error":"Falha interna. Consulte o log do painel."},500)
+    def do_GET(self): self.route()
+    def do_POST(self): self.route()
+    def do_PATCH(self): self.route()
+    def do_PUT(self): self.route()
+    def do_DELETE(self): self.route()
+
 if __name__=="__main__":
- app=QApplication(sys.argv);w=Main();w.show();sys.exit(app.exec())
+    initialize()
+    server=ThreadingHTTPServer((HOST,PORT),Handler)
+    print(f"Central de Controles: http://{HOST}:{PORT}",flush=True)
+    try: server.serve_forever()
+    except KeyboardInterrupt: pass
+    finally: server.server_close()

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#14263b">
+  <title>Central de Controles</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-icon">▦</span>
+        <span><strong>MEUS CONTROLES</strong><small>Central de gestão</small></span>
+      </div>
+      <div class="sidebar-section-label">GERENCIAMENTO</div>
+      <button class="nav-link active" id="homeLink" onclick="App.navigate('home')"><span class="nav-icon">⌂</span> Visão geral</button>
+      <div class="sidebar-section-label section-flex">MEUS QUADROS <button class="icon-button ghost" title="Novo quadro" onclick="App.newBoard()">＋</button></div>
+      <div id="sideBoards" class="sidebar-items"></div>
+      <div class="sidebar-bottom">
+        <button class="sidebar-new" onclick="App.newControl()">＋ &nbsp; Criar controle</button>
+        <div class="sidebar-version"><span class="status-dot"></span> Servidor local <span class="version">v1.0</span></div>
+      </div>
+    </aside>
+    <div class="mobile-shade" onclick="App.toggleMenu(false)" id="mobileShade"></div>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="top-left">
+          <button class="icon-button mobile-menu" aria-label="Abrir menu" onclick="App.toggleMenu(true)">☰</button>
+          <div><div class="breadcrumbs" id="crumb">CENTRAL / VISÃO GERAL</div><h1 id="pageTitle">Visão geral</h1></div>
+        </div>
+        <div class="top-actions">
+          <label class="search"><span>⌕</span><input aria-label="Pesquisar" id="search" placeholder="Pesquisar controles..." oninput="App.search(this.value)"></label>
+          <button class="btn btn-primary" onclick="App.newControl()">＋ <span class="hide-small">Novo controle</span></button>
+        </div>
+      </header>
+      <main id="main" class="main"><div class="empty-state">Carregando controles...</div></main>
+      <footer>Central de Controles · Dados salvos neste computador · <span id="footerClock"></span></footer>
+    </div>
+  </div>
+  <div id="modalRoot"></div>
+  <div id="toastRoot" role="status" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
