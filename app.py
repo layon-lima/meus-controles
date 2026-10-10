@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sqlite3
+import threading
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
@@ -296,6 +297,19 @@ class Handler(BaseHTTPRequestHandler):
         url = urlsplit(self.path).path
         method = self.command
         try:
+            if method=="POST" and url=="/api/internal/shutdown":
+                key_path = DATA / ".painel-token"
+                try:
+                    key = key_path.read_text(encoding="utf-8").strip()
+                except OSError:
+                    key = ""
+                import secrets
+                provided = self.headers.get("X-Central-Panel-Token","")
+                if not key or not secrets.compare_digest(provided,key):
+                    return self.send({"error":"Painel não autorizado."},403)
+                self.send({"ok":True,"message":"Desligando somente a Central de Controles."})
+                threading.Thread(target=self.server.shutdown,daemon=True).start()
+                return
             if method=="GET" and url in ("/","/index.html"):
                 return self.send((ROOT/"static"/"index.html").read_bytes(),mime="text/html; charset=utf-8")
             if method=="GET" and url=="/static/app.css":

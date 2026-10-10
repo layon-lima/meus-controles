@@ -13,8 +13,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validar sintaxe Python
-        run: python -m compileall -q app.py painel.py tests
-      - name: Executar testes de servidor e calculos
+        run: python -m compileall -q app.py controller/server.py tests
+      - name: Executar testes de servidor, calculos e painel web
         run: python -m unittest discover -s tests -v
       - name: Validar JavaScript
         run: node --check static/app.js
