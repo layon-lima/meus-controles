@@ -19,7 +19,8 @@
       </div>
       <div class="sidebar-section-label">GERENCIAMENTO</div>
       <button class="nav-link active" id="homeLink" onclick="App.navigate('home')"><span class="nav-icon"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#dashboard"></use></svg></span> Visão geral</button>
-      <div class="sidebar-section-label section-flex">MEUS QUADROS <button class="icon-button ghost" title="Novo quadro" aria-label="Criar quadro" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg></button></div>
+      <div class="sidebar-section-label">MEUS QUADROS</div>
+      <button type="button" class="sidebar-create-board" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> Novo quadro</button>
       <div id="sideBoards" class="sidebar-items"></div>
       <div class="sidebar-bottom">
         <div class="sidebar-version"><span class="status-dot"></span> Servidor local <span class="version">v1.0</span></div>

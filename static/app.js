@@ -173,7 +173,9 @@ const App = {
     document.getElementById("crumb").textContent=crumb;
     const main=document.getElementById("main");
     if(this.s.route==="home"){
-      main.innerHTML='<div class="section-heading"><h2>Seus quadros</h2><p>'+boards.length+' quadro(s)</p></div>'+
+      main.innerHTML='<div class="section-heading boards-home-heading"><h2>Seus quadros</h2>'+
+        '<div class="boards-home-actions"><span class="secondary-text">'+boards.length+' quadro(s)</span>'+
+        '<button type="button" class="btn btn-primary btn-sm" onclick="App.newBoard()">'+icon("plus")+' Novo quadro</button></div></div>'+
       (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhum quadro","Crie um quadro para organizar seus controles.","App.newBoard()","Criar quadro"));
     } else if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);
@@ -213,10 +215,50 @@ const App = {
     if(name===null)return;
     try{await this.api("/api/boards/"+id,"PATCH",{name});this.toast("Quadro atualizado.");await this.load()}catch(e){this.toast(e.message,true)}
   },
-  async newBoard(){
-    const name=prompt("Nome do novo quadro:");
-    if(name===null)return;
-    try{const b=await this.api("/api/boards","POST",{name});await this.load();this.navigate("board",b.id);this.toast("Quadro criado.")}catch(e){this.toast(e.message,true)}
+  newBoard(){
+    if(!this.canOpenForm())return;
+    this.s.modal="new-board";
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal board-create-modal" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Novo quadro</h2>'+
+      '<p>Crie uma pasta para organizar seus controles.</p></div>'+
+      '<button type="button" class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><form id="newBoardForm" onsubmit="event.preventDefault();App.saveNewBoard()">'+
+      '<div class="field"><label for="newBoardName">Nome do quadro</label>'+
+      '<input id="newBoardName" name="name" type="text" maxlength="150" placeholder="Ex.: TRANSPORTADORA, FAZENDA, FINANCEIRO" autocomplete="off" oninput="this.setCustomValidity(String())" required></div>'+
+      '</form></div><div class="modal-footer"><button type="button" class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button id="saveNewBoard" type="submit" form="newBoardForm" class="btn btn-primary">'+icon("plus")+' Criar quadro</button>'+
+      '</div></div></div>';
+    document.getElementById("newBoardName")?.focus();
+  },
+  async saveNewBoard(){
+    if(this.s.modal!=="new-board")return;
+    const form=document.getElementById("newBoardForm");
+    const field=document.getElementById("newBoardName");
+    if(!form||!field||!form.reportValidity())return;
+    const name=field.value.trim();
+    if(!name){
+      field.setCustomValidity("Informe o nome do quadro.");
+      field.reportValidity();
+      return;
+    }
+    if(this.s.state?.boards?.some(b=>normalizeSearch(b.name)===normalizeSearch(name))){
+      this.toast("Já existe um quadro com esse nome.",true);
+      field.focus();return;
+    }
+    const save=document.getElementById("saveNewBoard");
+    if(save?.disabled)return;
+    if(save)save.disabled=true;
+    try{
+      const created=await this.api("/api/boards","POST",{name});
+      this.closeModal();
+      await this.load();
+      this.navigate("board",created.id);
+      this.toast("Quadro criado com sucesso.");
+    }catch(e){
+      if(save)save.disabled=false;
+      this.toast(e.message,true);
+    }
   },
   async deleteBoard(id){
     if(!confirm("Excluir este quadro e TODOS os controles e lançamentos dele? Esta ação não pode ser desfeita."))return;

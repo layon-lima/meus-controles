@@ -148,3 +148,20 @@
   .board-controls-actions .secondary-text{display:none}
   .board-controls-actions .btn{font-size:11px;padding:6px}
 }
+
+/* Novo quadro visível no menu e na visão geral. */
+.sidebar-create-board{
+  display:flex;align-items:center;justify-content:flex-start;gap:9px;
+  width:100%;margin:2px 0 10px;padding:10px 12px;
+  min-height:38px;border:1px solid #3b6973;border-radius:9px;
+  background:#214c50;color:#dcf5e9;font-size:12px;font-weight:750;text-align:left;
+  transition:background .15s,border-color .15s;
+}
+.sidebar-create-board:hover{background:#28645c;border-color:#4b9b85;color:white}
+.sidebar-create-board .ui-icon{width:17px;height:17px;flex:none}
+.boards-home-actions{display:flex;align-items:center;justify-content:flex-end;gap:13px}
+.board-create-modal{width:min(100%,480px)}
+@media(max-width:590px){
+  .boards-home-heading{align-items:flex-start;flex-wrap:wrap}
+  .boards-home-actions{width:100%;justify-content:space-between}
+}

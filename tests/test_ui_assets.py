@@ -23,6 +23,24 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('class="sidebar-version"', markup)
         self.assertIn('onclick="App.newControl()"', markup)
 
+    def test_new_board_is_visible_and_uses_own_form(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        markup=(STATIC / "index.html").read_text(encoding="utf-8")
+        css=(STATIC / "app.css").read_text(encoding="utf-8")
+        self.assertIn('class="sidebar-create-board"', markup)
+        self.assertIn('Novo quadro</button>', markup)
+        self.assertIn('boards-home-heading', app)
+        self.assertIn('onclick="App.newBoard()"', app)
+        self.assertIn('this.s.modal="new-board"', app)
+        self.assertIn('id="newBoardForm"', app)
+        self.assertIn('name="name"', app)
+        self.assertIn('aria-modal="false"', app)
+        self.assertIn('async saveNewBoard()', app)
+        self.assertIn('"/api/boards","POST",{name}', app)
+        self.assertIn('Já existe um quadro com esse nome.', app)
+        self.assertNotIn('prompt("Nome do novo quadro:")', app)
+        self.assertIn('.sidebar-create-board', css)
+
     def test_universal_search_interface(self):
         app=(STATIC / "app.js").read_text(encoding="utf-8")
         markup=(STATIC / "index.html").read_text(encoding="utf-8")
