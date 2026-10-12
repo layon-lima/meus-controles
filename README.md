@@ -69,3 +69,41 @@ A comissão padrão afeta somente novos fretes ou lançamentos editados; lançam
 ### Isolamento e preservação
 
 Os dados do caminhão ficam no mesmo SQLite local da Central, em tabelas próprias vinculadas ao ID do controle. Modelos antigos continuam funcionando, sem conversão automática. O painel web e o fluxo Git permanecem inalterados.
+
+
+## Conferência e Fechamento — CONTROLE CHAVE ERRADA
+
+Estas duas funções são habilitadas **somente** para o controle de caminhão
+**CONTROLE CHAVE ERRADA**; a identificação fica vinculada ao registro do controle
+mesmo que ele seja renomeado posteriormente.
+
+### Conferência dos comprovantes
+- Acesse a aba **Conferência**, selecione data inicial e final (inclusive).
+- Clique em **Buscar lançamentos** e verifique fisicamente os comprovantes.
+- Marque individualmente cada lançamento ou use **Marcar todos** após verificar
+  os comprovantes, e então confirme.
+- O período permanece registrado. As datas seguintes continuam pendentes.
+- Lançamentos conferidos não podem ser criados, editados ou excluídos dentro
+  daquele intervalo enquanto a conferência estiver ativa.
+- **Reabrir** permite corrigir uma conferência ainda não incluída em fechamento.
+  Conferências que fazem parte de um fechamento não podem ser reabertas.
+
+### Fechamento de um capítulo
+- Na aba **Fechamentos**, selecione o intervalo e clique em **Verificar período**.
+- Todos os dias do intervalo devem estar cobertos por conferências completas
+  e sem alterações, inclusive os dias sem lançamentos.
+- O intervalo começa e termina nos limites das conferências; após o primeiro
+  fechamento, o próximo começa obrigatoriamente no dia seguinte ao último.
+- Confirme a operação para salvar um **arquivo imutável** do período com
+  lançamentos, valores, resultado e saldo de comissão naquele encerramento.
+- O arquivo pode ser consultado e exportado em CSV no histórico.
+- No filtro **Capítulo atual**, os totais operacionais consideram somente os
+  lançamentos após o último fechamento; **Todo o histórico** continua disponível.
+- **A comissão do motorista não é zerada**: vales e comissões continuam sendo
+  calculados sobre todos os lançamentos.
+- Dados de períodos fechados não podem ser corrigidos pelo fluxo normal.
+  Ajustes devem ser efetuados como novos registros em períodos posteriores,
+  sem apagar o histórico arquivado.
+
+Todos os dados permanecem no SQLite local, com tabelas novas; não são enviados
+ao GitHub. As tabelas são criadas automaticamente ao abrir o programa atualizado.

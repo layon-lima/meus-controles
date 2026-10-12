@@ -165,6 +165,12 @@ def save_settings(con, cid, payload):
         if old.casefold() not in active and old.casefold() not in mapped:
             raise ValueError(f"A categoria {old} possui lançamentos. Renomeie-a ou mantenha na lista.")
 
+    # Preservar a imutabilidade dos comprovantes conferidos e dos fechamentos.
+    import truck_workflow
+    truck_workflow.assert_settings_editable(
+        con,cid,[old_categories[k] for k in mapped],
+        money(opening_commission)!=previous["opening_commission"] or
+        money(opening_cash)!=previous["opening_cash"])
     # A renomeação reorganiza o histórico da mesma categoria, mas nunca
     # altera valores, datas, comissão ou saldos dos lançamentos.
     for old_key,new in mapped.items():
@@ -226,13 +232,18 @@ def compute_entry(con, cid, payload):
     return (cid,when,kind,category,desc,str(weight),str(price),
             str(pct),money(amount),money(commission),notes)
 
-def summary(con,cid,month=""):
+def summary(con,cid,month="",scope=None):
     check_control(con,cid)
+    import truck_workflow
+    workflow=truck_workflow.info(con,cid)
     if month and not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])",month):
         raise ValueError("Mês inválido.")
     conf=settings(con,cid)
     rows=con.execute("SELECT * FROM truck_entries WHERE control_id=? ORDER BY event_date DESC,id DESC",(cid,)).fetchall()
-    period=[dict(r) for r in rows if not month or r["event_date"].startswith(month)]
+    current=workflow["enabled"] and not month and scope!="all"
+    cutoff=workflow.get("last_closed_until") if current else None
+    period=[dict(r) for r in rows if (not month or r["event_date"].startswith(month))
+            and (not cutoff or r["event_date"]>cutoff)]
     all_rows=[dict(r) for r in rows]
     gross=expenses=advances=commission=Decimal("0")
     by_expense={}
@@ -252,11 +263,13 @@ def summary(con,cid,month=""):
     lifetime_earned=sum((Decimal(r["commission_amount"]) for r in all_rows if r["kind"]=="freight"),Decimal("0"))
     lifetime_paid=sum((Decimal(r["amount"]) for r in all_rows if r["kind"]=="advance"),Decimal("0"))
     # O vale reduz o caixa, porém não entra nas despesas do resultado novamente.
-    cash=(gross-expenses-advances+(Decimal(conf["opening_cash"]) if not month else Decimal("0")))
+    cash=(gross-expenses-advances+(Decimal(conf["opening_cash"]) if not month and not cutoff else Decimal("0")))
     profit=gross-expenses-commission
     driver_due=Decimal(conf["opening_commission"])+lifetime_earned-lifetime_paid
     return {
       "period":month,
+      "scope":"current" if current else ("month" if month else "all"),
+      "workflow":workflow,
       "entries":period,
       "settings":conf,
       "totals":{
@@ -288,9 +301,10 @@ def handle(handler,con,method,path):
         check_control(con,cid)
         if method=="GET" and action is None:
             query=parse_qs(urlsplit(handler.path).query)
-            return handler.send(summary(con,cid,query.get("month",[""])[0]))
+            return handler.send(summary(con,cid,query.get("month",[""])[0],query.get("scope",[None])[0]))
         if method=="GET" and action=="export.csv":
-            data=summary(con,cid)
+            query=parse_qs(urlsplit(handler.path).query)
+            data=summary(con,cid,query.get("month",[""])[0],query.get("scope",[None])[0])
             output=io.StringIO()
             writer=csv.writer(output,delimiter=";")
             writer.writerow(["ID","Data","Tipo","Categoria","Descrição","Peso kg",
@@ -308,7 +322,10 @@ def handle(handler,con,method,path):
             return handler.send(conf)
         if method=="POST" and action=="entries":
             p=handler.input()
+            con.execute("BEGIN IMMEDIATE")
             values=compute_entry(con,cid,p)
+            import truck_workflow
+            truck_workflow.assert_entry_editable(con,cid,values[1])
             cur=con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
                 description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?)""",values)
@@ -320,11 +337,16 @@ def handle(handler,con,method,path):
     if row is None:raise LookupError("Lançamento não encontrado.")
     cid=row["control_id"]
     check_control(con,cid)
+    import truck_workflow
+    con.execute("BEGIN IMMEDIATE")
+    old_date=con.execute("SELECT event_date FROM truck_entries WHERE id=?",(eid,)).fetchone()["event_date"]
     if method=="DELETE":
+        truck_workflow.assert_entry_editable(con,cid,old_date)
         con.execute("DELETE FROM truck_entries WHERE id=?",(eid,))
     elif method=="PUT":
         p=handler.input()
         values=compute_entry(con,cid,p)
+        truck_workflow.assert_entry_editable(con,cid,old_date,values[1])
         con.execute("""UPDATE truck_entries SET event_date=?,kind=?,category=?,description=?,
                      weight_kg=?,price_tonne=?,commission_pct=?,amount=?,commission_amount=?,
                      notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*values[1:],eid))

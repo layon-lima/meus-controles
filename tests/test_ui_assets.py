@@ -104,6 +104,24 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('.truck-expense-options', css)
         self.assertIn('.truck-expense-option:hover', css)
 
+    def test_chave_errada_has_conference_and_closing_tabs(self):
+        truck=(STATIC / "truck.js").read_text(encoding="utf-8")
+        workflow=(STATIC / "truck_workflow.js").read_text(encoding="utf-8")
+        css=(STATIC / "truck_workflow.css").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn('tab("checks","Conferência")', truck)
+        self.assertIn('tab("closures","Fechamentos")', truck)
+        self.assertIn('this.truckReviewMarkup()',truck)
+        self.assertIn('this.truckCloseMarkup()',truck)
+        self.assertIn('Capítulo atual',truck)
+        self.assertIn('truckEntryStatus(x.event_date)',truck)
+        self.assertIn('truckConfirmReview()', workflow)
+        self.assertIn('truckConfirmClose()',workflow)
+        self.assertIn('truckReopenReview(',workflow)
+        self.assertIn('data-review-id=',workflow)
+        self.assertIn('.truck-workflow-metrics',css)
+        self.assertIn('/static/truck_workflow.js',html)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

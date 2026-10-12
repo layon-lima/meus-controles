@@ -20,11 +20,18 @@ Object.assign(App,{
     const c=this.s.detail?.control;
     if(!c||c.mode!=="caminhao")return;
     const cid=c.id;
-    if(this.s.truckControlId!==cid){this.s.truckTab="entries";this.s.truckMonth="";}
+    if(this.s.truckControlId!==cid){
+      this.s.truckTab="entries";this.s.truckMonth="";
+      this.s.truckReviewPreview=null;this.s.truckClosePreview=null;
+      this.s.truckReviewRange=null;this.s.truckCloseRange=null;
+      this.s.truckClosureDetail=null;
+    }
     const main=document.getElementById("main");
     main.innerHTML='<div class="empty-state">Carregando lançamentos do caminhão...</div>';
     try{
-      const report=await this.api("/api/controls/"+cid+"/truck"+(this.s.truckMonth?"?month="+encodeURIComponent(this.s.truckMonth):""));
+      const filter=this.s.truckMonth==="@todos"?"?scope=all":
+      this.s.truckMonth?"?month="+encodeURIComponent(this.s.truckMonth):"";
+    const report=await this.api("/api/controls/"+cid+"/truck"+filter);
       if(this.s.route!=="control"||this.s.id!==cid)return;
       this.s.truckReport=report;this.s.truckControlId=cid;
       this.renderTruckView();
@@ -34,8 +41,11 @@ Object.assign(App,{
     const r=this.s.truckReport,control=this.s.detail?.control;
     if(!r||!control)return;
     const t=r.totals;
-    const active=this.s.truckTab==="details"?"details":"entries";
-    const months=[["","Todos os períodos"],...(r.available_months||[]).map(m=>[m,m.slice(5,7)+"/"+m.slice(0,4)])];
+    const enabled=r.workflow?.enabled===true;
+    const active=enabled&&["checks","closures"].includes(this.s.truckTab)?this.s.truckTab:
+      this.s.truckTab==="details"?"details":"entries";
+    const months=(enabled?[["","Capítulo atual"],["@todos","Todo o histórico"]]:
+      [["","Todos os períodos"]]).concat((r.available_months||[]).map(m=>[m,m.slice(5,7)+"/"+m.slice(0,4)]));
     const monthOptions=months.map(([value,label])=>'<option value="'+E(value)+'" '+(value===(this.s.truckMonth||"")?"selected":"")+'>'+E(label)+'</option>').join("");
     const monthFilter='<label class="truck-month-filter" for="truckMonthSelect">Período'+
        '<select id="truckMonthSelect" onchange="App.truckSetMonth(this.value)">'+monthOptions+'</select></label>';
@@ -43,17 +53,20 @@ Object.assign(App,{
        '<p class="secondary-text">'+E(emptyText)+'</p>';
     const tab=(name,title)=>'<button type="button" role="tab" id="truck-tab-'+name+'" aria-controls="truck-panel-'+name+'" aria-selected="'+(active===name?"true":"false")+'" class="truck-tab '+(active===name?"active":"")+'" onclick="App.truckSetTab(\''+name+'\')">'+title+'</button>';
     const nav='<div class="truck-nav"><div class="truck-tablist" role="tablist" aria-label="Visualização do controle">'+
-       tab("entries","Lançamentos")+tab("details","Resumo detalhado")+'</div>'+
+       tab("entries","Lançamentos")+tab("details","Resumo detalhado")+
+       (enabled?tab("checks","Conferência")+tab("closures","Fechamentos"):"")+'</div>'+
        '<button type="button" class="btn btn-sm truck-adjust" onclick="App.truckSettings('+control.id+')">'+icon("settings")+' Ajustes</button></div>';
     const rows=r.entries.map(x=>{
       const isFreight=x.kind==="freight";
       const stamp=x.event_date.slice(8,10)+"/"+x.event_date.slice(5,7)+"/"+x.event_date.slice(0,4);
       const sign=isFreight?"+":"−";
+      const lockStatus=this.truckEntryStatus(x.event_date);
       const subtitle=isFreight?'<span class="secondary-text">'+number(x.weight_kg)+' kg × '+truckMoney(x.price_tonne)+'/t · comissão '+truckMoney(x.commission_amount)+'</span>':"";
       return '<tr><td>'+E(stamp)+'</td><td><b>'+E(x.description)+'</b>'+subtitle+'</td><td><span class="chip">'+E(x.category)+'</span></td>'+
         '<td class="numeric '+(isFreight?"positive":"negative")+'">'+sign+truckMoney(x.amount)+'</td>'+
-        '<td><div class="table-actions"><button class="mini-action" onclick="App.truckForm(null,'+x.id+')">'+icon("edit")+' Editar</button>'+
-        '<button class="mini-action" onclick="App.truckDelete('+x.id+')">'+icon("trash")+' Excluir</button></div></td></tr>';
+        '<td><div class="table-actions">'+(lockStatus?'<span class="truck-record-lock">'+icon("lock")+' '+E(lockStatus)+'</span>':
+        '<button class="mini-action" onclick="App.truckForm(null,'+x.id+')">'+icon("edit")+' Editar</button>'+
+        '<button class="mini-action" onclick="App.truckDelete('+x.id+')">'+icon("trash")+' Excluir</button>')+'</div></td></tr>';
     }).join("");
     const ledger='<section class="panel truck-ledger"><div class="panel-header"><h3>Todos os lançamentos</h3>'+
       '<div class="actions-end"><span class="secondary-text">'+t.count+' registros</span>'+
@@ -75,6 +88,10 @@ Object.assign(App,{
         '<div class="truck-fast-total"><span>Saídas do período</span><strong>'+truckMoney(t.cash_out)+'</strong></div></div>'+
         '<div class="truck-action-filter-row">'+quick+monthFilter+'</div>'+
         ledger+'</div>';
+    }else if(active==="checks"){
+      body=this.truckReviewMarkup();
+    }else if(active==="closures"){
+      body=this.truckCloseMarkup();
     }else{
       body='<div id="truck-panel-details" class="truck-view truck-details-view" role="tabpanel" aria-labelledby="truck-tab-details">'+
         '<div class="truck-details-filter">'+monthFilter+
@@ -98,12 +115,17 @@ Object.assign(App,{
     document.getElementById("main").innerHTML=nav+body;
   },
   truckSetTab(tab){
-    if(!["entries","details"].includes(tab)||this.s.truckTab===tab)return;
+    if(!["entries","details","checks","closures"].includes(tab)||this.s.truckTab===tab)return;
+    if(["checks","closures"].includes(tab)&&!this.s.truckReport?.workflow?.enabled)return;
     this.s.truckTab=tab;
     this.renderTruckView();
   },
   async truckSetMonth(month){this.s.truckMonth=month;await this.renderTruck()},
-  truckExport(id){window.location.href="/api/controls/"+id+"/truck/export.csv"},
+  truckExport(id){
+    const selected=this.s.truckMonth;
+    const filter=selected==="@todos"?"?scope=all":selected?"?month="+encodeURIComponent(selected):"";
+    window.location.href="/api/controls/"+id+"/truck/export.csv"+filter;
+  },
   truckForm(kind,id){
     if(!this.canOpenForm())return;
     const record=id?this.s.truckReport?.entries.find(x=>x.id===id):null;

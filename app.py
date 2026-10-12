@@ -13,6 +13,7 @@ import os
 import re
 import sqlite3
 import truck
+import truck_workflow
 import threading
 from urllib.parse import urlsplit
 
@@ -93,6 +94,7 @@ def initialize():
             con.execute("INSERT INTO settings(key,value) VALUES(\'seeded\',\'1\')")
             if not already_has_boards:
                 seed_initial(con)
+        truck_workflow.initialize(con)
 
 def seed_initial(con):
     cur = con.execute("INSERT INTO boards(name) VALUES(?)", ("TRANSPORTADORA",))
@@ -330,9 +332,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"truck.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/truck.css":
                 return self.send((ROOT/"static"/"truck.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/truck_workflow.css":
+                return self.send((ROOT/"static"/"truck_workflow.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/truck_workflow.js":
+                return self.send((ROOT/"static"/"truck_workflow.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/truck/(?:workflow|check-preview|checks|close-preview|closures)",url) or re.fullmatch(r"/api/truck-(?:checks|closures)/\d+(?:/export\.csv)?",url):
+                    truck_workflow.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/truck(?:/(?:entries|settings|export\.csv))?",url) or re.fullmatch(r"/api/truck-entries/\d+",url):
                     truck.handle(self,con,method,url)
                     return
