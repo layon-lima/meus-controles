@@ -7,6 +7,19 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "static"
 
 class LayoutAssetsTests(unittest.TestCase):
+    def test_standard_web_font_is_global_in_app_and_update_panel(self):
+        app_css=(STATIC / "app.css").read_text(encoding="utf-8")
+        panel=(ROOT / "controller" / "static" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("--app-font:Arial,Helvetica,sans-serif",app_css)
+        self.assertIn("html,body,body *:not(svg):not(svg *)",app_css)
+        self.assertIn("font-family:var(--app-font)!important",app_css)
+        self.assertNotIn("font-family:Inter,Segoe UI,Arial,sans-serif",app_css)
+        self.assertIn("font:14px/1.5 Arial,Helvetica,sans-serif",panel)
+        self.assertIn("button,input,select,textarea{font-family:Arial,Helvetica,sans-serif}",panel)
+        # Manter a logotipia vetorial e os logs tecnicos sem alterar os icones.
+        self.assertIn(":not(svg):not(svg *)",app_css)
+        self.assertIn("Consolas",panel)
+
     def test_home_has_no_bloated_intro(self):
         source = (STATIC / "app.js").read_text(encoding="utf-8")
         home = source.split('if(this.s.route==="home"){', 1)[1].split('} else if(this.s.route==="board"){', 1)[0]
