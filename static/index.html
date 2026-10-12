@@ -30,7 +30,7 @@
           <div><div class="breadcrumbs" id="crumb">CENTRAL / VISÃO GERAL</div><h1 id="pageTitle">Visão geral</h1></div>
         </div>
         <div class="top-actions">
-          <label class="search"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg><input aria-label="Pesquisar" id="search" placeholder="Pesquisar controles..." oninput="App.search(this.value)"></label>
+          <div class="search-wrap"><label class="search"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg><input type="search" autocomplete="off" spellcheck="false" aria-label="Pesquisar controles ou quadros com Q" aria-controls="searchResults" aria-expanded="false" id="search" placeholder="Controle ou Q quadro..." onfocus="App.search(this.value)" oninput="App.search(this.value)" onkeydown="App.searchKeydown(event)"></label><div id="searchResults" class="search-results" aria-label="Resultados da pesquisa" onkeydown="App.searchResultKeydown(event)" hidden></div></div>
           <button class="btn btn-primary" onclick="App.newControl()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> <span class="hide-small">Novo controle</span></button>
         </div>
       </header>

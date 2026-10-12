@@ -13,13 +13,28 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertNotIn("PAINEL DE GESTÃO", home)
         self.assertNotIn("stat-grid", home)
         self.assertIn("Seus quadros", home)
-        self.assertIn("Controles", home)
+        self.assertNotIn('class="control-grid"', home)
+        self.assertNotIn('controlCard)', home)
+        self.assertNotIn('<h2>Controles</h2>', home)
 
     def test_no_sidebar_create_control_button(self):
         markup = (STATIC / "index.html").read_text(encoding="utf-8")
         self.assertNotIn("sidebar-new", markup)
         self.assertIn('class="sidebar-version"', markup)
         self.assertIn('onclick="App.newControl()"', markup)
+
+    def test_universal_search_interface(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        markup=(STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn("function parseSearchQuery(raw)", app)
+        self.assertIn('isBoard?"board":"control"', app)
+        self.assertIn('data.boards.filter(', app)
+        self.assertIn('data.controls.filter(', app)
+        self.assertIn('id="searchResults"', markup)
+        self.assertIn('oninput="App.search(this.value)"', markup)
+        self.assertIn("Q quadro", markup)
+        self.assertNotIn('oninput="App.search(this.value)"', (STATIC / "icons.svg").read_text(encoding="utf-8"))
+        self.assertIn("search-results", (STATIC / "app.css").read_text(encoding="utf-8"))
 
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")

@@ -4,6 +4,19 @@ const icon = id => '<svg class="ui-icon" aria-hidden="true"><use href="/static/i
 const currency = n => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(n||0));
 const number = n => new Intl.NumberFormat("pt-BR",{maximumFractionDigits:2}).format(Number(n||0));
 const deep = x => JSON.parse(JSON.stringify(x));
+function normalizeSearch(value){
+  return String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+}
+function parseSearchQuery(raw){
+  const value=String(raw??"").trim();
+  const isBoard=/^q(?:\s|:|$)/i.test(value);
+  return {
+    kind:isBoard?"board":"control",
+    term:normalizeSearch(isBoard?value.replace(/^q(?::|\s+)?/i,"").trim():value),
+    active:value.length>0
+  };
+}
+
 const slug = value => String(value||"campo").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").replace(/^[^a-z]+/,"") || "campo";
 const fieldTypes = [["text","Texto"],["date","Data"],["number","Número"],["currency","Dinheiro (R$)"],["percent","Porcentagem (%)"]];
 const ops = [["multiply","Multiplicar"],["percent","Calcular porcentagem"],["subtract","Subtrair"],["add","Somar"]];
@@ -68,11 +81,65 @@ const App = {
   navigate(route,id){
     this.s.route=route;this.s.id=id||null;this.s.query="";
     document.getElementById("search").value="";
+    this.closeSearch();
     this.toggleMenu(false);
     if(route==="control") this.load();
     else{this.s.detail=null;this.render()}
   },
-  search(q){this.s.query=(q||"").trim().toLowerCase();this.renderMain()},
+  search(q){
+    this.s.query=String(q||"");
+    this.renderSearchResults();
+  },
+  renderSearchResults(){
+    const panel=document.getElementById("searchResults");
+    const input=document.getElementById("search");
+    if(!panel||!input)return;
+    const parsed=parseSearchQuery(this.s.query);
+    const data=this.s.state;
+    if(!parsed.active||!data){panel.hidden=true;panel.innerHTML="";input.setAttribute("aria-expanded","false");return}
+    const items=parsed.kind==="board"
+      ?data.boards.filter(b=>normalizeSearch(b.name).includes(parsed.term))
+      :data.controls.filter(c=>normalizeSearch(c.name).includes(parsed.term));
+    const label=parsed.kind==="board"?"Quadros":"Controles";
+    const hint=parsed.kind==="board"?"Buscando somente quadros":"Buscando controles em todos os quadros";
+    panel.innerHTML='<div class="search-results-header"><strong>'+label+'</strong><span>'+items.length+' encontrado(s)</span></div>'+
+      (items.length?'<div class="search-results-list">'+items.map(item=>{
+        const isBoard=parsed.kind==="board";
+        const boardName=isBoard?"Abrir quadro":data.boards.find(b=>b.id===item.board_id)?.name||"Quadro";
+        const action=isBoard?"board":"control";
+        const iconName=isBoard?"folder":item.mode==="calculo"?"truck":item.mode==="financeiro"?"wallet":"clipboard";
+        return '<button type="button" class="search-result" onclick="App.navigate(\''+action+'\','+item.id+')">'+
+          '<span class="search-result-icon">'+icon(iconName)+'</span><span class="search-result-info"><strong>'+E(item.name)+'</strong><small>'+E(boardName)+'</small></span>'+
+          icon("arrow-right")+'</button>';
+      }).join("")+'</div>':
+      '<div class="search-no-results">Nenhum '+(parsed.kind==="board"?"quadro":"controle")+' encontrado.</div>')+
+      '<div class="search-results-footer">'+E(hint)+' · '+(parsed.kind==="board"?"Retire Q para buscar controles.":"Digite Q e o nome para buscar quadros.")+'</div>';
+    panel.hidden=false;
+    input.setAttribute("aria-expanded","true");
+  },
+  closeSearch(){
+    const results=document.getElementById("searchResults");
+    const input=document.getElementById("search");
+    if(results)results.hidden=true;
+    if(input)input.setAttribute("aria-expanded","false");
+  },
+  searchKeydown(event){
+    if(event.key==="Escape"){this.closeSearch();event.target.blur();return}
+    if(event.key==="Enter"||event.key==="ArrowDown"){
+      const first=document.querySelector("#searchResults .search-result");
+      if(first){event.preventDefault();if(event.key==="Enter")first.click();else first.focus()}
+    }
+  },
+  searchResultKeydown(event){
+    if(event.key==="Escape"){this.closeSearch();document.getElementById("search").focus();return}
+    if(event.key!=="ArrowDown"&&event.key!=="ArrowUp")return;
+    const buttons=[...document.querySelectorAll("#searchResults .search-result")];
+    const idx=buttons.indexOf(document.activeElement);
+    if(idx<0)return;
+    event.preventDefault();
+    if(event.key==="ArrowUp"&&idx===0)document.getElementById("search").focus();
+    else buttons[(idx+(event.key==="ArrowDown"?1:-1)+buttons.length)%buttons.length].focus();
+  },
   toggleMenu(open){
     document.getElementById("sidebar").classList.toggle("open",open);
     document.getElementById("mobileShade").classList.toggle("open",open);
@@ -84,6 +151,7 @@ const App = {
     document.getElementById("sideBoards").innerHTML=boards.map(b=>
       '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')">'+icon("folder")+'<span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
     this.renderMain();
+    this.renderSearchResults();
   },
   renderMain(){
     const st=this.s.state;if(!st)return;
@@ -102,14 +170,11 @@ const App = {
     document.getElementById("crumb").textContent=crumb;
     const main=document.getElementById("main");
     if(this.s.route==="home"){
-      const filtered=controls.filter(c=>c.name.toLowerCase().includes(this.s.query));
-      main.innerHTML='<div class="section-heading"><h2>Seus quadros</h2><p>'+boards.length+' quadros</p></div>'+
-      (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhum quadro","Crie um quadro para organizar seus controles.","App.newBoard()","Criar quadro"))+
-      '<div class="section-heading"><h2>Controles</h2><p>'+filtered.length+' encontrados</p></div>'+
-      (filtered.length?'<div class="control-grid">'+filtered.map(controlCard).join("")+'</div>':empty("Nenhum controle encontrado","Crie um controle e comece a lançar.","App.newControl()","Criar controle"));
+      main.innerHTML='<div class="section-heading"><h2>Seus quadros</h2><p>'+boards.length+' quadro(s)</p></div>'+
+      (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhum quadro","Crie um quadro para organizar seus controles.","App.newBoard()","Criar quadro"));
     } else if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);
-      const found=controls.filter(c=>c.board_id===b.id&&c.name.toLowerCase().includes(this.s.query));
+      const found=controls.filter(c=>c.board_id===b.id);
       main.innerHTML='<section class="intro"><div><div class="eyebrow">QUADRO DE CONTROLES</div><h2>'+E(b.name)+'</h2><p class="subtext">Agrupe e acompanhe controles relacionados. Cada controle tem seu próprio formulário.</p></div><div class="actions-end"><button class="btn" onclick="App.renameBoard('+b.id+')">Renomear</button><button class="btn btn-primary" onclick="App.newControl('+b.id+')">'+icon("plus")+' Novo controle</button></div></section>'+
        '<section class="stat-grid">'+stat("▦","Controles",found.length,"Neste quadro")+stat("≡","Lançamentos",found.reduce((n,c)=>n+c.summary.count,0),"Neste quadro")+'</section>'+
        (found.length?'<div class="control-grid">'+found.map(controlCard).join("")+'</div>':empty("Quadro vazio","Adicione um controle para começar.","App.newControl("+b.id+")","Criar controle"))+
@@ -119,7 +184,7 @@ const App = {
   renderControl(){
     const d=this.s.detail,c=d.control,sum=d.summary;
     const mode={"saldo":"Saldo devedor","financeiro":"Entradas e saídas","calculo":"Controle calculado"}[c.mode];
-    const entries=d.entries.filter(e=>[e.category,e.type_label,...Object.values(e.data)].join(" ").toLowerCase().includes(this.s.query));
+    const entries=d.entries;
     const datefield=c.fields.find(f=>f.type==="date");
     const subjectfield=c.fields.find(f=>f.type==="text");
     const cSummary=(rows,key)=>rows.length?rows.map(x=>'<div class="info-row"><span>'+E(x.name)+'</span><strong class="'+(Number(x.total)<0?"negative":"")+'">'+currency(x.total)+'</strong></div>').join(""):'<p class="secondary-text">Sem dados para exibir.</p>';
@@ -369,5 +434,6 @@ function empty(title,desc,action,label){
   return '<div class="empty-state"><strong>'+E(title)+'</strong><p>'+E(desc)+'</p><button class="btn btn-primary" onclick="'+action+'">'+icon("plus")+' '+E(label)+'</button></div>';
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&App.s.modal)App.closeModal()});
+document.addEventListener("click",e=>{if(!e.target.closest(".search-wrap"))App.closeSearch()});
 document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");
 App.load();
