@@ -295,6 +295,27 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('Fornecedor (opcional)',items)
         self.assertIn('.receiving-import-consent',css)
 
+    def test_pair_ab_ready_model_and_closures_in_interface(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        pair=(STATIC / "pair.js").read_text(encoding="utf-8")
+        css=(STATIC / "pair.css").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn('Acerto A × B',app)
+        self.assertIn('pair_settings:mode==="acerto_ab"',app)
+        self.assertIn('this.renderPair()',app)
+        self.assertIn('this.pairSettings(id)',app)
+        self.assertIn('["caminhao","divida","recebimento","acerto_ab"].includes(d.mode)',app)
+        for name in ("SALDO LÍQUIDO ATUAL","Quem deve para quem?","Descrição obrigatória",
+                     "Novo lançamento","Fechamento por período","Verificar acerto",
+                     "Confirmar fechamento","pairPreviewClose()","pairConfirmClose()",
+                     "/pair/entries","/pair/preview","/pair/closures","pairExportClose"):
+            self.assertIn(name,pair)
+        self.assertIn('role="dialog" aria-modal="false"',pair)
+        self.assertIn('.ab-balance',css)
+        self.assertIn('.ab-stats',css)
+        self.assertIn('/static/pair.js',html)
+        self.assertIn('/static/pair.css',html)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

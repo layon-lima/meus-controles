@@ -297,3 +297,32 @@ Notas antigas permanecem intactas. Não se cria índice UNIQUE que
 poderia falhar ao abrir bases de dados com registros históricos já
 existentes. A verificação ocorre em transação de escrita no servidor
 local antes de gravar qualquer entrega.
+
+
+## Modelo pronto: Acerto A × B
+
+**Novo controle → Acerto A × B**. Preencha o nome do controle,
+a pessoa A e a pessoa B, sem configurar campos e fórmulas.
+
+Cada lançamento exige **data**, **quem deve para quem**, **valor positivo**,
+**descrição** e observações opcionais. Exemplo:
+- Fulano deve R$ 100 a Sicrano;
+- Sicrano deve R$ 200 a Fulano;
+- Saldo líquido: **Sicrano deve R$ 100 a Fulano**.
+
+A tela mostra saldo líquido, totais em cada sentido e histórico com
+edição e exclusão dos registros abertos. Cálculos usam centavos exatos.
+
+### Fechamentos
+
+Em **Fechamentos**, informe o período e clique em **Verificar acerto**.
+A prévia mostra devedor, credor, valor, saldo anterior e movimento.
+**Confirmar fechamento** arquiva os lançamentos do intervalo sem
+apagá-los. Tornam-se somente leitura e podem ser consultados ou
+exportados em CSV. O próximo período recebe o **saldo líquido restante**,
+evitando contagem dupla.
+
+Fechamentos seguem sequência cronológica sem saltar lançamentos.
+O sistema exige nova prévia se os dados mudarem e bloqueia mudanças
+em períodos fechados. Tudo fica no SQLite local do usuário,
+sem modificar outros controles da Central.

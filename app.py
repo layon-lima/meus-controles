@@ -16,6 +16,7 @@ import sqlite3
 import truck
 import debt
 import receiving
+import pair
 import receiving_import
 import debt_import
 import truck_workflow
@@ -96,6 +97,7 @@ def initialize():
         truck.init(con)
         debt.initialize(con)
         receiving.initialize(con)
+        pair.initialize(con)
         receiving_import.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
@@ -132,7 +134,7 @@ def validate_config(p):
     name = require(p.get("name"), "o nome")
     board_id = int(p.get("board_id") or 0)
     mode = p.get("mode", "calculo")
-    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "recebimento"):
+    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "recebimento", "acerto_ab"):
         raise ValueError("Modelo de controle invalido.")
     fields = p.get("fields", [])
     rules = p.get("rules", [])
@@ -265,7 +267,12 @@ def state(con):
     boards = [dict(b) for b in con.execute("SELECT * FROM boards ORDER BY id")]
     controls = [unpack(c) for c in con.execute("SELECT * FROM controls ORDER BY id")]
     for c in controls:
-        if c["mode"]=="recebimento":
+        if c["mode"]=="acerto_ab":
+            totals=pair.summary(con,c["id"])["totals"]
+            c["summary"]={"count":totals["count"],"balance":totals["balance"],
+                "settlement":totals["settlement"],"plus":totals["b_to_a"],
+                "minus":totals["a_to_b"],"by_category":[],"by_type":[]}
+        elif c["mode"]=="recebimento":
             totals=receiving.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["receipts"],"balance":"0.00",
                 "item_total":totals["items"],"complete":totals["complete"],
@@ -356,6 +363,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"receiving_import.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving_import.css":
                 return self.send((ROOT/"static"/"receiving_import.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/pair.js":
+                return self.send((ROOT/"static"/"pair.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/pair.css":
+                return self.send((ROOT/"static"/"pair.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/receiving.js":
                 return self.send((ROOT/"static"/"receiving.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving.css":
@@ -373,6 +384,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/pair(?:/(?:entries|settings|preview|closures))?",url) or re.fullmatch(r"/api/pair-entries/\d+",url) or re.fullmatch(r"/api/pair-closures/\d+(?:/export\.csv)?",url):
+                    pair.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/receiving/import/(?:preview|confirm)",url):
                     receiving_import.handle(self,con,method,url)
                     return
@@ -421,6 +435,8 @@ class Handler(BaseHTTPRequestHandler):
                         truck.save_settings(con,cur.lastrowid,p.get("truck_settings",{}))
                     if mode=="divida":
                         debt.save_settings(con,cur.lastrowid,p.get("debt_settings",{}))
+                    if mode=="acerto_ab":
+                        pair.save_settings(con,cur.lastrowid,p.get("pair_settings",{}))
                     con.commit()
                     return self.send({"id":cur.lastrowid},201)
                 m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|export.csv))?",url)
@@ -464,6 +480,8 @@ class Handler(BaseHTTPRequestHandler):
                             truck.save_settings(con,cur.lastrowid,truck.settings(con,cid))
                         if c["mode"]=="divida":
                             debt.save_settings(con,cur.lastrowid,debt.settings(con,cid))
+                        if c["mode"]=="acerto_ab":
+                            pair.save_settings(con,cur.lastrowid,pair.settings(con,cid))
                         con.commit()
                         return self.send({"id":cur.lastrowid},201)
                     if method=="POST" and action=="entries":
