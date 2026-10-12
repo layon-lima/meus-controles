@@ -45,3 +45,27 @@ O projeto não modifica o CONTAS 3 nem a Central do PDF. Porta do painel: **1876
 `python -m unittest discover -s tests -v`
 
 Arquitetura: `app.py` (aplicação/API/SQLite), `static/` (interface principal), `controller/server.py` (backend do painel), `controller/static/index.html` (painel web).
+
+## Modelo pronto: Controle de Caminhão
+
+Ao clicar **Novo controle**, o modelo padrão agora é **Controle de Caminhão**. Basta definir nome, quadro e comissão (13% de fábrica). Opcionalmente, informe motorista, comissão anterior a pagar e saldo inicial de caixa. As regras já vêm prontas — não é necessário montar fórmulas.
+
+### Lançamentos
+
+- **Frete Normal / Frete Morto**: data, descrição, peso em kg e valor por tonelada. O sistema calcula: total = peso (kg) / 1000 × preço (R$/t), comissão = total × porcentagem configurada.
+- **Despesa**: data, descrição, valor e categoria (Manutenção, Abastecimento, Seguro do caminhão, Pedágio, Salário motorista, Outros gastos ou categoria nova digitada).
+- **Vale / Acerto motorista**: data, descrição e valor. Diminui o caixa e a comissão a pagar, mas não vira despesa de resultado pela segunda vez.
+
+### Demonstrativos separados
+
+- **Fretes acumulados:** soma dos fretes.
+- **Saídas do caixa:** despesas pagas + vales/acertos pagos.
+- **Saldo do caixa:** saldo inicial + fretes − saídas do caixa.
+- **Resultado do caminhão:** fretes − despesas operacionais − comissão gerada (a comissão é reconhecida como despesa no frete).
+- **Comissão a pagar:** saldo inicial do motorista + comissão gerada − vales/acertos pagos.
+
+A comissão padrão afeta somente novos fretes ou lançamentos editados; lançamentos passados preservam valores gravados. O modelo permite filtrar o resumo por mês, ver os totais por categoria, editar/excluir registros e exportar CSV. Não são criados lançamentos fictícios e a planilha de referência não é importada automaticamente.
+
+### Isolamento e preservação
+
+Os dados do caminhão ficam no mesmo SQLite local da Central, em tabelas próprias vinculadas ao ID do controle. Modelos antigos continuam funcionando, sem conversão automática. O painel web e o fluxo Git permanecem inalterados.

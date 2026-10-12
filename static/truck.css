@@ -1,0 +1,52 @@
+/* Controle de Caminhão — página dedicada compacta, independente dos formulários genéricos. */
+.truck-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px}
+.truck-toolbar h2{font-size:19px}
+.truck-toolbar .secondary-text{margin-top:3px}
+.truck-quick-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:0 0 17px}
+.truck-quick{display:inline-flex;align-items:center;gap:9px;justify-content:center;min-height:44px;padding:10px 16px;background:#fff;border:1px solid var(--line);color:#223d51;border-radius:10px;font-weight:750}
+.truck-quick .ui-icon{width:18px;height:18px}
+.truck-quick:hover{background:#eaf5f0;border-color:#a0cdbd}
+.truck-quick.freight{background:#e8f5ef;color:#177361;border-color:#c6e5d9}
+.truck-period{display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap;margin:2px 0 14px}
+.truck-period label{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:750}
+.truck-period select{border:1px solid var(--line);background:white;border-radius:8px;min-height:36px;padding:6px 12px;color:var(--ink)}
+.truck-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px;margin:0 0 16px}
+.truck-stat{padding:15px 16px}
+.truck-stat .stat-value{font-size:clamp(17px,1.5vw,23px);letter-spacing:-.65px}
+.truck-stat .stat-kicker{margin-bottom:9px;line-height:1.35;font-size:11px}
+.truck-stat .stat-foot{line-height:1.3}
+.truck-columns{display:grid;grid-template-columns:1fr 1fr 1.05fr;gap:12px;margin-bottom:17px}
+.truck-columns .panel{min-width:0}
+.truck-columns .panel-header{padding:13px 15px}
+.truck-columns .panel-header h3{font-size:13px}
+.truck-columns .panel-body{padding:12px 16px}
+.truck-columns .info-row{font-size:12px;gap:7px}
+.truck-columns .info-row strong{white-space:nowrap}
+.truck-note{font-size:11px;color:#658175;background:#f0f7f3;border-radius:8px;padding:10px 11px;margin-top:13px;line-height:1.55}
+.truck-due{background:#eaf5ee;border-radius:8px;padding:11px!important;margin-top:8px}
+.truck-ledger .panel-header{padding:13px 17px}
+.truck-ledger td b{display:block}
+.truck-ledger .secondary-text{display:block;margin-top:3px}
+.truck-ledger td:last-child{width:150px}
+.truck-empty{margin:14px;border:0;background:transparent}
+.truck-ready-settings{margin-top:16px}
+.truck-ready-settings .hint{margin:0 0 12px}
+.truck-entry-form .truck-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#f0f4f5;border-radius:10px;padding:4px;margin-bottom:18px}
+.truck-tabs button{border:0;background:transparent;color:#597486;padding:10px 4px;font-size:12px;font-weight:750;border-radius:8px}
+.truck-tabs button:hover{background:#e4eeeb}
+.truck-tabs button.active{background:#fff;color:#157965;box-shadow:0 1px 6px #274d3d15}
+.truck-entry-form .calc-preview{margin-top:18px}
+@media(max-width:1350px){.truck-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.truck-columns{grid-template-columns:repeat(2,minmax(0,1fr))}.truck-columns .panel:last-child{grid-column:1/-1}}
+@media(max-width:820px){.truck-toolbar{align-items:flex-start;flex-wrap:wrap}.truck-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.truck-columns{grid-template-columns:1fr}.truck-columns .panel:last-child{grid-column:auto}.truck-quick{flex:1;padding:9px 12px}}
+@media(max-width:590px){.truck-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.truck-stat .stat-value{font-size:18px}.truck-quick-actions{gap:6px}.truck-quick{font-size:12px;flex:1 1 45%;min-width:130px}.truck-toolbar .actions-end{width:100%;justify-content:flex-start}.truck-tabs button{font-size:11px}}
+
+/* Criação rápida: somente o modelo pronto fica destacado; fórmulas são opcionais. */
+.truck-model-featured{grid-template-columns:minmax(0,1fr)}
+.truck-model-featured .choice{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.truck-model-featured .choice .ui-icon{height:24px;width:24px;color:#0f8069}
+.truck-model-featured .choice strong{margin:0}
+.truck-model-featured .choice small{width:100%;padding-left:36px}
+.model-advanced{margin:13px 0 0}
+.model-advanced summary{font-size:12px;color:#5d7584;cursor:pointer;padding:9px 2px}
+.model-advanced .wizard-choice{margin-top:8px}
+.truck-ready-settings .hint{margin-bottom:14px}

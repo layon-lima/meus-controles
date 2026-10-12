@@ -22,7 +22,7 @@ const fieldTypes = [["text","Texto"],["date","Data"],["number","Número"],["curr
 const ops = [["multiply","Multiplicar"],["percent","Calcular porcentagem"],["subtract","Subtrair"],["add","Somar"]];
 const directions = [[1,"Soma (+)"],[-1,"Subtrai (−)"],[0,"Não altera saldo"]];
 const fSelect=(items,value)=>items.map(([k,label])=>'<option value="'+E(k)+'" '+(String(k)===String(value)?"selected":"")+'>'+E(label)+'</option>').join("");
-function template(mode="calculo"){
+function template(mode="caminhao"){
   const fields = mode==="calculo" ? [
     {key:"data",label:"Data",type:"date",required:true},
     {key:"motorista",label:"Motorista",type:"text",required:true},
@@ -33,8 +33,9 @@ function template(mode="calculo"){
     {key:"data",label:"Data",type:"date",required:true},
     {key:"descricao",label:"Descrição",type:"text",required:true}
   ];
-  return {name:mode==="calculo"?"Controle de Fretes":"Novo controle",mode,board_id:App.s.state?.boards?.[0]?.id||0,
+  return {name:mode==="caminhao"?"Controle de Caminhão":mode==="calculo"?"Controle de Fretes":"Novo controle",mode,board_id:App.s.state?.boards?.[0]?.id||0,
     fields,
+    truck_settings:mode==="caminhao"?{commission_pct:"13",driver_name:"",opening_commission:"0",opening_cash:"0"}:undefined,
     rules:mode==="calculo" ? [
       {key:"valor_frete",label:"Valor do frete",op:"multiply",a:"peso",b:"valor_kg"},
       {key:"comissao_valor",label:"Comissão do motorista",op:"percent",a:"valor_frete",b:"comissao"},
@@ -108,7 +109,7 @@ const App = {
         const isBoard=parsed.kind==="board";
         const boardName=isBoard?"Abrir quadro":data.boards.find(b=>b.id===item.board_id)?.name||"Quadro";
         const action=isBoard?"board":"control";
-        const iconName=isBoard?"folder":item.mode==="calculo"?"truck":item.mode==="financeiro"?"wallet":"clipboard";
+        const iconName=isBoard?"folder":["calculo","caminhao"].includes(item.mode)?"truck":item.mode==="financeiro"?"wallet":"clipboard";
         return '<button type="button" class="search-result" onclick="App.navigate(\''+action+'\','+item.id+')">'+
           '<span class="search-result-icon">'+icon(iconName)+'</span><span class="search-result-info"><strong>'+E(item.name)+'</strong><small>'+E(boardName)+'</small></span>'+
           icon("arrow-right")+'</button>';
@@ -186,7 +187,8 @@ const App = {
   },
   renderControl(){
     const d=this.s.detail,c=d.control,sum=d.summary;
-    const mode={"saldo":"Saldo devedor","financeiro":"Entradas e saídas","calculo":"Controle calculado"}[c.mode];
+    if(c.mode==="caminhao")return this.renderTruck();
+    const mode={"saldo":"Saldo devedor","financeiro":"Entradas e saídas","calculo":"Controle calculado","caminhao":"Controle de Caminhão"}[c.mode];
     const entries=d.entries;
     const datefield=c.fields.find(f=>f.type==="date");
     const subjectfield=c.fields.find(f=>f.type==="text");
@@ -249,6 +251,7 @@ const App = {
     if(!this.canOpenForm())return;
     const source=this.s.state?.controls?.find(c=>c.id===id);
     if(!source){this.toast("Controle não encontrado.",true);return}
+    if(source.mode==="caminhao")return this.truckSettings(id);
     this.s.modal="builder";this.s.editing=id;this.s.modalContext=null;this.s.step=0;this.s.draft=deep(source);
     this.renderModal();
   },
@@ -279,7 +282,10 @@ const App = {
   mode(mode){
     if(this.s.editing)return;
     const old=this.s.draft;
-    this.s.draft=template(mode);this.s.draft.name=old.name;this.s.draft.board_id=old.board_id;
+    this.s.draft=template(mode);
+    this.s.draft.name=["Novo controle","Controle de Fretes","Controle de Caminhão"].includes(old.name)?
+       this.s.draft.name:old.name;
+    this.s.draft.board_id=old.board_id;
     this.renderModal();
   },
   setItem(collection,i,prop,value){
@@ -396,10 +402,17 @@ const App = {
       body='<div class="form-grid"><div class="field full"><label>Nome do controle</label><input maxlength="150" value="'+E(d.name)+'" oninput="App.updateDraft(\'name\',this.value)"></div>'+
         '<div class="field full"><label>Em qual quadro?</label><select onchange="App.updateDraft(\'board_id\',Number(this.value))">'+
         fSelect(this.s.state.boards.map(b=>[b.id,b.name]),d.board_id)+'</select></div></div>'+
-        '<div class="field" style="margin-top:19px"><label>O que você deseja controlar?</label><div class="wizard-choice">'+
-        [["saldo","Saldo devedor","Acompanhar quanto falta receber."],["financeiro","Entradas e saídas","Registrar entradas, despesas e saldo."],["calculo","Cálculos automáticos","Fretes, comissões e valores calculados."]].map(([m,title,desc])=>
-          '<button class="choice '+(d.mode===m?"selected":"")+'" '+(this.s.editing?"disabled":"")+' onclick="App.mode(\''+m+'\')"><strong>'+title+'</strong><small>'+desc+'</small></button>').join("")+'</div></div>'+
-        (this.s.editing?'<div class="hint" style="margin-top:15px">O modelo de um controle existente não muda. É possível editar seus campos e regras nas próximas etapas.</div>':'');
+        '<div class="field" style="margin-top:19px"><label>Modelo do controle</label>'+
+        '<div class="wizard-choice truck-model-featured"><button class="choice '+(d.mode==="caminhao"?"selected":"")+'" onclick="App.mode(\'caminhao\')" type="button">'+icon("truck")+' <strong>Controle de Caminhão</strong><small>Pronto para fretes, despesas, comissão de 13% e vales.</small></button></div>'+
+        '<details class="model-advanced" '+(d.mode!=="caminhao"?"open":"")+'><summary>Outros modelos (configuração avançada)</summary><div class="wizard-choice">'+
+        [["saldo","Saldo devedor","Acompanhar quanto falta receber."],["financeiro","Entradas e saídas","Registrar entradas, despesas e saldo."],["calculo","Cálculos personalizados","Crie seus campos e cálculos."]].map(([m,title,desc])=>
+          '<button type="button" class="choice '+(d.mode===m?"selected":"")+'" onclick="App.mode(\''+m+'\')"><strong>'+title+'</strong><small>'+desc+'</small></button>').join("")+'</div></details></div>'+
+        (d.mode==="caminhao"?'<div class="truck-ready-settings"><div class="hint">Modelo pronto: frete normal/morto, despesas e vale do motorista. Sem fórmulas.</div>'+
+          '<div class="form-grid"><div class="field"><label>Comissão padrão (%)</label><input inputmode="decimal" value="'+E(d.truck_settings.commission_pct)+'" oninput="App.s.draft.truck_settings.commission_pct=this.value"></div>'+
+          '<div class="field"><label>Motorista (opcional)</label><input maxlength="100" value="'+E(d.truck_settings.driver_name)+'" oninput="App.s.draft.truck_settings.driver_name=this.value"></div>'+
+          '<div class="field"><label>Comissão anterior a pagar (R$)</label><input inputmode="decimal" value="'+E(d.truck_settings.opening_commission)+'" oninput="App.s.draft.truck_settings.opening_commission=this.value"></div>'+
+          '<div class="field"><label>Saldo inicial do caixa (R$)</label><input inputmode="decimal" value="'+E(d.truck_settings.opening_cash)+'" oninput="App.s.draft.truck_settings.opening_cash=this.value"></div></div></div>':
+         this.s.editing?'<div class="hint" style="margin-top:15px">É possível editar seus campos e regras nas próximas etapas.</div>':'');
     }else if(step===1){
       body='<div class="hint">Os campos abaixo formam a tela de lançamento. Para criar outro, clique em <b>Adicionar campo</b>.</div>'+
       d.fields.map((f,i)=>'<div class="form-row-card"><div class="field"><label>Nome do campo</label><input value="'+E(f.label)+'" maxlength="150" oninput="App.setItem(\'fields\','+i+',\'label\',this.value)"></div>'+
@@ -430,10 +443,11 @@ const App = {
        '<button class="btn btn-sm" style="margin-top:10px" onclick="App.addType()">'+icon("plus")+' Novo tipo de lançamento</button>'+
        '<p class="secondary-text" style="margin-top:14px">Registros antigos permanecem guardados com seus valores e cálculos originais quando você muda as regras.</p>';
     }
-    return '<div class="modal-header"><div><h2 id="modalTitle">'+(this.s.editing?"Configurar controle":"Criar controle")+'</h2><p>'+E(heads[step])+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
-      '<div class="modal-body"><div class="step-dots">'+[0,1,2,3].map(i=>'<div class="step-dot '+(i<=step?"done":"")+'"></div>').join("")+'</div><h3 style="margin-bottom:13px">'+E(sub[step])+'</h3>'+body+'</div>'+
+    return '<div class="modal-header"><div><h2 id="modalTitle">'+(this.s.editing?"Configurar controle":"Criar controle")+'</h2><p>'+(d.mode==="caminhao"?"Modelo pronto":E(heads[step]))+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body">'+(d.mode==="caminhao"?"":'<div class="step-dots">'+[0,1,2,3].map(i=>'<div class="step-dot '+(i<=step?"done":"")+'"></div>').join("")+'</div>')+
+      '<h3 style="margin-bottom:13px">'+(d.mode==="caminhao"?"Escolha um nome e a comissão. Os lançamentos já vêm prontos.":E(sub[step]))+'</h3>'+body+'</div>'+
       '<div class="modal-footer"><button class="btn" onclick="'+(step===0?"App.closeModal()":"App.builderNext(-1)")+'">'+(step===0?"Cancelar":"Voltar")+'</button>'+
-      '<div class="tagline"><span class="secondary-text">Etapa '+(step+1)+' de 4</span><button class="btn btn-primary" onclick="'+(step===3?"App.saveControl()":"App.builderNext(1)")+'">'+(step===3?"Salvar controle":"Continuar →")+'</button></div></div>';
+      '<div class="tagline"><span class="secondary-text">'+(d.mode==="caminhao"?"Sem fórmulas nem etapas extras":"Etapa "+(step+1)+" de 4")+'</span><button class="btn btn-primary" onclick="'+(d.mode==="caminhao"||step===3?"App.saveControl()":"App.builderNext(1)")+'">'+(d.mode==="caminhao"?"Criar controle":step===3?"Salvar controle":"Continuar →")+'</button></div></div>';
   },
   entryHTML(){
     const c=this.s.modalContext.control;
@@ -487,8 +501,8 @@ function boardCard(b,count){
   return '<div class="board-card" tabindex="0" role="button" onclick="App.navigate(\'board\','+b.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'board\','+b.id+')"><div class="card-top"><span class="folder-icon">'+icon("folder")+'</span><span class="card-arrow">'+icon("arrow-right")+'</span></div><h3>'+E(b.name)+'</h3><p>'+count+' controle(s)</p></div>';
 }
 function controlCard(c){
-  const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado"}[c.mode];
-  const controlIcon=c.mode==="calculo"?"truck":c.mode==="financeiro"?"wallet":"clipboard";
+  const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado","caminhao":"Caminhão"}[c.mode];
+  const controlIcon=["calculo","caminhao"].includes(c.mode)?"truck":c.mode==="financeiro"?"wallet":"clipboard";
   const menu='<div class="card-action-menu" id="controlMenu-'+c.id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+
    '<button type="button" onclick="App.controlMenuAction(event,\'configure\','+c.id+')">'+icon("settings")+' Configurar / editar</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'duplicate\','+c.id+')">'+icon("copy")+' Duplicar controle</button>'+
