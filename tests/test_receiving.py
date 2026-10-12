@@ -26,11 +26,11 @@ class ReceivingTests(unittest.TestCase):
         app.DATA,app.DB=self.saved
         self.tmp.cleanup()
 
-    def item(self,product="Adubo",ordered="1000",unit="kg",cid=None):
+    def item(self,product="Adubo",ordered="1000",unit="kg",cid=None,order="PED-123"):
         with app.db() as con:
             cid=cid or self.cid
             p=receiving.validate_item({
-                "order_number":"PED-123","supplier":"Fornecedor A",
+                "order_number":order,"supplier":"Fornecedor A",
                 "product":product,"unit":unit,"ordered_qty":ordered
             })
             return con.execute("""INSERT INTO purchase_items
@@ -96,17 +96,81 @@ class ReceivingTests(unittest.TestCase):
             con.execute("DELETE FROM purchase_receipts WHERE id=?",(rid,))
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"100.000")
 
-    def test_duplicate_identical_delivery_is_blocked(self):
+    def test_same_invoice_is_blocked_even_if_date_or_quantity_changes(self):
         item=self.item()
-        self.deliver(item,"NF-100","400")
+        rid=self.deliver(item,"NF-100","400")
         with app.db() as con:
             repeated=receiving.validate_receipt({
-                "date":"2026-10-12","invoice_number":"nf-100","quantity":"400","notes":""})
-            with self.assertRaisesRegex(ValueError,"já foram lançadas"):
+                "date":"2026-10-13","invoice_number":" nf-100 ","quantity":"100","notes":""})
+            with self.assertRaisesRegex(ValueError,"nota fiscal .*já foi lançada no pedido PED-123"):
                 receiving.ensure_not_duplicate(con,item,repeated)
-            another=receiving.validate_receipt({
-                "date":"2026-10-12","invoice_number":"NF-100","quantity":"100","notes":""})
-            receiving.ensure_not_duplicate(con,item,another) # Mesma NF pode ter parcela distinta.
+            # Regravar a própria NF em edição é permitido.
+            receiving.ensure_not_duplicate(con,item,repeated,exclude_id=rid)
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["received_qty"],"400.000")
+
+    def test_invoice_cannot_repeat_across_products_of_same_order(self):
+        first=self.item("Adubo")
+        second=self.item("Semente",ordered="500")
+        self.deliver(first,"2284","40")
+        with app.db() as con:
+            new_receipt=receiving.validate_receipt({
+                "date":"2026-10-11","invoice_number":"002284","quantity":"75","notes":""})
+            with self.assertRaisesRegex(ValueError,"nota fiscal .*já foi lançada no pedido PED-123"):
+                receiving.ensure_not_duplicate(con,second,new_receipt)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_same_invoice_can_be_used_in_different_orders_or_controls(self):
+        first=self.item("Adubo")
+        different_order=self.item("Semente",ordered="400",order="PED-456")
+        different_control=self.item("Calcário",ordered="200",cid=self.other)
+        self.deliver(first,"2284","100")
+        self.deliver(different_order,"002284","50")
+        self.deliver(different_control,"2284","20")
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],2)
+            self.assertEqual(receiving.summary(con,self.other)["totals"]["receipts"],1)
+
+    def test_invoice_number_normalization(self):
+        self.assertEqual(receiving.normalized_invoice(" 002284 "),receiving.normalized_invoice("2284"))
+        self.assertEqual(receiving.normalized_invoice(" nf-2284 "),receiving.normalized_invoice("NF-2284"))
+        self.assertEqual(receiving.normalized_order("ABC / 123"),receiving.normalized_order("abc/123"))
+
+    def test_http_receipt_create_edit_and_order_move_do_not_bypass_lock(self):
+        class Handler:
+            def __init__(self,p):self.payload=p
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+        item1=self.item("Adubo",ordered="1000")
+        item2=self.item("Semente",ordered="500")
+        item3=self.item("Calcário",ordered="700",order="PED-456")
+        self.deliver(item3,"2284","35")
+        with app.db() as con:
+            first=receiving.handle(Handler({"date":"2026-10-10","invoice_number":"2284",
+                "quantity":"100"}),con,"POST","/api/receiving-items/"+str(item1)+"/receipts")
+            duplicate={"date":"2026-10-11","invoice_number":"002284","quantity":"50"}
+            with self.assertRaisesRegex(ValueError,"já foi lançada no pedido PED-123"):
+                receiving.handle(Handler(duplicate),con,"POST",
+                                 "/api/receiving-items/"+str(item2)+"/receipts")
+        # A transação anterior falhou; conexão nova permite continuar sem gravar duplicata.
+        with app.db() as con:
+            second=receiving.handle(Handler({"date":"2026-10-11","invoice_number":"777",
+                "quantity":"50"}),con,"POST","/api/receiving-items/"+str(item2)+"/receipts")
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"já foi lançada no pedido PED-123"):
+                receiving.handle(Handler({"date":"2026-10-12","invoice_number":"2284",
+                    "quantity":"20"}),con,"PUT","/api/receiving-receipts/"+str(second["id"]))
+        with app.db() as con:
+            self.assertEqual(receiving.get_receipt(con,second["id"])["invoice_number"],"777")
+            # Editar um item para entrar no pedido de uma NF idêntica também deve ser bloqueado.
+            with self.assertRaisesRegex(ValueError,"já foi lançada no pedido PED-123"):
+                receiving.handle(Handler({"order_number":"PED-123","supplier":"Fornecedor A",
+                    "product":"Calcário","unit":"kg","ordered_qty":"700"}),con,
+                    "PUT","/api/receiving-items/"+str(item3))
+        # Manter íntegros os saldos e as notas anteriores.
+        with app.db() as con:
+            self.assertEqual(receiving.get_item(con,item3)["order_number"],"PED-456")
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],3)
+            self.assertEqual(receiving.get_receipt(con,second["id"])["invoice_number"],"777")
 
     def test_cannot_reduce_order_below_received(self):
         item=self.item()

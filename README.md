@@ -277,3 +277,23 @@ Cada mudança real de tela registra uma nova entrada no histórico.
 Voltar/avançar não cria entradas duplicadas, e abrir outra tela depois
 de voltar descarta corretamente o avanço antigo. Um controle excluído
 encontrado no histórico volta para Visão geral em vez de quebrar a tela.
+
+
+## Trava de nota fiscal duplicada por pedido
+
+No modelo **Recebimento de Produtos**, o **número da nota fiscal é único
+dentro do mesmo pedido**, independentemente do produto, data ou quantidade.
+Isso vale ao adicionar ou editar um recebimento e ao alterar o número do
+pedido de um produto que já tem notas fiscais lançadas. A mesma nota pode
+ser registrada em outro pedido, até dentro do mesmo controle.
+
+A comparação ignora maiúsculas/minúsculas, espaços extras e, para
+números puramente numéricos, zeros à esquerda (por exemplo, 2284 e
+002284 são tratados como a mesma nota). O aplicativo mostra um aviso
+explicando que a nota já foi registrada, deixa o formulário aberto e não
+desconta outra vez a quantidade do saldo.
+
+Notas antigas permanecem intactas. Não se cria índice UNIQUE que
+poderia falhar ao abrir bases de dados com registros históricos já
+existentes. A verificação ocorre em transação de escrita no servidor
+local antes de gravar qualquer entrega.

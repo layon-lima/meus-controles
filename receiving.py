@@ -6,6 +6,7 @@ Saldo do item = quantidade pedida - soma das entregas registradas.
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import re
+import unicodedata
 
 MAX_QTY=Decimal("1000000000000")
 PRECISION=Decimal("0.001")
@@ -124,13 +125,35 @@ def ensure_capacity(con,item_id,amount,exclude_id=None):
         remaining=Decimal(item["ordered_qty"])-paid
         raise ValueError("Entrega maior que o saldo do pedido. Disponível: "+display(remaining)+" "+item["unit"]+".")
 
+def normalized_order(value):
+    # Espaços em volta da barra não criam outro pedido.
+    raw=unicodedata.normalize("NFKC",str(value)).strip().casefold()
+    return re.sub(r"\s*/\s*","/"," ".join(raw.split()))
+
+def normalized_invoice(value):
+    # 002284 e 2284 representam a mesma nota numérica.
+    raw=unicodedata.normalize("NFKC",str(value)).strip().casefold()
+    raw=" ".join(raw.split())
+    return str(int(raw)) if raw.isdecimal() else raw
+
+def ensure_invoice_unique_in_order(con,control_id,order_number,invoice_number,exclude_id=None):
+    order_key=normalized_order(order_number)
+    invoice_key=normalized_invoice(invoice_number)
+    for receipt in con.execute("""SELECT r.id,r.invoice_number,i.order_number
+      FROM purchase_receipts AS r
+      JOIN purchase_items AS i ON i.id=r.item_id
+      WHERE i.control_id=?""",(control_id,)):
+        if receipt["id"]==exclude_id:
+            continue
+        if normalized_order(receipt["order_number"])==order_key and \
+           normalized_invoice(receipt["invoice_number"])==invoice_key:
+            raise ValueError("A nota fiscal "+invoice_number+" já foi lançada no pedido "+
+                             order_number+". Não é permitido repetir uma nota no mesmo pedido.")
+
 def ensure_not_duplicate(con,item_id,values,exclude_id=None):
-    for row in con.execute("""SELECT id,received_date,invoice_number,received_qty FROM purchase_receipts
-      WHERE item_id=?""",(item_id,)):
-        if row["id"]!=exclude_id and row["received_date"]==values["received_date"] and \
-           row["invoice_number"].casefold()==values["invoice_number"].casefold() and \
-           Decimal(row["received_qty"])==Decimal(values["received_qty"]):
-            raise ValueError("Esta mesma nota, data e quantidade já foram lançadas neste produto.")
+    item=get_item(con,item_id)
+    ensure_invoice_unique_in_order(con,item["control_id"],item["order_number"],
+                                   values["invoice_number"],exclude_id)
 
 def summary(con,cid):
     ensure_control(con,cid)
@@ -200,6 +223,14 @@ def handle(handler,con,method,path):
                 row=validate_item(handler.input())
                 if Decimal(row["ordered_qty"])<received_total(con,iid):
                     raise ValueError("A quantidade pedida não pode ser menor que a quantidade já recebida.")
+                # Alterar o pedido de um produto já recebido não pode inserir
+                # suas notas em um pedido onde os mesmos números já existem.
+                if normalized_order(row["order_number"])!=normalized_order(item["order_number"]):
+                    for receipt in con.execute("""SELECT id,invoice_number FROM purchase_receipts
+                      WHERE item_id=?""",(iid,)):
+                        ensure_invoice_unique_in_order(
+                            con,item["control_id"],row["order_number"],
+                            receipt["invoice_number"],receipt["id"])
                 con.execute("""UPDATE purchase_items SET order_number=?,supplier=?,product=?,unit=?,ordered_qty=?,
                   updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*row.values(),iid))
             con.commit()
