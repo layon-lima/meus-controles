@@ -50,7 +50,11 @@ Object.assign(App,{
     document.getElementById("main").innerHTML=
       '<div class="receiving-head"><div><div class="eyebrow">RECEBIMENTO DE PRODUTOS</div>'+
       '<p>Controle de pedidos, fornecedores e entregas por nota fiscal.</p></div>'+
-      '<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto do pedido</button></div>'+
+      '<div class="receiving-header-actions">'+
+      (t.items===0?'<button class="btn btn-sm" onclick="App.receivingChooseImport()">'+icon("download")+' Importar pedidos</button>':'')+
+      '<button class="btn btn-sm" onclick="App.receivingSettings('+c.id+')">'+icon("settings")+' Ajustes</button>'+
+      '<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto do pedido</button></div></div>'+
+      '<input type="file" accept=".json,application/json" id="receivingImportInput" hidden onchange="App.receivingLoadImportFile(this.files[0])">'+
       '<div class="receiving-kpis">'+
       [['Produtos cadastrados',t.items],['Totalmente recebidos',t.complete],['Parcialmente recebidos',t.partial],['Entregas registradas',t.receipts]].map(x=>
       '<div class="receiving-kpi"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join("")+'</div>'+
@@ -183,7 +187,9 @@ Object.assign(App,{
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="receivingSettingsForm" onsubmit="event.preventDefault();App.receivingSaveSettings()">'+
       rxField("Nome do controle",rxInput("name",control.name,'required maxlength="150"'))+
-      '</form></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '</form></div><div class="modal-footer">'+
+      '<button class="btn" onclick="App.receivingOpenImportFromSettings()">'+icon("download")+' Importar pedidos</button>'+
+      '<button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.receivingSaveSettings()">Salvar nome</button></div></div></div>';
   },
   async receivingSaveSettings(){

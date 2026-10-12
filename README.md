@@ -214,3 +214,43 @@ entregas registradas, nem reduzir o pedido abaixo do já recebido.
 Os dados ficam no SQLite local, em tabelas próprias. Não há soma
 indiscriminada de unidades distintas (kg, sacos, toneladas etc.).
 O cadastro dos outros modelos não sofre alterações.
+
+
+## Importar pedidos para Controle de Recebimento
+
+Abra o controle de recebimento e escolha **Importar pedidos** (o botão
+direto aparece enquanto o controle está vazio). Após a primeira
+importação, a ação continua em **Ajustes → Importar pedidos**.
+
+O arquivo JSON fica no próprio computador, não é publicado no GitHub.
+Formato:
+
+```json
+{
+  "format": "central-controles-recebimento-v1",
+  "control": "NOME EXATO DO CONTROLE",
+  "items": [
+    {
+      "order_number": "00181030 / 00249394",
+      "supplier": "",
+      "product": "PRODUTO EXEMPLO",
+      "unit": "KG",
+      "ordered_qty": "1200.00"
+    }
+  ]
+}
+```
+
+A prévia mostra todos os registros (até 60 linhas visíveis), a contagem
+por unidade, as linhas já cadastradas e os fornecedores desconhecidos.
+É obrigatório selecionar o controle correto. Cada produto importado
+começa com zero de recebimento, sem notas fiscais inventadas. As
+referências são preservadas integralmente no campo do pedido, mesmo
+quando vieram dois números separados por barra.
+
+A importação grava de forma atômica no SQLite local. Um hash por
+arquivo/controle impede reimportar exatamente o mesmo lote.
+Produtos existentes idênticos (referências, fornecedor, produto,
+unidade e quantidade) são reconhecidos por multiplicidade, sem
+eliminar linhas duplicadas reais. O fornecedor vazio poderá ser
+preenchido posteriormente por **Editar produto**.

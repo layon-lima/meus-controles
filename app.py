@@ -16,6 +16,7 @@ import sqlite3
 import truck
 import debt
 import receiving
+import receiving_import
 import debt_import
 import truck_workflow
 import threading
@@ -95,6 +96,7 @@ def initialize():
         truck.init(con)
         debt.initialize(con)
         receiving.initialize(con)
+        receiving_import.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
@@ -350,6 +352,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/truck.js":
                 return self.send((ROOT/"static"/"truck.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_import.js":
+                return self.send((ROOT/"static"/"receiving_import.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_import.css":
+                return self.send((ROOT/"static"/"receiving_import.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/receiving.js":
                 return self.send((ROOT/"static"/"receiving.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving.css":
@@ -367,6 +373,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/receiving/import/(?:preview|confirm)",url):
+                    receiving_import.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/receiving(?:/items)?",url) or re.fullmatch(r"/api/receiving-items/\d+(?:/receipts)?",url) or re.fullmatch(r"/api/receiving-receipts/\d+",url):
                     receiving.handle(self,con,method,url)
                     return

@@ -206,6 +206,25 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/receiving.js',html)
         self.assertIn('/static/receiving.css',html)
 
+    def test_receiving_import_remains_in_settings_after_first_use(self):
+        page=(STATIC / "index.html").read_text(encoding="utf-8")
+        receiving=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        importer=(STATIC / "receiving_import.js").read_text(encoding="utf-8")
+        stylesheet=(STATIC / "receiving_import.css").read_text(encoding="utf-8")
+        self.assertIn('/static/receiving_import.js',page)
+        self.assertIn('/static/receiving_import.css',page)
+        self.assertIn('t.items===0',receiving)
+        self.assertIn('receivingOpenImportFromSettings()',receiving)
+        self.assertIn('id="receivingImportInput"',receiving)
+        self.assertIn('receivingChooseImport()',importer)
+        self.assertIn('receivingLoadImportFile(file)',importer)
+        self.assertIn('receivingConfirmImport()',importer)
+        self.assertIn('receiving/import/preview',importer)
+        self.assertIn('receiving/import/confirm',importer)
+        self.assertIn('0 (0%)',importer)
+        self.assertIn('unknown_suppliers',importer)
+        self.assertIn('.receiving-import-preview-list',stylesheet)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

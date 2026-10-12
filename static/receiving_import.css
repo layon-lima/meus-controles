@@ -1,0 +1,23 @@
+/* Importar pedidos: confirmação compacta, sem ocupar a lista principal. */
+.receiving-header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.receiving-import-modal{width:min(100%,760px)}
+.receiving-import-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.receiving-import-stats>div{display:flex;flex-direction:column;gap:6px;padding:11px 12px;
+ border:1px solid var(--line);background:#fafcfb;border-radius:9px}
+.receiving-import-stats small{font-size:11px;color:#6b8493}
+.receiving-import-stats strong{font-size:18px;color:#23475b}
+.receiving-import-info{color:#6c8291;font-size:11px;line-height:1.5;margin:12px 0}
+.receiving-import-unit-summary{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.receiving-import-unit-summary span{border-radius:7px;padding:6px 9px;background:#eef5f2;color:#497363;font-size:11px}
+.receiving-import-warning{background:#fff5e7;color:#8b642b;border-radius:8px;padding:10px 13px;font-size:12px}
+.receiving-import-preview-list{max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:14px}
+.receiving-import-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:10px 12px;
+ border-bottom:1px solid var(--line)}
+.receiving-import-row:last-child{border-bottom:none}
+.receiving-import-row>span{min-width:0;display:flex;flex-direction:column;gap:4px}
+.receiving-import-row strong{font-size:12px;color:#2f4353}
+.receiving-import-row small{font-size:11px;color:#7b8c99}
+.receiving-import-row>b{font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:650px){.receiving-import-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .receiving-header-actions{width:100%}.receiving-import-row{flex-wrap:wrap}
+}
