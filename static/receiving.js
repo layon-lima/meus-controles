@@ -97,7 +97,7 @@ Object.assign(App,{
       '<div class="modal-body"><form id="receivingItemForm" onsubmit="event.preventDefault();App.receivingSaveItem()">'+
       '<div class="form-grid">'+
       rxField("Número do pedido",rxInput("order_number",item?.order_number||"",'required maxlength="100" placeholder="Ex.: PED-1254"'))+
-      rxField("Fornecedor",rxInput("supplier",item?.supplier||"",'required maxlength="160" placeholder="Nome do fornecedor"'))+
+      rxField("Fornecedor (opcional)",rxInput("supplier",item?.supplier||"",'maxlength="160" placeholder="Preencha quando souber"'))+
       '<div class="field full"><label>Produto</label>'+
       rxInput("product",item?.product||"",'required maxlength="160" placeholder="Nome do produto"')+'</div>'+
       rxField("Quantidade contratada",rxInput("ordered_qty",item?.ordered_qty||"",'inputmode="decimal" required placeholder="Ex.: 1250"'))+

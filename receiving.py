@@ -98,7 +98,7 @@ def validate_item(payload):
     unit=text(payload.get("unit","un"),"a unidade de medida",12)
     return {
       "order_number":text(payload.get("order_number"),"o número do pedido",100),
-      "supplier":text(payload.get("supplier"),"o fornecedor",160),
+      "supplier":text(payload.get("supplier",""),"o fornecedor",160,False),
       "product":text(payload.get("product"),"o produto",160),
       "unit":unit,
       "ordered_qty":display(qty(payload.get("ordered_qty"),"a quantidade pedida"))

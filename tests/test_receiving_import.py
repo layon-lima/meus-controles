@@ -77,7 +77,7 @@ class ReceivingImportTests(unittest.TestCase):
             self.assertEqual(result["imported"],0)
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],4)
 
-    def test_existing_manual_products_are_skipped_without_overwriting(self):
+    def test_existing_manual_products_can_be_ordered_again_without_overwriting(self):
         with app.db() as con:
             first=sample()["items"][0]
             con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
@@ -85,8 +85,57 @@ class ReceivingImportTests(unittest.TestCase):
                 first[k] for k in ("order_number","supplier","product","unit","ordered_qty"))))
             p=receiving_import.preview(con,self.cid,sample())
             self.assertEqual(p["matched"],1)
-            self.assertEqual(p["new_count"],3)
-            receiving_import.confirm(con,self.cid,sample(),p["fingerprint"])
+            self.assertEqual(p["new_count"],4)
+            self.assertTrue(p["requires_duplicate_consent"])
+            with self.assertRaisesRegex(ValueError,"novo lote"):
+                receiving_import.confirm(con,self.cid,sample(),p["fingerprint"])
+            receiving_import.confirm(con,self.cid,sample(),p["fingerprint"],allow_duplicates=True)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],5)
+
+    def test_same_file_can_be_imported_again_only_as_explicit_new_batch(self):
+        document=sample()
+        with app.db() as con:
+            first=receiving_import.preview(con,self.cid,document)
+            receiving_import.confirm(con,self.cid,document,first["fingerprint"])
+        with app.db() as con:
+            second=receiving_import.preview(con,self.cid,document)
+            self.assertTrue(second["already_imported"])
+            self.assertTrue(second["requires_duplicate_consent"])
+            self.assertEqual(second["repeat_count"],4)
+            self.assertEqual(receiving_import.confirm(con,self.cid,document,second["fingerprint"])["imported"],0)
+            with self.assertRaises(ValueError):
+                receiving_import.confirm(con,self.cid,document,second["fingerprint"],
+                    repeat_batch=True,confirmation_token=second["confirmation_token"])
+            result=receiving_import.confirm(con,self.cid,document,second["fingerprint"],
+                repeat_batch=True,allow_duplicates=True,confirmation_token=second["confirmation_token"])
+            self.assertEqual(result["imported"],4)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],8)
+            # Duplo clique ou retry da MESMA confirmação é idempotente.
+            retry=receiving_import.confirm(con,self.cid,document,second["fingerprint"],
+                repeat_batch=True,allow_duplicates=True,confirmation_token=second["confirmation_token"])
+            self.assertEqual(retry["imported"],0)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],8)
+            # Outro lote novo, também com os mesmos produtos e valores, é permitido.
+            third=receiving_import.preview(con,self.cid,document)
+            receiving_import.confirm(con,self.cid,document,third["fingerprint"],
+                repeat_batch=True,allow_duplicates=True,confirmation_token=third["confirmation_token"])
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],12)
+
+    def test_blank_supplier_from_import_can_be_edited_without_becoming_required(self):
+        with app.db() as con:
+            preview=receiving_import.preview(con,self.cid,sample())
+            receiving_import.confirm(con,self.cid,sample(),preview["fingerprint"])
+            product=receiving.summary(con,self.cid)["items"][0]
+            data=receiving.validate_item({
+                "order_number":product["order_number"],
+                "supplier":"",
+                "product":product["product"],
+                "unit":product["unit"],
+                "ordered_qty":product["ordered_qty"]
+            })
+            self.assertEqual(data["supplier"],"")
+            con.execute("""UPDATE purchase_items SET order_number=?,supplier=?,product=?,
+                unit=?,ordered_qty=? WHERE id=?""",(*data.values(),product["id"]))
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],4)
 
     def test_identical_duplicate_rows_use_multiset_counts(self):

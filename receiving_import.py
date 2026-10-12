@@ -4,6 +4,7 @@ Arquivo JSON permanece na máquina do usuário; a API recebe o conteúdo apenas
 localmente. Preserva multiplicidade de itens iguais e não cria notas fiscais.
 """
 from collections import Counter
+from secrets import token_hex
 import hashlib
 import json
 import re
@@ -67,7 +68,6 @@ def prepare(con,cid,doc):
         receiving.display(receiving.qty(row["ordered_qty"])))
       for row in con.execute("""SELECT order_number,supplier,product,unit,ordered_qty
         FROM purchase_items WHERE control_id=?""",(cid,)))
-    to_insert=[]
     matched=0
     for item in items:
         key=(item["order_number"],normalize(item["supplier"]),normalize(item["product"]),
@@ -75,22 +75,25 @@ def prepare(con,cid,doc):
         if existing[key]>0:
             existing[key]-=1
             matched+=1
-        else:
-            to_insert.append(item)
+    # Um produto pode repetir em compras futuras. Contabilizamos as coincidências,
+    # mas nunca descartamos uma linha nova apenas por ser igual à antiga.
     totals={}
     for item in items:
         totals[item["unit"]]=totals.get(item["unit"],0)+1
     return {
         "source":source,"count":len(items),"fingerprint":fingerprint,
         "matched":matched,
-        "new_count":0 if already else len(to_insert),
+        "new_count":0 if already else len(items),
+        "repeat_count":len(items),
         "already_imported":already,
-        "can_import":not already and len(to_insert)>0,
+        "can_import":not already,
+        "confirmation_token":token_hex(16),
+        "requires_duplicate_consent":already or matched>0,
         "items_by_unit":totals,
         "preview_items":items[:60],
         "unknown_suppliers":sum(1 for i in items if not i["supplier"]),
         "receipts_created":0,
-        "_new_items":to_insert
+        "_new_items":items
     }
 
 def preview(con,cid,doc):
@@ -98,19 +101,36 @@ def preview(con,cid,doc):
     result.pop("_new_items")
     return result
 
-def confirm(con,cid,doc,fingerprint):
+def confirm(con,cid,doc,fingerprint,allow_duplicates=False,repeat_batch=False,confirmation_token=None):
     if not con.in_transaction:
         con.execute("BEGIN IMMEDIATE")
     report=prepare(con,cid,doc)
     if not isinstance(fingerprint,str) or fingerprint!=report["fingerprint"]:
         raise ValueError("Arquivo diferente da prévia. Confira os pedidos novamente.")
-    if report["already_imported"]:
+    if type(allow_duplicates) is not bool or type(repeat_batch) is not bool:
+        raise ValueError("Confirmação de importação inválida.")
+    if report["already_imported"] and not repeat_batch:
         return {"imported":0,"matched":report["count"],"already_imported":True}
+    if report["matched"] and not allow_duplicates:
+        raise ValueError("Há pedidos iguais já registrados. Confirme que este é um novo lote antes de importar.")
+    if repeat_batch:
+        if not report["already_imported"] or not allow_duplicates:
+            raise ValueError("Só é possível repetir um arquivo já importado com confirmação expressa.")
+        if not isinstance(confirmation_token,str) or not re.fullmatch(r"[0-9a-f]{32}",confirmation_token):
+            raise ValueError("Prévia expirada ou inválida. Confira novamente.")
+        # Chave por prévia: duplo clique/reenvio não duplica o novo lote.
+        import_key=hashlib.sha256(
+            ("repeat:"+fingerprint+":"+confirmation_token).encode("ascii")).hexdigest()
+        if con.execute("SELECT 1 FROM receiving_imports WHERE control_id=? AND fingerprint=?",
+                       (cid,import_key)).fetchone():
+            return {"imported":0,"matched":report["count"],"already_imported":True}
+    else:
+        import_key=fingerprint
     for row in report["_new_items"]:
         con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
           VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
     con.execute("""INSERT INTO receiving_imports(control_id,fingerprint,source_name,source_count,inserted_count)
-      VALUES(?,?,?,?,?)""",(cid,fingerprint,report["source"],report["count"],len(report["_new_items"])))
+      VALUES(?,?,?,?,?)""",(cid,import_key,report["source"],report["count"],len(report["_new_items"])))
     con.commit()
     return {"imported":len(report["_new_items"]),"matched":report["matched"],
       "already_imported":False}
@@ -126,4 +146,7 @@ def handle(handler,con,method,path):
     doc=data.get("document")
     if match[2]=="preview":
         return handler.send(preview(con,cid,doc))
-    return handler.send(confirm(con,cid,doc,data.get("fingerprint")),201)
+    return handler.send(confirm(con,cid,doc,data.get("fingerprint"),
+        allow_duplicates=data.get("allow_duplicates",False),
+        repeat_batch=data.get("repeat_batch",False),
+        confirmation_token=data.get("confirmation_token")),201)

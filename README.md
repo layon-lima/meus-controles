@@ -248,9 +248,14 @@ começa com zero de recebimento, sem notas fiscais inventadas. As
 referências são preservadas integralmente no campo do pedido, mesmo
 quando vieram dois números separados por barra.
 
-A importação grava de forma atômica no SQLite local. Um hash por
-arquivo/controle impede reimportar exatamente o mesmo lote.
-Produtos existentes idênticos (referências, fornecedor, produto,
-unidade e quantidade) são reconhecidos por multiplicidade, sem
-eliminar linhas duplicadas reais. O fornecedor vazio poderá ser
-preenchido posteriormente por **Editar produto**.
+A importação grava de forma atômica no SQLite local e impede a
+repetição acidental da mesma confirmação. **Produtos podem aparecer
+novamente em pedidos futuros**, mesmo com as mesmas referências,
+quantidade e fornecedor. O sistema exibe um alerta se encontrar
+coincidências com itens existentes, mas permite importar todas as
+linhas como um **novo lote** mediante confirmação expressa.
+Até o mesmo arquivo já importado pode ser utilizado para um pedido
+realmente novo, marcando a confirmação de novo lote. Cada confirmação
+tem identificador próprio: repetir a mesma requisição não duplica itens.
+O fornecedor vazio é permitido tanto ao importar quanto ao
+**Editar produto**. O aplicativo não elimina itens por coincidência.

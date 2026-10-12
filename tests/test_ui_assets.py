@@ -225,6 +225,20 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('unknown_suppliers',importer)
         self.assertIn('.receiving-import-preview-list',stylesheet)
 
+    def test_receiving_allows_future_identical_orders_with_explicit_new_batch(self):
+        ui=(STATIC / "receiving_import.js").read_text(encoding="utf-8")
+        items=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        css=(STATIC / "receiving_import.css").read_text(encoding="utf-8")
+        self.assertIn('receivingApproveDuplicateBatch(checked)',ui)
+        self.assertIn('allow_duplicates:!!ctx.allowDuplicates',ui)
+        self.assertIn('repeat_batch:!!p.already_imported',ui)
+        self.assertIn('confirmation_token:p.confirmation_token',ui)
+        self.assertIn('novos pedidos/lote',ui)
+        self.assertIn('Cadastrar novo lote com ',ui)
+        self.assertIn('requires_duplicate_consent',ui)
+        self.assertIn('Fornecedor (opcional)',items)
+        self.assertIn('.receiving-import-consent',css)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")
