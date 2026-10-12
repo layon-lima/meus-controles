@@ -219,6 +219,20 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/receiving.js',html)
         self.assertIn('/static/receiving.css',html)
 
+    def test_receiving_numeric_and_action_columns_align_to_headers(self):
+        css=(STATIC / "receiving.css").read_text(encoding="utf-8")
+        js=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        self.assertIn(".receiving-table table th.numeric,",css)
+        self.assertIn(".receiving-table table td.numeric{",css)
+        self.assertIn("text-align:right;",css)
+        self.assertIn(".receiving-table table th:last-child,",css)
+        self.assertIn(".receiving-table table td:last-child{",css)
+        self.assertIn(".receiving-table table td:last-child .table-actions{",css)
+        self.assertIn("justify-content:center;",css)
+        # Pedido e NF usam o mesmo estilo, sem forçar larguras que gerem scroll.
+        self.assertGreaterEqual(js.count('<th class="numeric">'),4)
+        self.assertGreaterEqual(js.count('class="numeric"'),8)
+
     def test_receiving_search_survives_receipt_updates(self):
         js=(STATIC / "receiving.js").read_text(encoding="utf-8")
         self.assertIn('this.s.receivingSearch={controlId:id,query:""}',js)

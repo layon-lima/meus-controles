@@ -33,3 +33,19 @@
 .receiving-hint{font-size:11px;line-height:1.5;color:#4c6f65;background:#edf8f3;padding:11px 13px;border-radius:8px;margin-top:15px}
 @media(max-width:1060px){.receiving-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:590px){.receiving-kpi{padding:10px 12px}.receiving-kpi strong{font-size:20px}.receiving-search{width:100%;min-width:0}.receiving-head>.btn{width:100%;justify-content:center}}
+
+/* Alinhamento identico entre cabecalho e dados, em ambas as tabelas.
+   As quantidades usam a mesma borda direita; acoes ficam sob seu titulo. */
+.receiving-table table th.numeric,
+.receiving-table table td.numeric{
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.receiving-table table th:last-child,
+.receiving-table table td:last-child{
+  text-align:center;
+}
+.receiving-table table td:last-child .table-actions{
+  justify-content:center;
+  align-items:center;
+}
