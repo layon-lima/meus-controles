@@ -241,7 +241,8 @@ const App = {
   newControl(boardId){
     if(!this.canOpenForm())return;
     this.s.modal="builder";this.s.editing=null;this.s.modalContext=null;this.s.step=0;this.s.draft=template();
-    if(boardId)this.s.draft.board_id=boardId;
+    const destination=boardId||(this.s.route==="board"?this.s.id:null);
+    if(destination)this.s.draft.board_id=destination;
     this.renderModal();
   },
   editControl(id){
