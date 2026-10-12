@@ -219,6 +219,18 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/receiving.js',html)
         self.assertIn('/static/receiving.css',html)
 
+    def test_receiving_search_survives_receipt_updates(self):
+        js=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        self.assertIn('this.s.receivingSearch={controlId:id,query:""}',js)
+        self.assertIn('this.s.receivingSearch={controlId,query:raw}',js)
+        self.assertIn('id="receivingSearch"',js)
+        self.assertIn("E(savedSearch)",js)
+        self.assertIn("this.receivingApplyFilter(savedSearch)",js)
+        self.assertIn("receivingApplyFilter(query)",js)
+        self.assertIn('await this.load();this.toast("Recebimento salvo.',js)
+        # Controle trocado: não reutilizar filtro de outro controle.
+        self.assertIn('this.s.receivingSearch?.controlId!==id',js)
+
     def test_receiving_import_remains_in_settings_after_first_use(self):
         page=(STATIC / "index.html").read_text(encoding="utf-8")
         receiving=(STATIC / "receiving.js").read_text(encoding="utf-8")

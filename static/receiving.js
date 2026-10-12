@@ -12,6 +12,10 @@ Object.assign(App,{
     const ctrl=this.s.detail?.control;
     if(!ctrl||ctrl.mode!=="recebimento")return;
     const id=ctrl.id;
+    // Cada controle tem sua propria busca. Uma atualizacao dos dados nao a apaga.
+    if(this.s.receivingSearch?.controlId!==id){
+      this.s.receivingSearch={controlId:id,query:""};
+    }
     document.getElementById("main").innerHTML='<div class="empty-state">Carregando pedidos...</div>';
     try{
       const data=await this.api("/api/controls/"+id+"/receiving");
@@ -26,6 +30,8 @@ Object.assign(App,{
     const r=this.s.receivingData,c=this.s.detail?.control;
     if(!r||!c)return;
     const t=r.totals;
+    const savedSearch=this.s.receivingSearch?.controlId===c.id?
+      this.s.receivingSearch.query:"";
     const rows=r.items.map(p=>{
       const status=p.status==="complete"?"Recebido":p.status==="partial"?"Parcial":"Pendente";
       const action=p.status==="complete"?"":'<button class="mini-action" onclick="App.receivingReceiptForm('+p.id+')">'+icon("plus")+' Receber</button>';
@@ -60,7 +66,7 @@ Object.assign(App,{
       '<div class="receiving-kpi"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join("")+'</div>'+
       '<div class="receiving-section-heading"><h3>Pedidos e produtos</h3>'+
       '<label class="receiving-search">'+icon("search")+
-      '<input type="search" placeholder="Buscar pedido, fornecedor, produto ou nota..." aria-label="Pesquisar" oninput="App.receivingFilter(this.value)"></label></div>'+
+      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="Buscar pedido, fornecedor, produto ou nota..." aria-label="Pesquisar" oninput="App.receivingFilter(this.value)"></label></div>'+
       '<section class="panel receiving-table">'+
       (t.items?'<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
@@ -72,11 +78,20 @@ Object.assign(App,{
       (t.receipts?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
        '<th>Produto / fornecedor</th><th class="numeric">Quantidade</th><th>Ações</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
        '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>';
+    // Aplicar novamente apos redesenhar a tabela (ex.: salvar/editar/excluir NF).
+    this.receivingApplyFilter(savedSearch);
   },
   receivingFilter(query){
-    const value=String(query||"").trim().toLowerCase();
+    const controlId=this.s.detail?.control?.id;
+    if(controlId==null)return;
+    const raw=String(query??"");
+    this.s.receivingSearch={controlId,query:raw};
+    this.receivingApplyFilter(raw);
+  },
+  receivingApplyFilter(query){
+    const value=String(query??"").trim().toLocaleLowerCase("pt-BR");
     document.querySelectorAll("[data-receiving-search]").forEach(el=>{
-      el.hidden=!el.getAttribute("data-receiving-search").toLowerCase().includes(value);
+      el.hidden=!el.getAttribute("data-receiving-search").toLocaleLowerCase("pt-BR").includes(value);
     });
   },
   receivingItemForm(id){
