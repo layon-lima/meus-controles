@@ -120,13 +120,18 @@ Object.assign(App,{
   renderTruckForm(){
     const ctx=this.s.modalContext,r=ctx.entry||{},kind=ctx.kind;
     const expenseCategories=ctx.settings.categories||TRUCK_EXPENSES;
-    const initialExpenseCategory=r.category||expenseCategories[0]||"";
+    const initialExpenseCategory=r.category||"";
     const fields=kind==="freight"?
       truckField("Tipo de frete",'<select name="category">'+truckOptions(TRUCK_FREIGHTS,r.category||"Frete Normal")+'</select>')+
       truckField("Peso carregado (kg)",truckInput("weight_kg",r.weight_kg||"",'required inputmode="decimal" oninput="App.truckPreview()"'))+
       truckField("Preço por tonelada (R$)",truckInput("price_tonne",r.price_tonne||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
       kind==="expense"?
-      truckField("Categoria da despesa",'<input name="category" id="truckExpenseCategory" list="truckExpenseList" autocomplete="off" maxlength="90" required placeholder="Escolha ou pesquise..." value="'+E(initialExpenseCategory)+'" oninput="App.truckValidateExpenseCategory(this)" onblur="App.truckValidateExpenseCategory(this,true)" aria-describedby="truckExpenseHint"><datalist id="truckExpenseList">'+expenseCategories.map(c=>'<option value="'+E(c)+'"></option>').join("")+'</datalist><small id="truckExpenseHint" class="truck-category-hint">Escolha uma opção da lista. Para adicionar ou editar, use os Ajustes do controle.</small>')+
+      truckField("Categoria da despesa",'<div class="truck-expense-combobox" id="truckExpenseCombobox">'+
+        '<div class="truck-expense-input-row">'+
+        '<input type="text" id="truckExpenseCategory" name="category" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="truckExpenseOptions" aria-describedby="truckExpenseHint" autocomplete="off" maxlength="90" required placeholder="Selecione ou digite para pesquisar" value="'+E(initialExpenseCategory)+'" onfocus="App.truckCategoryFocus()" oninput="App.truckCategoryInput(this)" onkeydown="App.truckCategoryKeydown(event)" onblur="App.truckCategoryBlur()">'+
+        '<button type="button" class="truck-expense-arrow" aria-label="Mostrar todas as categorias" aria-controls="truckExpenseOptions" aria-expanded="false" onpointerdown="event.preventDefault()" onclick="App.truckCategoryToggle()">'+icon("chevron-down")+'</button></div>'+
+        '<div id="truckExpenseOptions" class="truck-expense-options" role="listbox" aria-label="Categorias de despesa" hidden></div></div>'+
+        '<small id="truckExpenseHint" class="truck-category-hint">Digite para filtrar, ou clique na seta para ver todas as categorias.</small>')+
       truckField("Valor pago (R$)",truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
       truckField("Tipo de pagamento",'<select name="category">'+truckOptions(TRUCK_ADVANCES,r.category||"Vale motorista")+'</select>')+
       truckField("Valor pago ao motorista (R$)",truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"'));
@@ -149,6 +154,106 @@ Object.assign(App,{
      '</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
      '<button class="btn btn-primary" onclick="App.truckSave()">'+icon("plus")+' Salvar lançamento</button></div></div></div>';
     this.truckPreview();
+  },
+  truckCategoryList(){
+    return this.s.modalContext?.settings?.categories||TRUCK_EXPENSES;
+  },
+  truckCategoryClose(){
+    const options=document.getElementById("truckExpenseOptions");
+    const input=document.getElementById("truckExpenseCategory");
+    const arrow=document.querySelector(".truck-expense-arrow");
+    if(options)options.hidden=true;
+    if(input){
+      input.setAttribute("aria-expanded","false");
+      input.removeAttribute("aria-activedescendant");
+    }
+    if(arrow)arrow.setAttribute("aria-expanded","false");
+    this.s.truckCategoryMatches=[];
+    this.s.truckCategoryActive=-1;
+  },
+  truckCategoryRender(showAll=false){
+    const input=document.getElementById("truckExpenseCategory");
+    const options=document.getElementById("truckExpenseOptions");
+    const arrow=document.querySelector(".truck-expense-arrow");
+    if(!input||!options)return;
+    const query=normalizeSearch(input.value.trim());
+    const all=this.truckCategoryList();
+    const matches=all.map((name,index)=>({name,index}))
+      .filter(item=>showAll||!query||normalizeSearch(item.name).includes(query));
+    this.s.truckCategoryMatches=matches.map(item=>item.index);
+    this.s.truckCategoryActive=-1;
+    this.s.truckCategoryAll=showAll;
+    options.innerHTML=matches.length?matches.map(item=>
+      '<button type="button" role="option" class="truck-expense-option" id="truckExpenseOption-'+item.index+'" aria-selected="false" onpointerdown="event.preventDefault()" onclick="App.truckCategoryPick('+item.index+')">'+E(item.name)+'</button>'
+    ).join(""):'<div class="truck-expense-no-match">Nenhuma categoria encontrada. Adicione em Ajustes.</div>';
+    options.hidden=false;
+    input.setAttribute("aria-expanded","true");
+    if(arrow)arrow.setAttribute("aria-expanded","true");
+  },
+  truckCategoryFocus(){
+    const input=document.getElementById("truckExpenseCategory");
+    if(input)this.truckCategoryRender(!input.value.trim());
+  },
+  truckCategoryInput(input){
+    input.setCustomValidity("");
+    this.truckCategoryRender(false);
+  },
+  truckCategoryToggle(){
+    const options=document.getElementById("truckExpenseOptions");
+    const input=document.getElementById("truckExpenseCategory");
+    if(!options||!input)return;
+    if(!options.hidden&&this.s.truckCategoryAll){
+      this.truckCategoryClose();
+    }else{
+      this.truckCategoryRender(true);
+    }
+    input.focus();
+  },
+  truckCategoryPick(index){
+    const input=document.getElementById("truckExpenseCategory");
+    const name=this.truckCategoryList()[index];
+    if(!input||typeof name!=="string")return;
+    input.value=name;
+    input.setCustomValidity("");
+    this.truckCategoryClose();
+    input.focus();
+  },
+  truckCategoryKeydown(event){
+    const input=document.getElementById("truckExpenseCategory");
+    const options=document.getElementById("truckExpenseOptions");
+    if(!input||!options)return;
+    if(event.key==="Escape"){
+      this.truckCategoryClose();
+      event.stopPropagation();
+      return;
+    }
+    if(event.key==="ArrowDown"||event.key==="ArrowUp"){
+      event.preventDefault();
+      if(options.hidden)this.truckCategoryRender(!input.value.trim());
+      const matches=this.s.truckCategoryMatches||[];
+      if(!matches.length)return;
+      const current=this.s.truckCategoryActive??-1;
+      this.s.truckCategoryActive=event.key==="ArrowDown"
+        ?(current+1)%matches.length
+        :(current<0?matches.length-1:(current-1+matches.length)%matches.length);
+      const pos=this.s.truckCategoryActive;
+      options.querySelectorAll('[role="option"]').forEach((node,i)=>{
+        node.setAttribute("aria-selected",String(i===pos));
+        node.classList.toggle("active",i===pos);
+      });
+      const id="truckExpenseOption-"+matches[pos];
+      input.setAttribute("aria-activedescendant",id);
+      document.getElementById(id)?.scrollIntoView({block:"nearest"});
+    }else if(event.key==="Enter"&&!options.hidden&&(this.s.truckCategoryMatches||[]).length){
+      event.preventDefault();
+      const idx=this.s.truckCategoryActive>=0?this.s.truckCategoryActive:0;
+      this.truckCategoryPick(this.s.truckCategoryMatches[idx]);
+    }
+  },
+  truckCategoryBlur(){
+    const input=document.getElementById("truckExpenseCategory");
+    if(input)this.truckValidateExpenseCategory(input,true);
+    this.truckCategoryClose();
   },
   truckValidateExpenseCategory(input,complete=false){
     const list=this.s.modalContext?.settings?.categories||TRUCK_EXPENSES;

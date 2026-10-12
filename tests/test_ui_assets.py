@@ -83,8 +83,17 @@ class LayoutAssetsTests(unittest.TestCase):
     def test_truck_expense_categories_are_fixed_and_configurable(self):
         truck = (STATIC / "truck.js").read_text(encoding="utf-8")
         css = (STATIC / "truck.css").read_text(encoding="utf-8")
-        self.assertIn('list="truckExpenseList"', truck)
-        self.assertIn('truckValidateExpenseCategory(this,true)', truck)
+        self.assertNotIn('<datalist', truck)
+        self.assertIn('role="combobox"', truck)
+        self.assertIn('role="listbox"', truck)
+        self.assertIn('Mostrar todas as categorias', truck)
+        self.assertIn('truckCategoryRender(showAll=false)', truck)
+        self.assertIn('truckCategoryInput(input)', truck)
+        self.assertIn('truckCategoryToggle()', truck)
+        self.assertIn('truckCategoryPick(index)', truck)
+        self.assertIn('truckCategoryKeydown(event)', truck)
+        self.assertIn('onpointerdown="event.preventDefault()"', truck)
+        self.assertIn('this.truckValidateExpenseCategory(category,true)', truck)
         self.assertIn('ctx.settings.categories||TRUCK_EXPENSES', truck)
         self.assertIn('truckAddCategory()', truck)
         self.assertIn('truckEditCategory(index,value)', truck)
@@ -92,6 +101,8 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('category_renames:renames', truck)
         self.assertIn('Categorias de despesa', truck)
         self.assertIn('truck-category-settings', css)
+        self.assertIn('.truck-expense-options', css)
+        self.assertIn('.truck-expense-option:hover', css)
 
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")

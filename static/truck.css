@@ -234,3 +234,44 @@
   .truck-category-list{grid-template-columns:1fr}
   .truck-category-settings-head .btn{width:100%;justify-content:center}
 }
+
+/* Combobox próprio: sugestão filtrável e lista completa pela seta. */
+.truck-expense-combobox{position:relative;width:100%;isolation:isolate;z-index:20}
+.truck-expense-input-row{position:relative;display:flex;width:100%;align-items:stretch}
+.truck-expense-input-row input{
+  width:100%;min-width:0;flex:1;padding-right:45px!important;
+  border-radius:9px;
+}
+.truck-expense-arrow{
+  position:absolute;right:3px;top:3px;bottom:3px;width:38px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:0;border-left:1px solid transparent;border-radius:7px;
+  color:#536b7c;background:transparent;cursor:pointer;
+}
+.truck-expense-arrow:hover,.truck-expense-arrow[aria-expanded="true"]{
+  background:#edf6f3;color:#147a65;
+}
+.truck-expense-arrow .ui-icon{width:18px;height:18px}
+.truck-expense-arrow[aria-expanded="true"] .ui-icon{transform:rotate(180deg)}
+.truck-expense-options{
+  position:absolute;left:0;right:0;top:calc(100% + 5px);
+  z-index:110;padding:6px;max-height:220px;overflow-y:auto;overscroll-behavior:contain;
+  background:#fff;border:1px solid #d2e1e6;border-radius:11px;
+  box-shadow:0 14px 32px rgba(18,40,61,.20);
+}
+.truck-expense-options[hidden]{display:none!important}
+.truck-expense-option{
+  display:block;width:100%;min-height:39px;padding:9px 12px;
+  border:0;border-radius:7px;background:transparent;
+  color:#223b4e;font-size:13px;font-weight:600;
+  text-align:left;cursor:pointer;
+}
+.truck-expense-option:hover,.truck-expense-option.active,
+.truck-expense-option[aria-selected="true"]{
+  color:#126b59;background:#eaf5ef;
+}
+.truck-expense-no-match{padding:13px 12px;font-size:12px;color:#768995}
+.truck-entry-form .form-grid>.field:has(.truck-expense-combobox){position:relative;z-index:22}
+.truck-entry-form .form-grid>.field:has(.truck-expense-combobox) .truck-category-hint{
+  font-size:10px;line-height:1.5;
+}
