@@ -24,3 +24,5 @@ jobs:
           node --check static/debt.js
           node --check static/receiving.js
           node --check static/receiving_import.js
+          node --check tests/test_navigation.js
+          node tests/test_navigation.js

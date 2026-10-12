@@ -20,6 +20,23 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn(":not(svg):not(svg *)",app_css)
         self.assertIn("Consolas",panel)
 
+    def test_browser_history_and_internal_navigation_buttons(self):
+        source=(STATIC / "app.js").read_text(encoding="utf-8")
+        page=(STATIC / "index.html").read_text(encoding="utf-8")
+        styles=(STATIC / "app.css").read_text(encoding="utf-8")
+        for token in ("initNavigation()", "navRouteFromUrl()", "navUrl(route,id)",
+                      "history.pushState", "history.replaceState", '"popstate"',
+                      "goBack()", "goForward()", "updateNavigationButtons()"):
+            self.assertIn(token,source)
+        self.assertIn('id="navBack"',page)
+        self.assertIn('id="navForward"',page)
+        self.assertIn('onclick="App.goBack()"',page)
+        self.assertIn('onclick="App.goForward()"',page)
+        self.assertIn('.page-nav-arrows',styles)
+        self.assertIn('.page-nav-back .ui-icon',styles)
+        self.assertIn('transform:rotate(180deg)',styles)
+        self.assertIn("App.initNavigation();",source)
+
     def test_home_has_no_bloated_intro(self):
         source = (STATIC / "app.js").read_text(encoding="utf-8")
         home = source.split('if(this.s.route==="home"){', 1)[1].split('} else if(this.s.route==="board"){', 1)[0]

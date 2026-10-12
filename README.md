@@ -259,3 +259,21 @@ realmente novo, marcando a confirmação de novo lote. Cada confirmação
 tem identificador próprio: repetir a mesma requisição não duplica itens.
 O fornecedor vazio é permitido tanto ao importar quanto ao
 **Editar produto**. O aplicativo não elimina itens por coincidência.
+
+
+## Voltar e Avançar entre páginas
+
+O topo do aplicativo agora mostra setas **Voltar** e **Avançar**,
+inclusive quando o menu lateral fica recolhido. Os botões usam o
+mesmo histórico das setas do navegador.
+
+A Visão geral fica na URL `/`, cada quadro em `/#/board/ID`
+e cada controle em `/#/control/ID`. As URLs podem ser atualizadas
+e reabertas sem perder a tela atual. A navegação não recria nem apaga
+dados do SQLite. Quando não houver página anterior ou seguinte dentro
+da sessão do aplicativo, a seta interna correspondente fica desativada.
+
+Cada mudança real de tela registra uma nova entrada no histórico.
+Voltar/avançar não cria entradas duplicadas, e abrir outra tela depois
+de voltar descarta corretamente o avanço antigo. Um controle excluído
+encontrado no histórico volta para Visão geral em vez de quebrar a tela.

@@ -173,3 +173,24 @@
 html,body,body *:not(svg):not(svg *){
   font-family:var(--app-font)!important;
 }
+
+/* Setas de navegacao sempre visiveis no topo, inclusive em celular. */
+.page-nav-arrows{
+  display:flex;align-items:center;gap:3px;flex:0 0 auto;
+}
+.page-nav-arrow{
+  display:grid;place-items:center;
+  width:32px;height:34px;padding:6px;
+  color:#365168;background:transparent;border:1px solid transparent;
+  border-radius:8px;cursor:pointer;transition:background .15s,color .15s;
+}
+.page-nav-arrow:hover:not(:disabled){background:#e9f3f0;color:#147d6a;border-color:#cde3dd}
+.page-nav-arrow:focus-visible{outline:2px solid #4a9a8a;outline-offset:2px}
+.page-nav-arrow:disabled{opacity:.32;cursor:default}
+.page-nav-arrow .ui-icon{width:17px;height:17px}
+.page-nav-back .ui-icon{transform:rotate(180deg)}
+.top-left>div:last-child{min-width:0}
+@media(max-width:590px){
+  .page-nav-arrow{width:29px;height:31px}
+  .top-left{gap:6px}
+}

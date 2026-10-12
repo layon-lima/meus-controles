@@ -70,24 +70,114 @@ const App = {
     el.className="toast"+(error?" error":"");el.textContent=message;r.appendChild(el);
     setTimeout(()=>el.remove(),4200);
   },
-  async load(){
-    try{
-      this.s.state=await this.api("/api/state");
-      if(this.s.route==="control" && this.s.id){
-        try{this.s.detail=await this.api("/api/controls/"+this.s.id)}
-        catch{this.s.route="home";this.s.id=null;this.s.detail=null}
-      }
-      this.render();
-    }catch(e){this.toast(e.message,true);document.getElementById("main").innerHTML='<div class="empty-state"><strong>Servidor indisponível</strong>Verifique o painel de controle e tente novamente.</div>'}
+  // Cada quadro e controle possui URL própria; o navegador registra Voltar/Avançar.
+  navRouteFromUrl(){
+    const hash=window.location.hash||"";
+    const m=hash.match(/^#\/(board|control)\/([1-9]\d*)$/);
+    if(!m)return {route:"home",id:null};
+    const id=Number(m[2]);
+    return Number.isSafeInteger(id)?{route:m[1],id}:{route:"home",id:null};
   },
-  navigate(route,id){
-    this.s.route=route;this.s.id=id||null;this.s.query="";
-    document.getElementById("search").value="";
+  navUrl(route,id){
+    const base=window.location.pathname+window.location.search;
+    return base+(route==="home"?"":"#/"+route+"/"+id);
+  },
+  initNavigation(){
+    const state=window.history.state;
+    const index=state?.centralNav===1&&Number.isSafeInteger(state.index)&&state.index>=0?
+      state.index:0;
+    this.s.navIndex=index;
+    this.s.navMax=Math.max(index,Number.isSafeInteger(state?.maxIndex)?state.maxIndex:index);
+    const locationRoute=this.navRouteFromUrl();
+    this.s.route=locationRoute.route;this.s.id=locationRoute.id;
+    // Vincular a entrada inicial ao app, sem recarregar nem sair para o navegador.
+    window.history.replaceState({centralNav:1,index,maxIndex:this.s.navMax},"",this.navUrl(this.s.route,this.s.id));
+    window.addEventListener("popstate",event=>{
+      const target=this.navRouteFromUrl();
+      const pos=event.state?.centralNav===1&&Number.isSafeInteger(event.state.index)?
+        event.state.index:this.s.navIndex;
+      this.s.navIndex=pos;
+      this.s.navMax=Math.max(this.s.navMax,pos);
+      // Guardar limite de avanço na entrada atual para continuar após recarregar.
+      window.history.replaceState({centralNav:1,index:pos,maxIndex:this.s.navMax},"",this.navUrl(target.route,target.id));
+      this.navigate(target.route,target.id,{fromHistory:true});
+    });
+  },
+  updateNavigationButtons(){
+    const back=document.getElementById("navBack");
+    const forward=document.getElementById("navForward");
+    if(back)back.disabled=!(this.s.navIndex>0);
+    if(forward)forward.disabled=!(this.s.navIndex<this.s.navMax);
+  },
+  goBack(){
+    if(this.s.navIndex>0)window.history.back();
+  },
+  goForward(){
+    if(this.s.navIndex<this.s.navMax)window.history.forward();
+  },
+  async load(){
+    const request=(this.s.loadRevision||0)+1;
+    this.s.loadRevision=request;
+    try{
+      const state=await this.api("/api/state");
+      if(this.s.loadRevision!==request)return;
+      this.s.state=state;
+      if(this.s.route==="control" && this.s.id){
+        const controlId=this.s.id;
+        try{
+          const detail=await this.api("/api/controls/"+controlId);
+          if(this.s.loadRevision!==request||this.s.route!=="control"||this.s.id!==controlId)return;
+          this.s.detail=detail;
+        }catch{
+          if(this.s.loadRevision!==request||this.s.route!=="control"||this.s.id!==controlId)return;
+          this.s.route="home";this.s.id=null;this.s.detail=null;
+          window.history.replaceState({centralNav:1,index:this.s.navIndex,maxIndex:this.s.navMax},"",this.navUrl("home"));
+        }
+      }
+      if(this.s.loadRevision!==request)return;
+      this.render();
+    }catch(e){
+      if(this.s.loadRevision!==request)return;
+      this.toast(e.message,true);
+      document.getElementById("main").innerHTML='<div class="empty-state"><strong>Servidor indisponível</strong>Verifique o painel de controle e tente novamente.</div>';
+    }
+  },
+  navigate(route,id,options={}){
+    const valid=["home","board","control"].includes(route);
+    let nextRoute=valid?route:"home";
+    let nextId=nextRoute==="home"?null:Number(id);
+    if(nextRoute!=="home"&&(!Number.isSafeInteger(nextId)||nextId<=0)){
+      nextRoute="home";nextId=null;
+    }
+    const changed=this.s.route!==nextRoute||this.s.id!==nextId;
+    if(!options.fromHistory){
+      if(changed&&!options.replace){
+        const nextIndex=this.s.navIndex+1;
+        window.history.pushState({centralNav:1,index:nextIndex,maxIndex:nextIndex},"",this.navUrl(nextRoute,nextId));
+        this.s.navIndex=nextIndex;this.s.navMax=nextIndex;
+      }else if(options.replace){
+        window.history.replaceState({centralNav:1,index:this.s.navIndex,maxIndex:this.s.navMax},"",this.navUrl(nextRoute,nextId));
+      }
+    }
+    // Uma navegação real encerra formulários/menus da tela anterior.
+    if(changed&&this.s.modal)this.closeModal();
+    if(changed)this.s.loadRevision=(this.s.loadRevision||0)+1;
+    this.s.route=nextRoute;this.s.id=nextId;this.s.query="";
+    const search=document.getElementById("search");
+    if(search)search.value="";
     this.closeSearch();
     this.toggleMenu(false);
     this.closeControlMenus();
-    if(route==="control") this.load();
-    else{this.s.detail=null;this.render()}
+    this.updateNavigationButtons();
+    if(nextRoute==="control"){
+      if(changed||!this.s.detail||this.s.detail.control.id!==nextId){
+        this.s.detail=null;
+        this.load();
+      }else this.render();
+    }else{
+      this.s.detail=null;
+      this.render();
+    }
   },
   search(q){
     this.s.query=String(q||"");
@@ -155,13 +245,14 @@ const App = {
       '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')">'+icon("folder")+'<span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
     this.renderMain();
     this.renderSearchResults();
+    this.updateNavigationButtons();
   },
   renderMain(){
     const st=this.s.state;if(!st)return;
     const {boards,controls}=st;
     let title="Visão geral",crumb="CENTRAL / VISÃO GERAL";
     if(this.s.route==="board"){
-      const b=boards.find(x=>x.id===this.s.id);if(!b)return this.navigate("home");
+      const b=boards.find(x=>x.id===this.s.id);if(!b)return this.navigate("home",null,{replace:true});
       title=b.name;crumb="CENTRAL / QUADROS";
     }
     if(this.s.route==="control"){
@@ -575,4 +666,5 @@ document.addEventListener("click",e=>{
   if(!e.target.closest(".control-card-edit")&&!e.target.closest(".card-action-menu"))App.closeControlMenus();
 });
 document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");
+App.initNavigation();
 App.load();

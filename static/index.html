@@ -34,6 +34,10 @@
       <header class="topbar">
         <div class="top-left">
           <button class="icon-button mobile-menu" aria-label="Abrir menu" onclick="App.toggleMenu(true)"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#menu"></use></svg></button>
+          <div class="page-nav-arrows" role="group" aria-label="Navegação entre páginas">
+            <button type="button" class="page-nav-arrow page-nav-back" id="navBack" title="Voltar à página anterior" aria-label="Voltar à página anterior" onclick="App.goBack()" disabled><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#arrow-right"></use></svg></button>
+            <button type="button" class="page-nav-arrow page-nav-forward" id="navForward" title="Avançar para a próxima página" aria-label="Avançar para a próxima página" onclick="App.goForward()" disabled><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#arrow-right"></use></svg></button>
+          </div>
           <div><div class="breadcrumbs" id="crumb">CENTRAL / VISÃO GERAL</div><h1 id="pageTitle">Visão geral</h1></div>
         </div>
         <div class="top-actions">
