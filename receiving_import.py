@@ -63,7 +63,8 @@ def prepare(con,cid,doc):
 
     # Multiconjunto: dois produtos iguais em um mesmo pedido são duas linhas.
     existing=Counter((row["order_number"],normalize(row["supplier"]),
-        normalize(row["product"]),row["unit"],row["ordered_qty"])
+        normalize(row["product"]),row["unit"],
+        receiving.display(receiving.qty(row["ordered_qty"])))
       for row in con.execute("""SELECT order_number,supplier,product,unit,ordered_qty
         FROM purchase_items WHERE control_id=?""",(cid,)))
     to_insert=[]
