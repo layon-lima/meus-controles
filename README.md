@@ -152,3 +152,34 @@ por essas operações.
 Em caso de bloqueio das permissões de execução de scripts do Windows,
 o programa continua funcionando normalmente; o instalador de atalho
 registra erro no log do servidor, sem impedir a inicialização do aplicativo.
+
+
+## Importação local de pagamentos para Controles de Dívidas
+
+Na tela de um Controle de Dívidas, clique em **Importar pagamentos** e
+selecione um arquivo JSON UTF-8 com este formato:
+
+```json
+{
+  "format": "central-controles-divida-v1",
+  "control": "NOME EXATO DO CONTROLE",
+  "payments": [
+    {"date": "2025-01", "description": "Pagamento de exemplo", "amount": "125.00"}
+  ]
+}
+```
+
+O arquivo é lido e enviado **somente ao servidor local**. Dados pessoais e
+financeiros do usuário não ficam no código do repositório GitHub.
+
+A prévia mostra a quantidade, total, pagamentos já existentes, registros
+novos e saldo projetado. A importação usa transação SQLite e registra o
+hash do arquivo, impedindo repetir a mesma importação em outra atualização.
+Pagamentos já existentes com o mesmo mês, descrição e valor são
+preservados, sem duplicação. O saldo inicial nunca é modificado.
+
+Quando o documento informa apenas mês e ano, armazena-se `AAAA-MM`,
+exibido como `MM/AAAA` (não é inventado um dia). Pagamentos normais com
+dia continuam usando `AAAA-MM-DD`. É possível editar ambos depois.
+O arquivo só pode ser importado no controle com nome correspondente e
+modelo `divida`; um arquivo destinado a outro controle é recusado.

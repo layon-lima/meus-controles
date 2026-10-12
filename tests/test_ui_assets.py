@@ -171,6 +171,21 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/debt.js', page)
         self.assertIn('/static/debt.css', page)
 
+    def test_debt_import_from_local_json_preserves_month_precision(self):
+        debt=(STATIC / "debt.js").read_text(encoding="utf-8")
+        css=(STATIC / "debt.css").read_text(encoding="utf-8")
+        self.assertIn('Importar pagamentos',debt)
+        self.assertIn('debtReadImportFile(file)',debt)
+        self.assertIn('debtRenderImportPreview()',debt)
+        self.assertIn('debtConfirmImport()',debt)
+        self.assertIn('debt/import/preview',debt)
+        self.assertIn('debt/import/confirm',debt)
+        self.assertIn('type="month" required',debt)
+        self.assertIn('String(s).length===7',debt)
+        self.assertIn('MM/AAAA',debt)
+        self.assertIn('already_imported',debt)
+        self.assertIn('.debt-import-facts',css)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

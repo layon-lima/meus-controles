@@ -15,6 +15,7 @@ import re
 import sqlite3
 import truck
 import debt
+import debt_import
 import truck_workflow
 import threading
 from urllib.parse import urlsplit
@@ -92,6 +93,7 @@ def initialize():
         """)
         truck.init(con)
         debt.initialize(con)
+        debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
             con.execute("INSERT INTO settings(key,value) VALUES(\'seeded\',\'1\')")
@@ -353,6 +355,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/debt/import/(?:preview|confirm)",url):
+                    debt_import.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/debt(?:/(?:payments|settings|export\.csv))?",url) or re.fullmatch(r"/api/debt-payments/\d+",url):
                     debt.handle(self,con,method,url)
                     return

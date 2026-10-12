@@ -4,7 +4,7 @@ const debtDate=()=>{
   const d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 };
-const debtDateLabel=s=>s?String(s).slice(8,10)+"/"+String(s).slice(5,7)+"/"+String(s).slice(0,4):"—";
+const debtDateLabel=s=>!s?"—":String(s).length===7?String(s).slice(5,7)+"/"+String(s).slice(0,4):String(s).slice(8,10)+"/"+String(s).slice(5,7)+"/"+String(s).slice(0,4);
 const debtField=(label,widget)=>'<div class="field"><label>'+E(label)+'</label>'+widget+'</div>';
 const debtInput=(name,value,extra="")=>'<input name="'+name+'" value="'+E(value??"")+'" '+extra+'>';
 
@@ -58,11 +58,83 @@ Object.assign(App,{
       '<section class="panel debt-ledger"><div class="panel-header"><h3>Histórico de pagamentos</h3>'+
       '<div class="actions-end"><span class="secondary-text">'+t.count+' pagamento(s)</span>'+
       '<button class="btn btn-sm" onclick="App.debtExport('+c.id+')">'+icon("download")+' CSV</button>'+
+      '<button class="btn btn-sm" onclick="App.debtChooseImport()">'+icon("download")+' Importar pagamentos</button>'+
       '<button class="btn btn-sm btn-primary" onclick="App.debtPaymentForm()" '+(done?"disabled":"")+'>'+
       icon("plus")+' Registrar pagamento</button></div></div>'+
+      '<input id="debtImportFile" type="file" accept=".json,application/json" hidden onchange="App.debtReadImportFile(this.files[0])">'+
       (data.payments.length?'<div class="table-wrap"><table><thead><tr><th>Data</th>'+
       '<th>Descrição</th><th style="text-align:right">Valor pago</th><th>Ações</th>'+
       '</tr></thead><tbody>'+rows+'</tbody></table></div>':empty)+'</section>';
+  },
+  debtChooseImport(){
+    if(!this.canOpenForm())return;
+    const file=document.getElementById("debtImportFile");
+    if(!file){this.toast("Seletor indisponível.",true);return}
+    file.value="";
+    file.click();
+  },
+  async debtReadImportFile(file){
+    if(!file)return;
+    if(!/\.json$/i.test(file.name)||file.size>200*1024){
+      this.toast("Selecione o arquivo JSON de pagamentos com até 200 KB.",true);return;
+    }
+    const control=this.s.detail?.control;
+    if(!control||control.mode!=="divida")return;
+    try{
+      const content=await file.text();
+      const document=JSON.parse(content);
+      const preview=await this.api("/api/controls/"+control.id+"/debt/import/preview","POST",{document});
+      this.s.modal="debt-import";
+      this.s.modalContext={controlId:control.id,document,preview,fileName:file.name,busy:false};
+      this.debtRenderImportPreview();
+    }catch(e){this.toast("Não foi possível analisar o arquivo: "+e.message,true)}
+  },
+  debtRenderImportPreview(){
+    const ctx=this.s.modalContext;
+    if(!ctx||!ctx.preview)return;
+    const p=ctx.preview;
+    const ready=p.can_import&&!p.already_imported&&Number(p.new_count)>0;
+    const status=p.already_imported?
+      '<p class="debt-import-note">Este arquivo já foi importado. Nenhum lançamento será repetido.</p>':
+      Number(p.new_count)===0?
+      '<p class="debt-import-note">Todos esses pagamentos já constam no controle.</p>':
+      Number(p.projected_balance)<0?
+      '<p class="debt-import-warning">O saldo da dívida é insuficiente. Confira o saldo inicial nos Ajustes antes de importar.</p>':"";
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal debt-import-modal" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Conferir importação</h2>'+
+      '<p>Os pagamentos serão gravados apenas neste controle, no seu computador.</p></div>'+
+      '<button type="button" class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><div class="debt-import-facts">'+
+      '<div><span>Controle</span><strong>'+E(p.source)+'</strong></div>'+
+      '<div><span>Pagamentos no arquivo</span><strong>'+p.count+'</strong></div>'+
+      '<div><span>Valor total</span><strong>'+currency(p.total)+'</strong></div>'+
+      '<div><span>Já cadastrados</span><strong>'+p.previously_recorded+'</strong></div>'+
+      '<div><span>Novos pagamentos</span><strong>'+p.new_count+' · '+currency(p.new_total)+'</strong></div>'+
+      '<div><span>Saldo restante após importação</span><strong>'+currency(p.projected_balance)+'</strong></div>'+
+      '</div><p class="debt-import-note">Datas com apenas mês/ano serão mantidas como MM/AAAA, sem inventar o dia. As descrições e valores serão preservados.</p>'+
+      status+'</div><div class="modal-footer"><button type="button" class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button type="button" id="confirmDebtImport" class="btn btn-primary" onclick="App.debtConfirmImport()" '+(ready?"":"disabled")+'>'+
+      icon("check")+' Importar '+p.new_count+' pagamentos</button></div></div></div>';
+  },
+  async debtConfirmImport(){
+    const ctx=this.s.modalContext;
+    if(!ctx||ctx.busy||!ctx.preview?.can_import||ctx.preview.already_imported)return;
+    ctx.busy=true;
+    const button=document.getElementById("confirmDebtImport");
+    if(button)button.disabled=true;
+    try{
+      const result=await this.api("/api/controls/"+ctx.controlId+"/debt/import/confirm","POST",{
+        document:ctx.document,fingerprint:ctx.preview.fingerprint
+      });
+      this.closeModal();
+      await this.load();
+      this.toast(result.imported+" pagamentos importados. "+result.skipped+" já cadastrados foram preservados.");
+    }catch(e){
+      ctx.busy=false;
+      if(button)button.disabled=false;
+      this.toast(e.message,true);
+    }
   },
   debtPaymentForm(id){
     if(!this.canOpenForm())return;
@@ -80,7 +152,8 @@ Object.assign(App,{
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="debtPaymentForm" onsubmit="event.preventDefault();App.debtSavePayment()">'+
       '<div class="form-grid">'+
-      debtField("Data do pagamento",debtInput("date",old?.payment_date||debtDate(),'type="date" required'))+
+      debtField(old?.payment_date?.length===7?"Mês do pagamento":"Data do pagamento",
+         debtInput("date",old?.payment_date||debtDate(),old?.payment_date?.length===7?'type="month" required':'type="date" required'))+
       debtField("Valor pago (R$)",debtInput("amount",old?.amount||"",'inputmode="decimal" required placeholder="Ex.: 15000,00"'))+
       '<div class="field full"><label>Descrição do pagamento</label>'+
       debtInput("description",old?.description||"",'required maxlength="200" placeholder="Ex.: Parcela da Van – julho/2026"')+

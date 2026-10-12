@@ -41,7 +41,17 @@ def label(value,name,max_length=200,required=True):
     return result
 
 def day(value):
-    if not isinstance(value,str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}",value):
+    if not isinstance(value,str):
+        raise ValueError("Informe uma data de pagamento válida.")
+    # A transcricao de um documento pode informar apenas mes e ano.
+    # Guardamos AAAA-MM diretamente, sem inventar o dia 01.
+    if re.fullmatch(r"\d{4}-\d{2}",value):
+        try:
+            date.fromisoformat(value+"-01")
+        except ValueError:
+            raise ValueError("Mês do pagamento inválido.") from None
+        return value
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}",value):
         raise ValueError("Informe uma data de pagamento válida.")
     try:
         date.fromisoformat(value)
@@ -158,7 +168,9 @@ def handle(handler,con,method,path):
             w.writerow([])
             w.writerow(["Data","Descrição","Valor R$","Observações"])
             for entry in data["payments"]:
-                w.writerow([entry["payment_date"],entry["description"],entry["amount"],entry["notes"]])
+                stamp=entry["payment_date"]
+                shown=stamp[5:7]+"/"+stamp[:4] if len(stamp)==7 else stamp
+                w.writerow([shown,entry["description"],entry["amount"],entry["notes"]])
             return handler.send(("\ufeff"+out.getvalue()).encode("utf-8"),
                                 mime="text/csv; charset=utf-8")
         if method=="PUT" and action=="settings":
