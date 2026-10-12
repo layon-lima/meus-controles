@@ -54,7 +54,7 @@ function template(mode="calculo"){
   };
 }
 const App = {
-  s:{state:null,detail:null,route:"home",id:null,query:"",modal:null,draft:null,step:0,editing:null},
+  s:{state:null,detail:null,route:"home",id:null,query:"",modal:null,draft:null,step:0,editing:null,modalContext:null},
   async api(path,method="GET",data){
     const resp=await fetch(path,{method,headers:data===undefined?{}:{"Content-Type":"application/json"},body:data===undefined?undefined:JSON.stringify(data)});
     const raw=await resp.text();
@@ -83,6 +83,7 @@ const App = {
     document.getElementById("search").value="";
     this.closeSearch();
     this.toggleMenu(false);
+    this.closeControlMenus();
     if(route==="control") this.load();
     else{this.s.detail=null;this.render()}
   },
@@ -175,10 +176,12 @@ const App = {
     } else if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);
       const found=controls.filter(c=>c.board_id===b.id);
-      main.innerHTML='<section class="intro"><div><div class="eyebrow">QUADRO DE CONTROLES</div><h2>'+E(b.name)+'</h2><p class="subtext">Agrupe e acompanhe controles relacionados. Cada controle tem seu próprio formulário.</p></div><div class="actions-end"><button class="btn" onclick="App.renameBoard('+b.id+')">Renomear</button><button class="btn btn-primary" onclick="App.newControl('+b.id+')">'+icon("plus")+' Novo controle</button></div></section>'+
-       '<section class="stat-grid">'+stat("▦","Controles",found.length,"Neste quadro")+stat("≡","Lançamentos",found.reduce((n,c)=>n+c.summary.count,0),"Neste quadro")+'</section>'+
-       (found.length?'<div class="control-grid">'+found.map(controlCard).join("")+'</div>':empty("Quadro vazio","Adicione um controle para começar.","App.newControl("+b.id+")","Criar controle"))+
-       '<div class="danger-zone"><button class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">'+icon("trash")+' Excluir quadro</button></div>';
+      main.innerHTML='<div class="section-heading board-controls-heading"><h2>Controles</h2>'+
+       '<div class="board-controls-actions"><span class="secondary-text">'+found.length+' controle(s)</span>'+
+       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.renameBoard('+b.id+')">'+icon("edit")+' Renomear quadro</button>'+
+       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">'+icon("trash")+' Excluir quadro</button></div></div>'+
+       (found.length?'<div class="control-grid">'+found.map(controlCard).join("")+'</div>':
+       empty("Quadro vazio","Adicione um controle para começar.","App.newControl("+b.id+")","Criar controle"));
     } else if(this.s.route==="control")this.renderControl();
   },
   renderControl(){
@@ -188,7 +191,7 @@ const App = {
     const datefield=c.fields.find(f=>f.type==="date");
     const subjectfield=c.fields.find(f=>f.type==="text");
     const cSummary=(rows,key)=>rows.length?rows.map(x=>'<div class="info-row"><span>'+E(x.name)+'</span><strong class="'+(Number(x.total)<0?"negative":"")+'">'+currency(x.total)+'</strong></div>').join(""):'<p class="secondary-text">Sem dados para exibir.</p>';
-    document.getElementById("main").innerHTML='<section class="intro"><div><div class="eyebrow">'+E(mode)+'</div><h2>'+E(c.name)+'</h2><p class="subtext">Formulário próprio, cálculos automáticos e registro de cada movimentação.</p></div><div class="actions-end"><button class="btn" onclick="App.editControl('+c.id+')">'+icon("settings")+' Configurar</button><button class="btn btn-primary" onclick="App.newEntry()">'+icon("plus")+' Novo lançamento</button></div></section>'+
+    document.getElementById("main").innerHTML='<section class="intro"><div><div class="eyebrow">'+E(mode)+'</div><h2>'+E(c.name)+'</h2><p class="subtext">Formulário próprio, cálculos automáticos e registro de cada movimentação.</p></div><div class="actions-end"><button class="btn btn-primary" onclick="App.newEntry()">'+icon("plus")+' Novo lançamento</button></div></section>'+
       '<section class="stat-grid">'+stat("＋","Total somado",currency(sum.plus),"Valores que aumentam")+stat("−","Total subtraído",currency(sum.minus),"Valores que diminuem")+stat("◉","Saldo do controle",currency(sum.balance),"Conforme os tipos definidos")+stat("≡","Lançamentos",sum.count,"Registros salvos")+'</section>'+
       '<div class="details-layout"><div class="stack"><section class="panel"><div class="panel-header"><h3>Histórico de lançamentos</h3><div class="actions-end"><button class="btn btn-sm" onclick="App.exportCsv('+c.id+')">'+icon("download")+' Exportar CSV</button><button class="btn btn-sm btn-primary" onclick="App.newEntry()">'+icon("plus")+' Lançar</button></div></div>'+
       (entries.length?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Referência</th><th>Tipo</th><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">Ações</th></tr></thead><tbody>'+
@@ -199,7 +202,7 @@ const App = {
       '</tbody></table></div>':empty("Sem lançamentos","Adicione o primeiro lançamento para começar.","App.newEntry()","Novo lançamento"))+'</section></div>'+
       '<aside class="stack"><section class="panel"><div class="panel-header"><h3>Resumo por categoria</h3></div><div class="panel-body">'+cSummary(sum.by_category)+'</div></section>'+
       '<section class="panel"><div class="panel-header"><h3>Resumo por tipo</h3></div><div class="panel-body">'+cSummary(sum.by_type)+'</div></section>'+
-      '<section class="panel"><div class="panel-header"><h3>Estrutura</h3></div><div class="panel-body"><p class="secondary-text">'+c.fields.length+' campos · '+c.rules.length+' cálculos · '+c.types.length+' tipos de lançamento</p><div class="actions-end" style="margin-top:14px"><button class="btn btn-sm" onclick="App.duplicateControl('+c.id+')">'+icon("copy")+' Duplicar controle</button><button class="btn btn-sm btn-danger" onclick="App.deleteControl('+c.id+')">'+icon("trash")+' Excluir</button></div></div></section></aside></div>';
+      '</aside></div>';
   },
   async renameBoard(id){
     const b=this.s.state.boards.find(x=>x.id===id),name=prompt("Nome do quadro:",b.name);
@@ -220,17 +223,56 @@ const App = {
   },
   async deleteControl(id){
     if(!confirm("Excluir o controle e TODOS os lançamentos dele? Esta ação não pode ser desfeita."))return;
-    try{await this.api("/api/controls/"+id,"DELETE");await this.load();this.navigate("home");this.toast("Controle excluído.")}catch(e){this.toast(e.message,true)}
+    const boardOrigin=this.s.route==="board"?this.s.id:null;
+    try{
+      await this.api("/api/controls/"+id,"DELETE");
+      await this.load();
+      this.navigate(boardOrigin?"board":"home",boardOrigin||undefined);
+      this.toast("Controle excluído.");
+    }catch(e){this.toast(e.message,true)}
   },
   exportCsv(id){window.location.href="/api/controls/"+id+"/export.csv"},
+  canOpenForm(){
+    if(!this.s.modal)return true;
+    this.toast("Já existe um formulário aberto. Salve ou cancele antes de abrir outro.");
+    document.getElementById("modalTitle")?.focus();
+    return false;
+  },
   newControl(boardId){
-    this.s.modal="builder";this.s.editing=null;this.s.step=0;this.s.draft=template();
+    if(!this.canOpenForm())return;
+    this.s.modal="builder";this.s.editing=null;this.s.modalContext=null;this.s.step=0;this.s.draft=template();
     if(boardId)this.s.draft.board_id=boardId;
     this.renderModal();
   },
   editControl(id){
-    this.s.modal="builder";this.s.editing=id;this.s.step=0;this.s.draft=deep(this.s.detail.control);
+    if(!this.canOpenForm())return;
+    const source=this.s.state?.controls?.find(c=>c.id===id);
+    if(!source){this.toast("Controle não encontrado.",true);return}
+    this.s.modal="builder";this.s.editing=id;this.s.modalContext=null;this.s.step=0;this.s.draft=deep(source);
     this.renderModal();
+  },
+  closeControlMenus(){
+    document.querySelectorAll(".card-action-menu").forEach(el=>el.hidden=true);
+    document.querySelectorAll(".control-card-edit").forEach(el=>el.setAttribute("aria-expanded","false"));
+  },
+  toggleControlMenu(event,id){
+    event.stopPropagation();
+    const menu=document.getElementById("controlMenu-"+id);
+    if(!menu)return;
+    const opening=menu.hidden;
+    this.closeControlMenus();
+    if(opening){
+      menu.hidden=false;
+      event.currentTarget.setAttribute("aria-expanded","true");
+    }
+  },
+  controlMenuAction(event,action,id){
+    event.preventDefault();
+    event.stopPropagation();
+    this.closeControlMenus();
+    if(action==="configure")return this.editControl(id);
+    if(action==="duplicate")return this.duplicateControl(id);
+    if(action==="delete")return this.deleteControl(id);
   },
   updateDraft(prop,value){this.s.draft[prop]=value},
   mode(mode){
@@ -291,15 +333,26 @@ const App = {
       const d=this.s.draft;
       const r=this.s.editing?await this.api("/api/controls/"+this.s.editing,"PATCH",d):await this.api("/api/controls","POST",d);
       const id=this.s.editing||r.id;
-      this.closeModal();await this.load();this.navigate("control",id);
+      const boardOrigin=this.s.editing&&this.s.route==="board"?this.s.id:null;
+      this.closeModal();await this.load();
+      if(boardOrigin)this.navigate("board",boardOrigin);
+      else this.navigate("control",id);
       this.toast("Controle salvo com sucesso.");
     }catch(e){this.toast(e.message,true)}
   },
   builderNext(delta){this.s.step=Math.max(0,Math.min(3,this.s.step+delta));this.renderModal()},
   newEntry(){
+    if(!this.canOpenForm()||!this.s.detail)return;
+    this.s.modalContext={controlId:this.s.detail.control.id,
+      control:deep(this.s.detail.control),entry:null};
     this.s.modal="entry";this.s.editing=null;this.renderModal();
   },
   editEntry(id){
+    if(!this.canOpenForm()||!this.s.detail)return;
+    const entry=this.s.detail.entries.find(e=>e.id===id);
+    if(!entry){this.toast("Lançamento não encontrado.",true);return}
+    this.s.modalContext={controlId:this.s.detail.control.id,
+      control:deep(this.s.detail.control),entry:deep(entry)};
     this.s.modal="entry";this.s.editing=id;this.renderModal();
   },
   async deleteEntry(id){
@@ -311,20 +364,26 @@ const App = {
     if(!form.reportValidity())return;
     const fd=new FormData(form),p={data:{},type_key:fd.get("type_key"),category:fd.get("category"),
       notes:fd.get("notes"),manual_amount:fd.get("manual_amount")};
-    for(const f of this.s.detail.control.fields)p.data[f.key]=fd.get(f.key)||"";
+    const ctx=this.s.modalContext;
+    if(!ctx){this.toast("Formulário não encontrado.",true);return}
+    for(const f of ctx.control.fields)p.data[f.key]=fd.get(f.key)||"";
     try{
-      const id=this.s.editing;
-      await this.api(id?"/api/entries/"+id:"/api/controls/"+this.s.id+"/entries",id?"PUT":"POST",p);
+      const id=ctx.entry?.id||null;
+      await this.api(id?"/api/entries/"+id:"/api/controls/"+ctx.controlId+"/entries",id?"PUT":"POST",p);
       this.closeModal();await this.load();this.toast(id?"Lançamento atualizado.":"Lançamento salvo.");
     }catch(e){this.toast(e.message,true)}
   },
-  closeModal(){this.s.modal=null;this.s.draft=null;this.s.editing=null;document.getElementById("modalRoot").innerHTML=""},
+  closeModal(){
+    this.s.modal=null;this.s.draft=null;this.s.editing=null;this.s.modalContext=null;
+    document.getElementById("modalRoot").innerHTML="";
+  },
   renderModal(){
     const root=document.getElementById("modalRoot");
     if(!this.s.modal)return root.innerHTML="";
-    root.innerHTML='<div class="modal-backdrop" id="backdrop"><div class="modal '+(this.s.modal==="builder"?"large":"")+'" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
+    root.innerHTML='<div class="modal-backdrop"><div class="modal '+(this.s.modal==="builder"?"large":"")+'" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
       (this.s.modal==="builder"?this.builderHTML():this.entryHTML())+'</div></div>';
-    document.getElementById("backdrop").addEventListener("click",e=>{if(e.target.id==="backdrop")this.closeModal()});
+    // Formulário não modal: nenhum clique externo encerra ou bloqueia a página.
+    // O foco pode sair do formulário; fechar exige ação explícita (X ou Cancelar).
     if(this.s.modal==="entry")this.preview();
   },
   builderHTML(){
@@ -376,8 +435,8 @@ const App = {
       '<div class="tagline"><span class="secondary-text">Etapa '+(step+1)+' de 4</span><button class="btn btn-primary" onclick="'+(step===3?"App.saveControl()":"App.builderNext(1)")+'">'+(step===3?"Salvar controle":"Continuar →")+'</button></div></div>';
   },
   entryHTML(){
-    const c=this.s.detail.control;
-    const old=this.s.editing?this.s.detail.entries.find(e=>e.id===this.s.editing):null;
+    const c=this.s.modalContext.control;
+    const old=this.s.modalContext.entry;
     const now=new Date(),today=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
     const fields=c.fields.map(f=>{
       const val=old?.data?.[f.key]??(f.type==="date"?today:(f.default||""));
@@ -398,7 +457,7 @@ const App = {
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button><button class="btn btn-primary" onclick="App.saveEntry()">Salvar lançamento</button></div>';
   },
   preview(){
-    const c=this.s.detail?.control,form=document.getElementById("entryForm"),box=document.getElementById("calcPreview");
+    const c=this.s.modalContext?.control,form=document.getElementById("entryForm"),box=document.getElementById("calcPreview");
     if(!c||!form||!box)return;
     const fd=new FormData(form),nums={};
     const parse=s=>{s=String(s||"0").trim();if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");const n=Number(s);return Number.isFinite(n)?n:0};
@@ -428,12 +487,25 @@ function boardCard(b,count){
 }
 function controlCard(c){
   const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado"}[c.mode];
-  return '<div class="control-card" tabindex="0" role="button" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'control\','+c.id+')"><div class="title-line"><span class="control-icon">'+icon(c.mode==="calculo"?"truck":c.mode==="financeiro"?"wallet":"clipboard")+'</span><h3>'+E(c.name)+'</h3><span class="pill">'+E(mode)+'</span></div><p class="control-desc">'+c.summary.count+' lançamento(s) · '+c.fields.length+' campos</p><div class="control-bottom"><span><small>Saldo do controle</small><br><strong>'+currency(c.summary.balance)+'</strong></span><span class="card-arrow">'+icon("arrow-right")+'</span></div></div>';
+  const controlIcon=c.mode==="calculo"?"truck":c.mode==="financeiro"?"wallet":"clipboard";
+  const menu='<div class="card-action-menu" id="controlMenu-'+c.id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+
+   '<button type="button" onclick="App.controlMenuAction(event,\'configure\','+c.id+')">'+icon("settings")+' Configurar / editar</button>'+
+   '<button type="button" onclick="App.controlMenuAction(event,\'duplicate\','+c.id+')">'+icon("copy")+' Duplicar controle</button>'+
+   '<button type="button" class="danger" onclick="App.controlMenuAction(event,\'delete\','+c.id+')">'+icon("trash")+' Excluir controle</button></div>';
+  return '<div class="control-card" tabindex="0" role="link" aria-label="Abrir '+E(c.name)+'" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.target===this && event.key===\'Enter\')App.navigate(\'control\','+c.id+')">'+
+   '<div class="title-line"><span class="control-icon">'+icon(controlIcon)+'</span><h3>'+E(c.name)+'</h3>'+
+   '<button type="button" class="control-card-edit" title="Editar e configurar controle" aria-label="Ações de '+E(c.name)+'" aria-haspopup="true" aria-expanded="false" onclick="App.toggleControlMenu(event,'+c.id+')" onkeydown="event.stopPropagation()">'+icon("edit")+'</button>'+
+   menu+'</div><p class="control-desc">'+c.summary.count+' lançamento(s) · '+c.fields.length+' campos</p>'+
+   '<div class="control-bottom"><span><small>Saldo do controle</small><strong>'+currency(c.summary.balance)+'</strong></span><span class="card-arrow">'+icon("arrow-right")+'</span></div></div>';
 }
 function empty(title,desc,action,label){
   return '<div class="empty-state"><strong>'+E(title)+'</strong><p>'+E(desc)+'</p><button class="btn btn-primary" onclick="'+action+'">'+icon("plus")+' '+E(label)+'</button></div>';
 }
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&App.s.modal)App.closeModal()});
-document.addEventListener("click",e=>{if(!e.target.closest(".search-wrap"))App.closeSearch()});
+// Escape não descarta formulários em edição; fecha somente menus contextuais.
+document.addEventListener("keydown",e=>{if(e.key==="Escape")App.closeControlMenus()});
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".search-wrap"))App.closeSearch();
+  if(!e.target.closest(".control-card-edit")&&!e.target.closest(".card-action-menu"))App.closeControlMenus();
+});
 document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");
 App.load();

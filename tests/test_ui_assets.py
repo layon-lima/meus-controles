@@ -36,6 +36,28 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertNotIn('oninput="App.search(this.value)"', (STATIC / "icons.svg").read_text(encoding="utf-8"))
         self.assertIn("search-results", (STATIC / "app.css").read_text(encoding="utf-8"))
 
+    def test_board_compact_and_card_action_menu(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        board=app.split('} else if(this.s.route==="board"){',1)[1].split('} else if(this.s.route==="control"',1)[0]
+        self.assertNotIn("QUADRO DE CONTROLES",board)
+        self.assertNotIn('class="stat-grid"',board)
+        self.assertIn("board-controls-heading",board)
+        self.assertIn("control-card-edit",app)
+        self.assertIn("card-action-menu",app)
+        for action in ("configure","duplicate","delete"):
+            self.assertIn('action==="'+action+'"',app)
+        self.assertIn('const source=this.s.state?.controls?.find',app)
+
+    def test_forms_do_not_close_on_outside_click_or_block_app(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        css=(STATIC / "app.css").read_text(encoding="utf-8")
+        self.assertIn('aria-modal="false"',app)
+        self.assertNotIn('getElementById("backdrop").addEventListener',app)
+        self.assertIn('pointer-events:none',css)
+        self.assertIn('pointer-events:auto',css)
+        self.assertIn("modalContext",app)
+        self.assertIn("this.s.modalContext?.control",app)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")
