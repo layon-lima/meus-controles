@@ -14,7 +14,6 @@ const truckDate=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getM
 const truckOptions=(arr,selected)=>arr.map(n=>'<option value="'+E(n)+'"'+(n===selected?' selected':'')+'>'+E(n)+'</option>').join("");
 const truckField=(label,html)=>'<div class="field"><label>'+E(label)+'</label>'+html+'</div>';
 const truckInput=(name,value,more="")=>'<input name="'+name+'" value="'+E(value??"")+'" '+more+'>';
-const truckStat=(caption,value,explanation)=>'<div class="stat truck-stat"><div class="stat-kicker">'+E(caption)+'</div><div class="stat-value">'+truckMoney(value)+'</div><div class="stat-foot">'+E(explanation)+'</div></div>';
 
 Object.assign(App,{
   async renderTruck(){
@@ -80,16 +79,16 @@ Object.assign(App,{
       body='<div id="truck-panel-details" class="truck-view truck-details-view" role="tabpanel" aria-labelledby="truck-tab-details">'+
         '<div class="truck-details-filter">'+monthFilter+
         '<span class="secondary-text">Comissão padrão '+E(r.settings.commission_pct)+'%'+(r.settings.driver_name?' · '+E(r.settings.driver_name):"")+'</span></div>'+
-        '<div class="truck-kpis">'+truckStat("Fretes acumulados",t.freight,"Receitas dos fretes")+
-        truckStat("Saídas do caixa",t.cash_out,"Despesas + vales pagos")+
-        truckStat("Saldo do caixa",t.cash_balance,(this.s.truckMonth?"No período":"Inclui saldo inicial configurado"))+
-        truckStat("Resultado do caminhão",t.operating_result,"Fretes − despesas − comissão gerada")+
-        truckStat("Comissão a pagar",t.driver_due,"Saldo histórico do motorista")+'</div>'+
-        '<div class="truck-columns"><section class="panel"><div class="panel-header"><h3>Receitas por tipo de frete</h3></div>'+
+        '<div class="truck-columns truck-detail-cards">'+
+        '<section class="panel truck-detail-card truck-detail-freights"><div class="panel-header truck-detail-header">'+
+        '<span class="truck-detail-symbol">'+icon("truck")+'</span><h3>FRETES</h3></div>'+
         '<div class="panel-body">'+overview(r.by_freight,"Nenhum frete neste período.")+'</div></section>'+
-        '<section class="panel"><div class="panel-header"><h3>Saídas por categoria</h3></div><div class="panel-body">'+overview(r.by_expense,"Nenhuma saída neste período.")+
+        '<section class="panel truck-detail-card truck-detail-expenses"><div class="panel-header truck-detail-header">'+
+        '<span class="truck-detail-symbol">'+icon("circle-minus")+'</span><h3>GASTOS</h3></div>'+
+        '<div class="panel-body">'+overview(r.by_expense,"Nenhuma saída neste período.")+
         '<div class="truck-note">Comissão gerada no período: <b>'+truckMoney(t.commission_earned)+'</b>. Vales são saídas de caixa e não descontam essa despesa outra vez.</div></div></section>'+
-        '<section class="panel"><div class="panel-header"><h3>Conta do motorista</h3></div><div class="panel-body">'+
+        '<section class="panel truck-detail-card truck-detail-commission"><div class="panel-header truck-detail-header">'+
+        '<span class="truck-detail-symbol">'+icon("coin")+'</span><h3>COMISSÃO MOTORISTA</h3></div><div class="panel-body">'+
         '<div class="info-row"><span>Saldo anterior</span><strong>'+truckMoney(t.outstanding_opening)+'</strong></div>'+
         '<div class="info-row"><span>Comissões geradas</span><strong>'+truckMoney(t.driver_earned_all)+'</strong></div>'+
         '<div class="info-row"><span>Vales e acertos pagos</span><strong>−'+truckMoney(t.driver_paid_all)+'</strong></div>'+

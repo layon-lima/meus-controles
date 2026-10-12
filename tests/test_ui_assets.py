@@ -69,9 +69,15 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn("truck-entries-view", source)
         self.assertIn("truck-details-view", source)
         self.assertIn("Todos os lançamentos", source)
-        self.assertIn("Receitas por tipo de frete", source)
-        self.assertIn("Conta do motorista", source)
+        self.assertIn("<h3>FRETES</h3>", source)
+        self.assertIn("<h3>COMISSÃO MOTORISTA</h3>", source)
         self.assertIn("truck-fast-total", css)
+        self.assertIn("<h3>GASTOS</h3>", source)
+        self.assertIn("truck-detail-freights", source)
+        self.assertIn("truck-detail-expenses", source)
+        self.assertIn("truck-detail-commission", source)
+        self.assertNotIn("truck-kpis", source)
+        self.assertIn(".truck-detail-cards .truck-detail-header", css)
         self.assertIn('aria-selected=', source)
 
     def test_icons_are_real_svg_symbols(self):
