@@ -104,5 +104,74 @@ class TruckModelTests(unittest.TestCase):
             self.assertEqual(truck.summary(con,other)["totals"]["freight"],"0.00")
             self.assertEqual(truck.summary(con,self.control)["totals"]["freight"],"200.00")
 
+
+    def test_categories_are_configurable_per_truck(self):
+        with app.db() as con:
+            original=truck.settings(con,self.control)
+            self.assertIn("Manutenção",original["categories"])
+            values={**original,"categories":["Manutenção","Combustível","Pneus"]}
+            saved=truck.save_settings(con,self.control,values)
+            self.assertEqual(saved["categories"],["Manutenção","Combustível","Pneus"])
+            payload={"date":"2026-08-10","kind":"expense","category":"pneus",
+                     "description":"Pneu novo","amount":"900"}
+            values=truck.compute_entry(con,self.control,payload)
+            self.assertEqual(values[3],"Pneus")
+            with self.assertRaisesRegex(ValueError,"categoria cadastrada"):
+                truck.compute_entry(con,self.control,{**payload,"category":"Categoria inventada"})
+            other=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
+                VALUES(1,'SEGUNDO CAMINHÃO','caminhao','[]','[]','[]')""").lastrowid
+            self.assertNotIn("Pneus",truck.settings(con,other)["categories"])
+
+    def test_category_rename_reclassifies_history_without_changing_money(self):
+        self.add(kind="expense",category="Manutenção",amount="391",notes="")
+        with app.db() as con:
+            conf=truck.settings(con,self.control)
+            edited=["Oficina" if name=="Manutenção" else name for name in conf["categories"]]
+            result=truck.save_settings(con,self.control,{
+                **conf,"categories":edited,
+                "category_renames":[{"old":"Manutenção","new":"Oficina"}]
+            })
+            self.assertIn("Oficina",result["categories"])
+            self.assertNotIn("Manutenção",result["categories"])
+            report=truck.summary(con,self.control)
+            self.assertEqual(report["totals"]["operating_expenses"],"391.00")
+            self.assertEqual(report["entries"][0]["category"],"Oficina")
+            self.assertEqual(report["by_expense"][0]["name"],"Oficina")
+
+    def test_cannot_remove_in_use_category(self):
+        self.add(kind="expense",category="Abastecimento",amount="100",notes="")
+        with app.db() as con:
+            conf=truck.settings(con,self.control)
+            reduced=[name for name in conf["categories"] if name!="Abastecimento"]
+            with self.assertRaisesRegex(ValueError,"possui lançamentos"):
+                truck.save_settings(con,self.control,{**conf,"categories":reduced})
+            self.assertIn("Abastecimento",truck.settings(con,self.control)["categories"])
+
+    def test_category_validation_rejects_duplicates_reserved_empty(self):
+        with self.assertRaises(ValueError):
+            truck.validate_categories(["Manutenção","manutenção"])
+        with self.assertRaises(ValueError):
+            truck.validate_categories(["Vale motorista"])
+        with self.assertRaises(ValueError):
+            truck.validate_categories([])
+        with self.assertRaises(ValueError):
+            truck.validate_categories([""])
+
+    def test_migration_preserves_categories_from_old_rows(self):
+        with app.db() as con:
+            con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,description,
+                weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (self.control,"2026-08-15","expense","Conserto hidráulico","Teste",
+                "0","0","0","150.00","0",""))
+            con.execute("UPDATE truck_settings SET categories_json='' WHERE control_id=?",(self.control,))
+            truck.init(con)
+            conf=truck.settings(con,self.control)
+            self.assertIn("Conserto hidráulico",conf["categories"])
+            self.assertIn("Manutenção",conf["categories"])
+            raw=con.execute("SELECT categories_json FROM truck_settings WHERE control_id=?",
+                            (self.control,)).fetchone()["categories_json"]
+            self.assertTrue(raw.startswith("["))
+
 if __name__ == "__main__":
     unittest.main()

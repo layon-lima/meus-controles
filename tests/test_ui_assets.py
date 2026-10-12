@@ -80,6 +80,19 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn(".truck-detail-cards .truck-detail-header", css)
         self.assertIn('aria-selected=', source)
 
+    def test_truck_expense_categories_are_fixed_and_configurable(self):
+        truck = (STATIC / "truck.js").read_text(encoding="utf-8")
+        css = (STATIC / "truck.css").read_text(encoding="utf-8")
+        self.assertIn('list="truckExpenseList"', truck)
+        self.assertIn('truckValidateExpenseCategory(this,true)', truck)
+        self.assertIn('ctx.settings.categories||TRUCK_EXPENSES', truck)
+        self.assertIn('truckAddCategory()', truck)
+        self.assertIn('truckEditCategory(index,value)', truck)
+        self.assertIn('truckRemoveCategory(index)', truck)
+        self.assertIn('category_renames:renames', truck)
+        self.assertIn('Categorias de despesa', truck)
+        self.assertIn('truck-category-settings', css)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

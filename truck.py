@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import csv
 import io
+import json
 import re
 from urllib.parse import parse_qs, urlsplit
 
@@ -50,7 +51,8 @@ def init(con):
         commission_pct TEXT NOT NULL DEFAULT '13',
         opening_commission TEXT NOT NULL DEFAULT '0',
         opening_cash TEXT NOT NULL DEFAULT '0',
-        driver_name TEXT NOT NULL DEFAULT ''
+        driver_name TEXT NOT NULL DEFAULT '',
+        categories_json TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS truck_entries(
         id INTEGER PRIMARY KEY,
@@ -71,6 +73,21 @@ def init(con):
     CREATE INDEX IF NOT EXISTS idx_truck_entry_control_date
       ON truck_entries(control_id,event_date,id);
     """)
+    existing = {row["name"] for row in con.execute("PRAGMA table_info(truck_settings)")}
+    if "categories_json" not in existing:
+        con.execute("ALTER TABLE truck_settings ADD COLUMN categories_json TEXT NOT NULL DEFAULT ''")
+    # Migração sem perda de dados: cada caminhão conserva as categorias
+    # já utilizadas em seus lançamentos, inclusive as importadas da planilha.
+    rows=con.execute("SELECT control_id FROM truck_settings WHERE categories_json=''").fetchall()
+    for row in rows:
+        cid=row["control_id"]
+        cats=list(CATEGORIES)
+        for used in con.execute("SELECT DISTINCT category FROM truck_entries WHERE control_id=? AND kind='expense' ORDER BY category",(cid,)):
+            name=used["category"]
+            if name.casefold() not in {c.casefold() for c in cats}:
+                cats.append(name)
+        con.execute("UPDATE truck_settings SET categories_json=? WHERE control_id=?",
+                    (json.dumps(cats,ensure_ascii=False),cid))
 
 def check_control(con, cid):
     row=con.execute("SELECT id,name,board_id,mode FROM controls WHERE id=?", (cid,)).fetchone()
@@ -80,26 +97,93 @@ def check_control(con, cid):
         raise ValueError("Este controle não é um Controle de Caminhão.")
     return dict(row)
 
+def validate_categories(value):
+    if not isinstance(value,list) or not 1 <= len(value) <= 80:
+        raise ValueError("Cadastre de 1 a 80 categorias de despesa.")
+    result=[]
+    forbidden={n.casefold() for n in (*FREIGHT_CATEGORIES,*ADVANCE_CATEGORIES)}
+    for item in value:
+        name=safe_text(item,"a categoria de despesa",90,True)
+        if name.casefold() in forbidden:
+            raise ValueError(f"A categoria {name} pertence a outro tipo de lançamento.")
+        if name.casefold() in {n.casefold() for n in result}:
+            raise ValueError(f"Categoria duplicada: {name}.")
+        result.append(name)
+    return result
+
 def settings(con, cid):
     check_control(con,cid)
-    row=con.execute("SELECT commission_pct,opening_commission,opening_cash,driver_name FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
-    return dict(row) if row else {"commission_pct":"13","opening_commission":"0","opening_cash":"0","driver_name":""}
+    row=con.execute("SELECT commission_pct,opening_commission,opening_cash,driver_name,categories_json FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
+    if not row:
+        return {"commission_pct":"13","opening_commission":"0","opening_cash":"0","driver_name":"","categories":list(CATEGORIES)}
+    obj=dict(row)
+    categories_text=obj.pop("categories_json")
+    if categories_text:
+        obj["categories"]=json.loads(categories_text)
+    else:
+        # Compatibilidade com bancos antigos, ainda não migrados.
+        obj["categories"]=list(CATEGORIES)
+        used=con.execute("SELECT DISTINCT category FROM truck_entries WHERE control_id=? AND kind='expense'",(cid,)).fetchall()
+        for item in used:
+            if item["category"].casefold() not in {c.casefold() for c in obj["categories"]}:
+                obj["categories"].append(item["category"])
+    return obj
 
 def save_settings(con, cid, payload):
     check_control(con,cid)
+    previous=settings(con,cid)
     pct=num(payload.get("commission_pct","13"),"a porcentagem",maximum=Decimal("100"))
     opening_commission=num(payload.get("opening_commission","0"),"o saldo inicial do motorista")
     opening_cash=num(payload.get("opening_cash","0"),"o saldo inicial do caminhão")
     driver=safe_text(payload.get("driver_name",""),"o nome do motorista",100)
+
+    categories=validate_categories(payload.get("categories",previous["categories"]))
+    old_categories={c.casefold():c for c in previous["categories"]}
+    renames=payload.get("category_renames",[])
+    if not isinstance(renames,list) or len(renames)>80:
+        raise ValueError("Alterações de categorias inválidas.")
+    mapped={}
+    for item in renames:
+        if not isinstance(item,dict):
+            raise ValueError("Renomeação de categoria inválida.")
+        old=safe_text(item.get("old"),"a categoria original",90,True)
+        new=safe_text(item.get("new"),"a nova categoria",90,True)
+        canonical=old_categories.get(old.casefold())
+        if canonical is None or canonical.casefold() in mapped:
+            raise ValueError(f"A categoria {old} não pode ser renomeada.")
+        match=next((c for c in categories if c.casefold()==new.casefold()),None)
+        if match is None:
+            raise ValueError(f"A categoria {new} não está na lista atual.")
+        if match.casefold() in old_categories and match.casefold()!=canonical.casefold():
+            raise ValueError("Não é possível renomear para uma categoria que já existe.")
+        mapped[canonical.casefold()]=match
+
+    used=[r["category"] for r in con.execute(
+        "SELECT DISTINCT category FROM truck_entries WHERE control_id=? AND kind='expense'",(cid,))]
+    active={name.casefold() for name in categories}
+    for old in used:
+        if old.casefold() not in active and old.casefold() not in mapped:
+            raise ValueError(f"A categoria {old} possui lançamentos. Renomeie-a ou mantenha na lista.")
+
+    # A renomeação reorganiza o histórico da mesma categoria, mas nunca
+    # altera valores, datas, comissão ou saldos dos lançamentos.
+    for old_key,new in mapped.items():
+        original=old_categories[old_key]
+        con.execute("UPDATE truck_entries SET category=?,updated_at=CURRENT_TIMESTAMP "
+                    "WHERE control_id=? AND kind='expense' AND category=?",
+                    (new,cid,original))
+
     if "name" in payload:
         name=safe_text(payload["name"],"o nome do controle",150,True)
         con.execute("UPDATE controls SET name=? WHERE id=?",(name,cid))
-    con.execute("""INSERT INTO truck_settings(control_id,commission_pct,opening_commission,opening_cash,driver_name)
-        VALUES(?,?,?,?,?) ON CONFLICT(control_id) DO UPDATE SET
+    con.execute("""INSERT INTO truck_settings(control_id,commission_pct,opening_commission,opening_cash,driver_name,categories_json)
+        VALUES(?,?,?,?,?,?) ON CONFLICT(control_id) DO UPDATE SET
         commission_pct=excluded.commission_pct,
         opening_commission=excluded.opening_commission,
-        opening_cash=excluded.opening_cash,driver_name=excluded.driver_name""",
-        (cid,str(pct),money(opening_commission),money(opening_cash),driver))
+        opening_cash=excluded.opening_cash,driver_name=excluded.driver_name,
+        categories_json=excluded.categories_json""",
+        (cid,str(pct),money(opening_commission),money(opening_cash),driver,
+         json.dumps(categories,ensure_ascii=False)))
     return settings(con,cid)
 
 def compute_entry(con, cid, payload):
@@ -131,8 +215,11 @@ def compute_entry(con, cid, payload):
         category=safe_text(payload.get("category",""),"a categoria",90,True)
         if kind=="advance" and category not in ADVANCE_CATEGORIES:
             raise ValueError("Escolha Vale motorista ou Acerto motorista.")
-        if kind=="expense" and category in ADVANCE_CATEGORIES+FREIGHT_CATEGORIES:
-            raise ValueError("Essa categoria possui lançamento próprio.")
+        if kind=="expense":
+            selected=next((x for x in config["categories"] if x.casefold()==category.casefold()),None)
+            if selected is None:
+                raise ValueError("Escolha uma categoria cadastrada nos Ajustes do caminhão.")
+            category=selected
         amount=num(payload.get("amount"),"o valor",True).quantize(CENT,rounding=ROUND_HALF_UP)
         if not amount:
             raise ValueError("O valor não pode arredondar para zero.")
@@ -189,7 +276,7 @@ def summary(con,cid,month=""):
       "by_freight":[{"name":k,"total":money(v)} for k,v in sorted(by_freight.items())],
       "by_expense":[{"name":k,"total":money(v)} for k,v in sorted(by_expense.items())],
       "available_months":sorted({r["event_date"][:7] for r in rows},reverse=True),
-      "categories":CATEGORIES
+      "categories":conf["categories"]
     }
 
 def handle(handler,con,method,path):

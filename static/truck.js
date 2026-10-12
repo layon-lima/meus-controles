@@ -119,12 +119,14 @@ Object.assign(App,{
   },
   renderTruckForm(){
     const ctx=this.s.modalContext,r=ctx.entry||{},kind=ctx.kind;
+    const expenseCategories=ctx.settings.categories||TRUCK_EXPENSES;
+    const initialExpenseCategory=r.category||expenseCategories[0]||"";
     const fields=kind==="freight"?
       truckField("Tipo de frete",'<select name="category">'+truckOptions(TRUCK_FREIGHTS,r.category||"Frete Normal")+'</select>')+
       truckField("Peso carregado (kg)",truckInput("weight_kg",r.weight_kg||"",'required inputmode="decimal" oninput="App.truckPreview()"'))+
       truckField("Preço por tonelada (R$)",truckInput("price_tonne",r.price_tonne||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
       kind==="expense"?
-      truckField("Categoria da despesa",'<input name="category" list="truckExpenseList" maxlength="90" required value="'+E(r.category||"Manutenção")+'"><datalist id="truckExpenseList">'+TRUCK_EXPENSES.map(c=>'<option value="'+E(c)+'">').join("")+'</datalist>')+
+      truckField("Categoria da despesa",'<input name="category" id="truckExpenseCategory" list="truckExpenseList" autocomplete="off" maxlength="90" required placeholder="Escolha ou pesquise..." value="'+E(initialExpenseCategory)+'" oninput="App.truckValidateExpenseCategory(this)" onblur="App.truckValidateExpenseCategory(this,true)" aria-describedby="truckExpenseHint"><datalist id="truckExpenseList">'+expenseCategories.map(c=>'<option value="'+E(c)+'"></option>').join("")+'</datalist><small id="truckExpenseHint" class="truck-category-hint">Escolha uma opção da lista. Para adicionar ou editar, use os Ajustes do controle.</small>')+
       truckField("Valor pago (R$)",truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
       truckField("Tipo de pagamento",'<select name="category">'+truckOptions(TRUCK_ADVANCES,r.category||"Vale motorista")+'</select>')+
       truckField("Valor pago ao motorista (R$)",truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"'));
@@ -147,6 +149,19 @@ Object.assign(App,{
      '</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
      '<button class="btn btn-primary" onclick="App.truckSave()">'+icon("plus")+' Salvar lançamento</button></div></div></div>';
     this.truckPreview();
+  },
+  truckValidateExpenseCategory(input,complete=false){
+    const list=this.s.modalContext?.settings?.categories||TRUCK_EXPENSES;
+    const normalized=v=>normalizeSearch(String(v||"").trim());
+    const value=normalized(input.value);
+    const exact=list.find(item=>normalized(item)===value);
+    const starts=list.filter(item=>normalized(item).startsWith(value));
+    const includes=list.filter(item=>normalized(item).includes(value));
+    const selected=exact||(complete&&value?(starts.length===1?starts[0]:includes.length===1?includes[0]:null):null);
+    if(selected)input.value=selected;
+    const valid=!!selected || !complete;
+    input.setCustomValidity(valid?"":"Selecione uma categoria cadastrada nos Ajustes.");
+    return !!selected;
   },
   truckChangeKind(kind){
     if(!["freight","expense","advance"].includes(kind))return;
@@ -188,7 +203,13 @@ Object.assign(App,{
   },
   async truckSave(){
     const ctx=this.s.modalContext,form=document.getElementById("truckForm");
-    if(!ctx||!form||!form.reportValidity())return;
+    if(!ctx||!form)return;
+    if(ctx.kind==="expense"){
+      const category=document.getElementById("truckExpenseCategory");
+      if(!category)return;
+      this.truckValidateExpenseCategory(category,true);
+    }
+    if(!form.reportValidity())return;
     const f=new FormData(form);
     const payload={date:f.get("date"),description:f.get("description"),kind:ctx.kind,category:f.get("category"),
                    notes:f.get("notes"),amount:f.get("amount"),weight_kg:f.get("weight_kg"),
@@ -216,13 +237,53 @@ Object.assign(App,{
       const source=this.s.state?.controls?.find(c=>c.id===cid);
       if(!source)throw Error("Controle não encontrado.");
       const res=await this.api("/api/controls/"+cid+"/truck");
-      this.s.modalContext={controlId:cid,config:res.settings,source:deep(source)};
+      this.s.modalContext={
+        controlId:cid,config:deep(res.settings),source:deep(source),
+        categoriesDraft:(res.settings.categories||TRUCK_EXPENSES).map(name=>({original:name,name})),
+        usedExpenseCategories:new Set(res.entries.filter(e=>e.kind==="expense").map(e=>e.category))
+      };
       this.s.modal="truck-settings";
       this.renderTruckSettings();
     }catch(e){this.toast(e.message,true)}
   },
+  truckRememberSettingsFields(){
+    const ctx=this.s.modalContext,form=document.getElementById("truckSettingsForm");
+    if(!ctx||!form)return;
+    const values=new FormData(form);
+    ctx.source.name=String(values.get("name")||"");
+    for(const key of ["driver_name","commission_pct","opening_commission","opening_cash"]){
+      ctx.config[key]=String(values.get(key)??"");
+    }
+  },
+  truckEditCategory(index,value){
+    const row=this.s.modalContext?.categoriesDraft?.[index];
+    if(row)row.name=value;
+  },
+  truckAddCategory(){
+    const ctx=this.s.modalContext;
+    if(!ctx||ctx.categoriesDraft.length>=80)return this.toast("Limite de 80 categorias.",true);
+    this.truckRememberSettingsFields();
+    ctx.categoriesDraft.push({original:null,name:""});
+    this.renderTruckSettings();
+    document.getElementById("truckCategory-"+(ctx.categoriesDraft.length-1))?.focus();
+  },
+  truckRemoveCategory(index){
+    const ctx=this.s.modalContext,row=ctx?.categoriesDraft?.[index];
+    if(!row)return;
+    if(ctx.categoriesDraft.length<=1)return this.toast("Mantenha pelo menos uma categoria.",true);
+    if(row.original&&ctx.usedExpenseCategories.has(row.original)){
+      return this.toast("Esta categoria possui lançamentos. Renomeie-a em vez de excluí-la.",true);
+    }
+    this.truckRememberSettingsFields();
+    ctx.categoriesDraft.splice(index,1);
+    this.renderTruckSettings();
+  },
   renderTruckSettings(){
     const ctx=this.s.modalContext,conf=ctx.config;
+    const categories=ctx.categoriesDraft.map((row,i)=>
+      '<div class="truck-category-row"><input id="truckCategory-'+i+'" type="text" maxlength="90" value="'+E(row.name)+'" placeholder="Nome da categoria" aria-label="Categoria de despesa '+(i+1)+'" oninput="App.truckEditCategory('+i+',this.value)">'+
+      '<button type="button" class="btn btn-sm truck-category-remove" aria-label="Excluir categoria '+E(row.name)+'" title="Remover categoria" onclick="App.truckRemoveCategory('+i+')">'+icon("trash")+'</button></div>'
+    ).join("");
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
       '<div class="modal-header"><div><h2 id="modalTitle">Configurar caminhão</h2>'+
@@ -234,7 +295,12 @@ Object.assign(App,{
       truckField("Comissão padrão (%)",truckInput("commission_pct",conf.commission_pct,'required inputmode="decimal"'))+
       truckField("Comissão anterior a pagar (R$)",truckInput("opening_commission",conf.opening_commission,'required inputmode="decimal"'))+
       truckField("Saldo inicial do caixa (R$)",truckInput("opening_cash",conf.opening_cash,'required inputmode="decimal"'))+
-      '</div></form><div class="hint" style="margin-top:18px">Alterar a porcentagem vale para novos fretes e lançamentos editados. Fretes antigos mantêm a comissão original.</div></div>'+
+      '</div><section class="truck-category-settings"><div class="truck-category-settings-head"><div><h3>Categorias de despesa</h3>'+
+      '<p>Estas são as únicas opções disponíveis ao registrar gastos neste caminhão.</p></div>'+
+      '<button class="btn btn-sm" type="button" onclick="App.truckAddCategory()">'+icon("plus")+' Adicionar categoria</button></div>'+
+      '<div class="truck-category-list">'+categories+'</div>'+
+      '<p class="truck-category-help">Renomear uma categoria também atualiza seu nome nos lançamentos anteriores, sem alterar os valores. Categorias em uso não podem ser excluídas.</p></section></form>'+
+      '<div class="hint" style="margin-top:18px">Alterar a porcentagem vale para novos fretes e lançamentos editados. Fretes antigos mantêm a comissão original.</div></div>'+
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.truckSaveSettings()">Salvar ajustes</button></div></div></div>';
   },
@@ -242,10 +308,24 @@ Object.assign(App,{
     const ctx=this.s.modalContext;
     const form=document.getElementById("truckSettingsForm");
     if(!ctx||!form||!form.reportValidity())return;
+    const categories=ctx.categoriesDraft.map(row=>row.name.trim());
+    const names=categories.map(normalizeSearch);
+    if(categories.some(name=>!name)){
+      this.toast("Preencha o nome de todas as categorias.",true);return
+    }
+    if(new Set(names).size!==names.length){
+      this.toast("Não repita nomes de categorias.",true);return
+    }
+    if(categories.some(name=>[...TRUCK_ADVANCES,...TRUCK_FREIGHTS].some(v=>normalizeSearch(v)===normalizeSearch(name)))){
+      this.toast("Fretes e vales possuem lançamentos próprios.",true);return
+    }
+    const renames=ctx.categoriesDraft.filter(row=>row.original&&row.original!==row.name.trim()).map(row=>({
+      old:row.original,new:row.name.trim()
+    }));
     const f=new FormData(form);
     const payload={name:f.get("name"),commission_pct:f.get("commission_pct"),
       opening_cash:f.get("opening_cash"),opening_commission:f.get("opening_commission"),
-      driver_name:f.get("driver_name")};
+      driver_name:f.get("driver_name"),categories,category_renames:renames};
     try{
       await this.api("/api/controls/"+ctx.controlId+"/truck/settings","PUT",payload);
       this.closeModal();
