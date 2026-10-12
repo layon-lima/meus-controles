@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import os
+import subprocess
 import re
 import sqlite3
 import truck
@@ -329,6 +330,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method=="GET" and url in ("/","/index.html"):
                 return self.send((ROOT/"static"/"index.html").read_bytes(),mime="text/html; charset=utf-8")
+            if method=="GET" and url=="/favicon.ico":
+                return self.send((ROOT/"assets"/"CENTRAL_DE_CONTROLES.ico").read_bytes(),mime="image/x-icon")
             if method=="GET" and url=="/static/icons.svg":
                 return self.send((ROOT/"static"/"icons.svg").read_bytes(),mime="image/svg+xml; charset=utf-8")
             if method=="GET" and url=="/static/app.css":
@@ -478,8 +481,33 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self): self.route()
     def do_DELETE(self): self.route()
 
+def ensure_windows_desktop_shortcut():
+    """O app recem-atualizado instala automaticamente o atalho no Windows.
+
+    Chamado pelo app, nao pelo painel antigo que pode estar executando
+    durante o primeiro git pull. Erros nao impedem que o app inicie.
+    """
+    if os.name!="nt":
+        return
+    script=ROOT/"INSTALAR_ATALHO.vbs"
+    icon=ROOT/"assets"/"CENTRAL_DE_CONTROLES.ico"
+    if not (script.is_file() and icon.is_file()):
+        print("Atalho: arquivos nao encontrados.",flush=True)
+        return
+    try:
+        done=subprocess.run(["wscript.exe",str(script)],cwd=str(ROOT),
+            stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,timeout=15,
+            creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
+        if done.returncode:
+            print("Atalho: nao foi possivel criar ("+str(done.returncode)+").",flush=True)
+    except Exception as exc:
+        print("Atalho: "+str(exc),flush=True)
+
+
 if __name__=="__main__":
     initialize()
+    ensure_windows_desktop_shortcut()
     server=ThreadingHTTPServer((HOST,PORT),Handler)
     print(f"Central de Controles: http://{HOST}:{PORT}",flush=True)
     try: server.serve_forever()

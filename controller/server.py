@@ -311,6 +311,9 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/":
             return self.reply((PANEL_ROOT/"static"/"index.html").read_bytes(),
                               mime="text/html; charset=utf-8")
+        if route == "/favicon.ico":
+            return self.reply((ROOT/"assets"/"CENTRAL_DE_CONTROLES.ico").read_bytes(),
+                              mime="image/x-icon")
         if route == "/api/health":
             return self.reply({"ok":True,"app_id":PANEL_ID,"version":"1.0"})
         if route == "/api/status":

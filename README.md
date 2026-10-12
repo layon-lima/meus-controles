@@ -127,3 +127,28 @@ fique abaixo do que já foi pago. Exportação em CSV disponível.
 Os dados são salvos localmente em tabelas próprias do SQLite.
 Controles de caminhão e modelos antigos permanecem inalterados.
 A planilha de exemplo não é importada automaticamente.
+
+## Ícone e atalho automático no Windows
+
+O ícone oficial da Central de Controles está em
+`assets/CENTRAL_DE_CONTROLES.ico`, incluindo tamanhos de 16, 32, 48 e 64 px.
+Ele também é o favicon do aplicativo e do painel web.
+
+Na primeira atualização que inclui esses arquivos, o próprio aplicativo
+reaberto pelo botão **Atualizar tudo** executa uma instalação silenciosa,
+sem privilégios administrativos:
+
+- cria ou atualiza o atalho **Central de Controles** na área de trabalho
+  do usuário conectado (inclusive quando a área de trabalho está no OneDrive);
+- associa o ícone e o iniciador `INICIAR_APP.vbs` ao atalho;
+- abre diretamente a aplicação em `http://127.0.0.1:18765/`, iniciando os
+  serviços locais quando necessário e sem janela de terminal.
+
+`INICIAR.vbs` permanece inalterado e continua abrindo o painel web.
+Para recriar um atalho excluído, abra o aplicativo normalmente ou execute
+`INSTALAR_ATALHO.vbs` na pasta do projeto. Nenhum dado SQLite é modificado
+por essas operações.
+
+Em caso de bloqueio das permissões de execução de scripts do Windows,
+o programa continua funcionando normalmente; o instalador de atalho
+registra erro no log do servidor, sem impedir a inicialização do aplicativo.
