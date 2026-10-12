@@ -1,0 +1,32 @@
+/* Controle de Dívidas: layout compacto, pagamentos em primeiro plano. */
+.debt-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 15px}
+.debt-heading h2{font-size:19px;color:var(--ink);margin:4px 0}
+.debt-heading p{font-size:12px;color:var(--muted);margin:0}
+.debt-heading .btn{display:flex;align-items:center;gap:7px}
+.debt-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:0 0 10px}
+.debt-metric{display:flex;flex-direction:column;gap:7px;padding:16px 18px;border-radius:11px;background:#fff;border:1px solid var(--line);box-shadow:0 5px 15px rgba(12,35,54,.04);min-width:0}
+.debt-metric span{font-size:12px;font-weight:650;color:#688193}
+.debt-metric strong{font-size:clamp(19px,2vw,27px);letter-spacing:-.7px;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink)}
+.debt-metric:nth-child(2) strong{color:#187c66}
+.debt-outstanding{border-top:3px solid #20846b;background:#f8fcf9}
+.debt-progress-wrap{display:flex;align-items:center;gap:11px;margin:0 0 18px}
+.debt-progress{flex:1;height:7px;overflow:hidden;background:#e1ebe6;border-radius:999px}
+.debt-progress span{display:block;height:100%;background:#20846b;border-radius:999px;transition:width .2s}
+.debt-progress-wrap small{flex:none;min-width:105px;text-align:right;font-size:11px;color:#668091}
+.debt-ledger .panel-header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+.debt-ledger .panel-header .actions-end{flex-wrap:wrap;gap:8px}
+.debt-ledger .panel-header h3{font-size:14px}
+.debt-ledger td:nth-child(1){white-space:nowrap}
+.debt-ledger td:nth-child(2){min-width:260px;max-width:670px}
+.debt-ledger td:nth-child(3){font-weight:750;white-space:nowrap}
+.debt-note{display:block;color:#6a8192;font-size:11px;margin-top:4px;line-height:1.35;overflow-wrap:anywhere}
+.debt-empty{border:0;background:#fff;margin:4px}
+.debt-setup{margin-top:16px}
+.debt-setup .hint{margin-bottom:13px}
+.debt-setup .field{max-width:370px}
+.debt-payment-form .form-grid{row-gap:14px}
+.debt-form-hint{font-size:11px;color:#6c8592;margin-top:5px;display:block}
+.debt-remaining-hint{margin-top:15px;padding:13px 14px;background:#eef7f1;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#547a69}
+.debt-remaining-hint strong{color:#146952;font-size:15px;white-space:nowrap}
+@media(max-width:820px){.debt-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.debt-outstanding{grid-column:1/-1}}
+@media(max-width:590px){.debt-heading{align-items:flex-start}.debt-summary{gap:8px}.debt-metric{padding:12px}.debt-metric strong{font-size:18px}.debt-ledger .panel-header{flex-wrap:wrap}.debt-ledger .panel-header .actions-end{width:100%}.debt-progress-wrap small{font-size:10px}}

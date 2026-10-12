@@ -13,6 +13,7 @@ import os
 import re
 import sqlite3
 import truck
+import debt
 import truck_workflow
 import threading
 from urllib.parse import urlsplit
@@ -89,6 +90,7 @@ def initialize():
         CREATE INDEX IF NOT EXISTS idx_entries_control ON entries(control_id, id DESC);
         """)
         truck.init(con)
+        debt.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
             con.execute("INSERT INTO settings(key,value) VALUES(\'seeded\',\'1\')")
@@ -123,7 +125,7 @@ def validate_config(p):
     name = require(p.get("name"), "o nome")
     board_id = int(p.get("board_id") or 0)
     mode = p.get("mode", "calculo")
-    if mode not in ("calculo", "saldo", "financeiro", "caminhao"):
+    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida"):
         raise ValueError("Modelo de controle invalido.")
     fields = p.get("fields", [])
     rules = p.get("rules", [])
@@ -256,7 +258,12 @@ def state(con):
     boards = [dict(b) for b in con.execute("SELECT * FROM boards ORDER BY id")]
     controls = [unpack(c) for c in con.execute("SELECT * FROM controls ORDER BY id")]
     for c in controls:
-        if c["mode"]=="caminhao":
+        if c["mode"]=="divida":
+            totals=debt.summary(con,c["id"])["totals"]
+            c["summary"]={"count":totals["count"],"balance":totals["balance"],
+                          "plus":totals["opening_amount"],"minus":totals["paid"],
+                          "by_category":[],"by_type":[]}
+        elif c["mode"]=="caminhao":
             totals=truck.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["count"],"balance":totals["cash_balance"],
                           "plus":totals["freight"],"minus":totals["cash_out"],
@@ -330,6 +337,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/truck.js":
                 return self.send((ROOT/"static"/"truck.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/debt.js":
+                return self.send((ROOT/"static"/"debt.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/debt.css":
+                return self.send((ROOT/"static"/"debt.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/truck.css":
                 return self.send((ROOT/"static"/"truck.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/truck_workflow.css":
@@ -339,6 +350,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/debt(?:/(?:payments|settings|export\.csv))?",url) or re.fullmatch(r"/api/debt-payments/\d+",url):
+                    debt.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/truck/(?:workflow|check-preview|checks|close-preview|closures)",url) or re.fullmatch(r"/api/truck-(?:checks|closures)/\d+(?:/export\.csv)?",url):
                     truck_workflow.handle(self,con,method,url)
                     return
@@ -373,6 +387,8 @@ class Handler(BaseHTTPRequestHandler):
                        VALUES(?,?,?,?,?,?)""",(bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types)))
                     if mode=="caminhao":
                         truck.save_settings(con,cur.lastrowid,p.get("truck_settings",{}))
+                    if mode=="divida":
+                        debt.save_settings(con,cur.lastrowid,p.get("debt_settings",{}))
                     con.commit()
                     return self.send({"id":cur.lastrowid},201)
                 m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|export.csv))?",url)
@@ -414,6 +430,8 @@ class Handler(BaseHTTPRequestHandler):
                                          json.dumps(c["fields"]),json.dumps(c["rules"]),json.dumps(c["types"])))
                         if c["mode"]=="caminhao":
                             truck.save_settings(con,cur.lastrowid,truck.settings(con,cid))
+                        if c["mode"]=="divida":
+                            debt.save_settings(con,cur.lastrowid,debt.settings(con,cid))
                         con.commit()
                         return self.send({"id":cur.lastrowid},201)
                     if method=="POST" and action=="entries":

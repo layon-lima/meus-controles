@@ -122,6 +122,27 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('.truck-workflow-metrics',css)
         self.assertIn('/static/truck_workflow.js',html)
 
+    def test_debt_is_a_ready_made_simple_control(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        debt=(STATIC / "debt.js").read_text(encoding="utf-8")
+        css=(STATIC / "debt.css").read_text(encoding="utf-8")
+        page=(STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn('Controle de Dívidas', app)
+        self.assertIn('debt_settings:mode==="divida"', app)
+        self.assertIn('return this.renderDebt()', app)
+        self.assertIn('return this.debtSettings(id)', app)
+        for fragment in ("Dívida inicial", "Total pago", "Saldo restante",
+                         "Histórico de pagamentos", "Descrição do pagamento",
+                         "Pagamento registrado", "debtSavePayment",
+                         "debtDeletePayment", "debtSaveSettings"):
+            self.assertIn(fragment, debt)
+        self.assertIn('maxlength="200"', debt)
+        self.assertIn('name="description"', debt)
+        self.assertIn('role="dialog" aria-modal="false"', debt)
+        self.assertIn('.debt-summary', css)
+        self.assertIn('/static/debt.js', page)
+        self.assertIn('/static/debt.css', page)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

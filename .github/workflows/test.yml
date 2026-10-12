@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validar sintaxe Python
-        run: python -m compileall -q app.py truck.py truck_workflow.py controller/server.py tests
+        run: python -m compileall -q app.py truck.py truck_workflow.py debt.py controller/server.py tests
       - name: Executar testes de servidor, calculos e painel web
         run: python -m unittest discover -s tests -v
       - name: Validar JavaScript
@@ -21,3 +21,4 @@ jobs:
           node --check static/app.js
           node --check static/truck.js
           node --check static/truck_workflow.js
+          node --check static/debt.js

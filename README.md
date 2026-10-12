@@ -107,3 +107,23 @@ mesmo que ele seja renomeado posteriormente.
 
 Todos os dados permanecem no SQLite local, com tabelas novas; não são enviados
 ao GitHub. As tabelas são criadas automaticamente ao abrir o programa atualizado.
+
+
+## Modelo pronto: Controle de Dívidas
+
+**Novo controle → Controle de Dívidas.** Informe o nome, o quadro de destino
+e o valor inicial que ainda deve. Não é necessário configurar campos,
+categorias ou fórmulas.
+
+Dentro do controle aparecem três totais compactos: **Dívida inicial**,
+**Total pago** e **Saldo restante**, além do histórico de pagamentos.
+
+Cada pagamento exige **data, descrição e valor**; observações são opcionais.
+Pode editar ou excluir um pagamento, e o saldo é recalculado a partir da
+dívida inicial. Não permite lançar pagamentos que excedam o saldo. É
+possível ajustar o valor inicial sem apagar pagamentos, desde que não
+fique abaixo do que já foi pago. Exportação em CSV disponível.
+
+Os dados são salvos localmente em tabelas próprias do SQLite.
+Controles de caminhão e modelos antigos permanecem inalterados.
+A planilha de exemplo não é importada automaticamente.
