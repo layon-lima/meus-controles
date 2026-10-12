@@ -186,6 +186,26 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('already_imported',debt)
         self.assertIn('.debt-import-facts',css)
 
+    def test_receiving_products_ready_model_and_invoice_forms(self):
+        appjs=(STATIC / "app.js").read_text(encoding="utf-8")
+        rxjs=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        css=(STATIC / "receiving.css").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn('Recebimento de Produtos',appjs)
+        self.assertIn('mode==="recebimento"',appjs)
+        self.assertIn('this.renderReceiving()',appjs)
+        self.assertIn('this.receivingSettings(id)',appjs)
+        self.assertIn('["caminhao","divida","recebimento"].includes(d.mode)',appjs)
+        for piece in ("Número do pedido","Fornecedor","Produto","Quantidade contratada",
+                      "Quantidade recebida","Número da nota fiscal","Falta receber",
+                      "Histórico de notas fiscais","receivingSaveItem",
+                      "receivingSaveReceipt","receivingDeleteReceipt"):
+            self.assertIn(piece,rxjs)
+        self.assertIn('role="dialog" aria-modal="false"',rxjs)
+        self.assertIn('.receiving-kpis',css)
+        self.assertIn('/static/receiving.js',html)
+        self.assertIn('/static/receiving.css',html)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

@@ -1,0 +1,182 @@
+"""Teste do controle de recebimento: pedidos, notas fiscais e saldos."""
+import tempfile
+from pathlib import Path
+from decimal import Decimal
+import unittest
+
+import app
+import receiving
+
+class ReceivingTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory()
+        self.saved=(app.DATA,app.DB)
+        app.DATA=Path(self.tmp.name)
+        app.DB=app.DATA/"receiving.db"
+        app.initialize()
+        with app.db() as con:
+            self.cid=con.execute("""INSERT INTO controls
+              (board_id,name,mode,fields_json,rules_json,types_json)
+              VALUES(1,'RECEBIMENTO','recebimento','[]','[]','[]')""").lastrowid
+            self.other=con.execute("""INSERT INTO controls
+              (board_id,name,mode,fields_json,rules_json,types_json)
+              VALUES(1,'OUTRO RECEBIMENTO','recebimento','[]','[]','[]')""").lastrowid
+
+    def tearDown(self):
+        app.DATA,app.DB=self.saved
+        self.tmp.cleanup()
+
+    def item(self,product="Adubo",ordered="1000",unit="kg",cid=None):
+        with app.db() as con:
+            cid=cid or self.cid
+            p=receiving.validate_item({
+                "order_number":"PED-123","supplier":"Fornecedor A",
+                "product":product,"unit":unit,"ordered_qty":ordered
+            })
+            return con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(cid,*p.values())).lastrowid
+
+    def deliver(self,item_id,invoice="NF-101",value="400",date="2026-10-12"):
+        with app.db() as con:
+            p=receiving.validate_receipt({
+                "date":date,"invoice_number":invoice,"quantity":value,"notes":"Conferido"})
+            receiving.ensure_capacity(con,item_id,p["received_qty"])
+            receiving.ensure_not_duplicate(con,item_id,p)
+            return con.execute("""INSERT INTO purchase_receipts
+              (item_id,received_date,invoice_number,received_qty,notes)
+              VALUES(?,?,?,?,?)""",(item_id,*p.values())).lastrowid
+
+    def test_partial_receipts_by_invoice_reduce_balance(self):
+        item=self.item()
+        self.deliver(item,"NF-100","400")
+        self.deliver(item,"NF-101","250")
+        with app.db() as con:
+            view=receiving.summary(con,self.cid)
+            product=view["items"][0]
+            self.assertEqual(product["ordered_qty"],"1000.000")
+            self.assertEqual(product["received_qty"],"650.000")
+            self.assertEqual(product["remaining_qty"],"350.000")
+            self.assertEqual(product["status"],"partial")
+            self.assertEqual(product["receipts_count"],2)
+            self.assertEqual(view["totals"],{"items":1,"complete":0,"partial":1,"pending":0,"receipts":2})
+            self.assertEqual([x["invoice_number"] for x in view["receipts"]],["NF-101","NF-100"])
+
+    def test_completes_order_without_affecting_other_product_or_supplier(self):
+        first=self.item("Adubo","10","t")
+        self.item("Semente","800","sc")
+        self.deliver(first,"NF-200","10")
+        with app.db() as con:
+            view=receiving.summary(con,self.cid)
+            products={x["product"]:x for x in view["items"]}
+            self.assertEqual(products["Adubo"]["status"],"complete")
+            self.assertEqual(products["Adubo"]["remaining_qty"],"0.000")
+            self.assertEqual(products["Semente"]["status"],"pending")
+            self.assertEqual(view["totals"]["complete"],1)
+            self.assertEqual(view["totals"]["pending"],1)
+
+    def test_exceeding_remaining_quantity_is_rejected(self):
+        item=self.item()
+        self.deliver(item,"NF-100","900")
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"Disponível: 100.000 kg"):
+                receiving.ensure_capacity(con,item,"100.001")
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_receipt_edit_and_delete_recalculate(self):
+        item=self.item(ordered="100")
+        rid=self.deliver(item,"NF-101","30")
+        with app.db() as con:
+            receiving.ensure_capacity(con,item,"70",rid)
+            values=receiving.validate_receipt({
+                "date":"2026-10-11","invoice_number":"NF-102","quantity":"70","notes":""})
+            con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,notes=?
+                 WHERE id=?""",(*values.values(),rid))
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"30.000")
+            con.execute("DELETE FROM purchase_receipts WHERE id=?",(rid,))
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"100.000")
+
+    def test_duplicate_identical_delivery_is_blocked(self):
+        item=self.item()
+        self.deliver(item,"NF-100","400")
+        with app.db() as con:
+            repeated=receiving.validate_receipt({
+                "date":"2026-10-12","invoice_number":"nf-100","quantity":"400","notes":""})
+            with self.assertRaisesRegex(ValueError,"já foram lançadas"):
+                receiving.ensure_not_duplicate(con,item,repeated)
+            another=receiving.validate_receipt({
+                "date":"2026-10-12","invoice_number":"NF-100","quantity":"100","notes":""})
+            receiving.ensure_not_duplicate(con,item,another) # Mesma NF pode ter parcela distinta.
+
+    def test_cannot_reduce_order_below_received(self):
+        item=self.item()
+        self.deliver(item,value="750")
+        with app.db() as con:
+            proposed=receiving.validate_item({
+                "order_number":"PED-123","supplier":"Fornecedor A",
+                "product":"Adubo","unit":"kg","ordered_qty":"749.999"})
+            self.assertLess(Decimal(proposed["ordered_qty"]),receiving.received_total(con,item))
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["ordered_qty"],"1000.000")
+
+    def test_cannot_delete_item_with_receipts(self):
+        item=self.item()
+        self.deliver(item)
+        with app.db() as con:
+            self.assertGreater(receiving.received_total(con,item),0)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_invalid_inputs_and_precision(self):
+        for value in ["0","-1","NaN","Infinity","2.1234","bad"]:
+            with self.assertRaises(ValueError):receiving.qty(value)
+        self.assertEqual(receiving.display(receiving.qty("1.250,5")),"1250.500")
+        with self.assertRaisesRegex(ValueError,"nota fiscal"):
+            receiving.validate_receipt({"date":"2026-10-12","invoice_number":"",
+                                        "quantity":"50"})
+        with self.assertRaises(ValueError):
+            receiving.validate_receipt({"date":"2026-02-30","invoice_number":"12","quantity":"50"})
+        with self.assertRaises(ValueError):
+            receiving.validate_item({"order_number":"123","supplier":"F",
+                                     "product":"P","ordered_qty":"0"})
+
+    def test_controls_are_isolated(self):
+        self.item(cid=self.other,product="Adubo",ordered="500")
+        self.item(cid=self.cid,product="Adubo",ordered="900")
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["ordered_qty"],"900.000")
+            self.assertEqual(receiving.summary(con,self.other)["items"][0]["ordered_qty"],"500.000")
+            self.assertEqual(app.state(con)["controls"][-1]["summary"]["item_total"],1)
+
+    def test_api_create_and_update_using_handler(self):
+        class Handler:
+            def __init__(self,p):self.payload=p
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+        with app.db() as con:
+            result=receiving.handle(Handler({
+              "order_number":"PED-77","supplier":"Fornecedor B","product":"Calcário",
+              "ordered_qty":"1500","unit":"t"}),con,"POST",
+              "/api/controls/"+str(self.cid)+"/receiving/items")
+            iid=result["id"]
+        with app.db() as con:
+            receipt=receiving.handle(Handler({"date":"2026-10-12","invoice_number":"12345",
+             "quantity":"700","notes":"NF recebida"}),con,"POST",
+              "/api/receiving-items/"+str(iid)+"/receipts")
+            receipt_id=receipt["id"]
+        with app.db() as con:
+            view=receiving.handle(Handler({}),con,"GET",
+              "/api/controls/"+str(self.cid)+"/receiving")
+            self.assertEqual(view["items"][0]["remaining_qty"],"800.000")
+            self.assertEqual(view["receipts"][0]["invoice_number"],"12345")
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"saldo do pedido"):
+                receiving.handle(Handler({"date":"2026-10-12","invoice_number":"12346",
+                  "quantity":"801"}),con,"POST",
+                  "/api/receiving-items/"+str(iid)+"/receipts")
+        with app.db() as con:
+            receiving.handle(Handler({"date":"2026-10-13","invoice_number":"12345",
+             "quantity":"500"}),con,"PUT","/api/receiving-receipts/"+str(receipt_id))
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"1000.000")
+
+if __name__=="__main__":
+    unittest.main()

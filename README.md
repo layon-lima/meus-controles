@@ -183,3 +183,34 @@ exibido como `MM/AAAA` (não é inventado um dia). Pagamentos normais com
 dia continuam usando `AAAA-MM-DD`. É possível editar ambos depois.
 O arquivo só pode ser importado no controle com nome correspondente e
 modelo `divida`; um arquivo destinado a outro controle é recusado.
+
+
+## Modelo pronto: Recebimento de Produtos
+
+Em **Novo controle → Recebimento de Produtos**, crie um controle dentro de um
+quadro. O cadastro é feito em uma etapa, sem fórmulas.
+
+Dentro dele, cadastre cada produto de um pedido com:
+- Número do pedido;
+- Fornecedor;
+- Produto;
+- Quantidade pedida e unidade (un, kg, t, L, sc, cx, pct, m, m², m³).
+
+Um mesmo pedido pode conter diversos produtos, cada um com saldo separado.
+Quando chegar uma entrega, clique em **Receber** no produto e informe a
+**data da entrega**, **número da nota fiscal**, **quantidade recebida**
+e observações opcionais. O saldo é automaticamente recalculado:
+
+**Falta receber = quantidade pedida − soma das entregas daquele produto.**
+
+Os registros mostram o status **Pendente**, **Parcial** ou **Recebido**.
+Não é possível registrar quantidade zero, negativa ou superior ao restante.
+O sistema também bloqueia repetição exata de nota, data e quantidade
+para o mesmo produto; a mesma NF pode ser usada para diferentes produtos.
+As entregas e os itens podem ser editados; excluir uma entrega repõe
+sua quantidade no saldo. Não é possível excluir um item que ainda tem
+entregas registradas, nem reduzir o pedido abaixo do já recebido.
+
+Os dados ficam no SQLite local, em tabelas próprias. Não há soma
+indiscriminada de unidades distintas (kg, sacos, toneladas etc.).
+O cadastro dos outros modelos não sofre alterações.

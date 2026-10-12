@@ -15,6 +15,7 @@ import re
 import sqlite3
 import truck
 import debt
+import receiving
 import debt_import
 import truck_workflow
 import threading
@@ -93,6 +94,7 @@ def initialize():
         """)
         truck.init(con)
         debt.initialize(con)
+        receiving.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
@@ -128,7 +130,7 @@ def validate_config(p):
     name = require(p.get("name"), "o nome")
     board_id = int(p.get("board_id") or 0)
     mode = p.get("mode", "calculo")
-    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida"):
+    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "recebimento"):
         raise ValueError("Modelo de controle invalido.")
     fields = p.get("fields", [])
     rules = p.get("rules", [])
@@ -261,7 +263,13 @@ def state(con):
     boards = [dict(b) for b in con.execute("SELECT * FROM boards ORDER BY id")]
     controls = [unpack(c) for c in con.execute("SELECT * FROM controls ORDER BY id")]
     for c in controls:
-        if c["mode"]=="divida":
+        if c["mode"]=="recebimento":
+            totals=receiving.summary(con,c["id"])["totals"]
+            c["summary"]={"count":totals["receipts"],"balance":"0.00",
+                "item_total":totals["items"],"complete":totals["complete"],
+                "partial":totals["partial"],"pending":totals["pending"],
+                "plus":"0.00","minus":"0.00","by_category":[],"by_type":[]}
+        elif c["mode"]=="divida":
             totals=debt.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["count"],"balance":totals["balance"],
                           "plus":totals["opening_amount"],"minus":totals["paid"],
@@ -342,6 +350,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/truck.js":
                 return self.send((ROOT/"static"/"truck.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving.js":
+                return self.send((ROOT/"static"/"receiving.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving.css":
+                return self.send((ROOT/"static"/"receiving.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/debt.js":
                 return self.send((ROOT/"static"/"debt.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/debt.css":
@@ -355,6 +367,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/receiving(?:/items)?",url) or re.fullmatch(r"/api/receiving-items/\d+(?:/receipts)?",url) or re.fullmatch(r"/api/receiving-receipts/\d+",url):
+                    receiving.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/debt/import/(?:preview|confirm)",url):
                     debt_import.handle(self,con,method,url)
                     return
