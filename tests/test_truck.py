@@ -37,6 +37,34 @@ class TruckModelTests(unittest.TestCase):
                 VALUES(?,?,?,?,?,?,?,?,?,?,?)""",cols)
             con.commit()
 
+    def test_summary_category_counts_match_period_without_changing_totals(self):
+        # Cada lançamento é contado uma vez, incluindo vale motorista.
+        self.add(date="2026-08-02",kind="freight",category="Frete Normal",
+                 weight_kg="1000",price_tonne="200",notes="")
+        self.add(date="2026-08-03",kind="freight",category="Frete Normal",
+                 weight_kg="1000",price_tonne="300",notes="")
+        self.add(date="2026-08-04",kind="freight",category="Frete Morto",
+                 weight_kg="1000",price_tonne="100",notes="")
+        self.add(date="2026-08-05",kind="expense",category="Abastecimento",amount="20",notes="")
+        self.add(date="2026-08-06",kind="expense",category="Abastecimento",amount="30",notes="")
+        self.add(date="2026-08-07",kind="advance",category="Vale motorista",amount="15",notes="")
+        self.add(date="2026-09-01",kind="expense",category="Abastecimento",amount="40",notes="")
+        with app.db() as con:
+            august=truck.summary(con,self.control,"2026-08")
+            september=truck.summary(con,self.control,"2026-09")
+            full=truck.summary(con,self.control,scope="all")
+        freights={x["name"]:x for x in august["by_freight"]}
+        expenses={x["name"]:x for x in august["by_expense"]}
+        self.assertEqual(freights["Frete Normal"],{"name":"Frete Normal","total":"500.00","count":2})
+        self.assertEqual(freights["Frete Morto"],{"name":"Frete Morto","total":"100.00","count":1})
+        self.assertEqual(expenses["Abastecimento"],{"name":"Abastecimento","total":"50.00","count":2})
+        self.assertEqual(expenses["Vale motorista"],{"name":"Vale motorista","total":"15.00","count":1})
+        self.assertEqual(august["totals"]["freight"],"600.00")
+        self.assertEqual(august["totals"]["cash_out"],"65.00")
+        self.assertEqual(september["by_freight"],[])
+        self.assertEqual(september["by_expense"][0]["count"],1)
+        self.assertEqual(full["by_expense"][0]["count"],3)
+
     def test_tonnes_kg_and_thirteen_percent(self):
         self.add(kind="freight",category="Frete Morto",weight_kg="48000",price_tonne="215",notes="")
         with app.db() as con:

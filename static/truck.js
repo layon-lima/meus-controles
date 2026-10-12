@@ -49,7 +49,10 @@ Object.assign(App,{
     const monthOptions=months.map(([value,label])=>'<option value="'+E(value)+'" '+(value===(this.s.truckMonth||"")?"selected":"")+'>'+E(label)+'</option>').join("");
     const monthFilter='<label class="truck-month-filter" for="truckMonthSelect">Período'+
        '<select id="truckMonthSelect" onchange="App.truckSetMonth(this.value)">'+monthOptions+'</select></label>';
-    const overview=(list,emptyText)=>list.length?list.map(x=>'<div class="info-row"><span>'+E(x.name)+'</span><strong>'+truckMoney(x.total)+'</strong></div>').join(""):
+    const overview=(list,emptyText)=>list.length?list.map(x=>
+       '<div class="info-row truck-category-row-summary"><span class="truck-category-title">'+
+       E(x.name)+(enabled?'<small class="truck-category-count">'+Number(x.count||0)+' '+(Number(x.count||0)===1?'lançamento':'lançamentos')+'</small>':'')+
+       '</span><strong>'+truckMoney(x.total)+'</strong></div>').join(""):
        '<p class="secondary-text">'+E(emptyText)+'</p>';
     const tab=(name,title)=>'<button type="button" role="tab" id="truck-tab-'+name+'" aria-controls="truck-panel-'+name+'" aria-selected="'+(active===name?"true":"false")+'" class="truck-tab '+(active===name?"active":"")+'" onclick="App.truckSetTab(\''+name+'\')">'+title+'</button>';
     const nav='<div class="truck-nav"><div class="truck-tablist" role="tablist" aria-label="Visualização do controle">'+

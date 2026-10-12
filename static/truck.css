@@ -275,3 +275,32 @@
 .truck-entry-form .form-grid>.field:has(.truck-expense-combobox) .truck-category-hint{
   font-size:10px;line-height:1.5;
 }
+
+/* Quantidade de lançamentos por tipo/categoria no CHAVE ERRADA. */
+.truck-detail-cards .truck-category-row-summary{
+  gap:12px;
+}
+.truck-detail-cards .truck-category-title{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px 9px;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.truck-detail-cards .truck-category-count{
+  display:inline-flex;
+  align-items:center;
+  white-space:nowrap;
+  color:var(--detail-accent);
+  background:var(--detail-soft);
+  border-radius:6px;
+  padding:3px 7px;
+  font-size:10px;
+  font-weight:750;
+}
+.truck-detail-cards .truck-category-row-summary>strong{
+  margin-left:auto;
+  flex:none;
+  white-space:nowrap;
+}

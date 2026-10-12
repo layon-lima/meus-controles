@@ -248,18 +248,23 @@ def summary(con,cid,month="",scope=None):
     gross=expenses=advances=commission=Decimal("0")
     by_expense={}
     by_freight={}
+    expense_counts={}
+    freight_counts={}
     for r in period:
         value=Decimal(r["amount"])
         if r["kind"]=="freight":
             gross+=value
             commission+=Decimal(r["commission_amount"])
             by_freight[r["category"]]=by_freight.get(r["category"],Decimal("0"))+value
+            freight_counts[r["category"]]=freight_counts.get(r["category"],0)+1
         elif r["kind"]=="expense":
             expenses+=value
             by_expense[r["category"]]=by_expense.get(r["category"],Decimal("0"))+value
+            expense_counts[r["category"]]=expense_counts.get(r["category"],0)+1
         else:
             advances+=value
             by_expense[r["category"]]=by_expense.get(r["category"],Decimal("0"))+value
+            expense_counts[r["category"]]=expense_counts.get(r["category"],0)+1
     lifetime_earned=sum((Decimal(r["commission_amount"]) for r in all_rows if r["kind"]=="freight"),Decimal("0"))
     lifetime_paid=sum((Decimal(r["amount"]) for r in all_rows if r["kind"]=="advance"),Decimal("0"))
     # O vale reduz o caixa, porém não entra nas despesas do resultado novamente.
@@ -286,8 +291,8 @@ def summary(con,cid,month="",scope=None):
         "outstanding_opening":money(conf["opening_commission"]),
         "count":len(period)
       },
-      "by_freight":[{"name":k,"total":money(v)} for k,v in sorted(by_freight.items())],
-      "by_expense":[{"name":k,"total":money(v)} for k,v in sorted(by_expense.items())],
+      "by_freight":[{"name":k,"total":money(v),"count":freight_counts[k]} for k,v in sorted(by_freight.items())],
+      "by_expense":[{"name":k,"total":money(v),"count":expense_counts[k]} for k,v in sorted(by_expense.items())],
       "available_months":sorted({r["event_date"][:7] for r in rows},reverse=True),
       "categories":conf["categories"]
     }

@@ -98,6 +98,16 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn(".truck-detail-cards .truck-detail-header", css)
         self.assertIn('aria-selected=', source)
 
+    def test_truck_category_counts_are_visible_only_in_chave_errada(self):
+        ui=(STATIC / "truck.js").read_text(encoding="utf-8")
+        style=(STATIC / "truck.css").read_text(encoding="utf-8")
+        self.assertIn("truck-category-count",ui)
+        self.assertIn("x.count",ui)
+        self.assertIn("lançamento",ui)
+        self.assertIn("lançamentos",ui)
+        self.assertIn("enabled?'<small",ui)
+        self.assertIn(".truck-detail-cards .truck-category-count",style)
+
     def test_truck_expense_categories_are_fixed_and_configurable(self):
         truck = (STATIC / "truck.js").read_text(encoding="utf-8")
         css = (STATIC / "truck.css").read_text(encoding="utf-8")
