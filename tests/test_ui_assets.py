@@ -58,6 +58,22 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn("modalContext",app)
         self.assertIn("this.s.modalContext?.control",app)
 
+    def test_truck_primary_tab_is_compact_and_detailed_tab_is_separate(self):
+        source = (STATIC / "truck.js").read_text(encoding="utf-8")
+        css = (STATIC / "truck.css").read_text(encoding="utf-8")
+        assert 'truckSetTab(tab)' in source
+        assert 'this.s.truckTab="entries"' in source
+        self.assertIn("Entradas do período", source)
+        self.assertIn("Saídas do período", source)
+        self.assertIn("truck-fast-summary", source)
+        self.assertIn("truck-entries-view", source)
+        self.assertIn("truck-details-view", source)
+        self.assertIn("Todos os lançamentos", source)
+        self.assertIn("Receitas por tipo de frete", source)
+        self.assertIn("Conta do motorista", source)
+        self.assertIn("truck-fast-total", css)
+        self.assertIn('aria-selected=', source)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

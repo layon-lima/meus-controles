@@ -21,6 +21,7 @@ Object.assign(App,{
     const c=this.s.detail?.control;
     if(!c||c.mode!=="caminhao")return;
     const cid=c.id;
+    if(this.s.truckControlId!==cid){this.s.truckTab="entries";this.s.truckMonth="";}
     const main=document.getElementById("main");
     main.innerHTML='<div class="empty-state">Carregando lançamentos do caminhão...</div>';
     try{
@@ -34,53 +35,73 @@ Object.assign(App,{
     const r=this.s.truckReport,control=this.s.detail?.control;
     if(!r||!control)return;
     const t=r.totals;
-    const modes=[["","Todos os períodos"],...(r.available_months||[]).map(m=>[m,m.slice(5,7)+"/"+m.slice(0,4)])];
-    const monthOpt=modes.map(([value,label])=>'<option value="'+E(value)+'" '+(value===(this.s.truckMonth||"")?"selected":"")+'>'+E(label)+'</option>').join("");
-    const summary=(list,emptyText)=>list.length?list.map(x=>'<div class="info-row"><span>'+E(x.name)+'</span><strong>'+truckMoney(x.total)+'</strong></div>').join(""):
-        '<p class="secondary-text">'+E(emptyText)+'</p>';
+    const active=this.s.truckTab==="details"?"details":"entries";
+    const months=[["","Todos os períodos"],...(r.available_months||[]).map(m=>[m,m.slice(5,7)+"/"+m.slice(0,4)])];
+    const monthOptions=months.map(([value,label])=>'<option value="'+E(value)+'" '+(value===(this.s.truckMonth||"")?"selected":"")+'>'+E(label)+'</option>').join("");
+    const monthFilter='<label class="truck-month-filter" for="truckMonthSelect">Período'+
+       '<select id="truckMonthSelect" onchange="App.truckSetMonth(this.value)">'+monthOptions+'</select></label>';
+    const overview=(list,emptyText)=>list.length?list.map(x=>'<div class="info-row"><span>'+E(x.name)+'</span><strong>'+truckMoney(x.total)+'</strong></div>').join(""):
+       '<p class="secondary-text">'+E(emptyText)+'</p>';
+    const tab=(name,title)=>'<button type="button" role="tab" id="truck-tab-'+name+'" aria-controls="truck-panel-'+name+'" aria-selected="'+(active===name?"true":"false")+'" class="truck-tab '+(active===name?"active":"")+'" onclick="App.truckSetTab(\''+name+'\')">'+title+'</button>';
+    const nav='<div class="truck-nav"><div class="truck-tablist" role="tablist" aria-label="Visualização do controle">'+
+       tab("entries","Lançamentos")+tab("details","Resumo detalhado")+'</div>'+
+       '<button type="button" class="btn btn-sm truck-adjust" onclick="App.truckSettings('+control.id+')">'+icon("settings")+' Ajustes</button></div>';
     const rows=r.entries.map(x=>{
       const isFreight=x.kind==="freight";
       const stamp=x.event_date.slice(8,10)+"/"+x.event_date.slice(5,7)+"/"+x.event_date.slice(0,4);
-      const value=(isFreight?"+":"−")+truckMoney(x.amount);
+      const sign=isFreight?"+":"−";
       const subtitle=isFreight?'<span class="secondary-text">'+number(x.weight_kg)+' kg × '+truckMoney(x.price_tonne)+'/t · comissão '+truckMoney(x.commission_amount)+'</span>':"";
-      const id=x.id;
       return '<tr><td>'+E(stamp)+'</td><td><b>'+E(x.description)+'</b>'+subtitle+'</td><td><span class="chip">'+E(x.category)+'</span></td>'+
-       '<td class="numeric '+(isFreight?"positive":"negative")+'">'+value+'</td>'+
-       '<td><div class="table-actions"><button class="mini-action" onclick="App.truckForm(null,'+id+')">'+icon("edit")+' Editar</button>'+
-       '<button class="mini-action" onclick="App.truckDelete('+id+')">'+icon("trash")+' Excluir</button></div></td></tr>';
+        '<td class="numeric '+(isFreight?"positive":"negative")+'">'+sign+truckMoney(x.amount)+'</td>'+
+        '<td><div class="table-actions"><button class="mini-action" onclick="App.truckForm(null,'+x.id+')">'+icon("edit")+' Editar</button>'+
+        '<button class="mini-action" onclick="App.truckDelete('+x.id+')">'+icon("trash")+' Excluir</button></div></td></tr>';
     }).join("");
-    document.getElementById("main").innerHTML=
-     '<div class="truck-toolbar"><div><div class="eyebrow">CONTROLE FINANCEIRO DO CAMINHÃO</div><h2>'+E(control.name)+'</h2>'+
-     '<p class="secondary-text">Fretes, despesas e saldo do motorista calculados automaticamente.</p></div>'+
-     '<div class="actions-end"><button class="btn" onclick="App.truckSettings('+control.id+')">'+icon("settings")+' Ajustes</button></div></div>'+
-     '<div class="truck-quick-actions">'+
-     '<button class="truck-quick freight" onclick="App.truckForm(\'freight\')">'+icon("truck")+' Registrar frete</button>'+
-     '<button class="truck-quick" onclick="App.truckForm(\'expense\')">'+icon("circle-minus")+' Registrar despesa</button>'+
-     '<button class="truck-quick" onclick="App.truckForm(\'advance\')">'+icon("wallet")+' Vale / acerto motorista</button></div>'+
-     '<div class="truck-period"><label>Período: <select onchange="App.truckSetMonth(this.value)">'+monthOpt+'</select></label>'+
-     '<span class="secondary-text">Comissão padrão '+E(r.settings.commission_pct)+'%'+(r.settings.driver_name?' · '+E(r.settings.driver_name):"")+'</span></div>'+
-     '<div class="truck-kpis">'+truckStat("Fretes acumulados",t.freight,"Receitas dos fretes")+
-     truckStat("Saídas do caixa",t.cash_out,"Despesas + vales pagos")+
-     truckStat("Saldo do caixa",t.cash_balance,(this.s.truckMonth?"No período":"Inclui saldo inicial configurado"))+
-     truckStat("Resultado do caminhão",t.operating_result,"Fretes − despesas − comissão gerada")+
-     truckStat("Comissão a pagar",t.driver_due,"Saldo histórico do motorista")+'</div>'+
-     '<div class="truck-columns"><section class="panel"><div class="panel-header"><h3>Receitas por tipo de frete</h3></div>'+
-     '<div class="panel-body">'+summary(r.by_freight,"Nenhum frete neste período.")+'</div></section>'+
-     '<section class="panel"><div class="panel-header"><h3>Saídas por categoria</h3></div><div class="panel-body">'+summary(r.by_expense,"Nenhuma saída neste período.")+
-     '<div class="truck-note">Comissão gerada no período: <b>'+truckMoney(t.commission_earned)+'</b> (já contabilizada como despesa do resultado). Vales são saídas de caixa e não descontam essa despesa outra vez.</div></div></section>'+
-     '<section class="panel"><div class="panel-header"><h3>Conta do motorista</h3></div><div class="panel-body">'+
-     '<div class="info-row"><span>Saldo anterior</span><strong>'+truckMoney(t.outstanding_opening)+'</strong></div>'+
-     '<div class="info-row"><span>Comissões geradas</span><strong>'+truckMoney(t.driver_earned_all)+'</strong></div>'+
-     '<div class="info-row"><span>Vales e acertos pagos</span><strong>−'+truckMoney(t.driver_paid_all)+'</strong></div>'+
-     '<div class="info-row truck-due"><span>Comissão em aberto</span><strong>'+truckMoney(t.driver_due)+'</strong></div>'+
-     '</div></section></div>'+
-     '<section class="panel truck-ledger"><div class="panel-header"><h3>Todos os lançamentos</h3>'+
-     '<div class="actions-end"><span class="secondary-text">'+t.count+' registros</span>'+
-     '<button class="btn btn-sm" onclick="App.truckExport('+control.id+')">'+icon("download")+' Exportar CSV</button></div></div>'+
-     (r.entries.length?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th>'+
-     '<th style="text-align:right">Valor</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
-     '<div class="empty-state truck-empty"><strong>Nenhum lançamento</strong><p>Registre o primeiro frete, uma despesa ou um vale.</p>'+
-     '<button class="btn btn-primary" onclick="App.truckForm(\'freight\')">'+icon("plus")+' Registrar frete</button></div>')+'</section>';
+    const ledger='<section class="panel truck-ledger"><div class="panel-header"><h3>Todos os lançamentos</h3>'+
+      '<div class="actions-end"><span class="secondary-text">'+t.count+' registros</span>'+
+      '<button class="btn btn-sm" onclick="App.truckExport('+control.id+')">'+icon("download")+' Exportar CSV</button></div></div>'+
+      (r.entries.length?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th>'+
+      '<th style="text-align:right">Valor</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
+      '<div class="empty-state truck-empty"><strong>Nenhum lançamento neste período</strong>'+
+      '<p>Registre um frete, uma despesa ou um vale para começar.</p>'+
+      '<button class="btn btn-primary" onclick="App.truckForm(\'freight\')">'+icon("plus")+' Registrar frete</button></div>')+'</section>';
+    const quick='<div class="truck-quick-actions" aria-label="Novo lançamento">'+
+      '<button class="truck-quick freight" onclick="App.truckForm(\'freight\')">'+icon("truck")+' Registrar frete</button>'+
+      '<button class="truck-quick" onclick="App.truckForm(\'expense\')">'+icon("circle-minus")+' Registrar despesa</button>'+
+      '<button class="truck-quick" onclick="App.truckForm(\'advance\')">'+icon("wallet")+' Vale / acerto motorista</button></div>';
+    let body;
+    if(active==="entries"){
+      body='<div id="truck-panel-entries" class="truck-view truck-entries-view" role="tabpanel" aria-labelledby="truck-tab-entries">'+
+        '<div class="truck-fast-summary" aria-label="Resumo rápido do período">'+
+        '<div class="truck-fast-total"><span>Entradas do período</span><strong>'+truckMoney(t.freight)+'</strong></div>'+
+        '<div class="truck-fast-total"><span>Saídas do período</span><strong>'+truckMoney(t.cash_out)+'</strong></div></div>'+
+        '<div class="truck-action-filter-row">'+quick+monthFilter+'</div>'+
+        ledger+'</div>';
+    }else{
+      body='<div id="truck-panel-details" class="truck-view truck-details-view" role="tabpanel" aria-labelledby="truck-tab-details">'+
+        '<div class="truck-details-filter">'+monthFilter+
+        '<span class="secondary-text">Comissão padrão '+E(r.settings.commission_pct)+'%'+(r.settings.driver_name?' · '+E(r.settings.driver_name):"")+'</span></div>'+
+        '<div class="truck-kpis">'+truckStat("Fretes acumulados",t.freight,"Receitas dos fretes")+
+        truckStat("Saídas do caixa",t.cash_out,"Despesas + vales pagos")+
+        truckStat("Saldo do caixa",t.cash_balance,(this.s.truckMonth?"No período":"Inclui saldo inicial configurado"))+
+        truckStat("Resultado do caminhão",t.operating_result,"Fretes − despesas − comissão gerada")+
+        truckStat("Comissão a pagar",t.driver_due,"Saldo histórico do motorista")+'</div>'+
+        '<div class="truck-columns"><section class="panel"><div class="panel-header"><h3>Receitas por tipo de frete</h3></div>'+
+        '<div class="panel-body">'+overview(r.by_freight,"Nenhum frete neste período.")+'</div></section>'+
+        '<section class="panel"><div class="panel-header"><h3>Saídas por categoria</h3></div><div class="panel-body">'+overview(r.by_expense,"Nenhuma saída neste período.")+
+        '<div class="truck-note">Comissão gerada no período: <b>'+truckMoney(t.commission_earned)+'</b>. Vales são saídas de caixa e não descontam essa despesa outra vez.</div></div></section>'+
+        '<section class="panel"><div class="panel-header"><h3>Conta do motorista</h3></div><div class="panel-body">'+
+        '<div class="info-row"><span>Saldo anterior</span><strong>'+truckMoney(t.outstanding_opening)+'</strong></div>'+
+        '<div class="info-row"><span>Comissões geradas</span><strong>'+truckMoney(t.driver_earned_all)+'</strong></div>'+
+        '<div class="info-row"><span>Vales e acertos pagos</span><strong>−'+truckMoney(t.driver_paid_all)+'</strong></div>'+
+        '<div class="info-row truck-due"><span>Comissão em aberto</span><strong>'+truckMoney(t.driver_due)+'</strong></div>'+
+        '</div></section></div></div>';
+    }
+    document.getElementById("main").innerHTML=nav+body;
+  },
+  truckSetTab(tab){
+    if(!["entries","details"].includes(tab)||this.s.truckTab===tab)return;
+    this.s.truckTab=tab;
+    this.renderTruckView();
   },
   async truckSetMonth(month){this.s.truckMonth=month;await this.renderTruck()},
   truckExport(id){window.location.href="/api/controls/"+id+"/truck/export.csv"},
