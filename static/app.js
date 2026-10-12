@@ -1,5 +1,6 @@
 "use strict";
 const E = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const icon = id => '<svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#'+id+'"></use></svg>';
 const currency = n => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(n||0));
 const number = n => new Intl.NumberFormat("pt-BR",{maximumFractionDigits:2}).format(Number(n||0));
 const deep = x => JSON.parse(JSON.stringify(x));
@@ -81,7 +82,7 @@ const App = {
     const controls=this.s.state?.controls||[];
     document.getElementById("homeLink").classList.toggle("active",this.s.route==="home");
     document.getElementById("sideBoards").innerHTML=boards.map(b=>
-      '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')"><span>▤</span><span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
+      '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')">'+icon("folder")+'<span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
     this.renderMain();
   },
   renderMain(){
@@ -101,21 +102,18 @@ const App = {
     document.getElementById("crumb").textContent=crumb;
     const main=document.getElementById("main");
     if(this.s.route==="home"){
-      const totalEntries=controls.reduce((a,c)=>a+c.summary.count,0);
       const filtered=controls.filter(c=>c.name.toLowerCase().includes(this.s.query));
-      main.innerHTML='<section class="intro"><div><div class="eyebrow">PAINEL DE GESTÃO</div><h2>Tudo o que você controla, em um só lugar.</h2><p class="subtext">Crie quadros, personalize seus formulários e acompanhe lançamentos sem planilhas ou fórmulas.</p></div><button class="btn" onclick="App.newBoard()">＋ Novo quadro</button></section>'+
-      '<section class="stat-grid">'+stat("▤","Quadros",boards.length,"Áreas organizadas")+stat("▦","Controles",controls.length,"Personalizados")+stat("≡","Lançamentos",totalEntries,"Registros salvos")+stat("◷","Atualização","Local","Dados em SQLite")+'</section>'+
-      '<div class="section-heading"><h2>Seus quadros</h2><p>'+boards.length+' quadros</p></div>'+
+      main.innerHTML='<div class="section-heading"><h2>Seus quadros</h2><p>'+boards.length+' quadros</p></div>'+
       (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhum quadro","Crie um quadro para organizar seus controles.","App.newBoard()","Criar quadro"))+
       '<div class="section-heading"><h2>Controles</h2><p>'+filtered.length+' encontrados</p></div>'+
       (filtered.length?'<div class="control-grid">'+filtered.map(controlCard).join("")+'</div>':empty("Nenhum controle encontrado","Crie um controle e comece a lançar.","App.newControl()","Criar controle"));
     } else if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);
       const found=controls.filter(c=>c.board_id===b.id&&c.name.toLowerCase().includes(this.s.query));
-      main.innerHTML='<section class="intro"><div><div class="eyebrow">QUADRO DE CONTROLES</div><h2>'+E(b.name)+'</h2><p class="subtext">Agrupe e acompanhe controles relacionados. Cada controle tem seu próprio formulário.</p></div><div class="actions-end"><button class="btn" onclick="App.renameBoard('+b.id+')">Renomear</button><button class="btn btn-primary" onclick="App.newControl('+b.id+')">＋ Novo controle</button></div></section>'+
+      main.innerHTML='<section class="intro"><div><div class="eyebrow">QUADRO DE CONTROLES</div><h2>'+E(b.name)+'</h2><p class="subtext">Agrupe e acompanhe controles relacionados. Cada controle tem seu próprio formulário.</p></div><div class="actions-end"><button class="btn" onclick="App.renameBoard('+b.id+')">Renomear</button><button class="btn btn-primary" onclick="App.newControl('+b.id+')">'+icon("plus")+' Novo controle</button></div></section>'+
        '<section class="stat-grid">'+stat("▦","Controles",found.length,"Neste quadro")+stat("≡","Lançamentos",found.reduce((n,c)=>n+c.summary.count,0),"Neste quadro")+'</section>'+
        (found.length?'<div class="control-grid">'+found.map(controlCard).join("")+'</div>':empty("Quadro vazio","Adicione um controle para começar.","App.newControl("+b.id+")","Criar controle"))+
-       '<div class="danger-zone"><button class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">Excluir quadro</button></div>';
+       '<div class="danger-zone"><button class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">'+icon("trash")+' Excluir quadro</button></div>';
     } else if(this.s.route==="control")this.renderControl();
   },
   renderControl(){
@@ -125,18 +123,18 @@ const App = {
     const datefield=c.fields.find(f=>f.type==="date");
     const subjectfield=c.fields.find(f=>f.type==="text");
     const cSummary=(rows,key)=>rows.length?rows.map(x=>'<div class="info-row"><span>'+E(x.name)+'</span><strong class="'+(Number(x.total)<0?"negative":"")+'">'+currency(x.total)+'</strong></div>').join(""):'<p class="secondary-text">Sem dados para exibir.</p>';
-    document.getElementById("main").innerHTML='<section class="intro"><div><div class="eyebrow">'+E(mode)+'</div><h2>'+E(c.name)+'</h2><p class="subtext">Formulário próprio, cálculos automáticos e registro de cada movimentação.</p></div><div class="actions-end"><button class="btn" onclick="App.editControl('+c.id+')">⚙ Configurar</button><button class="btn btn-primary" onclick="App.newEntry()">＋ Novo lançamento</button></div></section>'+
+    document.getElementById("main").innerHTML='<section class="intro"><div><div class="eyebrow">'+E(mode)+'</div><h2>'+E(c.name)+'</h2><p class="subtext">Formulário próprio, cálculos automáticos e registro de cada movimentação.</p></div><div class="actions-end"><button class="btn" onclick="App.editControl('+c.id+')">'+icon("settings")+' Configurar</button><button class="btn btn-primary" onclick="App.newEntry()">'+icon("plus")+' Novo lançamento</button></div></section>'+
       '<section class="stat-grid">'+stat("＋","Total somado",currency(sum.plus),"Valores que aumentam")+stat("−","Total subtraído",currency(sum.minus),"Valores que diminuem")+stat("◉","Saldo do controle",currency(sum.balance),"Conforme os tipos definidos")+stat("≡","Lançamentos",sum.count,"Registros salvos")+'</section>'+
-      '<div class="details-layout"><div class="stack"><section class="panel"><div class="panel-header"><h3>Histórico de lançamentos</h3><div class="actions-end"><button class="btn btn-sm" onclick="App.exportCsv('+c.id+')">↓ Exportar CSV</button><button class="btn btn-sm btn-primary" onclick="App.newEntry()">＋ Lançar</button></div></div>'+
+      '<div class="details-layout"><div class="stack"><section class="panel"><div class="panel-header"><h3>Histórico de lançamentos</h3><div class="actions-end"><button class="btn btn-sm" onclick="App.exportCsv('+c.id+')">'+icon("download")+' Exportar CSV</button><button class="btn btn-sm btn-primary" onclick="App.newEntry()">'+icon("plus")+' Lançar</button></div></div>'+
       (entries.length?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Referência</th><th>Tipo</th><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">Ações</th></tr></thead><tbody>'+
       entries.map(e=>{const showdate=datefield?e.data[datefield.key]:"";
         const dateText=showdate&&/^\d{4}-\d\d-\d\d$/.test(showdate)?showdate.slice(8)+"/"+showdate.slice(5,7)+"/"+showdate.slice(0,4):"—";
         const subject=subjectfield?e.data[subjectfield.key]:"Lançamento #"+e.id;
-        return '<tr><td>'+E(dateText)+'</td><td><b>'+E(subject)+'</b>'+(e.notes?'<div class="secondary-text">'+E(e.notes.slice(0,65))+'</div>':"")+'</td><td>'+E(e.type_label)+'</td><td><span class="chip">'+E(e.category)+'</span></td><td class="numeric '+(e.direction<0?"negative":e.direction===0?"neutral":"positive")+'">'+(e.direction>0?"+":e.direction<0?"−":"") +currency(e.amount)+'</td><td><div class="table-actions"><button class="mini-action" onclick="App.editEntry('+e.id+')">Editar</button><button class="mini-action" onclick="App.deleteEntry('+e.id+')">Excluir</button></div></td></tr>'}).join("")+
+        return '<tr><td>'+E(dateText)+'</td><td><b>'+E(subject)+'</b>'+(e.notes?'<div class="secondary-text">'+E(e.notes.slice(0,65))+'</div>':"")+'</td><td>'+E(e.type_label)+'</td><td><span class="chip">'+E(e.category)+'</span></td><td class="numeric '+(e.direction<0?"negative":e.direction===0?"neutral":"positive")+'">'+(e.direction>0?"+":e.direction<0?"−":"") +currency(e.amount)+'</td><td><div class="table-actions"><button class="mini-action" onclick="App.editEntry('+e.id+')">'+icon("edit")+' Editar</button><button class="mini-action" onclick="App.deleteEntry('+e.id+')">'+icon("trash")+' Excluir</button></div></td></tr>'}).join("")+
       '</tbody></table></div>':empty("Sem lançamentos","Adicione o primeiro lançamento para começar.","App.newEntry()","Novo lançamento"))+'</section></div>'+
       '<aside class="stack"><section class="panel"><div class="panel-header"><h3>Resumo por categoria</h3></div><div class="panel-body">'+cSummary(sum.by_category)+'</div></section>'+
       '<section class="panel"><div class="panel-header"><h3>Resumo por tipo</h3></div><div class="panel-body">'+cSummary(sum.by_type)+'</div></section>'+
-      '<section class="panel"><div class="panel-header"><h3>Estrutura</h3></div><div class="panel-body"><p class="secondary-text">'+c.fields.length+' campos · '+c.rules.length+' cálculos · '+c.types.length+' tipos de lançamento</p><div class="actions-end" style="margin-top:14px"><button class="btn btn-sm" onclick="App.duplicateControl('+c.id+')">Duplicar controle</button><button class="btn btn-sm btn-danger" onclick="App.deleteControl('+c.id+')">Excluir</button></div></div></section></aside></div>';
+      '<section class="panel"><div class="panel-header"><h3>Estrutura</h3></div><div class="panel-body"><p class="secondary-text">'+c.fields.length+' campos · '+c.rules.length+' cálculos · '+c.types.length+' tipos de lançamento</p><div class="actions-end" style="margin-top:14px"><button class="btn btn-sm" onclick="App.duplicateControl('+c.id+')">'+icon("copy")+' Duplicar controle</button><button class="btn btn-sm btn-danger" onclick="App.deleteControl('+c.id+')">'+icon("trash")+' Excluir</button></div></div></section></aside></div>';
   },
   async renameBoard(id){
     const b=this.s.state.boards.find(x=>x.id===id),name=prompt("Nome do quadro:",b.name);
@@ -281,11 +279,11 @@ const App = {
       body='<div class="hint">Os campos abaixo formam a tela de lançamento. Para criar outro, clique em <b>Adicionar campo</b>.</div>'+
       d.fields.map((f,i)=>'<div class="form-row-card"><div class="field"><label>Nome do campo</label><input value="'+E(f.label)+'" maxlength="150" oninput="App.setItem(\'fields\','+i+',\'label\',this.value)"></div>'+
        '<div class="field"><label>Formato</label><select onchange="App.setItem(\'fields\','+i+',\'type\',this.value)">'+fSelect(fieldTypes,f.type)+'</select></div>'+
-       '<button class="btn btn-sm" title="Remover campo" onclick="App.removeField('+i+')">✕</button>'+
+       '<button class="btn btn-sm" title="Remover campo" onclick="App.removeField('+i+')">'+icon("x")+'</button>'+
        (f.type==="percent"?'<div class="field"><label>Valor padrão (%)</label><input value="'+E(f.default||"")+'" oninput="App.setItem(\'fields\','+i+',\'default\',this.value)"></div>':'')+
        '<label class="secondary-text" style="align-self:end"><input type="checkbox" '+(f.required?"checked":"")+' onchange="App.setItem(\'fields\','+i+',\'required\',this.checked)"> Obrigatório</label>'+
        '</div>').join("")+
-      '<button class="btn btn-sm" onclick="App.addField()">＋ Adicionar campo</button>';
+      '<button class="btn btn-sm" onclick="App.addField()">'+icon("plus")+' Adicionar campo</button>';
     }else if(step===2){
       body='<div class="hint">Exemplo: <b>Peso carregado × Valor por kg = Valor do frete</b>. Escolha os campos e a operação, sem escrever fórmulas.</div>'+
       (d.rules.length?d.rules.map((r,i)=>{
@@ -294,20 +292,20 @@ const App = {
          '<div class="field"><label>Operação</label><select onchange="App.setItem(\'rules\','+i+',\'op\',this.value)">'+fSelect(ops,r.op)+'</select></div>'+
          '<div class="field"><label>Primeiro valor</label><select onchange="App.setItem(\'rules\','+i+',\'a\',this.value)">'+fSelect(prev,r.a)+'</select></div>'+
          '<div class="field"><label>Segundo valor</label><select onchange="App.setItem(\'rules\','+i+',\'b\',this.value)">'+fSelect(prev,r.b)+'</select></div>'+
-         '<button class="btn btn-sm" onclick="App.removeRule('+i+')">✕</button></div>';
+         '<button class="btn btn-sm" onclick="App.removeRule('+i+')">'+icon("x")+'</button></div>';
       }).join(""):'<p class="secondary-text">Este controle ainda não possui cálculos automáticos.</p>')+
-      '<button class="btn btn-sm" style="margin-top:10px" onclick="App.addRule()">＋ Adicionar cálculo</button>';
+      '<button class="btn btn-sm" style="margin-top:10px" onclick="App.addRule()">'+icon("plus")+' Adicionar cálculo</button>';
     }else{
       const available=[["manual","Valor digitado"],...d.fields.filter(f=>["number","currency","percent"].includes(f.type)).map(f=>[f.key,f.label]),...d.rules.map(r=>[r.key,r.label])];
       body='<div class="hint">Cada lançamento terá um comportamento. Exemplo: <b>Pagamento recebido</b> diminui o saldo; <b>Nova cobrança</b> aumenta.</div>'+
        d.types.map((t,i)=>'<div class="config-type"><div class="field"><label>Nome do lançamento</label><input maxlength="150" value="'+E(t.label)+'" oninput="App.setItem(\'types\','+i+',\'label\',this.value)"></div>'+
        '<div class="field"><label>Comportamento</label><select onchange="App.setItem(\'types\','+i+',\'direction\',this.value)">'+fSelect(directions,t.direction)+'</select></div>'+
        '<div class="field"><label>De onde vem o valor?</label><select onchange="App.setItem(\'types\','+i+',\'source\',this.value)">'+fSelect(available,t.source)+'</select></div>'+
-       '<button class="btn btn-sm" onclick="App.s.draft.types.splice('+i+',1);App.renderModal()">✕</button></div>').join("")+
-       '<button class="btn btn-sm" style="margin-top:10px" onclick="App.addType()">＋ Novo tipo de lançamento</button>'+
+       '<button class="btn btn-sm" onclick="App.s.draft.types.splice('+i+',1);App.renderModal()">'+icon("x")+'</button></div>').join("")+
+       '<button class="btn btn-sm" style="margin-top:10px" onclick="App.addType()">'+icon("plus")+' Novo tipo de lançamento</button>'+
        '<p class="secondary-text" style="margin-top:14px">Registros antigos permanecem guardados com seus valores e cálculos originais quando você muda as regras.</p>';
     }
-    return '<div class="modal-header"><div><h2 id="modalTitle">'+(this.s.editing?"Configurar controle":"Criar controle")+'</h2><p>'+E(heads[step])+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">×</button></div>'+
+    return '<div class="modal-header"><div><h2 id="modalTitle">'+(this.s.editing?"Configurar controle":"Criar controle")+'</h2><p>'+E(heads[step])+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><div class="step-dots">'+[0,1,2,3].map(i=>'<div class="step-dot '+(i<=step?"done":"")+'"></div>').join("")+'</div><h3 style="margin-bottom:13px">'+E(sub[step])+'</h3>'+body+'</div>'+
       '<div class="modal-footer"><button class="btn" onclick="'+(step===0?"App.closeModal()":"App.builderNext(-1)")+'">'+(step===0?"Cancelar":"Voltar")+'</button>'+
       '<div class="tagline"><span class="secondary-text">Etapa '+(step+1)+' de 4</span><button class="btn btn-primary" onclick="'+(step===3?"App.saveControl()":"App.builderNext(1)")+'">'+(step===3?"Salvar controle":"Continuar →")+'</button></div></div>';
@@ -324,7 +322,7 @@ const App = {
     }).join("");
     const types=c.types.map(t=>[t.key,t.label]),oldtype=old?.type_key||c.types[0].key;
     const derived=old?.type_key&& !c.types.some(t=>t.key===old.type_key);
-    return '<div class="modal-header"><div><h2 id="modalTitle">'+(old?"Editar lançamento":"Novo lançamento")+'</h2><p>'+E(c.name)+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">×</button></div>'+
+    return '<div class="modal-header"><div><h2 id="modalTitle">'+(old?"Editar lançamento":"Novo lançamento")+'</h2><p>'+E(c.name)+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="entryForm" onsubmit="event.preventDefault();App.saveEntry()">'+
       (derived?'<div class="hint">O tipo anterior não existe mais. Selecione um tipo atual.</div>':"")+
       '<div class="form-grid"><div class="field full"><label>Tipo de lançamento *</label><select name="type_key" onchange="App.preview()">'+fSelect(types,oldtype)+'</select></div>'+fields+
@@ -355,18 +353,20 @@ const App = {
     box.innerHTML='<strong>Prévia automática</strong>'+rows.join("");
   }
 };
-function stat(icon,label,value,foot){
-  return '<div class="stat"><div class="stat-kicker"><span>'+icon+'</span> '+E(label)+'</div><div class="stat-value">'+E(value)+'</div><div class="stat-foot">'+E(foot)+'</div></div>';
+function stat(iconName,label,value,foot){
+  const statIcons={"▦":"folder","▤":"folder","≡":"list","＋":"circle-plus","−":"circle-minus","◉":"wallet","◷":"settings"};
+  const graphic=icon(statIcons[iconName]||"list");
+  return '<div class="stat"><div class="stat-kicker">'+graphic+' '+E(label)+'</div><div class="stat-value">'+E(value)+'</div><div class="stat-foot">'+E(foot)+'</div></div>';
 }
 function boardCard(b,count){
-  return '<div class="board-card" tabindex="0" role="button" onclick="App.navigate(\'board\','+b.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'board\','+b.id+')"><div class="card-top"><span class="folder-icon">▤</span><span class="card-arrow">→</span></div><h3>'+E(b.name)+'</h3><p>'+count+' controle(s)</p></div>';
+  return '<div class="board-card" tabindex="0" role="button" onclick="App.navigate(\'board\','+b.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'board\','+b.id+')"><div class="card-top"><span class="folder-icon">'+icon("folder")+'</span><span class="card-arrow">'+icon("arrow-right")+'</span></div><h3>'+E(b.name)+'</h3><p>'+count+' controle(s)</p></div>';
 }
 function controlCard(c){
   const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado"}[c.mode];
-  return '<div class="control-card" tabindex="0" role="button" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'control\','+c.id+')"><div class="title-line"><h3>'+E(c.name)+'</h3><span class="pill">'+E(mode)+'</span></div><p class="control-desc">'+c.summary.count+' lançamento(s) · '+c.fields.length+' campos</p><div class="control-bottom"><span><small>Saldo do controle</small><br><strong>'+currency(c.summary.balance)+'</strong></span><span class="card-arrow">→</span></div></div>';
+  return '<div class="control-card" tabindex="0" role="button" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'control\','+c.id+')"><div class="title-line"><span class="control-icon">'+icon(c.mode==="calculo"?"truck":c.mode==="financeiro"?"wallet":"clipboard")+'</span><h3>'+E(c.name)+'</h3><span class="pill">'+E(mode)+'</span></div><p class="control-desc">'+c.summary.count+' lançamento(s) · '+c.fields.length+' campos</p><div class="control-bottom"><span><small>Saldo do controle</small><br><strong>'+currency(c.summary.balance)+'</strong></span><span class="card-arrow">'+icon("arrow-right")+'</span></div></div>';
 }
 function empty(title,desc,action,label){
-  return '<div class="empty-state"><strong>'+E(title)+'</strong><p>'+E(desc)+'</p><button class="btn btn-primary" onclick="'+action+'">'+E(label)+'</button></div>';
+  return '<div class="empty-state"><strong>'+E(title)+'</strong><p>'+E(desc)+'</p><button class="btn btn-primary" onclick="'+action+'">'+icon("plus")+' '+E(label)+'</button></div>';
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&App.s.modal)App.closeModal()});
 document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");

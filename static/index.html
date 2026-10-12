@@ -11,15 +11,14 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <span class="brand-icon">▦</span>
+        <span class="brand-icon"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#logo"></use></svg></span>
         <span><strong>MEUS CONTROLES</strong><small>Central de gestão</small></span>
       </div>
       <div class="sidebar-section-label">GERENCIAMENTO</div>
-      <button class="nav-link active" id="homeLink" onclick="App.navigate('home')"><span class="nav-icon">⌂</span> Visão geral</button>
-      <div class="sidebar-section-label section-flex">MEUS QUADROS <button class="icon-button ghost" title="Novo quadro" onclick="App.newBoard()">＋</button></div>
+      <button class="nav-link active" id="homeLink" onclick="App.navigate('home')"><span class="nav-icon"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#dashboard"></use></svg></span> Visão geral</button>
+      <div class="sidebar-section-label section-flex">MEUS QUADROS <button class="icon-button ghost" title="Novo quadro" aria-label="Criar quadro" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg></button></div>
       <div id="sideBoards" class="sidebar-items"></div>
       <div class="sidebar-bottom">
-        <button class="sidebar-new" onclick="App.newControl()">＋ &nbsp; Criar controle</button>
         <div class="sidebar-version"><span class="status-dot"></span> Servidor local <span class="version">v1.0</span></div>
       </div>
     </aside>
@@ -27,12 +26,12 @@
     <div class="workspace">
       <header class="topbar">
         <div class="top-left">
-          <button class="icon-button mobile-menu" aria-label="Abrir menu" onclick="App.toggleMenu(true)">☰</button>
+          <button class="icon-button mobile-menu" aria-label="Abrir menu" onclick="App.toggleMenu(true)"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#menu"></use></svg></button>
           <div><div class="breadcrumbs" id="crumb">CENTRAL / VISÃO GERAL</div><h1 id="pageTitle">Visão geral</h1></div>
         </div>
         <div class="top-actions">
-          <label class="search"><span>⌕</span><input aria-label="Pesquisar" id="search" placeholder="Pesquisar controles..." oninput="App.search(this.value)"></label>
-          <button class="btn btn-primary" onclick="App.newControl()">＋ <span class="hide-small">Novo controle</span></button>
+          <label class="search"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg><input aria-label="Pesquisar" id="search" placeholder="Pesquisar controles..." oninput="App.search(this.value)"></label>
+          <button class="btn btn-primary" onclick="App.newControl()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> <span class="hide-small">Novo controle</span></button>
         </div>
       </header>
       <main id="main" class="main"><div class="empty-state">Carregando controles...</div></main>

@@ -312,6 +312,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method=="GET" and url in ("/","/index.html"):
                 return self.send((ROOT/"static"/"index.html").read_bytes(),mime="text/html; charset=utf-8")
+            if method=="GET" and url=="/static/icons.svg":
+                return self.send((ROOT/"static"/"icons.svg").read_bytes(),mime="image/svg+xml; charset=utf-8")
             if method=="GET" and url=="/static/app.css":
                 return self.send((ROOT/"static"/"app.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/app.js":
