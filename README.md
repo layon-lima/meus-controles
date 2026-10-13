@@ -373,3 +373,32 @@ armazenamento de pagamentos do modelo de dívidas, mas isolada por
 controle e por modo. As regras existentes de dívida fixa não mudam.
 A nova tela também permite renomear ou mover o controle de pasta
 sem perder os registros.
+
+
+## Acerto A × B — dívidas e pagamentos reais no mesmo controle
+
+O modelo **Acerto A × B** agora oferece dois tipos de lançamento:
+
+- **Dívida / compensação:** A recebeu um produto, serviço ou valor e
+  passou a dever a B (ou vice-versa). Dívidas nos dois sentidos se
+  compensam automaticamente.
+- **Pagamento real:** A efetivamente pagou dinheiro a B (ou vice-versa).
+  Esse pagamento reduz o que o pagador deve ao recebedor, sem criar
+  uma dívida fictícia no sentido oposto.
+
+Por exemplo, se A deve R$ 1.000 a B, B passa a dever R$ 200 a A e A
+paga R$ 300 a B, o saldo é **A deve R$ 500 a B**. O pagamento real e
+a compensação aparecem separados no histórico, com data, descrição,
+valor e observação.
+
+O saldo líquido e os fechamentos continuam seguindo a mesma regra:
+**fechamento apenas quando o usuário confirmar**; nunca é concluído
+automaticamente por um cálculo de saldo zero. Histórico fechado é
+somente leitura, e o saldo remanescente é transferido ao período
+seguinte sem contagem dupla.
+
+A coluna `entry_kind` é adicionada automaticamente aos bancos SQLite
+anteriores, com valor padrão `debt` para todos os lançamentos
+existentes. Nenhum registro antigo muda de sentido ou é apagado.
+Exportações CSV de fechamentos novos identificam dívidas e pagamentos
+reais. Arquivos históricos de fechamentos antigos seguem compatíveis.

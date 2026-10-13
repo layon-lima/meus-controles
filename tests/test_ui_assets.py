@@ -316,6 +316,24 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/pair.js',html)
         self.assertIn('/static/pair.css',html)
 
+    def test_pair_debts_and_real_payments_share_one_settlement(self):
+        js=(STATIC / "pair.js").read_text(encoding="utf-8")
+        css=(STATIC / "pair.css").read_text(encoding="utf-8")
+        backend=(ROOT / "pair.py").read_text(encoding="utf-8")
+        for token in ("Nova dívida","Registrar pagamento","Quem pagou para quem?",
+                      "Quem deve para quem?","Dívida / compensação","Pagamento real",
+                      "abPartyLabel","pairKindChanged()","payments_a_to_b",
+                      "payments_b_to_a",'p[kind==="payment"?"payer":"debtor"]',
+                      'value="payment"', 'name="kind"'):
+            self.assertIn(token,js)
+        self.assertIn("ab-kind-payment",css)
+        self.assertIn("ab-kind-debt",css)
+        self.assertIn("ALTER TABLE pair_entries ADD COLUMN",backend)
+        self.assertIn("kind_of(entry)",backend)
+        self.assertIn('entry_kind=?',backend)
+        self.assertIn('movement_totals',backend)
+        self.assertIn("Pagamento real",backend)
+
     def test_folders_and_move_control_user_interface(self):
         app=(STATIC / "app.js").read_text(encoding="utf-8")
         html=(STATIC / "index.html").read_text(encoding="utf-8")

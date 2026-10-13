@@ -32,8 +32,8 @@ class PairTests(unittest.TestCase):
         with app.db() as con:
             payload=pair.validate({"date":date_str,"debtor":debtor,"amount":amount,
                 "description":description})
-            return con.execute("""INSERT INTO pair_entries(control_id,entry_date,debtor,amount,description,notes)
-                VALUES(?,?,?,?,?,?)""",(cid,*payload.values())).lastrowid
+            return con.execute("""INSERT INTO pair_entries(control_id,entry_date,debtor,amount,description,notes,entry_kind)
+                VALUES(?,?,?,?,?,?,?)""",(cid,*payload.values())).lastrowid
 
     def test_opposite_debts_cancel_and_reverse_debtor(self):
         self.add("A","100.00",description="Fulano deve")
@@ -147,6 +147,154 @@ class PairTests(unittest.TestCase):
         with app.db() as con:
             with self.assertRaisesRegex(ValueError,"dois nomes"):
                 pair.save_settings(con,self.cid,{"party_a":"Fulano","party_b":"FULANO"})
+
+    def test_compensation_and_real_payments_both_deduct_correctly(self):
+        class Handler:
+            def __init__(self,p):self.payload=p
+            def input(self):return self.payload
+            def send(self,data,status=200,mime=None):return data
+
+        def post(p):
+            with app.db() as con:
+                return pair.handle(Handler(p),con,"POST",
+                    f"/api/controls/{self.cid}/pair/entries")["id"]
+
+        post({"date":"2026-01-05","debtor":"A","amount":"1000",
+              "description":"A pegou insumos"})
+        post({"date":"2026-01-06","debtor":"B","amount":"200",
+              "description":"B pegou peças"})
+        paid=post({"date":"2026-01-07","kind":"payment","payer":"A",
+                   "amount":"300","description":"A pagou a B por PIX"})
+        with app.db() as con:
+            data=pair.summary(con,self.cid)
+            self.assertEqual(data["totals"]["balance"],"-500.00")
+            self.assertEqual(data["totals"]["settlement"]["debtor"],"Fulano")
+            self.assertEqual(data["totals"]["settlement"]["creditor"],"Sicrano")
+            self.assertEqual(data["totals"]["settlement"]["amount"],"500.00")
+            self.assertEqual(data["totals"]["a_to_b"],"1000.00")
+            self.assertEqual(data["totals"]["b_to_a"],"200.00")
+            self.assertEqual(data["totals"]["payments_a_to_b"],"300.00")
+            self.assertEqual(data["totals"]["payments_b_to_a"],"0.00")
+            self.assertEqual(data["totals"]["payment_count"],1)
+            self.assertEqual(data["totals"]["debt_count"],2)
+            self.assertEqual(next(x for x in data["entries"] if x["id"]==paid)["entry_kind"],"payment")
+
+        # Ao pagar a B, A reduz sua dívida; já o pagamento inverso aumenta
+        # o quanto A deve a B (se B pagou a A).
+        post({"date":"2026-01-08","kind":"payment","payer":"B",
+              "amount":"100","description":"B pagou A"})
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-600.00")
+
+    def test_real_payment_edit_changes_direction_and_preserves_kind(self):
+        class Handler:
+            def __init__(self,p):self.payload=p
+            def input(self):return self.payload
+            def send(self,data,status=200,mime=None):return data
+        with app.db() as con:
+            paid=pair.handle(Handler({"date":"2026-01-05","kind":"payment",
+                "payer":"A","amount":"80.00","description":"Pago"}),
+                con,"POST",f"/api/controls/{self.cid}/pair/entries")["id"]
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"80.00")
+        with app.db() as con:
+            pair.handle(Handler({"date":"2026-01-06","kind":"payment",
+                "payer":"B","amount":"50.25","description":"Pago na outra direção"}),
+                con,"PUT",f"/api/pair-entries/{paid}")
+        with app.db() as con:
+            report=pair.summary(con,self.cid)
+            self.assertEqual(report["totals"]["balance"],"-50.25")
+            self.assertEqual(report["totals"]["payments_b_to_a"],"50.25")
+            self.assertEqual(report["totals"]["payment_count"],1)
+        with app.db() as con:
+            pair.handle(Handler({}),con,"DELETE",f"/api/pair-entries/{paid}")
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"0.00")
+
+    def test_close_records_payment_type_csv_and_carries_net_balance(self):
+        class Handler:
+            def __init__(self,p):self.payload=p
+            def input(self):return self.payload
+            def send(self,data,status=200,mime=None):return data
+        with app.db() as con:
+            for entry in [
+                {"date":"2026-01-05","debtor":"A","amount":"500","description":"A comprou"},
+                {"date":"2026-01-06","debtor":"B","amount":"100","description":"B comprou"},
+                {"date":"2026-01-07","kind":"payment","payer":"A","amount":"150",
+                 "description":"A pagou"}]:
+                pair.handle(Handler(entry),con,"POST",
+                    f"/api/controls/{self.cid}/pair/entries")
+        with app.db() as con:
+            prev=pair.preview(con,self.cid,"2026-01-01","2026-01-31")
+            self.assertEqual(prev["closing_balance"],"-250.00")
+            self.assertEqual(prev["movement_totals"]["payment_count"],1)
+            result=pair.close(con,self.cid,{"start":"2026-01-01",
+                "end":"2026-01-31","fingerprint":prev["fingerprint"]})
+            csv=pair.export_csv(con,result["id"]).decode("utf-8-sig")
+            self.assertIn("Pagamento real",csv)
+            self.assertIn("Dívida / compensação",csv)
+            self.assertIn("Pagador",csv)
+            with self.assertRaisesRegex(ValueError,"fechado"):
+                pair.check_editable(con,self.cid,"2026-01-07")
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-250.00")
+        with app.db() as con:
+            pair.handle(Handler({"date":"2026-02-04","kind":"payment",
+                "payer":"A","amount":"250","description":"A quitou"}),
+                con,"POST",f"/api/controls/{self.cid}/pair/entries")
+        with app.db() as con:
+            data=pair.summary(con,self.cid)
+            self.assertEqual(data["totals"]["balance"],"0.00")
+            self.assertTrue(data["totals"]["settlement"]["settled"])
+            self.assertEqual(data["totals"]["opening_balance"],"-250.00")
+            self.assertEqual(data["totals"]["payments_a_to_b"],"250.00")
+            self.assertEqual(data["totals"]["current_count"],1)
+
+    def test_migration_keeps_entries_when_old_database_has_no_kind(self):
+        with app.db() as con:
+            # Simula um banco anterior ao recurso de pagamento real.
+            con.execute("DROP TABLE pair_entries")
+            con.execute("""CREATE TABLE pair_entries (
+                id INTEGER PRIMARY KEY,
+                control_id INTEGER NOT NULL REFERENCES controls(id) ON DELETE CASCADE,
+                entry_date TEXT NOT NULL,
+                debtor TEXT NOT NULL CHECK(debtor IN ('A','B')),
+                amount TEXT NOT NULL,
+                description TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+            con.execute("""INSERT INTO pair_entries
+                (control_id,entry_date,debtor,amount,description,notes)
+                VALUES(?,?,?,?,?,?)""",
+                (self.cid,"2026-01-05","A","123.45","Compra antiga","Observação preservada"))
+            pair.initialize(con)
+            pair.initialize(con)
+            columns={x["name"] for x in con.execute("PRAGMA table_info(pair_entries)")}
+            self.assertIn("entry_kind",columns)
+            data=pair.summary(con,self.cid)
+            self.assertEqual(data["totals"]["balance"],"-123.45")
+            self.assertEqual(data["history"][0]["description"],"Compra antiga")
+            self.assertEqual(data["history"][0]["notes"],"Observação preservada")
+            self.assertEqual(data["history"][0]["entry_kind"],"debt")
+
+    def test_invalid_payment_type_and_legacy_debts_stay_compatible(self):
+        for invalid in ("bank","automatic","",None):
+            with self.assertRaisesRegex(ValueError,"Selecione dívida ou pagamento real"):
+                pair.validate({"date":"2026-01-08","kind":invalid,"payer":"A",
+                               "amount":"1","description":"Teste"})
+        with self.assertRaisesRegex(ValueError,"quem pagou"):
+            pair.validate({"date":"2026-01-08","kind":"payment","payer":"C",
+                           "amount":"1","description":"Teste"})
+        self.assertEqual(pair.validate({"date":"2026-01-08","debtor":"A",
+                           "amount":"1","description":"Antigo"})["entry_kind"],"debt")
+        self.assertEqual(pair.sign({"amount":"100.00","debtor":"A"}),-100)
+        with app.db() as con:
+            con.execute("""INSERT INTO pair_entries
+              (control_id,entry_date,debtor,amount,description)
+              VALUES(?,?,?,?,?)""",(self.cid,"2026-01-08","A","75.00","Antigo"))
+            record=pair.summary(con,self.cid)
+            self.assertEqual(record["totals"]["balance"],"-75.00")
+            self.assertEqual(record["history"][0]["entry_kind"],"debt")
 
     def test_csv_and_copy_empty_model(self):
         self.add("A","100.00","2026-01-05","Peças")

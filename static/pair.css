@@ -53,3 +53,22 @@
 .ab-archive-line small{font-size:11px;color:#7990a0}
 @media(max-width:850px){.ab-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ab-stats>div:last-child{grid-column:1/-1}}
 @media(max-width:590px){.ab-balance{flex-direction:column;align-items:flex-start;padding:14px}.ab-stats{grid-template-columns:1fr}.ab-stats>div:last-child{grid-column:auto}.ab-date-row label{flex:1;min-width:120px}.ab-date-row input{width:100%}.ab-date-row button{width:100%}.ab-archive-line{align-items:flex-start;flex-wrap:wrap}}
+
+/* Os dois tipos de lançamento permanecem identificáveis no histórico. */
+.ab-kind{display:inline-flex;align-items:center;max-width:100%;white-space:normal;
+ font-size:10px;font-weight:750;letter-spacing:.1px;line-height:1.5!important;
+ padding:3px 8px;border-radius:6px;margin:0 8px 5px 0;border:1px solid transparent}
+.ab-kind-payment{background:#e5f5ed;border-color:#bde2ce;color:#137047}
+.ab-kind-debt{background:#eff3fb;border-color:#dbe3f5;color:#475e8a}
+.ab-direction{display:block;margin-bottom:5px;color:var(--muted);font-size:10px}
+.ab-table td:nth-child(2) b{overflow-wrap:anywhere}
+.ab-stats{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.ab-form select[name="kind"]{font-weight:650}
+.ab-row-actions .btn{white-space:normal}
+@media(max-width:640px){
+ .ab-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ab-kind{margin:0 4px 4px 0}
+}
+@media(max-width:420px){
+ .ab-stats{grid-template-columns:1fr}
+}

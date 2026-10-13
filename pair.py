@@ -22,6 +22,7 @@ def initialize(con):
       debtor TEXT NOT NULL CHECK(debtor IN ('A','B')),
       amount TEXT NOT NULL, description TEXT NOT NULL,
       notes TEXT NOT NULL DEFAULT '',
+      entry_kind TEXT NOT NULL DEFAULT 'debt' CHECK(entry_kind IN ('debt','payment')),
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -38,6 +39,11 @@ def initialize(con):
     );
     CREATE INDEX IF NOT EXISTS idx_pair_closures ON pair_closures(control_id,end_date DESC);
     """)
+    # Migração não destrutiva: os registros existentes eram todos dívidas.
+    fields={r["name"] for r in con.execute("PRAGMA table_info(pair_entries)")}
+    if "entry_kind" not in fields:
+        con.execute("""ALTER TABLE pair_entries ADD COLUMN entry_kind TEXT NOT NULL
+                     DEFAULT 'debt' CHECK(entry_kind IN ('debt','payment'))""")
 
 def label(v,name,maxlen=160):
     if not isinstance(v,str) or not v.strip() or len(v.strip())>maxlen:
@@ -91,16 +97,41 @@ def save_settings(con,cid,p):
 
 def validate(p):
     if not isinstance(p,dict):raise ValueError("Dados do lançamento inválidos.")
-    debtor=p.get("debtor")
-    if debtor not in ("A","B"):raise ValueError("Selecione quem deve.")
+    kind=p.get("kind","debt")
+    if kind not in ("debt","payment"):raise ValueError("Selecione dívida ou pagamento real.")
+    # Campo histórico 'debtor' indica quem contraiu a dívida ou quem fez
+    # o pagamento real, dependendo de entry_kind. Nunca troca o sentido
+    # ao reabrir/editar um lançamento antigo.
+    debtor=p.get("debtor") if kind=="debt" else p.get("payer",p.get("debtor"))
+    if debtor not in ("A","B"):
+        raise ValueError("Selecione quem deve." if kind=="debt" else "Selecione quem pagou.")
     note=p.get("notes","")
     if not isinstance(note,str) or len(note)>1500:raise ValueError("Observações inválidas.")
     return {"entry_date":day(p.get("date")),"debtor":debtor,"amount":money(number(p.get("amount"))),
-            "description":label(p.get("description"),"a descrição",220),"notes":note.strip()}
+            "description":label(p.get("description"),"a descrição",220),"notes":note.strip(),
+            "entry_kind":kind}
+
+def kind_of(entry):
+    # Fechamentos antigos podem conter snapshots sem o novo campo.
+    return entry.get("entry_kind","debt")
 
 def sign(entry):
-    # saldo positivo: B deve a A; saldo negativo: A deve a B
-    return Decimal(entry["amount"])*(1 if entry["debtor"]=="B" else -1)
+    # Saldo positivo: B deve a A; negativo: A deve a B.
+    # Dívida A->B reduz o saldo; pagamento real A->B aumenta o saldo.
+    # Dívida B->A aumenta o saldo; pagamento real B->A reduz o saldo.
+    direction=1 if entry["debtor"]=="B" else -1
+    if kind_of(entry)=="payment":
+        direction=-direction
+    return Decimal(entry["amount"])*direction
+
+def movement_totals(entries):
+    total=lambda who,kind:money(sum(
+        (Decimal(e["amount"]) for e in entries
+         if e["debtor"]==who and kind_of(e)==kind),Decimal("0")))
+    return {"a_to_b":total("A","debt"),"b_to_a":total("B","debt"),
+            "payments_a_to_b":total("A","payment"),"payments_b_to_a":total("B","payment"),
+            "debt_count":sum(kind_of(e)=="debt" for e in entries),
+            "payment_count":sum(kind_of(e)=="payment" for e in entries)}
 
 def settlement(balance,names):
     value=Decimal(balance)
@@ -135,12 +166,11 @@ def summary(con,cid):
     closures=[dict(r) for r in con.execute("""SELECT id,start_date,end_date,opening_balance,
       movement_balance,closing_balance,entry_count,created_at
       FROM pair_closures WHERE control_id=? ORDER BY end_date DESC,id DESC""",(cid,))]
-    debt_a=sum((Decimal(e["amount"]) for e in current if e["debtor"]=="A"),Decimal("0"))
-    debt_b=sum((Decimal(e["amount"]) for e in current if e["debtor"]=="B"),Decimal("0"))
+    totals=movement_totals(current)
     return {"control_id":cid,"settings":names,
       "totals":{"balance":money(balance),"settlement":settlement(balance,names),
         "opening_balance":money(start_amount),"movement_balance":money(moved),
-        "a_to_b":money(debt_a),"b_to_a":money(debt_b),
+        **totals,
         "count":len(history),"current_count":len(current),"closures":len(closures)},
       "entries":current,"history":history,"closures":closures,
       "current_from":(date.fromisoformat(last["end_date"])+timedelta(days=1)).isoformat() if last else None}
@@ -168,7 +198,7 @@ def check_period(con,cid,start,end):
     return {"start_date":start,"end_date":end,"opening_balance":money(opening),
         "movement_balance":money(movement),"closing_balance":money(ending),
         "settlement":settlement(ending,names),"count":len(selected),"entries":selected,
-        "settings":names}
+        "movement_totals":movement_totals(selected),"settings":names}
 
 def preview(con,cid,start,end):
     result=check_period(con,cid,start,end)
@@ -210,10 +240,12 @@ def export_csv(con,id):
     x=data["settlement"]
     w.writerow(["Devedor",x["debtor"] or "Quitado","Credor",x["creditor"] or "—","Saldo",x["amount"]])
     w.writerow([])
-    w.writerow(["Data","Devedor","Credor","Descrição","Valor","Observações"])
+    w.writerow(["Data","Tipo","Devedor / Pagador","Credor / Recebedor","Descrição","Valor","Observações"])
     a=data["settings"]["party_a"];b=data["settings"]["party_b"]
     for entry in data["entries"]:
-        w.writerow([entry["entry_date"],a if entry["debtor"]=="A" else b,
+        kind=kind_of(entry)
+        w.writerow([entry["entry_date"],"Pagamento real" if kind=="payment" else "Dívida / compensação",
+            a if entry["debtor"]=="A" else b,
             b if entry["debtor"]=="A" else a,entry["description"],entry["amount"],entry["notes"]])
     return ("\ufeff"+target.getvalue()).encode("utf-8")
 
@@ -235,8 +267,9 @@ def handle(handler,con,method,url):
             entry=validate(handler.input())
             con.execute("BEGIN IMMEDIATE")
             check_editable(con,cid,entry["entry_date"])
-            created=con.execute("""INSERT INTO pair_entries(control_id,entry_date,debtor,amount,description,notes)
-                VALUES(?,?,?,?,?,?)""",(cid,*entry.values()))
+            created=con.execute("""INSERT INTO pair_entries
+                (control_id,entry_date,debtor,amount,description,notes,entry_kind)
+                VALUES(?,?,?,?,?,?,?)""",(cid,*entry.values()))
             con.commit()
             return handler.send({"id":created.lastrowid},201)
         if method=="POST" and action=="preview":
@@ -255,7 +288,7 @@ def handle(handler,con,method,url):
             p=validate(handler.input())
             check_editable(con,old["control_id"],p["entry_date"])
             con.execute("""UPDATE pair_entries SET entry_date=?,debtor=?,amount=?,description=?,notes=?,
-                updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*p.values(),id))
+                entry_kind=?,updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*p.values(),id))
         else:con.execute("DELETE FROM pair_entries WHERE id=?",(id,))
         con.commit()
         return handler.send({"ok":True})

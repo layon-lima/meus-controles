@@ -31,11 +31,13 @@ Object.assign(App,{
       '<h2>'+E(a)+' <span>×</span> '+E(b)+'</h2></div>'+
       '<button class="btn btn-sm" onclick="App.pairSettings('+data.control_id+')">'+icon("settings")+' Ajustes</button></div>'+
       '<section class="ab-balance"><div><small>SALDO LÍQUIDO ATUAL</small>'+
-      '<p>'+abResult(s)+'</p><span>Os valores em sentidos opostos se compensam automaticamente.</span></div>'+
+      '<p>'+abResult(s)+'</p><span>Dívidas nos dois sentidos e pagamentos reais reduzem ou aumentam o saldo conforme quem deve e quem paga.</span></div>'+
       '<strong>'+currency(s.amount)+'</strong></section>'+
-      '<div class="ab-stats"><div><small>'+E(a)+' deve a '+E(b)+' · lançamentos abertos</small>'+
-      '<strong>'+currency(t.a_to_b)+'</strong></div><div><small>'+E(b)+' deve a '+E(a)+' · lançamentos abertos</small>'+
+      '<div class="ab-stats"><div><small>Dívidas: '+E(a)+' → '+E(b)+'</small>'+
+      '<strong>'+currency(t.a_to_b)+'</strong></div><div><small>Dívidas: '+E(b)+' → '+E(a)+'</small>'+
       '<strong>'+currency(t.b_to_a)+'</strong></div>'+
+      '<div><small>Pagamentos reais: '+E(a)+' → '+E(b)+'</small><strong>'+currency(t.payments_a_to_b||0)+'</strong></div>'+
+      '<div><small>Pagamentos reais: '+E(b)+' → '+E(a)+'</small><strong>'+currency(t.payments_b_to_a||0)+'</strong></div>'+
       '<div><small>Saldo trazido do último fechamento</small><strong>'+currency(Math.abs(Number(t.opening_balance)))+'</strong></div></div>';
     const nav='<div class="ab-tabs" role="tablist">'+
       '<button class="ab-tab '+(tab==="entries"?"active":"")+'" role="tab" aria-selected="'+(tab==="entries")+
@@ -56,9 +58,13 @@ Object.assign(App,{
       const who=e.debtor==="A"?n.party_a:n.party_b;
       const to=e.debtor==="A"?n.party_b:n.party_a;
       const locked=!!(data.current_from&&e.entry_date<data.current_from);
+      const paid=e.entry_kind==="payment";
       return '<tr><td>'+abDate(e.entry_date)+'</td>'+
-        '<td><b>'+E(e.description)+'</b>'+(e.notes?'<small class="ab-note">'+E(e.notes)+'</small>':'')+'</td>'+
-        '<td>'+E(who)+' <span class="ab-arrow">→</span> '+E(to)+'</td>'+
+        '<td><span class="ab-kind '+(paid?"ab-kind-payment":"ab-kind-debt")+'">'+
+        (paid?"Pagamento real":"Dívida / compensação")+'</span><b>'+E(e.description)+'</b>'+
+        (e.notes?'<small class="ab-note">'+E(e.notes)+'</small>':'')+'</td>'+
+        '<td><small class="ab-direction">'+(paid?"Pagador → Recebedor":"Devedor → Credor")+'</small>'+
+        E(who)+' <span class="ab-arrow">→</span> '+E(to)+'</td>'+
         '<td class="numeric">'+currency(e.amount)+'</td>'+
         '<td><div class="table-actions">'+(locked?'<span class="ab-frozen">'+icon("lock")+' Fechado</span>':
         '<button class="mini-action" onclick="App.pairEntryForm('+e.id+')">'+icon("edit")+' Editar</button>'+
@@ -69,54 +75,83 @@ Object.assign(App,{
       (data.current_from?'<small>Desde '+abDate(data.current_from)+'</small>':'')+'</div>'+
       '<div class="ab-row-actions"><button class="btn btn-sm" onclick="App.pairToggleHistory()">'+icon("list")+
       (all?" Período atual":" Ver histórico")+'</button>'+
-      '<button class="btn btn-primary btn-sm" onclick="App.pairEntryForm()">'+icon("plus")+' Novo lançamento</button></div></div>'+
+      '<button class="btn btn-sm" onclick="App.pairEntryForm(null,&quot;payment&quot;)">'+icon("wallet")+' Registrar pagamento</button>'+
+      '<button class="btn btn-primary btn-sm" onclick="App.pairEntryForm(null,&quot;debt&quot;)">'+icon("plus")+' Nova dívida</button></div></div>'+
       '<section class="panel ab-table">'+(entries.length?
-      '<div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Quem deve → Para quem</th>'+
+      '<div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo e descrição</th><th>Quem deve / Quem pagou → Para quem</th>'+
       '<th class="numeric">Valor</th><th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>':
       '<div class="empty-state"><strong>Sem lançamentos neste período.</strong>'+
-      '<p>Cadastre quem deve, para quem e por quê.</p>'+
+      '<p>Cadastre dívidas ou pagamentos reais para calcular o saldo de cada pessoa.</p>'+
       '<button class="btn btn-primary" onclick="App.pairEntryForm()">'+icon("plus")+' Novo lançamento</button></div>')+
       '</section>';
   },
   pairToggleHistory(){this.s.pairAll=!this.s.pairAll;this.renderPairView()},
-  pairEntryForm(id){
+  pairEntryForm(id=null,initialKind="debt"){
     if(!this.canOpenForm())return;
     const data=this.s.pairData;if(!data)return;
     const old=id?data.history.find(e=>e.id===id):null;
     if(id&&!old)return this.toast("Lançamento não encontrado.",true);
     if(old&&data.current_from&&old.entry_date<data.current_from)return this.toast("Este lançamento já foi fechado.",true);
     const a=data.settings.party_a,b=data.settings.party_b;
+    const kind=old?.entry_kind||initialKind;
     this.s.modal="pair-entry";this.s.modalContext={controlId:data.control_id,old:old?deep(old):null};
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal ab-form" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
       '<div class="modal-header"><div><h2 id="modalTitle">'+(old?"Editar lançamento":"Novo lançamento A × B")+'</h2>'+
-      '<p>Escolha quem ficou devendo. O outro será o credor.</p></div>'+
+      '<p>Escolha entre dívida/compensação ou pagamento real e informe a direção.</p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="abEntryForm" onsubmit="event.preventDefault();App.pairSaveEntry()">'+
       '<div class="form-grid">'+
+      '<div class="field full"><label for="abKind">Tipo de lançamento</label>'+
+      '<select id="abKind" name="kind" onchange="App.pairKindChanged()" required>'+
+      '<option value="debt" '+(kind==="debt"?"selected":"")+' >Dívida / compensação (alguém passa a dever)</option>'+
+      '<option value="payment" '+(kind==="payment"?"selected":"")+' >Pagamento real (dinheiro entregue)</option>'+
+      '</select></div>'+
       abField("Data",abInput("date",old?.entry_date||abToday(),'type="date" required'))+
       abField("Valor (R$)",abInput("amount",old?.amount||"",'required inputmode="decimal" placeholder="Ex.: 100,00"'))+
-      '<div class="field full"><label>Quem deve para quem?</label><select name="debtor" required>'+
-      '<option value="A" '+((old?.debtor||"A")==="A"?"selected":"")+'>'+E(a)+' deve a '+E(b)+'</option>'+
-      '<option value="B" '+(old?.debtor==="B"?"selected":"")+'>'+E(b)+' deve a '+E(a)+'</option>'+
+      '<div class="field full"><label id="abPartyLabel" for="abParty">'+(kind==="payment"?"Quem pagou para quem?":"Quem deve para quem?")+'</label>'+
+      '<select name="debtor" id="abParty" required>'+
+      '<option value="A" '+((old?.debtor||"A")==="A"?"selected":"")+'>'+
+      E(a)+(kind==="payment"?" pagou a ":" deve a ")+E(b)+'</option>'+
+      '<option value="B" '+(old?.debtor==="B"?"selected":"")+'>'+
+      E(b)+(kind==="payment"?" pagou a ":" deve a ")+E(a)+'</option>'+
       '</select></div><div class="field full"><label>Descrição obrigatória</label>'+
       abInput("description",old?.description||"",'required maxlength="220" placeholder="Ex.: Frete, peças, pagamento..."')+
       '</div><div class="field full"><label>Observações (opcional)</label>'+
       '<textarea name="notes" rows="2" maxlength="1500">'+E(old?.notes||"")+'</textarea></div></div></form>'+
-      '<p class="ab-hint">Os lançamentos são compensados automaticamente, sem apagar as dívidas anteriores.</p></div>'+
+      '<p class="ab-hint" id="abKindHint">'+(kind==="payment"?
+      "Pagamento real diminui o que o pagador deve ao recebedor. Não confundir com uma dívida no sentido inverso.":
+      "Dívidas em sentidos opostos se compensam automaticamente. Nenhum lançamento antigo é apagado.")+'</p></div>'+
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.pairSaveEntry()">'+icon("check")+' Salvar lançamento</button></div></div></div>';
+  },
+  pairKindChanged(){
+    const kind=document.getElementById("abKind")?.value;
+    const party=document.getElementById("abParty");
+    const names=this.s.pairData?.settings;
+    if(!party||!names)return;
+    document.getElementById("abPartyLabel").textContent=kind==="payment"?"Quem pagou para quem?":"Quem deve para quem?";
+    const sides=[[names.party_a,names.party_b],[names.party_b,names.party_a]];
+    [...party.options].forEach((opt,i)=>{
+      opt.textContent=sides[i][0]+(kind==="payment"?" pagou a ":" deve a ")+sides[i][1];
+    });
+    const hint=document.getElementById("abKindHint");
+    if(hint)hint.textContent=kind==="payment"?
+      "Pagamento real diminui o que o pagador deve ao recebedor. Não confundir com dívida no sentido inverso.":
+      "Dívidas em sentidos opostos se compensam automaticamente. Nenhum lançamento antigo é apagado.";
   },
   async pairSaveEntry(){
     const form=document.getElementById("abEntryForm"),ctx=this.s.modalContext;
     if(!form||!ctx||!form.reportValidity())return;
-    const f=new FormData(form),p={date:f.get("date"),debtor:f.get("debtor"),amount:f.get("amount"),
+    const f=new FormData(form),kind=f.get("kind");
+    const p={date:f.get("date"),kind,amount:f.get("amount"),
       description:f.get("description"),notes:f.get("notes")};
+    p[kind==="payment"?"payer":"debtor"]=f.get("debtor");
     try{
       await this.api(ctx.old?"/api/pair-entries/"+ctx.old.id:
         "/api/controls/"+ctx.controlId+"/pair/entries",ctx.old?"PUT":"POST",p);
       this.closeModal();await this.renderPair();await this.load();
-      this.toast("Lançamento salvo. Saldo compensado.");
+      this.toast(kind==="payment"?"Pagamento real registrado. Saldo atualizado.":"Dívida registrada. Saldo atualizado.");
     }catch(e){this.toast(e.message,true)}
   },
   async pairDeleteEntry(id){
@@ -137,7 +172,8 @@ Object.assign(App,{
       '<p>'+abResult(prev.settlement)+'</p>'+
       '<div class="ab-bits"><span>Saldo inicial: '+currency(Math.abs(Number(prev.opening_balance)))+'</span>'+
       '<span>Movimento líquido: '+currency(Math.abs(Number(prev.movement_balance)))+'</span>'+
-      '<span>'+prev.count+' lançamento(s)</span></div>'+
+      '<span>'+prev.count+' lançamento(s)</span>'+
+      '<span>'+((prev.movement_totals?.payment_count)||0)+' pagamento(s) real(is)</span></div>'+
       '<p class="ab-hint">O saldo restante será transferido para o próximo período. Lançamentos fechados não podem ser editados.</p>'+
       '<button class="btn btn-primary" onclick="App.pairConfirmClose()">'+icon("check")+' Confirmar fechamento</button>'+
       '</div>':"";
@@ -154,7 +190,9 @@ Object.assign(App,{
       '<div class="ab-section-body"><p>'+abResult(archive.settlement)+' · '+currency(archive.settlement.amount)+'</p>'+
       archive.entries.map(e=>{
         const a=archive.settings.party_a,b=archive.settings.party_b;
-        return '<div class="ab-archive-line"><div><b>'+E(e.description)+'</b><small>'+abDate(e.entry_date)+' · '+
+        const paid=e.entry_kind==="payment";
+        return '<div class="ab-archive-line"><div><b>'+E(e.description)+'</b><small>'+
+        (paid?"Pagamento real · ":"Dívida / compensação · ")+abDate(e.entry_date)+' · '+
         E(e.debtor==="A"?a:b)+' → '+E(e.debtor==="A"?b:a)+'</small></div><strong>'+currency(e.amount)+'</strong></div>';
       }).join("")+'</div></section>':"";
     return '<div class="ab-close-section"><h3>Fechamento por período</h3>'+
@@ -214,7 +252,7 @@ Object.assign(App,{
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal ab-form" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
       '<div class="modal-header"><div><h2 id="modalTitle">Ajustes A × B</h2>'+
-      '<p>Alterar nomes não altera os valores das dívidas.</p></div>'+
+      '<p>Alterar nomes não altera os valores das dívidas nem dos pagamentos reais.</p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="abSettingsForm" onsubmit="event.preventDefault();App.pairSaveSettings()">'+
       '<div class="form-grid"><div class="field full"><label>Nome do controle</label>'+
