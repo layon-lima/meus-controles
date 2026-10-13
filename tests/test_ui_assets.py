@@ -290,6 +290,30 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertGreaterEqual(js.count('<th class="numeric">'),4)
         self.assertGreaterEqual(js.count('class="numeric"'),8)
 
+    def test_receiving_clean_grid_supplier_column_and_subtle_balance(self):
+        css=(STATIC / "receiving.css").read_text(encoding="utf-8")
+        js=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        self.assertIn('class="receiving-grid receiving-orders"',js)
+        self.assertIn('class="receiving-grid receiving-invoices"',js)
+        self.assertIn('<th>Pedido</th><th>Fornecedor</th><th>Produto</th>',js)
+        self.assertIn('<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th>',js)
+        self.assertIn('class="receiving-supplier"',js)
+        self.assertIn('class="numeric receiving-remaining"',js)
+        self.assertNotIn("'<td class=\"numeric\"><b>'+rxNum(p.remaining_qty)",js)
+        self.assertNotIn("Produto / fornecedor",js)
+        for selector in (".receiving-table .receiving-grid",
+                         ".receiving-table .receiving-grid th,",
+                         ".receiving-table .receiving-grid td.numeric",
+                         ".receiving-table .receiving-grid td.receiving-remaining",
+                         ".receiving-table .receiving-orders th:nth-child(8)",
+                         ".receiving-table .receiving-invoices th:nth-child(7)",
+                         "border-right:1px solid #e2e8ed;",
+                         "border-bottom:1px solid #e2e8ed;",
+                         "table-layout:fixed;",
+                         "font-weight:500;",
+                         "overflow-x:auto;"):
+            self.assertIn(selector,css)
+
     def test_receiving_search_survives_receipt_updates(self):
         js=(STATIC / "receiving.js").read_text(encoding="utf-8")
         self.assertIn('this.s.receivingSearch={controlId:id,query:""}',js)

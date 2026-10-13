@@ -39,7 +39,7 @@ Object.assign(App,{
         '<td><strong>'+E(p.order_number)+'</strong></td><td>'+E(p.supplier)+'</td><td><strong>'+E(p.product)+'</strong></td>'+
         '<td class="numeric">'+rxNum(p.ordered_qty)+' '+E(p.unit)+'</td>'+
         '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td>'+
-        '<td class="numeric"><b>'+rxNum(p.remaining_qty)+' '+E(p.unit)+'</b></td>'+
+        '<td class="numeric receiving-remaining">'+rxNum(p.remaining_qty)+' '+E(p.unit)+'</td>'+
         '<td><span class="receiving-status '+E(p.status)+'">'+status+'</span></td>'+
         '<td><div class="table-actions">'+action+
         '<button class="mini-action" onclick="App.receivingItemForm('+p.id+')">'+icon("edit")+' Editar</button>'+
@@ -48,7 +48,7 @@ Object.assign(App,{
     const receipts=r.receipts.map(p=>
       '<tr data-receiving-search="'+E([p.invoice_number,p.order_number,p.product,p.supplier].join(" ").toLowerCase())+'">'+
       '<td>'+rxDate(p.received_date)+'</td><td><b>'+E(p.invoice_number)+'</b></td>'+
-      '<td>'+E(p.order_number)+'</td><td>'+E(p.product)+'<small class="receiving-subline">'+E(p.supplier)+'</small></td>'+
+      '<td>'+E(p.order_number)+'</td><td>'+E(p.product)+'</td><td class="receiving-supplier">'+E(p.supplier)+'</td>'+
       '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td><td><div class="table-actions">'+
       '<button class="mini-action" onclick="App.receivingReceiptForm('+p.item_id+','+p.id+')">'+icon("edit")+' Editar</button>'+
       '<button class="mini-action" onclick="App.receivingDeleteReceipt('+p.id+')">'+icon("trash")+' Excluir</button>'+
@@ -68,15 +68,15 @@ Object.assign(App,{
       '<label class="receiving-search">'+icon("search")+
       '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="Buscar pedido, fornecedor, produto ou nota..." aria-label="Pesquisar" oninput="App.receivingFilter(this.value)"></label></div>'+
       '<section class="panel receiving-table">'+
-      (t.items?'<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
+      (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
        '<th>Status</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
        '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
        '<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto</button></div>')+'</section>'+
       '<section class="panel receiving-table"><div class="panel-header"><h3>Histórico de notas fiscais</h3>'+
       '<span class="secondary-text">'+t.receipts+' entrega(s)</span></div>'+
-      (t.receipts?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
-       '<th>Produto / fornecedor</th><th class="numeric">Quantidade</th><th>Ações</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
+      (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
+       '<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th><th>Ações</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
        '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>';
     // Aplicar novamente apos redesenhar a tabela (ex.: salvar/editar/excluir NF).
     this.receivingApplyFilter(savedSearch);

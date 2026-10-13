@@ -49,3 +49,123 @@
   justify-content:center;
   align-items:center;
 }
+
+/* Grade clean de recebimentos: divisórias reais e alinhamento por coluna.
+   Escopo local para não mudar as tabelas dos outros modelos. */
+.receiving-table .table-wrap{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  scrollbar-width:thin;
+  scrollbar-color:#cfdbe3 transparent;
+}
+.receiving-table .receiving-grid{
+  width:100%;
+  table-layout:fixed;
+  border-collapse:separate;
+  border-spacing:0;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:12px;
+  color:#293e51;
+}
+.receiving-table .receiving-grid th,
+.receiving-table .receiving-grid td{
+  box-sizing:border-box;
+  padding:12px 13px;
+  border-right:1px solid #e2e8ed;
+  border-bottom:1px solid #e2e8ed;
+  border-top:0;
+  background:#fff;
+  vertical-align:middle;
+  line-height:1.5!important;
+  letter-spacing:normal!important;
+  overflow-wrap:break-word;
+}
+.receiving-table .receiving-grid tr > :last-child{border-right:0}
+.receiving-table .receiving-grid tbody tr:last-child td{border-bottom:0}
+.receiving-table .receiving-grid thead th{
+  color:#586e7f;
+  background:#f4f7f9;
+  font-size:11px;
+  font-weight:650;
+  padding-top:14px;
+  padding-bottom:14px;
+  border-bottom:1px solid #cbd9e1;
+  white-space:normal;
+  line-height:1.4!important;
+}
+.receiving-table .receiving-grid tbody tr:hover td{background:#f6faf9}
+.receiving-table .receiving-grid tbody tr[hidden]{display:none}
+.receiving-table .receiving-grid td strong,
+.receiving-table .receiving-grid td b{font-weight:600}
+.receiving-table .receiving-grid td.numeric{
+  font-size:12px;
+  font-weight:500;
+  color:#324b60;
+  white-space:nowrap;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.receiving-table .receiving-grid td.receiving-remaining{
+  font-weight:500;
+  color:#334d60;
+}
+.receiving-table .receiving-grid .receiving-supplier{
+  color:#456075;
+  font-weight:500;
+}
+.receiving-table .receiving-grid td:last-child .table-actions{
+  gap:6px;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.receiving-table .receiving-grid .mini-action{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:30px;
+  padding:5px 8px;
+  border:1px solid #dce6eb;
+  border-radius:6px;
+  background:#fff;
+  font-size:11px;
+  font-weight:500;
+  line-height:1.35!important;
+  white-space:nowrap;
+}
+.receiving-table .receiving-grid .mini-action:hover{
+  background:#ebf6f2;
+  border-color:#b9d8ce;
+}
+.receiving-table .receiving-grid .receiving-status{
+  font-weight:600;
+  font-size:10.5px;
+  border-radius:6px;
+  padding:5px 9px;
+}
+/* Larguras coerentes em ambas as grades. Produto recebe mais espaço. */
+.receiving-table .receiving-orders th:nth-child(1){width:11%}
+.receiving-table .receiving-orders th:nth-child(2){width:10%}
+.receiving-table .receiving-orders th:nth-child(3){width:23%}
+.receiving-table .receiving-orders th:nth-child(4){width:11%}
+.receiving-table .receiving-orders th:nth-child(5){width:9%}
+.receiving-table .receiving-orders th:nth-child(6){width:11%}
+.receiving-table .receiving-orders th:nth-child(7){width:9%}
+.receiving-table .receiving-orders th:nth-child(8){width:16%}
+.receiving-table .receiving-invoices th:nth-child(1){width:11%}
+.receiving-table .receiving-invoices th:nth-child(2){width:13%}
+.receiving-table .receiving-invoices th:nth-child(3){width:13%}
+.receiving-table .receiving-invoices th:nth-child(4){width:24%}
+.receiving-table .receiving-invoices th:nth-child(5){width:14%}
+.receiving-table .receiving-invoices th:nth-child(6){width:11%}
+.receiving-table .receiving-invoices th:nth-child(7){width:14%}
+@media(max-width:1100px){
+  .receiving-table .receiving-orders{min-width:1120px}
+  .receiving-table .receiving-invoices{min-width:950px}
+}
+@media(max-width:590px){
+  .receiving-table .receiving-grid th,
+  .receiving-table .receiving-grid td{padding:10px 11px}
+}
