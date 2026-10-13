@@ -37,6 +37,54 @@ class TruckModelTests(unittest.TestCase):
                 VALUES(?,?,?,?,?,?,?,?,?,?,?)""",cols)
             con.commit()
 
+    def test_custom_freight_types_can_be_added_renamed_and_selected(self):
+        self.add(date="2026-08-01",kind="freight",category="Frete Normal",
+                 weight_kg="1000",price_tonne="100",notes="")
+        with app.db() as con:
+            old=truck.settings(con,self.control)
+            self.assertEqual(old["freight_types"],["Frete Normal","Frete Morto"])
+            truck.save_settings(con,self.control,{
+                **old,
+                "freight_types":["Frete de Grãos","Frete Morto","Frete de Insumos"],
+                "freight_type_renames":[{"old":"Frete Normal","new":"Frete de Grãos"}]
+            })
+        with app.db() as con:
+            setting=truck.settings(con,self.control)
+            self.assertEqual(setting["freight_types"],["Frete de Grãos","Frete Morto","Frete de Insumos"])
+            old_entry=con.execute("SELECT category,amount FROM truck_entries WHERE control_id=?",
+                                  (self.control,)).fetchone()
+            self.assertEqual(old_entry["category"],"Frete de Grãos")
+            self.assertEqual(old_entry["amount"],"100.00")
+        self.add(date="2026-08-09",kind="freight",category="Frete de Insumos",
+                 weight_kg="1000",price_tonne="250",notes="")
+        with app.db() as con:
+            report=truck.summary(con,self.control)
+            types={x["name"]:x for x in report["by_freight"]}
+            self.assertEqual(types["Frete de Grãos"]["count"],1)
+            self.assertEqual(types["Frete de Insumos"]["count"],1)
+            with self.assertRaisesRegex(ValueError,"cadastrado nos Ajustes"):
+                truck.compute_entry(con,self.control,{"date":"2026-08-10","kind":"freight",
+                    "category":"Frete Normal","description":"Invalido","weight_kg":"1000",
+                    "price_tonne":"250"})
+
+    def test_freight_type_deletion_protected_if_used(self):
+        self.add(date="2026-08-01",kind="freight",category="Frete Normal",
+                 weight_kg="1000",price_tonne="100",notes="")
+        with app.db() as con:
+            old=truck.settings(con,self.control)
+            with self.assertRaisesRegex(ValueError,"possui lançamentos"):
+                truck.save_settings(con,self.control,{
+                    **old,"freight_types":["Frete Morto"]
+                })
+        with app.db() as con:
+            self.assertIn("Frete Normal",truck.settings(con,self.control)["freight_types"])
+            truck.save_settings(con,self.control,{
+                **truck.settings(con,self.control),"freight_types":["Frete Normal"]
+            })
+            self.assertEqual(truck.settings(con,self.control)["freight_types"],["Frete Normal"])
+            with self.assertRaisesRegex(ValueError,"duplicado"):
+                truck.validate_freights(["Frete Normal","frete normal"])
+
     def test_summary_category_counts_match_period_without_changing_totals(self):
         # Cada lançamento é contado uma vez, incluindo vale motorista.
         self.add(date="2026-08-02",kind="freight",category="Frete Normal",

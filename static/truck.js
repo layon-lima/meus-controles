@@ -146,8 +146,11 @@ Object.assign(App,{
     const ctx=this.s.modalContext,r=ctx.entry||{},kind=ctx.kind;
     const expenseCategories=ctx.settings.categories||TRUCK_EXPENSES;
     const initialExpenseCategory=r.category||"";
+    const freightTypes=ctx.settings.freight_types||TRUCK_FREIGHTS;
     const fields=kind==="freight"?
-      truckField("Tipo de frete",'<select name="category">'+truckOptions(TRUCK_FREIGHTS,r.category||"Frete Normal")+'</select>')+
+      truckField("Tipo de frete",'<select name="category">'+truckOptions(
+        r.category&&!freightTypes.includes(r.category)?[...freightTypes,r.category]:freightTypes,
+        r.category||freightTypes[0])+'</select>')+
       truckField("Peso carregado (kg)",truckInput("weight_kg",r.weight_kg||"",'required inputmode="decimal" oninput="App.truckPreview()"'))+
       truckField("Preço por tonelada (R$)",truckInput("price_tonne",r.price_tonne||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
       kind==="expense"?
@@ -370,7 +373,9 @@ Object.assign(App,{
       this.s.modalContext={
         controlId:cid,config:deep(res.settings),source:deep(source),
         categoriesDraft:(res.settings.categories||TRUCK_EXPENSES).map(name=>({original:name,name})),
-        usedExpenseCategories:new Set(res.entries.filter(e=>e.kind==="expense").map(e=>e.category))
+        freightsDraft:(res.settings.freight_types||TRUCK_FREIGHTS).map(name=>({original:name,name})),
+        usedExpenseCategories:new Set(res.entries.filter(e=>e.kind==="expense").map(e=>e.category)),
+        usedFreightTypes:new Set(res.entries.filter(e=>e.kind==="freight").map(e=>e.category))
       };
       this.s.modal="truck-settings";
       this.renderTruckSettings();
@@ -408,8 +413,35 @@ Object.assign(App,{
     ctx.categoriesDraft.splice(index,1);
     this.renderTruckSettings();
   },
+  truckEditFreight(index,value){
+    const row=this.s.modalContext?.freightsDraft?.[index];
+    if(row)row.name=value;
+  },
+  truckAddFreight(){
+    const ctx=this.s.modalContext;
+    if(!ctx||ctx.freightsDraft.length>=80)return this.toast("Limite de 80 tipos de frete.",true);
+    this.truckRememberSettingsFields();
+    ctx.freightsDraft.push({original:null,name:""});
+    this.renderTruckSettings();
+    document.getElementById("truckFreight-"+(ctx.freightsDraft.length-1))?.focus();
+  },
+  truckRemoveFreight(index){
+    const ctx=this.s.modalContext,row=ctx?.freightsDraft?.[index];
+    if(!row)return;
+    if(ctx.freightsDraft.length<=1)return this.toast("Mantenha pelo menos um tipo de frete.",true);
+    if(row.original&&ctx.usedFreightTypes.has(row.original)){
+      return this.toast("Este tipo tem fretes cadastrados. Renomeie-o em vez de excluir.",true);
+    }
+    this.truckRememberSettingsFields();
+    ctx.freightsDraft.splice(index,1);
+    this.renderTruckSettings();
+  },
   renderTruckSettings(){
     const ctx=this.s.modalContext,conf=ctx.config;
+    const freights=ctx.freightsDraft.map((row,i)=>
+      '<div class="truck-category-row"><input id="truckFreight-'+i+'" type="text" maxlength="90" value="'+E(row.name)+'" placeholder="Nome do tipo de frete" aria-label="Tipo de frete '+(i+1)+'" oninput="App.truckEditFreight('+i+',this.value)">'+
+      '<button type="button" class="btn btn-sm truck-category-remove" title="Remover tipo de frete" onclick="App.truckRemoveFreight('+i+')">'+icon("trash")+'</button></div>'
+    ).join("");
     const categories=ctx.categoriesDraft.map((row,i)=>
       '<div class="truck-category-row"><input id="truckCategory-'+i+'" type="text" maxlength="90" value="'+E(row.name)+'" placeholder="Nome da categoria" aria-label="Categoria de despesa '+(i+1)+'" oninput="App.truckEditCategory('+i+',this.value)">'+
       '<button type="button" class="btn btn-sm truck-category-remove" aria-label="Excluir categoria '+E(row.name)+'" title="Remover categoria" onclick="App.truckRemoveCategory('+i+')">'+icon("trash")+'</button></div>'
@@ -425,7 +457,12 @@ Object.assign(App,{
       truckField("Comissão padrão (%)",truckInput("commission_pct",conf.commission_pct,'required inputmode="decimal"'))+
       truckField("Comissão anterior a pagar (R$)",truckInput("opening_commission",conf.opening_commission,'required inputmode="decimal"'))+
       truckField("Saldo inicial do caixa (R$)",truckInput("opening_cash",conf.opening_cash,'required inputmode="decimal"'))+
-      '</div><section class="truck-category-settings"><div class="truck-category-settings-head"><div><h3>Categorias de despesa</h3>'+
+      '</div><section class="truck-category-settings"><div class="truck-category-settings-head"><div><h3>Tipos de frete</h3>'+
+      '<p>Personalize os tipos disponíveis ao registrar fretes, por exemplo Frete Normal e Frete Morto.</p></div>'+
+      '<button class="btn btn-sm" type="button" onclick="App.truckAddFreight()">'+icon("plus")+' Adicionar tipo</button></div>'+
+      '<div class="truck-category-list">'+freights+'</div>'+
+      '<p class="truck-category-help">Renomear um tipo atualiza os nomes dos fretes anteriores ainda não conferidos. Um tipo com lançamentos não pode ser excluído.</p></section>'+
+      '<section class="truck-category-settings"><div class="truck-category-settings-head"><div><h3>Categorias de despesa</h3>'+
       '<p>Estas são as únicas opções disponíveis ao registrar gastos neste caminhão.</p></div>'+
       '<button class="btn btn-sm" type="button" onclick="App.truckAddCategory()">'+icon("plus")+' Adicionar categoria</button></div>'+
       '<div class="truck-category-list">'+categories+'</div>'+
@@ -439,23 +476,35 @@ Object.assign(App,{
     const form=document.getElementById("truckSettingsForm");
     if(!ctx||!form||!form.reportValidity())return;
     const categories=ctx.categoriesDraft.map(row=>row.name.trim());
+    const freights=ctx.freightsDraft.map(row=>row.name.trim());
     const names=categories.map(normalizeSearch);
+    const freightNames=freights.map(normalizeSearch);
+    if(freights.some(name=>!name)){
+      this.toast("Preencha todos os tipos de frete.",true);return;
+    }
+    if(new Set(freightNames).size!==freightNames.length){
+      this.toast("Não repita nomes de tipos de frete.",true);return;
+    }
     if(categories.some(name=>!name)){
       this.toast("Preencha o nome de todas as categorias.",true);return
     }
     if(new Set(names).size!==names.length){
       this.toast("Não repita nomes de categorias.",true);return
     }
-    if(categories.some(name=>[...TRUCK_ADVANCES,...TRUCK_FREIGHTS].some(v=>normalizeSearch(v)===normalizeSearch(name)))){
+    if(categories.some(name=>[...TRUCK_ADVANCES,...freights].some(v=>normalizeSearch(v)===normalizeSearch(name)))){
       this.toast("Fretes e vales possuem lançamentos próprios.",true);return
     }
     const renames=ctx.categoriesDraft.filter(row=>row.original&&row.original!==row.name.trim()).map(row=>({
       old:row.original,new:row.name.trim()
     }));
+    const freightRenames=ctx.freightsDraft.filter(row=>row.original&&row.original!==row.name.trim()).map(row=>({
+      old:row.original,new:row.name.trim()
+    }));
     const f=new FormData(form);
     const payload={name:f.get("name"),commission_pct:f.get("commission_pct"),
       opening_cash:f.get("opening_cash"),opening_commission:f.get("opening_commission"),
-      driver_name:f.get("driver_name"),categories,category_renames:renames};
+      driver_name:f.get("driver_name"),categories,category_renames:renames,
+      freight_types:freights,freight_type_renames:freightRenames};
     try{
       await this.api("/api/controls/"+ctx.controlId+"/truck/settings","PUT",payload);
       this.closeModal();

@@ -18,6 +18,7 @@ import debt
 import open_debt
 import receiving
 import pair
+import control_types
 import receiving_import
 import debt_import
 import truck_workflow
@@ -99,6 +100,7 @@ def initialize():
         debt.initialize(con)
         receiving.initialize(con)
         pair.initialize(con)
+        control_types.initialize(con)
         receiving_import.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
@@ -371,6 +373,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"receiving_import.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving_import.css":
                 return self.send((ROOT/"static"/"receiving_import.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/control_types.js":
+                return self.send((ROOT/"static"/"control_types.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/control_types.css":
+                return self.send((ROOT/"static"/"control_types.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/pair.js":
                 return self.send((ROOT/"static"/"pair.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/pair.css":
@@ -458,11 +464,16 @@ class Handler(BaseHTTPRequestHandler):
                         pair.save_settings(con,cur.lastrowid,p.get("pair_settings",{}))
                     con.commit()
                     return self.send({"id":cur.lastrowid},201)
-                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|move|export.csv))?",url)
+                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|move|type|export.csv))?",url)
                 if m:
                     cid=int(m[1]); action=m[2]
                     if method=="GET" and action is None:
                         return self.send(detail(con,cid))
+                    if action=="type":
+                        if method=="GET":
+                            return self.send(control_types.preview(con,cid))
+                        if method=="PATCH":
+                            return self.send(control_types.change(con,cid,self.input()))
                     if method=="PATCH" and action=="move":
                         current=get_control(con,cid)
                         payload=self.input()
@@ -490,9 +501,11 @@ class Handler(BaseHTTPRequestHandler):
                         raw="\ufeff"+buf.getvalue()
                         return self.send(raw.encode("utf-8"),mime="text/csv; charset=utf-8")
                     if method=="PATCH" and action is None:
-                        get_control(con,cid)
+                        old=get_control(con,cid)
                         p=self.input()
                         name,bid,mode,fields,rules,types=validate_config(p)
+                        if mode!=old["mode"]:
+                            raise ValueError("Use a opção Alterar tipo para trocar o modelo sem perder dados.")
                         if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
                             raise ValueError("Pasta inexistente.")
                         con.execute("""UPDATE controls SET board_id=?,name=?,mode=?,fields_json=?,rules_json=?,types_json=? WHERE id=?""",

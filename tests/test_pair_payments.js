@@ -71,14 +71,31 @@ App.api=async(url,method="GET",body)=>{
 async function run(){
   await App.renderPair();
   const html=node("main").innerHTML;
-  assert.match(html,/Pagamentos reais:/);
-  assert.match(html,/300,00/);
+  assert.doesNotMatch(html,/Pagamentos reais:/);
+  assert.doesNotMatch(html,/Saldo trazido do último fechamento/);
+  assert.match(html,/Resumos detalhados/);
+  assert.match(html,/500,00/);
   assert.match(html,/Dívida \/ compensação/);
   assert.match(html,/Pagamento real/);
   assert.match(html,/A pagou PIX/);
   assert.match(html,/Fulano/);
   assert.match(html,/Registrar pagamento/);
   assert.match(html,/Nova dívida/);
+
+  App.pairSelectTab("details");
+  const details=node("main").innerHTML;
+  assert.match(details,/Resumos detalhados do acerto/);
+  assert.match(details,/Dívidas: Fulano → Sicrano/);
+  assert.match(details,/Pagamentos reais: Fulano → Sicrano/);
+  assert.match(details,/Pagamentos reais: Sicrano → Fulano/);
+  assert.match(details,/Saldo trazido do último fechamento/);
+  assert.match(details,/300,00/);
+  assert.doesNotMatch(details,/A pagou PIX/);
+  App.pairSelectTab("closures");
+  assert.doesNotMatch(node("main").innerHTML,/class="ab-stats"/);
+  App.pairSelectTab("entries");
+  assert.match(node("main").innerHTML,/A pagou PIX/);
+  assert.doesNotMatch(node("main").innerHTML,/class="ab-stats"/);
 
   App.pairEntryForm(null,"payment");
   const form=node("modalRoot").innerHTML;

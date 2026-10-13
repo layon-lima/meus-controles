@@ -32,24 +32,35 @@ Object.assign(App,{
       '<button class="btn btn-sm" onclick="App.pairSettings('+data.control_id+')">'+icon("settings")+' Ajustes</button></div>'+
       '<section class="ab-balance"><div><small>SALDO LÍQUIDO ATUAL</small>'+
       '<p>'+abResult(s)+'</p><span>Dívidas nos dois sentidos e pagamentos reais reduzem ou aumentam o saldo conforme quem deve e quem paga.</span></div>'+
-      '<strong>'+currency(s.amount)+'</strong></section>'+
-      '<div class="ab-stats"><div><small>Dívidas: '+E(a)+' → '+E(b)+'</small>'+
-      '<strong>'+currency(t.a_to_b)+'</strong></div><div><small>Dívidas: '+E(b)+' → '+E(a)+'</small>'+
-      '<strong>'+currency(t.b_to_a)+'</strong></div>'+
-      '<div><small>Pagamentos reais: '+E(a)+' → '+E(b)+'</small><strong>'+currency(t.payments_a_to_b||0)+'</strong></div>'+
-      '<div><small>Pagamentos reais: '+E(b)+' → '+E(a)+'</small><strong>'+currency(t.payments_b_to_a||0)+'</strong></div>'+
-      '<div><small>Saldo trazido do último fechamento</small><strong>'+currency(Math.abs(Number(t.opening_balance)))+'</strong></div></div>';
+      '<strong>'+currency(s.amount)+'</strong></section>';
     const nav='<div class="ab-tabs" role="tablist">'+
       '<button class="ab-tab '+(tab==="entries"?"active":"")+'" role="tab" aria-selected="'+(tab==="entries")+
       '" onclick="App.pairSelectTab(&quot;entries&quot;)">Lançamentos</button>'+
       '<button class="ab-tab '+(tab==="closures"?"active":"")+'" role="tab" aria-selected="'+(tab==="closures")+
-      '" onclick="App.pairSelectTab(&quot;closures&quot;)">Fechamentos</button></div>';
+      '" onclick="App.pairSelectTab(&quot;closures&quot;)">Fechamentos</button>'+
+      '<button class="ab-tab '+(tab==="details"?"active":"")+'" role="tab" aria-selected="'+(tab==="details")+
+      '" onclick="App.pairSelectTab(&quot;details&quot;)">Resumos detalhados</button></div>';
     document.getElementById("main").innerHTML='<div class="ab-view">'+intro+nav+
-      (tab==="entries"?this.pairEntriesHTML():this.pairClosuresHTML())+'</div>';
+      (tab==="entries"?this.pairEntriesHTML():tab==="closures"?this.pairClosuresHTML():this.pairDetailedSummaryHTML())+'</div>';
   },
   pairSelectTab(tab){
-    if(!["entries","closures"].includes(tab))return;
+    if(!["entries","closures","details"].includes(tab))return;
     this.s.pairTab=tab;this.renderPairView();
+  },
+  pairDetailedSummaryHTML(){
+    const data=this.s.pairData;
+    if(!data)return "";
+    const a=data.settings.party_a,b=data.settings.party_b,t=data.totals;
+    return '<section class="ab-summary-section" aria-label="Resumos detalhados do acerto">'+
+      '<div class="ab-summary-heading"><h3>Resumos detalhados</h3>'+
+      '<p>Valores do período aberto, separados por tipo e direção. O saldo líquido permanece destacado acima.</p></div>'+
+      '<div class="ab-stats">'+
+      '<div><small>Dívidas: '+E(a)+' → '+E(b)+'</small><strong>'+currency(t.a_to_b)+'</strong></div>'+
+      '<div><small>Dívidas: '+E(b)+' → '+E(a)+'</small><strong>'+currency(t.b_to_a)+'</strong></div>'+
+      '<div><small>Pagamentos reais: '+E(a)+' → '+E(b)+'</small><strong>'+currency(t.payments_a_to_b||0)+'</strong></div>'+
+      '<div><small>Pagamentos reais: '+E(b)+' → '+E(a)+'</small><strong>'+currency(t.payments_b_to_a||0)+'</strong></div>'+
+      '<div><small>Saldo trazido do último fechamento</small><strong>'+currency(Math.abs(Number(t.opening_balance)))+'</strong></div>'+
+      '</div></section>';
   },
   pairEntriesHTML(){
     const data=this.s.pairData,n=data.settings,all=!!this.s.pairAll;

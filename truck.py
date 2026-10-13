@@ -52,7 +52,8 @@ def init(con):
         opening_commission TEXT NOT NULL DEFAULT '0',
         opening_cash TEXT NOT NULL DEFAULT '0',
         driver_name TEXT NOT NULL DEFAULT '',
-        categories_json TEXT NOT NULL DEFAULT ''
+        categories_json TEXT NOT NULL DEFAULT '',
+        freight_types_json TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS truck_entries(
         id INTEGER PRIMARY KEY,
@@ -76,6 +77,8 @@ def init(con):
     existing = {row["name"] for row in con.execute("PRAGMA table_info(truck_settings)")}
     if "categories_json" not in existing:
         con.execute("ALTER TABLE truck_settings ADD COLUMN categories_json TEXT NOT NULL DEFAULT ''")
+    if "freight_types_json" not in existing:
+        con.execute("ALTER TABLE truck_settings ADD COLUMN freight_types_json TEXT NOT NULL DEFAULT ''")
     # Migração sem perda de dados: cada caminhão conserva as categorias
     # já utilizadas em seus lançamentos, inclusive as importadas da planilha.
     rows=con.execute("SELECT control_id FROM truck_settings WHERE categories_json=''").fetchall()
@@ -88,6 +91,15 @@ def init(con):
                 cats.append(name)
         con.execute("UPDATE truck_settings SET categories_json=? WHERE control_id=?",
                     (json.dumps(cats,ensure_ascii=False),cid))
+
+    for row in con.execute("SELECT control_id FROM truck_settings WHERE freight_types_json=''").fetchall():
+        cid=row["control_id"]
+        choices=list(FREIGHT_CATEGORIES)
+        for used in con.execute("SELECT DISTINCT category FROM truck_entries WHERE control_id=? AND kind='freight' ORDER BY category",(cid,)):
+            if used["category"].casefold() not in {n.casefold() for n in choices}:
+                choices.append(used["category"])
+        con.execute("UPDATE truck_settings SET freight_types_json=? WHERE control_id=?",
+                    (json.dumps(choices,ensure_ascii=False),cid))
 
 def check_control(con, cid):
     row=con.execute("SELECT id,name,board_id,mode FROM controls WHERE id=?", (cid,)).fetchone()
@@ -111,12 +123,27 @@ def validate_categories(value):
         result.append(name)
     return result
 
+def validate_freights(value):
+    if not isinstance(value,list) or not 1<=len(value)<=80:
+        raise ValueError("Cadastre de 1 a 80 tipos de frete.")
+    names=[]
+    for item in value:
+        label=safe_text(item,"o tipo de frete",90,True)
+        if label.casefold() in {n.casefold() for n in names}:
+            raise ValueError("Tipo de frete duplicado: "+label+".")
+        if label.casefold() in {x.casefold() for x in ADVANCE_CATEGORIES}:
+            raise ValueError("Este nome é reservado para vales do motorista.")
+        names.append(label)
+    return names
+
 def settings(con, cid):
     check_control(con,cid)
-    row=con.execute("SELECT commission_pct,opening_commission,opening_cash,driver_name,categories_json FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
+    row=con.execute("SELECT commission_pct,opening_commission,opening_cash,driver_name,categories_json,freight_types_json FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
     if not row:
-        return {"commission_pct":"13","opening_commission":"0","opening_cash":"0","driver_name":"","categories":list(CATEGORIES)}
+        return {"commission_pct":"13","opening_commission":"0","opening_cash":"0","driver_name":"","categories":list(CATEGORIES),"freight_types":list(FREIGHT_CATEGORIES)}
     obj=dict(row)
+    freights_text=obj.pop("freight_types_json")
+    obj["freight_types"]=json.loads(freights_text) if freights_text else list(FREIGHT_CATEGORIES)
     categories_text=obj.pop("categories_json")
     if categories_text:
         obj["categories"]=json.loads(categories_text)
@@ -138,7 +165,11 @@ def save_settings(con, cid, payload):
     driver=safe_text(payload.get("driver_name",""),"o nome do motorista",100)
 
     categories=validate_categories(payload.get("categories",previous["categories"]))
+    freight_types=validate_freights(payload.get("freight_types",previous["freight_types"]))
+    if {x.casefold() for x in categories}&{x.casefold() for x in freight_types}:
+        raise ValueError("Nomes de frete e de despesa não podem se repetir.")
     old_categories={c.casefold():c for c in previous["categories"]}
+    old_freights={c.casefold():c for c in previous["freight_types"]}
     renames=payload.get("category_renames",[])
     if not isinstance(renames,list) or len(renames)>80:
         raise ValueError("Alterações de categorias inválidas.")
@@ -158,6 +189,28 @@ def save_settings(con, cid, payload):
             raise ValueError("Não é possível renomear para uma categoria que já existe.")
         mapped[canonical.casefold()]=match
 
+    freight_renames=payload.get("freight_type_renames",[])
+    if not isinstance(freight_renames,list) or len(freight_renames)>80:
+        raise ValueError("Renomeações de tipos de frete inválidas.")
+    mapped_freights={}
+    for item in freight_renames:
+        if not isinstance(item,dict):
+            raise ValueError("Renomeação de tipo de frete inválida.")
+        old=safe_text(item.get("old"),"o tipo original",90,True)
+        new=safe_text(item.get("new"),"o novo tipo",90,True)
+        original=old_freights.get(old.casefold())
+        if original is None or original.casefold() in mapped_freights:
+            raise ValueError("O tipo de frete "+old+" não pode ser renomeado.")
+        match=next((n for n in freight_types if n.casefold()==new.casefold()),None)
+        if match is None or (match.casefold() in old_freights and match.casefold()!=original.casefold()):
+            raise ValueError("O novo nome está ausente ou já pertence a outro frete.")
+        mapped_freights[original.casefold()]=match
+    active={n.casefold() for n in freight_types}
+    for used in con.execute("SELECT DISTINCT category FROM truck_entries WHERE control_id=? AND kind='freight'",(cid,)):
+        name=used["category"]
+        if name.casefold() not in active and name.casefold() not in mapped_freights:
+            raise ValueError("O tipo de frete "+name+" possui lançamentos. Renomeie-o ou mantenha-o.")
+
     used=[r["category"] for r in con.execute(
         "SELECT DISTINCT category FROM truck_entries WHERE control_id=? AND kind='expense'",(cid,))]
     active={name.casefold() for name in categories}
@@ -170,7 +223,8 @@ def save_settings(con, cid, payload):
     truck_workflow.assert_settings_editable(
         con,cid,[old_categories[k] for k in mapped],
         money(opening_commission)!=previous["opening_commission"] or
-        money(opening_cash)!=previous["opening_cash"])
+        money(opening_cash)!=previous["opening_cash"],
+        [old_freights[k] for k in mapped_freights])
     # A renomeação reorganiza o histórico da mesma categoria, mas nunca
     # altera valores, datas, comissão ou saldos dos lançamentos.
     for old_key,new in mapped.items():
@@ -179,17 +233,24 @@ def save_settings(con, cid, payload):
                     "WHERE control_id=? AND kind='expense' AND category=?",
                     (new,cid,original))
 
+    for old_key,new in mapped_freights.items():
+        con.execute("UPDATE truck_entries SET category=?,updated_at=CURRENT_TIMESTAMP "
+                    "WHERE control_id=? AND kind='freight' AND category=?",
+                    (new,cid,old_freights[old_key]))
+
     if "name" in payload:
         name=safe_text(payload["name"],"o nome do controle",150,True)
         con.execute("UPDATE controls SET name=? WHERE id=?",(name,cid))
-    con.execute("""INSERT INTO truck_settings(control_id,commission_pct,opening_commission,opening_cash,driver_name,categories_json)
-        VALUES(?,?,?,?,?,?) ON CONFLICT(control_id) DO UPDATE SET
+    con.execute("""INSERT INTO truck_settings(control_id,commission_pct,opening_commission,opening_cash,driver_name,categories_json,freight_types_json)
+        VALUES(?,?,?,?,?,?,?) ON CONFLICT(control_id) DO UPDATE SET
         commission_pct=excluded.commission_pct,
         opening_commission=excluded.opening_commission,
         opening_cash=excluded.opening_cash,driver_name=excluded.driver_name,
-        categories_json=excluded.categories_json""",
+        categories_json=excluded.categories_json,
+        freight_types_json=excluded.freight_types_json""",
         (cid,str(pct),money(opening_commission),money(opening_cash),driver,
-         json.dumps(categories,ensure_ascii=False)))
+         json.dumps(categories,ensure_ascii=False),
+         json.dumps(freight_types,ensure_ascii=False)))
     return settings(con,cid)
 
 def compute_entry(con, cid, payload):
@@ -207,8 +268,11 @@ def compute_entry(con, cid, payload):
     weight=price=pct=commission=Decimal("0")
     if kind=="freight":
         category=payload.get("category")
-        if category not in FREIGHT_CATEGORIES:
-            raise ValueError("Escolha Frete Normal ou Frete Morto.")
+        name=next((n for n in config["freight_types"]
+                   if n.casefold()==str(category).casefold()),None)
+        if name is None:
+            raise ValueError("Escolha um tipo de frete cadastrado nos Ajustes.")
+        category=name
         weight=num(payload.get("weight_kg"),"o peso em kg",True)
         price=num(payload.get("price_tonne"),"o preço por tonelada",True)
         amount=(weight/Decimal("1000")*price).quantize(CENT,rounding=ROUND_HALF_UP)

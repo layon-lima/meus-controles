@@ -106,6 +106,46 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn("modalContext",app)
         self.assertIn("this.s.modalContext?.control",app)
 
+    def test_change_control_type_ui_and_preservation_guards(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        css=(STATIC / "control_types.css").read_text(encoding="utf-8")
+        ui=(STATIC / "control_types.js").read_text(encoding="utf-8")
+        backend=(ROOT / "control_types.py").read_text(encoding="utf-8")
+        for token in ("Alterar tipo de controle","changeControlTypeForm(id)",
+                      'action==="type"','changeCurrentControlType'):
+            self.assertIn(token,app+html)
+        for token in ("changeControlTypeSelected(mode)","saveControlType()",
+                      "/type","Nenhuma conversão","controlTypeConsent",
+                      "Os registros existentes","freight"):
+            self.assertIn(token,ui+backend)
+        self.assertIn("UPDATE controls SET mode=?",backend)
+        self.assertIn("control_type_changes",backend)
+        self.assertIn(".control-type-modal",css)
+        self.assertIn("/static/control_types.js",html)
+        self.assertIn("/static/control_types.css",html)
+
+    def test_custom_freight_types_in_transport_settings(self):
+        ui=(STATIC / "truck.js").read_text(encoding="utf-8")
+        backend=(ROOT / "truck.py").read_text(encoding="utf-8")
+        workflow=(ROOT / "truck_workflow.py").read_text(encoding="utf-8")
+        for token in ("Tipos de frete","truckAddFreight()",
+                      "truckEditFreight(index,value)","truckRemoveFreight(index)",
+                      "freight_type_renames","freight_types:freights",
+                      "ctx.settings.freight_types||TRUCK_FREIGHTS"):
+            self.assertIn(token,ui)
+        self.assertIn("freight_types_json",backend)
+        self.assertIn("validate_freights(value)",backend)
+        self.assertIn("assert_settings_editable(",backend)
+        self.assertIn("renamed_freights",workflow)
+
+    def test_pair_detailed_totals_moved_out_of_primary_tab(self):
+        js=(STATIC / "pair.js").read_text(encoding="utf-8")
+        self.assertIn('pairSelectTab(&quot;details&quot;)',js)
+        self.assertIn("pairDetailedSummaryHTML()",js)
+        self.assertIn('["entries","closures","details"]',js)
+        self.assertIn("Resumos detalhados",js)
+
     def test_truck_primary_tab_is_compact_and_detailed_tab_is_separate(self):
         source = (STATIC / "truck.js").read_text(encoding="utf-8")
         css = (STATIC / "truck.css").read_text(encoding="utf-8")

@@ -246,6 +246,8 @@ const App = {
       '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')">'+icon("folder")+'<span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
     const moveBtn=document.getElementById("moveCurrentControl");
     if(moveBtn)moveBtn.hidden=this.s.route!=="control";
+    const typeBtn=document.getElementById("changeCurrentControlType");
+    if(typeBtn)typeBtn.hidden=this.s.route!=="control";
     this.renderMain();
     this.renderSearchResults();
     this.updateNavigationButtons();
@@ -463,6 +465,7 @@ const App = {
     event.stopPropagation();
     this.closeControlMenus();
     if(action==="configure")return this.editControl(id);
+    if(action==="type")return this.changeControlTypeForm(id);
     if(action==="move")return this.moveControlForm(id);
     if(action==="duplicate")return this.duplicateControl(id);
     if(action==="delete")return this.deleteControl(id);
@@ -708,6 +711,7 @@ function controlCard(c){
   const controlIcon=["calculo","caminhao"].includes(c.mode)?"truck":["financeiro","divida","divida_sem_valor"].includes(c.mode)?"wallet":"clipboard";
   const menu='<div class="card-action-menu" id="controlMenu-'+c.id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+
    '<button type="button" onclick="App.controlMenuAction(event,\'configure\','+c.id+')">'+icon("settings")+' Configurar / editar</button>'+
+   '<button type="button" onclick="App.controlMenuAction(event,\'type\','+c.id+')">'+icon("settings")+' Alterar tipo de controle</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'move\','+c.id+')">'+icon("folder")+' Mover para pasta</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'duplicate\','+c.id+')">'+icon("copy")+' Duplicar controle</button>'+
    '<button type="button" class="danger" onclick="App.controlMenuAction(event,\'delete\','+c.id+')">'+icon("trash")+' Excluir controle</button></div>';

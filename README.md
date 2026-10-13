@@ -402,3 +402,35 @@ anteriores, com valor padrão `debt` para todos os lançamentos
 existentes. Nenhum registro antigo muda de sentido ou é apagado.
 Exportações CSV de fechamentos novos identificam dívidas e pagamentos
 reais. Arquivos históricos de fechamentos antigos seguem compatíveis.
+
+
+## Alterar tipo de um controle já existente
+
+Na página de um controle ou no menu de opções do cartão, clique
+**Alterar tipo**. O aplicativo mostra os modelos disponíveis e uma
+prévia de quantos registros existem em cada família de controle.
+Selecione o novo modelo e confirme explicitamente.
+
+A troca é **reversível e não destrutiva**: muda apenas o modelo ativo,
+inicializa configurações novas necessárias e mantém os registros e
+fechamentos das outras famílias intactos, com o mesmo ID do controle.
+Eles deixam temporariamente de aparecer quando o tipo estiver
+diferente e reaparecem ao retornar. Trocar para Dívidas com valor
+fixo exige uma dívida inicial que cubra os pagamentos já salvos.
+O Acerto A × B exige nomes de duas pessoas, e o modelo de Caminhão
+recebe configurações padrão se ainda não possuir.
+
+As mudanças ficam registradas em `control_type_changes` na base
+SQLite local. Alterações do tipo via editor genérico antigo são
+bloqueadas para impedir mudanças acidentais sem validação.
+
+## Editar tipos de frete da Transportadora
+
+Em **Controle de Caminhão → Ajustes → Tipos de frete**, é possível
+adicionar, renomear e remover tipos ainda não utilizados. As opções
+aparecem imediatamente no formulário Registrar frete e são específicas
+para cada controle de caminhão. Tipos com fretes cadastrados não
+podem ser excluídos, mas podem ser renomeados quando não possuem
+lançamentos conferidos/fechados. A renomeação atualiza o nome dos
+lançamentos abertos mantendo valor, data e comissão. A migração
+preserva nomes previamente cadastrados em controles mais antigos.

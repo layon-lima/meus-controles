@@ -115,7 +115,7 @@ def assert_entry_editable(con,cid,*dates):
         if has_overlap(con,"truck_reviews",cid,d,d):
             raise ValueError("Esse período já foi conferido. Reabra a conferência antes de alterar lançamentos.")
 
-def assert_settings_editable(con,cid,renamed_categories,opening_changed):
+def assert_settings_editable(con,cid,renamed_categories,opening_changed,renamed_freights=()):
     if not is_enabled(con,cid):
         return
     if opening_changed and last_closure(con,cid):
@@ -128,6 +128,14 @@ def assert_settings_editable(con,cid,renamed_categories,opening_changed):
             LIMIT 1""",(cid,name)).fetchone()
         if row:
             raise ValueError("A categoria possui lançamentos conferidos ou fechados. Reabra a conferência antes de renomear, quando não estiver fechada.")
+    for name in renamed_freights:
+        row=con.execute("""SELECT 1 FROM truck_entries t WHERE
+            t.control_id=? AND t.kind='freight' AND t.category=? AND
+            (EXISTS (SELECT 1 FROM truck_reviews r WHERE r.control_id=t.control_id AND t.event_date BETWEEN r.start_date AND r.end_date)
+             OR EXISTS (SELECT 1 FROM truck_closures c WHERE c.control_id=t.control_id AND t.event_date BETWEEN c.start_date AND c.end_date))
+            LIMIT 1""",(cid,name)).fetchone()
+        if row:
+            raise ValueError("Este tipo de frete tem lançamentos conferidos ou fechados e não pode ser renomeado.")
 
 def info(con,cid):
     if not is_enabled(con,cid):
