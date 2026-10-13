@@ -195,7 +195,7 @@ class LayoutAssetsTests(unittest.TestCase):
                          "debtDeletePayment", "debtSaveSettings"):
             self.assertIn(fragment, debt)
         self.assertIn('maxlength="200"', debt)
-        self.assertIn('name="description"', debt)
+        self.assertIn('debtInput("description"', debt)
         self.assertIn('role="dialog" aria-modal="false"', debt)
         self.assertIn('.debt-summary', css)
         self.assertIn('/static/debt.js', page)
@@ -225,7 +225,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('mode==="recebimento"',appjs)
         self.assertIn('this.renderReceiving()',appjs)
         self.assertIn('this.receivingSettings(id)',appjs)
-        self.assertIn('["caminhao","divida","recebimento"].includes(d.mode)',appjs)
+        self.assertIn('d.mode==="recebimento"',appjs)
         for piece in ("Número do pedido","Fornecedor","Produto","Quantidade contratada",
                       "Quantidade recebida","Número da nota fiscal","Falta receber",
                       "Histórico de notas fiscais","receivingSaveItem",
@@ -304,7 +304,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('pair_settings:mode==="acerto_ab"',app)
         self.assertIn('this.renderPair()',app)
         self.assertIn('this.pairSettings(id)',app)
-        self.assertIn('["caminhao","divida","recebimento","acerto_ab"].includes(d.mode)',app)
+        self.assertIn('d.mode==="acerto_ab"',app)
         for name in ("SALDO LÍQUIDO ATUAL","Quem deve para quem?","Descrição obrigatória",
                      "Novo lançamento","Fechamento por período","Verificar acerto",
                      "Confirmar fechamento","pairPreviewClose()","pairConfirmClose()",

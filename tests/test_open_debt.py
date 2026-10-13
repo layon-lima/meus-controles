@@ -16,7 +16,8 @@ class FakeRequest:
     def input(self):
         return self.data
     def send(self,payload,status=200,mime=None):
-        return {"status":status,"payload":payload,"mime":mime}
+        self.response={"status":status,"payload":payload,"mime":mime}
+        return self.response
 
 class OpenDebtTests(unittest.TestCase):
     def setUp(self):
@@ -39,7 +40,9 @@ class OpenDebtTests(unittest.TestCase):
         self.temp.cleanup()
 
     def route(self,method,path,payload=None):
-        return app.Handler.route(FakeRequest(method,path,payload))
+        request=FakeRequest(method,path,payload)
+        app.Handler.route(request)
+        return request.response
 
     def add(self,cid,day,value,description="Pagamento",notes=""):
         response=self.route("POST",f"/api/controls/{cid}/open-debt/payments",{
