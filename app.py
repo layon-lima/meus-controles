@@ -271,8 +271,10 @@ def state(con):
         if c["mode"]=="acerto_ab":
             totals=pair.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["count"],"balance":totals["balance"],
-                "settlement":totals["settlement"],"plus":totals["b_to_a"],
-                "minus":totals["a_to_b"],"by_category":[],"by_type":[]}
+                "settlement":totals["settlement"],
+                "plus":money(Decimal(totals["b_to_a"])+Decimal(totals["payments_a_to_b"])),
+                "minus":money(Decimal(totals["a_to_b"])+Decimal(totals["payments_b_to_a"])),
+                "by_category":[],"by_type":[]}
         elif c["mode"]=="recebimento":
             totals=receiving.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["receipts"],"balance":"0.00",

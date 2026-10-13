@@ -178,6 +178,10 @@ class PairTests(unittest.TestCase):
             self.assertEqual(data["totals"]["payment_count"],1)
             self.assertEqual(data["totals"]["debt_count"],2)
             self.assertEqual(next(x for x in data["entries"] if x["id"]==paid)["entry_kind"],"payment")
+            card=next(x for x in app.state(con)["controls"] if x["id"]==self.cid)
+            self.assertEqual(card["summary"]["balance"],"-500.00")
+            self.assertEqual(card["summary"]["plus"],"500.00")
+            self.assertEqual(card["summary"]["minus"],"1000.00")
 
         # Ao pagar a B, A reduz sua dívida; já o pagamento inverso aumenta
         # o quanto A deve a B (se B pagou a A).
