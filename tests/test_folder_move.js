@@ -82,6 +82,8 @@ async function run(){
   assert.ok(notices.some(n=>n.includes("ADMINISTRATIVO")));
 
   App.moveControlForm(34);
+  // Um modal novo cria um botão novo e habilitado no navegador real.
+  makeNode("confirmMoveControl").disabled=false;
   makeNode("moveControlForm").mockData={board_id:"7"};
   await App.saveControlMove();
   assert.equal(control.board_id,7);
