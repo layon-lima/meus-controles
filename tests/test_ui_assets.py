@@ -348,6 +348,30 @@ class LayoutAssetsTests(unittest.TestCase):
             self.assertIn(text,css)
         self.assertIn("--app-font:Arial,Helvetica,sans-serif",css)
 
+    def test_open_debt_unlimited_payments_ui(self):
+        app_js=(STATIC / "app.js").read_text(encoding="utf-8")
+        js=(STATIC / "open_debt.js").read_text(encoding="utf-8")
+        css=(STATIC / "open_debt.css").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        app_py=(ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn('Dívidas sem valor fixo',app_js)
+        self.assertIn('App.mode(&quot;divida_sem_valor&quot;)',app_js)
+        self.assertIn('this.renderOpenDebt()',app_js)
+        self.assertIn('this.openDebtSettings(id)',app_js)
+        self.assertIn('c.mode==="divida_sem_valor"?"Total acumulado"',app_js)
+        self.assertIn('divida_sem_valor',app_py)
+        self.assertIn('open_debt.handle(self,con,method,url)',app_py)
+        for value in ("TOTAL ACUMULADO DE PAGAMENTOS","Registre os pagamentos.",
+                      "Registrar pagamento","Histórico de pagamentos",
+                      "openDebtSave()","openDebtDelete(id)","openDebtExport(id)"):
+            self.assertIn(value,js)
+        self.assertNotIn("Dívida quitada",js)
+        self.assertNotIn("Saldo restante",js)
+        self.assertNotIn("debt-progress",js)
+        self.assertIn('/static/open_debt.js',html)
+        self.assertIn('/static/open_debt.css',html)
+        self.assertIn('.open-debt-total',css)
+
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")
         elements = tree.findall("{http://www.w3.org/2000/svg}symbol")

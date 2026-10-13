@@ -1,0 +1,30 @@
+/* Dívidas sem valor fixo: histórico e total acumulado, sem meta ou quitação. */
+.open-debt-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.open-debt-heading h2{font-size:19px;margin:4px 0}
+.open-debt-heading p{font-size:12px;color:var(--muted);margin-top:5px}
+.open-debt-total{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 22px;
+ border:1px solid #cce5d8;border-left:4px solid #1c8a6c;border-radius:12px;
+ background:linear-gradient(110deg,#eef9f2,#fff);margin-bottom:15px}
+.open-debt-total>div:first-child{display:flex;flex-direction:column;gap:6px;min-width:0}
+.open-debt-total small{font-size:11px;font-weight:800;letter-spacing:.3px;color:#628477}
+.open-debt-total strong{font-size:clamp(25px,3.3vw,37px);color:#146b52;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.open-debt-total p{font-size:12px;color:#618071}
+.open-debt-count{display:flex;flex-direction:column;align-items:center;gap:1px;flex:none;min-width:100px;
+ padding:10px 15px;border-radius:10px;background:#fff;border:1px solid #ddece5}
+.open-debt-count strong{font-size:24px;color:#214d3c}
+.open-debt-count span{font-size:11px;color:#708b80}
+.open-debt-ledger .panel-header{align-items:center;flex-wrap:wrap}
+.open-debt-ledger .actions-end{align-items:center;flex-wrap:wrap}
+.open-debt-ledger th.numeric,.open-debt-ledger td.numeric{text-align:right;font-variant-numeric:tabular-nums}
+.open-debt-ledger th:last-child,.open-debt-ledger td:last-child{text-align:center}
+.open-debt-ledger td:last-child .table-actions{justify-content:center;flex-wrap:wrap}
+.open-debt-note{display:block;color:var(--muted);font-size:11px;margin-top:5px;overflow-wrap:anywhere}
+.open-debt-hint{font-size:12px;color:#587464;line-height:1.5;margin:15px 0 0;padding:10px 12px;
+ background:#eef7f1;border-radius:8px}
+.open-debt-form{width:min(100%,620px)}
+.open-debt-empty{border:0;border-radius:0}
+@media(max-width:650px){
+ .open-debt-total{padding:15px;align-items:flex-start;flex-wrap:wrap}
+ .open-debt-count{flex-direction:row;gap:10px;min-width:auto}
+ .open-debt-heading .btn{min-height:36px}
+}

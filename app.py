@@ -15,6 +15,7 @@ import re
 import sqlite3
 import truck
 import debt
+import open_debt
 import receiving
 import pair
 import receiving_import
@@ -134,7 +135,7 @@ def validate_config(p):
     name = require(p.get("name"), "o nome")
     board_id = int(p.get("board_id") or 0)
     mode = p.get("mode", "calculo")
-    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "recebimento", "acerto_ab"):
+    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "divida_sem_valor", "recebimento", "acerto_ab"):
         raise ValueError("Modelo de controle invalido.")
     fields = p.get("fields", [])
     rules = p.get("rules", [])
@@ -278,6 +279,11 @@ def state(con):
                 "item_total":totals["items"],"complete":totals["complete"],
                 "partial":totals["partial"],"pending":totals["pending"],
                 "plus":"0.00","minus":"0.00","by_category":[],"by_type":[]}
+        elif c["mode"]=="divida_sem_valor":
+            totals=open_debt.summary(con,c["id"])["totals"]
+            c["summary"]={"count":totals["count"],"balance":totals["paid"],
+                "plus":totals["paid"],"minus":"0.00",
+                "by_category":[],"by_type":[]}
         elif c["mode"]=="divida":
             totals=debt.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["count"],"balance":totals["balance"],
@@ -371,6 +377,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"receiving.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving.css":
                 return self.send((ROOT/"static"/"receiving.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/open_debt.js":
+                return self.send((ROOT/"static"/"open_debt.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/open_debt.css":
+                return self.send((ROOT/"static"/"open_debt.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/debt.js":
                 return self.send((ROOT/"static"/"debt.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/debt.css":
@@ -392,6 +402,9 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving(?:/items)?",url) or re.fullmatch(r"/api/receiving-items/\d+(?:/receipts)?",url) or re.fullmatch(r"/api/receiving-receipts/\d+",url):
                     receiving.handle(self,con,method,url)
+                    return
+                if re.fullmatch(r"/api/controls/\d+/open-debt(?:/(?:payments|settings|export\.csv))?",url) or re.fullmatch(r"/api/open-debt-payments/\d+",url):
+                    open_debt.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/debt/import/(?:preview|confirm)",url):
                     debt_import.handle(self,con,method,url)

@@ -353,3 +353,23 @@ utilizam entrelinha segura, espaçamento normal entre caracteres e
 quebras de linha em títulos, indicadores e cartões. Cabeçalhos,
 formulários, botões, tabelas e módulos especializados recebem o mesmo
 ajuste, respeitando os SVGs e sem reduzir a fonte para fazê-la caber.
+
+
+## Dívidas sem valor fixo (pagamentos acumulados)
+
+Ao criar um controle, escolha **Dívidas sem valor fixo** e a pasta
+de destino. Não é solicitado valor de dívida inicial nem saldo-meta.
+Cada pagamento com data, valor positivo, descrição obrigatória e
+observações opcionais acrescenta seu valor ao **Total acumulado**.
+
+O histórico pode ser consultado, editado, excluído e exportado em CSV.
+O total é recalculado com centavos exatos após qualquer alteração.
+Pagamentos com data somente mês/ano são aceitos como AAAA-MM, sem
+inventar o dia.
+
+Este modelo nunca é marcado automaticamente como quitado e não
+impõe limite de saldo restante. Usa a mesma estrutura local de
+armazenamento de pagamentos do modelo de dívidas, mas isolada por
+controle e por modo. As regras existentes de dívida fixa não mudam.
+A nova tela também permite renomear ou mover o controle de pasta
+sem perder os registros.
