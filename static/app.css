@@ -194,3 +194,53 @@ html,body,body *:not(svg):not(svg *){
   .page-nav-arrow{width:29px;height:31px}
   .top-left{gap:6px}
 }
+
+/* Tipografia: evitar letras coladas e linhas sobrepostas em todos os módulos.
+   Preserva Arial, iconografia SVG, tamanhos de fonte e a área útil das telas. */
+.app-shell :is(h1,h2,h3,h4,p,small,label,th,td,button,input,select,textarea,strong,b,span){
+  letter-spacing:normal!important;
+  line-height:1.45!important;
+}
+.app-shell :is(h1,h2,h3,h4,p,label,small,th,td){
+  overflow-wrap:break-word;
+}
+.app-shell :is(.topbar,.top-left,.top-actions,.panel-header,.section-heading,.board-controls-heading,
+               .control-bottom,.title-line,.stat-kicker,.info-row,.ab-top,.ab-balance,
+               .receiving-head,.debt-heading,.truck-toolbar){min-width:0}
+.app-shell :is(.top-left,.top-actions,.panel-header,.section-heading,.control-bottom,
+               .title-line,.info-row,.ab-top,.ab-balance,.receiving-head,.debt-heading) > *{
+  min-width:0;
+}
+.app-shell .topbar{flex-wrap:wrap}
+.app-shell .top-left{flex:1 1 240px}
+.app-shell .top-actions{flex:0 1 auto;flex-wrap:wrap}
+.app-shell :is(.topbar h1,.breadcrumbs,.brand strong,.control-card h3,.board-card h3,
+               .panel-header h3,.stat-value,.ab-top h2,.ab-balance p,.ab-balance strong,
+               .debt-summary strong,.receiving-kpi strong,.control-bottom strong){
+  overflow-wrap:anywhere;
+  white-space:normal;
+}
+.app-shell .control-bottom{align-items:flex-start;gap:10px}
+.app-shell .control-bottom>span:first-child{flex:1 1 auto;min-width:0}
+.app-shell .control-bottom strong{display:block;line-height:1.4!important}
+.app-shell .board-link>span:not(.count){flex:1;min-width:0;overflow-wrap:anywhere}
+.app-shell .board-link .count{flex:none}
+.app-shell .btn{white-space:normal;text-align:center;height:auto;min-width:0}
+.app-shell .mini-action{line-height:1.4!important;min-height:28px}
+.app-shell .table-wrap{max-width:100%;overflow-x:auto}
+.app-shell .table-wrap table{line-height:1.5}
+.app-shell .table-wrap :is(th,td){line-height:1.5!important;height:auto}
+.app-shell .table-wrap td.numeric{white-space:nowrap}
+.app-shell .table-actions{flex-wrap:wrap;gap:6px}
+.app-shell .sidebar-section-label{letter-spacing:.35px!important}
+.app-shell .search-result-info{min-width:0}
+.app-shell .search-result-info :is(strong,small){overflow-wrap:anywhere}
+#moveCurrentControl[hidden]{display:none!important}
+.move-control-modal{width:min(100%,520px)}
+.move-control-note{font-size:12px;line-height:1.55!important;color:var(--muted);margin:0 0 16px}
+.move-control-note:last-child{margin-top:14px;margin-bottom:0}
+@media(max-width:600px){
+  .app-shell .topbar{gap:8px}
+  .app-shell .top-actions{width:100%;justify-content:flex-end}
+  .app-shell .control-card{min-width:0}
+}

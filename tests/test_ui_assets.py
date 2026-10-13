@@ -42,7 +42,7 @@ class LayoutAssetsTests(unittest.TestCase):
         home = source.split('if(this.s.route==="home"){', 1)[1].split('} else if(this.s.route==="board"){', 1)[0]
         self.assertNotIn("PAINEL DE GESTÃO", home)
         self.assertNotIn("stat-grid", home)
-        self.assertIn("Seus quadros", home)
+        self.assertIn("Suas pastas", home)
         self.assertNotIn('class="control-grid"', home)
         self.assertNotIn('controlCard)', home)
         self.assertNotIn('<h2>Controles</h2>', home)
@@ -58,7 +58,7 @@ class LayoutAssetsTests(unittest.TestCase):
         markup=(STATIC / "index.html").read_text(encoding="utf-8")
         css=(STATIC / "app.css").read_text(encoding="utf-8")
         self.assertIn('class="sidebar-create-board"', markup)
-        self.assertIn('Novo quadro</button>', markup)
+        self.assertIn('Nova pasta</button>', markup)
         self.assertIn('boards-home-heading', app)
         self.assertIn('onclick="App.newBoard()"', app)
         self.assertIn('this.s.modal="new-board"', app)
@@ -67,7 +67,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('aria-modal="false"', app)
         self.assertIn('async saveNewBoard()', app)
         self.assertIn('"/api/boards","POST",{name}', app)
-        self.assertIn('Já existe um quadro com esse nome.', app)
+        self.assertIn('Já existe uma pasta com esse nome.', app)
         self.assertNotIn('prompt("Nome do novo quadro:")', app)
         self.assertIn('.sidebar-create-board', css)
 
@@ -80,7 +80,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('data.controls.filter(', app)
         self.assertIn('id="searchResults"', markup)
         self.assertIn('oninput="App.search(this.value)"', markup)
-        self.assertIn("Q quadro", markup)
+        self.assertIn("P pasta", markup)
         self.assertNotIn('oninput="App.search(this.value)"', (STATIC / "icons.svg").read_text(encoding="utf-8"))
         self.assertIn("search-results", (STATIC / "app.css").read_text(encoding="utf-8"))
 
@@ -92,7 +92,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn("board-controls-heading",board)
         self.assertIn("control-card-edit",app)
         self.assertIn("card-action-menu",app)
-        for action in ("configure","duplicate","delete"):
+        for action in ("configure","move","duplicate","delete"):
             self.assertIn('action==="'+action+'"',app)
         self.assertIn('const source=this.s.state?.controls?.find',app)
 
@@ -315,6 +315,38 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('.ab-stats',css)
         self.assertIn('/static/pair.js',html)
         self.assertIn('/static/pair.css',html)
+
+    def test_folders_and_move_control_user_interface(self):
+        app=(STATIC / "app.js").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        css=(STATIC / "app.css").read_text(encoding="utf-8")
+        server=(ROOT / "app.py").read_text(encoding="utf-8")
+        for text in ("MINHAS PASTAS","Nova pasta","P pasta"):
+            self.assertIn(text,html)
+        self.assertNotIn("MEUS QUADROS",html)
+        for text in ("Suas pastas","Renomear pasta","Excluir pasta",
+                     "Mover para pasta","moveControlForm(id)","saveControlMove()",
+                     '"/api/controls/"+ctx.controlId+"/move"', 'action==="move"'):
+            self.assertIn(text,app)
+        self.assertIn('id="moveCurrentControl"',html)
+        self.assertIn('class="modal move-control-modal"',app)
+        self.assertIn('"PATCH",{board_id:destination}',app)
+        self.assertIn('action=="move"',server)
+        self.assertIn("UPDATE controls SET board_id=?",server)
+        self.assertIn("Mova-os para outra pasta antes de excluir.",server)
+        self.assertIn(".move-control-modal",css)
+
+    def test_typography_prevents_overlapping_text_in_all_modules(self):
+        css=(STATIC / "app.css").read_text(encoding="utf-8")
+        for text in ("letter-spacing:normal!important",
+                     "line-height:1.45!important",
+                     "overflow-wrap:anywhere",
+                     ".app-shell .topbar{flex-wrap:wrap}",
+                     ".app-shell .control-bottom>span:first-child",
+                     ".app-shell .table-wrap :is(th,td)",
+                     ".app-shell .table-actions{flex-wrap:wrap"):
+            self.assertIn(text,css)
+        self.assertIn("--app-font:Arial,Helvetica,sans-serif",css)
 
     def test_icons_are_real_svg_symbols(self):
         tree = ET.parse(STATIC / "icons.svg")

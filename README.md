@@ -1,6 +1,6 @@
 # CENTRAL DE CONTROLES
 
-Aplicativo web para criar quadros, controles independentes e formulários próprios, com lançamentos que somam, subtraem e calculam valores automaticamente.
+Aplicativo web para criar pastas, controles independentes e formulários próprios, com lançamentos que somam, subtraem e calculam valores automaticamente.
 
 ## Iniciar no Windows — sem terminal
 
@@ -25,7 +25,7 @@ O projeto não modifica o CONTAS 3 nem a Central do PDF. Porta do painel: **1876
 
 ## Funcionalidades atuais
 
-- Quadros e controles criados/ajustados num assistente visual.
+- pastas e controles criados/ajustados num assistente visual.
 - Formulário próprio para cada controle, tipos que somam, subtraem ou só informam.
 - Regras encadeadas de soma, subtração, multiplicação e porcentagem.
 - Controle de Fretes inicial com Data, Motorista, Peso carregado, Valor por kg e Comissão (%).
@@ -48,7 +48,7 @@ Arquitetura: `app.py` (aplicação/API/SQLite), `static/` (interface principal),
 
 ## Modelo pronto: Controle de Caminhão
 
-Ao clicar **Novo controle**, o modelo padrão agora é **Controle de Caminhão**. Basta definir nome, quadro e comissão (13% de fábrica). Opcionalmente, informe motorista, comissão anterior a pagar e saldo inicial de caixa. As regras já vêm prontas — não é necessário montar fórmulas.
+Ao clicar **Novo controle**, o modelo padrão agora é **Controle de Caminhão**. Basta definir nome, pasta e comissão (13% de fábrica). Opcionalmente, informe motorista, comissão anterior a pagar e saldo inicial de caixa. As regras já vêm prontas — não é necessário montar fórmulas.
 
 ### Lançamentos
 
@@ -111,7 +111,7 @@ ao GitHub. As tabelas são criadas automaticamente ao abrir o programa atualizad
 
 ## Modelo pronto: Controle de Dívidas
 
-**Novo controle → Controle de Dívidas.** Informe o nome, o quadro de destino
+**Novo controle → Controle de Dívidas.** Informe o nome, o pasta de destino
 e o valor inicial que ainda deve. Não é necessário configurar campos,
 categorias ou fórmulas.
 
@@ -188,7 +188,7 @@ modelo `divida`; um arquivo destinado a outro controle é recusado.
 ## Modelo pronto: Recebimento de Produtos
 
 Em **Novo controle → Recebimento de Produtos**, crie um controle dentro de um
-quadro. O cadastro é feito em uma etapa, sem fórmulas.
+pasta. O cadastro é feito em uma etapa, sem fórmulas.
 
 Dentro dele, cadastre cada produto de um pedido com:
 - Número do pedido;
@@ -267,7 +267,7 @@ O topo do aplicativo agora mostra setas **Voltar** e **Avançar**,
 inclusive quando o menu lateral fica recolhido. Os botões usam o
 mesmo histórico das setas do navegador.
 
-A Visão geral fica na URL `/`, cada quadro em `/#/board/ID`
+A Visão geral fica na URL `/`, cada pasta em `/#/board/ID`
 e cada controle em `/#/control/ID`. As URLs podem ser atualizadas
 e reabertas sem perder a tela atual. A navegação não recria nem apaga
 dados do SQLite. Quando não houver página anterior ou seguinte dentro
@@ -326,3 +326,30 @@ Fechamentos seguem sequência cronológica sem saltar lançamentos.
 O sistema exige nova prévia se os dados mudarem e bloqueia mudanças
 em períodos fechados. Tudo fica no SQLite local do usuário,
 sem modificar outros controles da Central.
+
+
+## Pastas e movimentação de controles
+
+O nome exibido na interface é **Pasta** (antes chamado Quadro). Os dados
+já cadastrados permanecem os mesmos; não se altera nem renomeia a
+estrutura interna SQLite nem os endpoints existentes `/api/boards`.
+
+Para mover um controle, abra sua pasta e use o **lápis do cartão →
+Mover para pasta**. A função também aparece no cabeçalho quando um
+controle está aberto. Selecione outra pasta e confirme. O aplicativo
+atualiza **apenas** o identificador da pasta do controle, mantendo:
+número/ID do controle, modelo, configurações, lançamentos, histórico,
+notas fiscais, saldos, comprovantes e fechamentos.
+
+A movimentação funciona inclusive com controles de Caminhão, Dívidas,
+Recebimentos e Acerto A × B. Para evitar exclusões em cascata, a
+exclusão de uma pasta que contenha controles é recusada; mova os
+controles primeiro. É possível mover um controle de volta depois.
+
+## Tipografia e legibilidade
+
+Arial/Helvetica segue como fonte padrão. Os textos do aplicativo agora
+utilizam entrelinha segura, espaçamento normal entre caracteres e
+quebras de linha em títulos, indicadores e cartões. Cabeçalhos,
+formulários, botões, tabelas e módulos especializados recebem o mesmo
+ajuste, respeitando os SVGs e sem reduzir a fonte para fazê-la caber.

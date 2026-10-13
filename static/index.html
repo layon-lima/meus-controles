@@ -23,8 +23,8 @@
       </div>
       <div class="sidebar-section-label">GERENCIAMENTO</div>
       <button class="nav-link active" id="homeLink" onclick="App.navigate('home')"><span class="nav-icon"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#dashboard"></use></svg></span> Visão geral</button>
-      <div class="sidebar-section-label">MEUS QUADROS</div>
-      <button type="button" class="sidebar-create-board" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> Novo quadro</button>
+      <div class="sidebar-section-label">MINHAS PASTAS</div>
+      <button type="button" class="sidebar-create-board" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> Nova pasta</button>
       <div id="sideBoards" class="sidebar-items"></div>
       <div class="sidebar-bottom">
         <div class="sidebar-version"><span class="status-dot"></span> Servidor local <span class="version">v1.0</span></div>
@@ -42,7 +42,8 @@
           <div><div class="breadcrumbs" id="crumb">CENTRAL / VISÃO GERAL</div><h1 id="pageTitle">Visão geral</h1></div>
         </div>
         <div class="top-actions">
-          <div class="search-wrap"><label class="search"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg><input type="search" autocomplete="off" spellcheck="false" aria-label="Pesquisar controles ou quadros com Q" aria-controls="searchResults" aria-expanded="false" id="search" placeholder="Controle ou Q quadro..." onfocus="App.search(this.value)" oninput="App.search(this.value)" onkeydown="App.searchKeydown(event)"></label><div id="searchResults" class="search-results" aria-label="Resultados da pesquisa" onkeydown="App.searchResultKeydown(event)" hidden></div></div>
+          <div class="search-wrap"><label class="search"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg><input type="search" autocomplete="off" spellcheck="false" aria-label="Pesquisar controles ou pastas com P" aria-controls="searchResults" aria-expanded="false" id="search" placeholder="Controle ou P pasta..." onfocus="App.search(this.value)" oninput="App.search(this.value)" onkeydown="App.searchKeydown(event)"></label><div id="searchResults" class="search-results" aria-label="Resultados da pesquisa" onkeydown="App.searchResultKeydown(event)" hidden></div></div>
+          <button id="moveCurrentControl" type="button" class="btn btn-quiet btn-sm" onclick="App.moveControlForm(App.s.id)" hidden><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#folder"></use></svg><span class="hide-small">Mover para pasta</span></button>
           <button class="btn btn-primary" onclick="App.newControl()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> <span class="hide-small">Novo controle</span></button>
         </div>
       </header>

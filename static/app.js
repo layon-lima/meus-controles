@@ -9,10 +9,10 @@ function normalizeSearch(value){
 }
 function parseSearchQuery(raw){
   const value=String(raw??"").trim();
-  const isBoard=/^q(?:\s|:|$)/i.test(value);
+  const isBoard=/^[pq](?:\s|:|$)/i.test(value);
   return {
     kind:isBoard?"board":"control",
-    term:normalizeSearch(isBoard?value.replace(/^q(?::|\s+)?/i,"").trim():value),
+    term:normalizeSearch(isBoard?value.replace(/^[pq](?::|\s+)?/i,"").trim():value),
     active:value.length>0
   };
 }
@@ -71,7 +71,7 @@ const App = {
     el.className="toast"+(error?" error":"");el.textContent=message;r.appendChild(el);
     setTimeout(()=>el.remove(),4200);
   },
-  // Cada quadro e controle possui URL própria; o navegador registra Voltar/Avançar.
+  // Cada pasta e controle possui URL própria; o navegador registra Voltar/Avançar.
   navRouteFromUrl(){
     const hash=window.location.hash||"";
     const m=hash.match(/^#\/(board|control)\/([1-9]\d*)$/);
@@ -194,20 +194,20 @@ const App = {
     const items=parsed.kind==="board"
       ?data.boards.filter(b=>normalizeSearch(b.name).includes(parsed.term))
       :data.controls.filter(c=>normalizeSearch(c.name).includes(parsed.term));
-    const label=parsed.kind==="board"?"Quadros":"Controles";
-    const hint=parsed.kind==="board"?"Buscando somente quadros":"Buscando controles em todos os quadros";
+    const label=parsed.kind==="board"?"Pastas":"Controles";
+    const hint=parsed.kind==="board"?"Buscando somente pastas":"Buscando controles em todas as pastas";
     panel.innerHTML='<div class="search-results-header"><strong>'+label+'</strong><span>'+items.length+' encontrado(s)</span></div>'+
       (items.length?'<div class="search-results-list">'+items.map(item=>{
         const isBoard=parsed.kind==="board";
-        const boardName=isBoard?"Abrir quadro":data.boards.find(b=>b.id===item.board_id)?.name||"Quadro";
+        const boardName=isBoard?"Abrir pasta":data.boards.find(b=>b.id===item.board_id)?.name||"Pasta";
         const action=isBoard?"board":"control";
         const iconName=isBoard?"folder":["calculo","caminhao"].includes(item.mode)?"truck":item.mode==="financeiro"?"wallet":"clipboard";
         return '<button type="button" class="search-result" onclick="App.navigate(\''+action+'\','+item.id+')">'+
           '<span class="search-result-icon">'+icon(iconName)+'</span><span class="search-result-info"><strong>'+E(item.name)+'</strong><small>'+E(boardName)+'</small></span>'+
           icon("arrow-right")+'</button>';
       }).join("")+'</div>':
-      '<div class="search-no-results">Nenhum '+(parsed.kind==="board"?"quadro":"controle")+' encontrado.</div>')+
-      '<div class="search-results-footer">'+E(hint)+' · '+(parsed.kind==="board"?"Retire Q para buscar controles.":"Digite Q e o nome para buscar quadros.")+'</div>';
+      '<div class="search-no-results">'+(parsed.kind==="board"?"Nenhuma pasta encontrada.":"Nenhum controle encontrado.")+'</div>')+
+      '<div class="search-results-footer">'+E(hint)+' · '+(parsed.kind==="board"?"Retire P para buscar controles.":"Digite P e o nome para buscar pastas.")+'</div>';
     panel.hidden=false;
     input.setAttribute("aria-expanded","true");
   },
@@ -244,6 +244,8 @@ const App = {
     document.getElementById("homeLink").classList.toggle("active",this.s.route==="home");
     document.getElementById("sideBoards").innerHTML=boards.map(b=>
       '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')">'+icon("folder")+'<span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
+    const moveBtn=document.getElementById("moveCurrentControl");
+    if(moveBtn)moveBtn.hidden=this.s.route!=="control";
     this.renderMain();
     this.renderSearchResults();
     this.updateNavigationButtons();
@@ -254,7 +256,7 @@ const App = {
     let title="Visão geral",crumb="CENTRAL / VISÃO GERAL";
     if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);if(!b)return this.navigate("home",null,{replace:true});
-      title=b.name;crumb="CENTRAL / QUADROS";
+      title=b.name;crumb="CENTRAL / PASTAS";
     }
     if(this.s.route==="control"){
       const c=this.s.detail?.control;
@@ -265,19 +267,19 @@ const App = {
     document.getElementById("crumb").textContent=crumb;
     const main=document.getElementById("main");
     if(this.s.route==="home"){
-      main.innerHTML='<div class="section-heading boards-home-heading"><h2>Seus quadros</h2>'+
-        '<div class="boards-home-actions"><span class="secondary-text">'+boards.length+' quadro(s)</span>'+
-        '<button type="button" class="btn btn-primary btn-sm" onclick="App.newBoard()">'+icon("plus")+' Novo quadro</button></div></div>'+
-      (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhum quadro","Crie um quadro para organizar seus controles.","App.newBoard()","Criar quadro"));
+      main.innerHTML='<div class="section-heading boards-home-heading"><h2>Suas pastas</h2>'+
+        '<div class="boards-home-actions"><span class="secondary-text">'+boards.length+' pasta(s)</span>'+
+        '<button type="button" class="btn btn-primary btn-sm" onclick="App.newBoard()">'+icon("plus")+' Nova pasta</button></div></div>'+
+      (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhuma pasta","Crie uma pasta para organizar seus controles.","App.newBoard()","Criar pasta"));
     } else if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);
       const found=controls.filter(c=>c.board_id===b.id);
       main.innerHTML='<div class="section-heading board-controls-heading"><h2>Controles</h2>'+
        '<div class="board-controls-actions"><span class="secondary-text">'+found.length+' controle(s)</span>'+
-       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.renameBoard('+b.id+')">'+icon("edit")+' Renomear quadro</button>'+
-       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">'+icon("trash")+' Excluir quadro</button></div></div>'+
+       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.renameBoard('+b.id+')">'+icon("edit")+' Renomear pasta</button>'+
+       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">'+icon("trash")+' Excluir pasta</button></div></div>'+
        (found.length?'<div class="control-grid">'+found.map(controlCard).join("")+'</div>':
-       empty("Quadro vazio","Adicione um controle para começar.","App.newControl("+b.id+")","Criar controle"));
+       empty("Pasta vazia","Adicione um controle para começar.","App.newControl("+b.id+")","Criar controle"));
     } else if(this.s.route==="control")this.renderControl();
   },
   renderControl(){
@@ -305,23 +307,23 @@ const App = {
       '</aside></div>';
   },
   async renameBoard(id){
-    const b=this.s.state.boards.find(x=>x.id===id),name=prompt("Nome do quadro:",b.name);
+    const b=this.s.state.boards.find(x=>x.id===id),name=prompt("Nome da pasta:",b.name);
     if(name===null)return;
-    try{await this.api("/api/boards/"+id,"PATCH",{name});this.toast("Quadro atualizado.");await this.load()}catch(e){this.toast(e.message,true)}
+    try{await this.api("/api/boards/"+id,"PATCH",{name});this.toast("Pasta atualizada.");await this.load()}catch(e){this.toast(e.message,true)}
   },
   newBoard(){
     if(!this.canOpenForm())return;
     this.s.modal="new-board";
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal board-create-modal" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
-      '<div class="modal-header"><div><h2 id="modalTitle">Novo quadro</h2>'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Nova pasta</h2>'+
       '<p>Crie uma pasta para organizar seus controles.</p></div>'+
       '<button type="button" class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="newBoardForm" onsubmit="event.preventDefault();App.saveNewBoard()">'+
-      '<div class="field"><label for="newBoardName">Nome do quadro</label>'+
+      '<div class="field"><label for="newBoardName">Nome da pasta</label>'+
       '<input id="newBoardName" name="name" type="text" maxlength="150" placeholder="Ex.: TRANSPORTADORA, FAZENDA, FINANCEIRO" autocomplete="off" oninput="this.setCustomValidity(String())" required></div>'+
       '</form></div><div class="modal-footer"><button type="button" class="btn" onclick="App.closeModal()">Cancelar</button>'+
-      '<button id="saveNewBoard" type="submit" form="newBoardForm" class="btn btn-primary">'+icon("plus")+' Criar quadro</button>'+
+      '<button id="saveNewBoard" type="submit" form="newBoardForm" class="btn btn-primary">'+icon("plus")+' Criar pasta</button>'+
       '</div></div></div>';
     document.getElementById("newBoardName")?.focus();
   },
@@ -332,12 +334,12 @@ const App = {
     if(!form||!field||!form.reportValidity())return;
     const name=field.value.trim();
     if(!name){
-      field.setCustomValidity("Informe o nome do quadro.");
+      field.setCustomValidity("Informe o nome da pasta.");
       field.reportValidity();
       return;
     }
     if(this.s.state?.boards?.some(b=>normalizeSearch(b.name)===normalizeSearch(name))){
-      this.toast("Já existe um quadro com esse nome.",true);
+      this.toast("Já existe uma pasta com esse nome.",true);
       field.focus();return;
     }
     const save=document.getElementById("saveNewBoard");
@@ -348,15 +350,58 @@ const App = {
       this.closeModal();
       await this.load();
       this.navigate("board",created.id);
-      this.toast("Quadro criado com sucesso.");
+      this.toast("Pasta criada com sucesso.");
     }catch(e){
       if(save)save.disabled=false;
       this.toast(e.message,true);
     }
   },
   async deleteBoard(id){
-    if(!confirm("Excluir este quadro e TODOS os controles e lançamentos dele? Esta ação não pode ser desfeita."))return;
-    try{await this.api("/api/boards/"+id,"DELETE");await this.load();this.navigate("home");this.toast("Quadro excluído.")}catch(e){this.toast(e.message,true)}
+    if(!confirm("Excluir esta pasta? Antes, mova os controles para outra pasta. Seus lançamentos serão preservados."))return;
+    try{await this.api("/api/boards/"+id,"DELETE");await this.load();this.navigate("home");this.toast("Pasta excluída.")}catch(e){this.toast(e.message,true)}
+  },
+  moveControlForm(id){
+    if(!this.canOpenForm())return;
+    const control=this.s.state?.controls?.find(c=>c.id===id);
+    const folders=this.s.state?.boards||[];
+    if(!control)return this.toast("Controle não encontrado.",true);
+    const targets=folders.filter(b=>b.id!==control.board_id);
+    if(!targets.length)return this.toast("Crie outra pasta antes de mover este controle.",true);
+    const current=folders.find(b=>b.id===control.board_id);
+    this.s.modal="move-control";
+    this.s.modalContext={controlId:id,sourceBoardId:control.board_id};
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal move-control-modal" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Mover controle para outra pasta</h2>'+
+      '<p>'+E(control.name)+'</p></div><button type="button" class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><p class="move-control-note">Pasta atual: <strong>'+E(current?.name||"Desconhecida")+'</strong></p>'+
+      '<form id="moveControlForm" onsubmit="event.preventDefault();App.saveControlMove()">'+
+      '<div class="field"><label for="destinationFolder">Pasta de destino</label>'+
+      '<select id="destinationFolder" name="board_id" required>'+fSelect(targets.map(b=>[b.id,b.name]),targets[0].id)+'</select></div></form>'+
+      '<p class="move-control-note">Todos os lançamentos, saldos e fechamentos serão preservados.</p></div>'+
+      '<div class="modal-footer"><button type="button" class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button id="confirmMoveControl" type="submit" form="moveControlForm" class="btn btn-primary">'+icon("folder")+' Mover controle</button></div></div></div>';
+  },
+  async saveControlMove(){
+    if(this.s.modal!=="move-control")return;
+    const form=document.getElementById("moveControlForm"),ctx=this.s.modalContext;
+    if(!form||!ctx||!form.reportValidity())return;
+    const destination=Number(new FormData(form).get("board_id"));
+    if(!Number.isSafeInteger(destination)||destination<=0||destination===ctx.sourceBoardId)
+      return this.toast("Escolha outra pasta válida.",true);
+    const button=document.getElementById("confirmMoveControl");
+    if(button?.disabled)return;
+    if(button)button.disabled=true;
+    try{
+      await this.api("/api/controls/"+ctx.controlId+"/move","PATCH",{board_id:destination});
+      this.closeModal();
+      await this.load();
+      const name=this.s.state.boards.find(b=>b.id===destination)?.name||"a pasta selecionada";
+      this.toast("Controle movido para "+name+".");
+    }catch(e){
+      if(button)button.disabled=false;
+      this.toast(e.message,true);
+    }
   },
   async duplicateControl(id){
     try{const r=await this.api("/api/controls/"+id+"/duplicate","POST",{});this.navigate("control",r.id);this.toast("Controle duplicado sem copiar lançamentos.")}catch(e){this.toast(e.message,true)}
@@ -416,6 +461,7 @@ const App = {
     event.stopPropagation();
     this.closeControlMenus();
     if(action==="configure")return this.editControl(id);
+    if(action==="move")return this.moveControlForm(id);
     if(action==="duplicate")return this.duplicateControl(id);
     if(action==="delete")return this.deleteControl(id);
   },
@@ -541,7 +587,7 @@ const App = {
     let body='';
     if(step===0){
       body='<div class="form-grid"><div class="field full"><label>Nome do controle</label><input maxlength="150" value="'+E(d.name)+'" oninput="App.updateDraft(\'name\',this.value)"></div>'+
-        '<div class="field full"><label>Em qual quadro?</label><select onchange="App.updateDraft(\'board_id\',Number(this.value))">'+
+        '<div class="field full"><label>Em qual pasta?</label><select onchange="App.updateDraft(\'board_id\',Number(this.value))">'+
         fSelect(this.s.state.boards.map(b=>[b.id,b.name]),d.board_id)+'</select></div></div>'+
         '<div class="field" style="margin-top:19px"><label>Modelo do controle</label>'+
         '<div class="wizard-choice truck-model-featured"><button class="choice '+(d.mode==="caminhao"?"selected":"")+'" onclick="App.mode(\'caminhao\')" type="button">'+icon("truck")+' <strong>Controle de Caminhão</strong><small>Pronto para fretes, despesas, comissão de 13% e vales.</small></button><button type="button" class="choice '+(d.mode==="divida"?"selected":"")+'" onclick="App.mode(&quot;divida&quot;)">'+icon("wallet")+' <strong>Controle de Dívidas</strong><small>Saldo inicial e pagamentos descritos.</small></button>'+
@@ -657,6 +703,7 @@ function controlCard(c){
   const controlIcon=["calculo","caminhao"].includes(c.mode)?"truck":["financeiro","divida"].includes(c.mode)?"wallet":"clipboard";
   const menu='<div class="card-action-menu" id="controlMenu-'+c.id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+
    '<button type="button" onclick="App.controlMenuAction(event,\'configure\','+c.id+')">'+icon("settings")+' Configurar / editar</button>'+
+   '<button type="button" onclick="App.controlMenuAction(event,\'move\','+c.id+')">'+icon("folder")+' Mover para pasta</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'duplicate\','+c.id+')">'+icon("copy")+' Duplicar controle</button>'+
    '<button type="button" class="danger" onclick="App.controlMenuAction(event,\'delete\','+c.id+')">'+icon("trash")+' Excluir controle</button></div>';
   return '<div class="control-card" tabindex="0" role="link" aria-label="Abrir '+E(c.name)+'" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.target===this && event.key===\'Enter\')App.navigate(\'control\','+c.id+')">'+

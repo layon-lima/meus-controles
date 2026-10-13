@@ -26,4 +26,6 @@ jobs:
           node --check static/pair.js
           node --check static/receiving_import.js
           node --check tests/test_navigation.js
+          node --check tests/test_folder_move.js
+          node tests/test_folder_move.js
           node tests/test_navigation.js

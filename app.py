@@ -409,7 +409,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(state(con))
                 if method=="POST" and url=="/api/boards":
                     p=self.input()
-                    cur=con.execute("INSERT INTO boards(name) VALUES(?)",(require(p.get("name"),"o quadro"),))
+                    cur=con.execute("INSERT INTO boards(name) VALUES(?)",(require(p.get("name"),"a pasta"),))
                     con.commit()
                     return self.send({"id":cur.lastrowid},201)
                 m=re.fullmatch(r"/api/boards/(\d+)",url)
@@ -418,17 +418,21 @@ class Handler(BaseHTTPRequestHandler):
                     if method=="PATCH":
                         p=self.input()
                         cur=con.execute("UPDATE boards SET name=? WHERE id=?",
-                                        (require(p.get("name"),"o quadro"),bid))
+                                        (require(p.get("name"),"a pasta"),bid))
                     else:
+                        if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
+                            raise LookupError("Pasta não encontrada.")
+                        if con.execute("SELECT 1 FROM controls WHERE board_id=? LIMIT 1",(bid,)).fetchone():
+                            raise ValueError("Esta pasta contém controles. Mova-os para outra pasta antes de excluir.")
                         cur=con.execute("DELETE FROM boards WHERE id=?",(bid,))
-                    if not cur.rowcount: raise LookupError("Quadro nao encontrado.")
+                    if not cur.rowcount: raise LookupError("Pasta não encontrada.")
                     con.commit()
                     return self.send({"ok":True})
                 if method=="POST" and url=="/api/controls":
                     p=self.input()
                     name,bid,mode,fields,rules,types=validate_config(p)
                     if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
-                        raise ValueError("Escolha um quadro existente.")
+                        raise ValueError("Escolha uma pasta existente.")
                     cur=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
                        VALUES(?,?,?,?,?,?)""",(bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types)))
                     if mode=="caminhao":
@@ -439,11 +443,25 @@ class Handler(BaseHTTPRequestHandler):
                         pair.save_settings(con,cur.lastrowid,p.get("pair_settings",{}))
                     con.commit()
                     return self.send({"id":cur.lastrowid},201)
-                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|export.csv))?",url)
+                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|move|export.csv))?",url)
                 if m:
                     cid=int(m[1]); action=m[2]
                     if method=="GET" and action is None:
                         return self.send(detail(con,cid))
+                    if method=="PATCH" and action=="move":
+                        current=get_control(con,cid)
+                        payload=self.input()
+                        destination=payload.get("board_id")
+                        if isinstance(destination,bool) or not isinstance(destination,int) or destination<=0:
+                            raise ValueError("Selecione uma pasta de destino válida.")
+                        if not con.execute("SELECT 1 FROM boards WHERE id=?",(destination,)).fetchone():
+                            raise ValueError("A pasta de destino não existe.")
+                        # Modificar apenas board_id: mantém o mesmo ID, modelo, configurações
+                        # e todas as tabelas de lançamentos vinculadas ao controle.
+                        con.execute("UPDATE controls SET board_id=? WHERE id=?",(destination,cid))
+                        con.commit()
+                        return self.send({"ok":True,"id":cid,"from_board_id":current["board_id"],
+                                          "board_id":destination,"moved":current["board_id"]!=destination})
                     if method=="GET" and action=="export.csv":
                         view=detail(con,cid)
                         buf=io.StringIO()
@@ -461,7 +479,7 @@ class Handler(BaseHTTPRequestHandler):
                         p=self.input()
                         name,bid,mode,fields,rules,types=validate_config(p)
                         if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
-                            raise ValueError("Quadro inexistente.")
+                            raise ValueError("Pasta inexistente.")
                         con.execute("""UPDATE controls SET board_id=?,name=?,mode=?,fields_json=?,rules_json=?,types_json=? WHERE id=?""",
                                     (bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types),cid))
                         con.commit()
