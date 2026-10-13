@@ -314,6 +314,28 @@ class LayoutAssetsTests(unittest.TestCase):
                          "overflow-x:auto;"):
             self.assertIn(selector,css)
 
+    def test_receiving_compact_rows_and_horizontal_action_buttons(self):
+        css=(STATIC / "receiving.css").read_text(encoding="utf-8")
+        js=(STATIC / "receiving.js").read_text(encoding="utf-8")
+        self.assertIn("padding:7px 10px;",css)
+        self.assertIn("padding-top:10px;",css)
+        self.assertIn("padding-bottom:10px;",css)
+        start=css.index(".receiving-table .receiving-grid td:last-child .table-actions{")
+        end=css.index("}",start)
+        actions=css[start:end]
+        self.assertIn("flex-wrap:nowrap;",actions)
+        self.assertIn("gap:4px;",actions)
+        self.assertIn("white-space:nowrap;",actions)
+        self.assertIn("min-height:28px;",css)
+        self.assertIn("padding:4px 6px;",css)
+        self.assertIn(".receiving-table .receiving-orders{min-width:1200px}",css)
+        self.assertIn(".receiving-table .receiving-invoices{min-width:950px}",css)
+        self.assertIn(".receiving-table .receiving-orders th:nth-child(8){width:19%}",css)
+        self.assertIn(".receiving-table .receiving-invoices th:nth-child(7){width:17%}",css)
+        self.assertIn("App.receivingReceiptForm(",js)
+        self.assertIn("App.receivingItemForm(",js)
+        self.assertIn("App.receivingDeleteItem(",js)
+
     def test_receiving_search_survives_receipt_updates(self):
         js=(STATIC / "receiving.js").read_text(encoding="utf-8")
         self.assertIn('this.s.receivingSearch={controlId:id,query:""}',js)

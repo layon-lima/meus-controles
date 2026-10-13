@@ -71,7 +71,7 @@
 .receiving-table .receiving-grid th,
 .receiving-table .receiving-grid td{
   box-sizing:border-box;
-  padding:12px 13px;
+  padding:7px 10px;
   border-right:1px solid #e2e8ed;
   border-bottom:1px solid #e2e8ed;
   border-top:0;
@@ -88,8 +88,8 @@
   background:#f4f7f9;
   font-size:11px;
   font-weight:650;
-  padding-top:14px;
-  padding-bottom:14px;
+  padding-top:10px;
+  padding-bottom:10px;
   border-bottom:1px solid #cbd9e1;
   white-space:normal;
   line-height:1.4!important;
@@ -115,23 +115,26 @@
   font-weight:500;
 }
 .receiving-table .receiving-grid td:last-child .table-actions{
-  gap:6px;
+  display:flex;
+  gap:4px;
   justify-content:center;
   align-items:center;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
+  white-space:nowrap;
 }
 .receiving-table .receiving-grid .mini-action{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:5px;
-  min-height:30px;
-  padding:5px 8px;
+  gap:4px;
+  min-height:28px;
+  padding:4px 6px;
   border:1px solid #dce6eb;
   border-radius:6px;
   background:#fff;
-  font-size:11px;
+  font-size:10.5px;
   font-weight:500;
+  flex:0 0 auto;
   line-height:1.35!important;
   white-space:nowrap;
 }
@@ -143,29 +146,28 @@
   font-weight:600;
   font-size:10.5px;
   border-radius:6px;
-  padding:5px 9px;
+  padding:4px 7px;
 }
 /* Larguras coerentes em ambas as grades. Produto recebe mais espaço. */
-.receiving-table .receiving-orders th:nth-child(1){width:11%}
+.receiving-table .receiving-orders th:nth-child(1){width:10%}
 .receiving-table .receiving-orders th:nth-child(2){width:10%}
 .receiving-table .receiving-orders th:nth-child(3){width:23%}
-.receiving-table .receiving-orders th:nth-child(4){width:11%}
+.receiving-table .receiving-orders th:nth-child(4){width:10%}
 .receiving-table .receiving-orders th:nth-child(5){width:9%}
 .receiving-table .receiving-orders th:nth-child(6){width:11%}
-.receiving-table .receiving-orders th:nth-child(7){width:9%}
-.receiving-table .receiving-orders th:nth-child(8){width:16%}
+.receiving-table .receiving-orders th:nth-child(7){width:8%}
+.receiving-table .receiving-orders th:nth-child(8){width:19%}
 .receiving-table .receiving-invoices th:nth-child(1){width:11%}
 .receiving-table .receiving-invoices th:nth-child(2){width:13%}
 .receiving-table .receiving-invoices th:nth-child(3){width:13%}
-.receiving-table .receiving-invoices th:nth-child(4){width:24%}
+.receiving-table .receiving-invoices th:nth-child(4){width:21%}
 .receiving-table .receiving-invoices th:nth-child(5){width:14%}
 .receiving-table .receiving-invoices th:nth-child(6){width:11%}
-.receiving-table .receiving-invoices th:nth-child(7){width:14%}
-@media(max-width:1100px){
-  .receiving-table .receiving-orders{min-width:1120px}
-  .receiving-table .receiving-invoices{min-width:950px}
-}
+.receiving-table .receiving-invoices th:nth-child(7){width:17%}
+/* Só recorre à rolagem horizontal quando não houver espaço real para os botões. */
+.receiving-table .receiving-orders{min-width:1200px}
+.receiving-table .receiving-invoices{min-width:950px}
 @media(max-width:590px){
   .receiving-table .receiving-grid th,
-  .receiving-table .receiving-grid td{padding:10px 11px}
+  .receiving-table .receiving-grid td{padding:7px 9px}
 }
