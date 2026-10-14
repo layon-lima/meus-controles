@@ -87,6 +87,8 @@ def record_by_id(con,rid):
 
 def batch(con,cid,payload):
     pair.control(con,cid)
+    if isinstance(payload,dict) and payload.get("format")=="central-pair-mixed-v1":
+        raise ValueError("Este arquivo contém dívidas, pagamentos e salários neutros. A versão atual do aplicativo precisa ser atualizada. No painel da Central, clique em Atualizar tudo e recarregue a página (Ctrl+F5) para usar Importar lançamentos.")
     if isinstance(payload,dict) and payload.get("format")=="central-pair-financial-v1":
         raise ValueError("Este arquivo contém dívidas e pagamentos reais. Use 'Importar dívidas e pagamentos', não 'Importar registros sem saldo'.")
     if not isinstance(payload,dict) or payload.get("format")!=FORMAT:
