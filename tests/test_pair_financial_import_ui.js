@@ -40,7 +40,7 @@ let summary={control_id:22,settings:{party_a:"JONAS",party_b:"MARCOS"},
   entries:[],history:[],records:[],closures:[]};
 App.s.state={boards:[{id:1,name:"ACERTOS"}],controls:[ctl]};
 App.s.route="control";App.s.id=22;App.s.detail={control:ctl};App.s.pairData=summary;
-App.canOpenForm=()=>true;
+// Exercita a proteção real de formulários, inclusive na transição de importação.
 App.closeModal=()=>{App.s.modal=null;App.s.modalContext=null;node("modalRoot").innerHTML=""};
 App.renderPair=async()=>{};
 App.load=async()=>{};
@@ -67,6 +67,7 @@ async function run(){
  node("pairImportFile").files=[{size:350,text:async()=>JSON.stringify(sample)}];
  await App.pairPreviewImport();
  assert.equal(App.s.modal,"pair-financial-import");
+ assert.equal(notices.filter(x=>x.includes("Já existe um formulário aberto")).length,0);
  assert.match(node("modalRoot").innerHTML,/Importar dívidas e pagamentos/);
  assert.match(node("pairFinancialResult").innerHTML,/Data ausente/);
  assert.match(node("pairFinancialResult").innerHTML,/1900/);
@@ -112,6 +113,7 @@ async function run(){
  node("pairImportFile").files=[{size:550,text:async()=>JSON.stringify(mixed)}];
  await App.pairPreviewImport();
  assert.equal(App.s.modal,"pair-financial-import");
+ assert.equal(notices.filter(x=>x.includes("Já existe um formulário aberto")).length,0);
  assert.match(node("pairFinancialResult").innerHTML,/registro\\(s\\) neutro/);
  assert.match(node("pairFinancialResult").innerHTML,/não alteram o saldo/);
  assert.ok(calls.some(x=>x.url.endsWith("/mixed-import/preview")));
