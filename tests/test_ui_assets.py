@@ -415,7 +415,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('pairFinancialPreviewPayload(payload)',finance)
         self.assertIn('accept_unusual_dates',finance)
         self.assertIn('corrected_dates:changedDates',finance)
-        self.assertIn('finance',finance)
+        self.assertIn('pairFinancialConfirm()',finance)
         self.assertIn('/static/pair_financial_import.js',html)
         self.assertIn('pair_financial_import.initialize(con)',server)
         self.assertIn('pair_financial_import.confirm(con,cid,request)',server)
