@@ -84,3 +84,18 @@
 .ab-tab{white-space:normal;line-height:1.45!important}
 @media(max-width:640px){.ab-summary-section .ab-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.ab-summary-section .ab-stats{grid-template-columns:1fr}}
+
+/* Registros documentais: sem impacto sobre dívidas ou pagamentos. */
+.ab-kind-neutral{color:#506981;background:#edf2f7;border-color:#d6e2eb}
+.ab-neutral-row td{background:#fbfcfe}
+.ab-neutral-row:hover td{background:#f2f7fa}
+.ab-neutral-row .ab-direction{color:#607c93}
+.ab-import-result{margin-top:12px}
+.ab-import-preview{border:1px solid #d5e4eb;background:#f6fafc;
+  padding:12px 14px;border-radius:9px;font-size:12px;line-height:1.55}
+.ab-import-preview p{margin:7px 0 0}
+.ab-import-warnings{padding:9px 11px;margin-top:10px;border-radius:7px;
+ background:#fff8e7;border:1px solid #f0dfb4;color:#74561b}
+.ab-import-warnings p{margin:4px 0;font-size:11px}
+.ab-row-actions{flex-wrap:wrap;justify-content:flex-end}
+.ab-neutral-row .ab-note{overflow-wrap:anywhere}

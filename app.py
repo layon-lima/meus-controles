@@ -18,6 +18,7 @@ import debt
 import open_debt
 import receiving
 import pair
+import pair_records
 import control_types
 import receiving_import
 import debt_import
@@ -100,6 +101,7 @@ def initialize():
         debt.initialize(con)
         receiving.initialize(con)
         pair.initialize(con)
+        pair_records.initialize(con)
         control_types.initialize(con)
         receiving_import.initialize(con)
         debt_import.initialize(con)
@@ -377,6 +379,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"control_types.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/control_types.css":
                 return self.send((ROOT/"static"/"control_types.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/pair_records.js":
+                return self.send((ROOT/"static"/"pair_records.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/pair.js":
                 return self.send((ROOT/"static"/"pair.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/pair.css":
@@ -402,6 +406,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/pair/(?:records|import/(?:preview|confirm))",url) or re.fullmatch(r"/api/pair-records/\d+",url):
+                    pair_records.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/pair(?:/(?:entries|settings|preview|closures))?",url) or re.fullmatch(r"/api/pair-entries/\d+",url) or re.fullmatch(r"/api/pair-closures/\d+(?:/export\.csv)?",url):
                     pair.handle(self,con,method,url)
                     return

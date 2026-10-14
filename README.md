@@ -434,3 +434,35 @@ podem ser excluídos, mas podem ser renomeados quando não possuem
 lançamentos conferidos/fechados. A renomeação atualiza o nome dos
 lançamentos abertos mantendo valor, data e comissão. A migração
 preserva nomes previamente cadastrados em controles mais antigos.
+
+
+## Acerto A × B — Registro neutro e importação em lote
+
+Além de **Nova dívida** e **Registrar pagamento**, o A × B agora oferece
+**Novo registro**. É uma anotação de valor, data (quando disponível),
+origem, destinatário, motivo e observações que **não modifica nem
+aumenta nem diminui o saldo líquido**. É útil, por exemplo, para
+documentar salários e outras transferências que não são dívidas
+entre os dois titulares.
+
+Os registros aparecem junto aos lançamentos com a identificação
+**Registro · não altera saldo**. Podem ser editados ou excluídos
+sem repercussão no saldo. Mantêm também metadados de origem
+quando vierem de uma planilha.
+
+O botão **Importar registros** aceita um JSON preparado no formato
+`central-pair-records-v1`, consulta o controle de destino, mostra
+uma prévia com alertas, valida o conteúdo, pede confirmação e
+protege contra importações repetidas por identificação do lote e
+número da linha. Os registros importados são sempre neutros:
+**não os converte em dívidas ou pagamentos sem uma decisão do usuário**.
+Isso evita deduzir quem pagou uma despesa feita a terceiros.
+
+Arquivos com datas ausentes ou atípicas preservam a informação
+original: nenhuma data é inventada ou corrigida automaticamente.
+Também é preservado, como referência, o saldo acumulado original da
+planilha, que não é usado para recomputar o saldo do A × B.
+
+A importação atua **somente na base SQLite local** do computador onde
+o usuário abriu o app, não no GitHub, e nunca expõe dados financeiros
+no repositório.

@@ -63,6 +63,7 @@ const calls=[];
 App.api=async(url,method="GET",body)=>{
   calls.push({url,method,body});
   if(url==="/api/controls/25/pair" && method==="GET")return data;
+  if(url==="/api/controls/25/pair/records" && method==="GET")return {records:[]};
   if((url==="/api/controls/25/pair/entries" && method==="POST")||
       (url.startsWith("/api/pair-entries/")&&method==="PUT"))return {id:7};
   throw Error("Unexpected API "+method+" "+url);

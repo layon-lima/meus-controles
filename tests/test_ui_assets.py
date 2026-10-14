@@ -402,6 +402,25 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/pair.js',html)
         self.assertIn('/static/pair.css',html)
 
+    def test_pair_neutral_records_and_safe_import_ui(self):
+        pair_ui=(STATIC / "pair.js").read_text(encoding="utf-8")
+        records_ui=(STATIC / "pair_records.js").read_text(encoding="utf-8")
+        css=(STATIC / "pair.css").read_text(encoding="utf-8")
+        server=(ROOT / "app.py").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        for label in ("Novo registro","Importar registros","pairRecordRow(e)",
+                      "pairRecordForm()","pairImportRecords()"):
+            self.assertIn(label,pair_ui)
+        for label in ("Registro · não altera saldo","De quem saiu",
+                      "Quem recebeu","pairPreviewImport()",
+                      "pairConfirmImport()","Não foi possível conferir",
+                      "não afetam o saldo"):
+            self.assertIn(label,records_ui)
+        self.assertIn("pair_records.initialize(con)",server)
+        self.assertIn("pair_records.handle(self,con,method,url)",server)
+        self.assertIn('static/pair_records.js',html)
+        self.assertIn(".ab-kind-neutral",css)
+
     def test_pair_debts_and_real_payments_share_one_settlement(self):
         js=(STATIC / "pair.js").read_text(encoding="utf-8")
         css=(STATIC / "pair.css").read_text(encoding="utf-8")

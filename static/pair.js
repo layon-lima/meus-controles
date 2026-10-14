@@ -14,7 +14,9 @@ Object.assign(App,{
     document.getElementById("main").innerHTML='<div class="empty-state">Carregando o acerto...</div>';
     try{
       const data=await this.api("/api/controls/"+id+"/pair");
+      const neutral=await this.api("/api/controls/"+id+"/pair/records");
       if(this.s.route!=="control"||this.s.id!==id)return;
+      data.records=neutral.records||[];
       if(this.s.pairId!==id){
         this.s.pairTab="entries";this.s.pairAll=false;
         this.s.pairPreview=null;this.s.pairClosure=null;this.s.pairDates=null;
@@ -65,7 +67,16 @@ Object.assign(App,{
   pairEntriesHTML(){
     const data=this.s.pairData,n=data.settings,all=!!this.s.pairAll;
     const entries=all?data.history:data.entries;
-    const body=entries.map(e=>{
+    // Registros documentais não têm efeito no saldo ou nos fechamentos.
+    // Ordenar com as dívidas por data, mantendo registros sem data no fim.
+    const visible=[...entries.map(e=>({...e,_record:false})),
+      ...(data.records||[]).map(r=>({...r,_record:true}))].sort((a,b)=>{
+        const ad=a._record?a.record_date:a.entry_date;
+        const bd=b._record?b.record_date:b.entry_date;
+        return (bd||"").localeCompare(ad||"")||Number(b.id)-Number(a.id);
+      });
+    const body=visible.map(e=>{
+      if(e._record)return this.pairRecordRow(e);
       const who=e.debtor==="A"?n.party_a:n.party_b;
       const to=e.debtor==="A"?n.party_b:n.party_a;
       const locked=!!(data.current_from&&e.entry_date<data.current_from);
@@ -86,13 +97,15 @@ Object.assign(App,{
       (data.current_from?'<small>Desde '+abDate(data.current_from)+'</small>':'')+'</div>'+
       '<div class="ab-row-actions"><button class="btn btn-sm" onclick="App.pairToggleHistory()">'+icon("list")+
       (all?" Período atual":" Ver histórico")+'</button>'+
+      '<button class="btn btn-sm" onclick="App.pairImportRecords()">'+icon("list")+' Importar registros</button>'+
+      '<button class="btn btn-sm" onclick="App.pairRecordForm()">'+icon("clipboard")+' Novo registro</button>'+
       '<button class="btn btn-sm" onclick="App.pairEntryForm(null,&quot;payment&quot;)">'+icon("wallet")+' Registrar pagamento</button>'+
       '<button class="btn btn-primary btn-sm" onclick="App.pairEntryForm(null,&quot;debt&quot;)">'+icon("plus")+' Nova dívida</button></div></div>'+
-      '<section class="panel ab-table">'+(entries.length?
-      '<div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo e descrição</th><th>Quem deve / Quem pagou → Para quem</th>'+
+      '<section class="panel ab-table">'+(visible.length?
+      '<div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo e descrição</th><th>Origem → Destino / Quem deve ou pagou</th>'+
       '<th class="numeric">Valor</th><th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>':
       '<div class="empty-state"><strong>Sem lançamentos neste período.</strong>'+
-      '<p>Cadastre dívidas ou pagamentos reais para calcular o saldo de cada pessoa.</p>'+
+      '<p>Cadastre dívidas, pagamentos reais ou registros que não afetam o saldo.</p>'+
       '<button class="btn btn-primary" onclick="App.pairEntryForm()">'+icon("plus")+' Novo lançamento</button></div>')+
       '</section>';
   },
