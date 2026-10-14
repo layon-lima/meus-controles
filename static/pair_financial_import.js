@@ -79,8 +79,13 @@ Object.assign(App,{
       if(result)result.innerHTML=panel;
       if(confirmBtn)confirmBtn.disabled=preview.new_count<=0;
     }catch(error){
-      if(result)result.textContent="Não foi possível validar o arquivo: "+error.message;
-      this.toast(error.message,true);
+      const outdated=payload?.format==="central-pair-mixed-v1" &&
+        (/rota n.o encontrada|n.o encontrada|404|mixed-import/i.test(String(error.message||"")));
+      const message=outdated?
+        "O aplicativo local ainda não tem o importador misto. No painel da Central, use Atualizar tudo; depois recarregue o aplicativo com Ctrl+F5.":
+        String(error.message||"Erro ao validar o arquivo.");
+      if(result)result.textContent="Não foi possível validar o arquivo: "+message;
+      this.toast(message,true);
     }
   },
   async pairFinancialConfirm(){
