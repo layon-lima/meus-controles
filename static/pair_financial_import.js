@@ -37,7 +37,9 @@ Object.assign(App,{
     const confirmBtn=document.getElementById("pairFinancialConfirmButton");
     if(confirmBtn)confirmBtn.disabled=true;
     try{
-      const preview=await this.api("/api/controls/"+ctx.controlId+"/pair/financial-import/preview","POST",payload);
+      const mixed=payload?.format==="central-pair-mixed-v1";
+      const endpoint=mixed?"mixed-import":"financial-import";
+      const preview=await this.api("/api/controls/"+ctx.controlId+"/pair/"+endpoint+"/preview","POST",payload);
       if(this.s.modal!=="pair-financial-import"||this.s.modalContext!==ctx)return;
       ctx.payload=payload;ctx.preview=preview;
       const dateless=preview.missing_dates||[];
@@ -45,9 +47,11 @@ Object.assign(App,{
       const names=this.s.pairData?.settings||{party_a:"Pessoa A",party_b:"Pessoa B"};
       let panel='<div class="ab-import-preview"><strong>'+E(preview.source_name)+'</strong>'+
         '<div class="ab-financial-stats"><span>'+preview.count+' movimentações</span>'+
-        '<span>'+preview.debt_count+' dívida(s)</span><span>'+preview.payment_count+' pagamento(s)</span></div>'+
+        '<span>'+preview.debt_count+' dívida(s)</span><span>'+preview.payment_count+' pagamento(s)</span>'+ 
+        (mixed?'<span>'+preview.record_count+' registro(s) neutro(s)</span>':'')+'</div>'+
         '<p><strong>'+E(names.party_a)+' deve a '+E(names.party_b)+':</strong> '+currency(preview.debt_total)+'</p>'+
         '<p><strong>'+E(names.party_a)+' pagou a '+E(names.party_b)+':</strong> '+currency(preview.payment_total)+'</p>'+
+        (mixed?'<p><strong>Salários e registros informativos:</strong> '+currency(preview.neutral_total)+' — não alteram o saldo.</p>':'')+
         '<p><strong>'+preview.new_count+' lançamento(s) novos</strong> · '+preview.already_imported+' já importados</p>'+
         '<p class="ab-financial-warning">A planilha será lançada como dívida e pagamento real, alterando o saldo. O destinatário original aparece na descrição no formato “QUEM RECEBEU - DESCRIÇÃO”.</p>';
       if(dateless.length){
@@ -97,13 +101,16 @@ Object.assign(App,{
       this.toast("Corrija a data de 1900 ou confirme que deseja mantê-la.",true);
       return;
     }
+    const mixed=ctx.payload?.format==="central-pair-mixed-v1";
     if(!confirm("Importar "+ctx.preview.new_count+
-      " dívidas e pagamentos reais? Isso ALTERARÁ o saldo do controle JONAS × MARCOS."))return;
+      (mixed?" lançamentos (dívidas, pagamentos e registros neutros)? Só as dívidas e pagamentos alterarão o saldo de JONAS × MARCOS.":
+      " dívidas e pagamentos reais? Isso ALTERARÁ o saldo do controle JONAS × MARCOS.")))return;
     const btn=document.getElementById("pairFinancialConfirmButton");
     if(btn?.disabled)return;
     if(btn)btn.disabled=true;
     try{
-      const res=await this.api("/api/controls/"+ctx.controlId+"/pair/financial-import/confirm","POST",{
+      const res=await this.api("/api/controls/"+ctx.controlId+"/pair/"+
+        (mixed?"mixed-import":"financial-import")+"/confirm","POST",{
         payload:ctx.payload,batch_id:ctx.preview.batch_id,corrected_dates:changedDates,
         accept_unusual_dates:confirmOld,
         accept_matching_existing:!!document.getElementById("pairFinancialMatching")?.checked
@@ -111,7 +118,9 @@ Object.assign(App,{
       this.closeModal();
       await this.renderPair();
       await this.load();
-      this.toast(res.inserted+" movimentações importadas. Saldo recalculado.");
+      this.toast(mixed?
+        (res.inserted_financial+" dívidas/pagamentos e "+res.inserted_neutral+" registros neutros importados."):
+        (res.inserted+" movimentações importadas. Saldo recalculado."));
     }catch(error){
       if(btn)btn.disabled=false;
       this.toast(error.message,true);
