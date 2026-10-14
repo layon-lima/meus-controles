@@ -1,10 +1,14 @@
 "use strict";
 /* Importação financeira real do A x B: prévia, datas suspeitas e confirmação. */
 Object.assign(App,{
-  pairFinancialImportForm(){
-    if(!this.canOpenForm())return;
+  pairFinancialImportForm(fromImport=false){
     const data=this.s.pairData;
     if(!data)return;
+    if(fromImport){
+      // Transição interna de um único fluxo de importação, não segundo formulário.
+      if(this.s.modal!=="pair-import" ||
+         this.s.modalContext?.controlId!==data.control_id)return;
+    }else if(!this.canOpenForm())return;
     this.s.modal="pair-financial-import";
     this.s.modalContext={controlId:data.control_id,payload:null,preview:null};
     document.getElementById("modalRoot").innerHTML=
