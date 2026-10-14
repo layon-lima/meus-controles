@@ -107,7 +107,7 @@ Object.assign(App,{
       if(!file)return;
       if(file.size>1500000)throw Error("Arquivo muito grande (limite de 1,5 MB).");
       const data=JSON.parse(await file.text());
-      if(data?.format==="central-pair-financial-v1"){
+      if(data?.format==="central-pair-mixed-v1" || data?.format==="central-pair-financial-v1"){
         this.pairFinancialImportForm();
         await this.pairFinancialPreviewPayload(data);
         return;
