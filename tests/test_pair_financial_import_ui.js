@@ -86,6 +86,42 @@ async function run(){
  assert.equal(submit.body.corrected_dates["1"],"2025-02-24");
  assert.equal(submit.body.corrected_dates["55"],"2025-05-13");
  assert.equal(App.s.modal,null);
+
+ // O mesmo botão aceita arquivo misto e apresenta salários sem impacto financeiro.
+ const mixed={...sample,format:"central-pair-mixed-v1",
+   records:[{source_row:7,date:"2025-02-05",amount:"3000.00",
+     from_name:"JONAS",to_name:"FRIGENIO MOEIRA",
+     original_type:"SALÁRIO",description:"SALÁRIO"}]};
+ const originalApi=App.api;
+ App.api=async(url,method,body)=>{
+   if(url.endsWith("/mixed-import/preview")){
+     calls.push({url,method,body});
+     return {source_name:"TESTE",count:3,debt_count:1,payment_count:1,record_count:1,
+       debt_total:"114000.00",payment_total:"134.90",neutral_total:"3000.00",
+       batch_id:"mixed-digest",new_count:3,already_imported:0,
+       missing_dates:[{source_row:1,description:"RECEBEDOR - CRÉDITO"}],
+       unusual_dates:[]};
+   }
+   if(url.endsWith("/mixed-import/confirm")){
+     calls.push({url,method,body});
+     return {inserted:3,inserted_financial:2,inserted_neutral:1};
+   }
+   return originalApi(url,method,body);
+ };
+ App.pairImportRecords();
+ node("pairImportFile").files=[{size:550,text:async()=>JSON.stringify(mixed)}];
+ await App.pairPreviewImport();
+ assert.equal(App.s.modal,"pair-financial-import");
+ assert.match(node("pairFinancialResult").innerHTML,/registro\\(s\\) neutro/);
+ assert.match(node("pairFinancialResult").innerHTML,/não alteram o saldo/);
+ assert.ok(calls.some(x=>x.url.endsWith("/mixed-import/preview")));
+ node("pairFinancialDate1").value="2025-02-24";
+ await App.pairFinancialConfirm();
+ const mixedSubmit=calls.find(x=>x.url.endsWith("/mixed-import/confirm"));
+ assert.ok(mixedSubmit);
+ assert.equal(mixedSubmit.body.batch_id,"mixed-digest");
+ assert.ok(notices.some(x=>x.includes("registros neutros importados")));
+
  console.log("OK: botão único identifica arquivo financeiro, exibe prévia e exige datas antes de importar");
 }
 run().catch(e=>{console.error(e);process.exitCode=1});
