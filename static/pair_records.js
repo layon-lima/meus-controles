@@ -87,7 +87,7 @@ Object.assign(App,{
       '<div class="modal-header"><div><h2 id="modalTitle">Importar registros A × B</h2>'+
       '<p>Adicione várias linhas de uma vez, sem mexer no saldo.</p></div>'+
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
-      '<div class="modal-body"><p class="ab-hint">Selecione o JSON preparado para este controle. O aplicativo confere o destino, as datas e as duplicidades antes de importar.</p>'+
+      '<div class="modal-body"><p class="ab-hint">Selecione o arquivo JSON. O sistema identificará automaticamente registros neutros ou dívidas e pagamentos reais, com prévia antes de confirmar.</p>'+
       '<div class="field"><label>Arquivo de registros (.json)</label>'+
       '<input id="pairImportFile" type="file" accept=".json,application/json" onchange="App.pairPreviewImport()"></div>'+
       '<div id="pairImportResult" class="ab-import-result" aria-live="polite"></div></div>'+
@@ -107,6 +107,11 @@ Object.assign(App,{
       if(!file)return;
       if(file.size>1500000)throw Error("Arquivo muito grande (limite de 1,5 MB).");
       const data=JSON.parse(await file.text());
+      if(data?.format==="central-pair-financial-v1"){
+        this.pairFinancialImportForm();
+        await this.pairFinancialPreviewPayload(data);
+        return;
+      }
       const result=await this.api("/api/controls/"+ctx.controlId+"/pair/import/preview","POST",data);
       if(this.s.modal!=="pair-import"||this.s.modalContext!==ctx)return;
       ctx.payload=data;ctx.preview=result;

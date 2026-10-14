@@ -87,8 +87,10 @@ def record_by_id(con,rid):
 
 def batch(con,cid,payload):
     pair.control(con,cid)
+    if isinstance(payload,dict) and payload.get("format")=="central-pair-financial-v1":
+        raise ValueError("Este arquivo contém dívidas e pagamentos reais. Use 'Importar dívidas e pagamentos', não 'Importar registros sem saldo'.")
     if not isinstance(payload,dict) or payload.get("format")!=FORMAT:
-        raise ValueError("Arquivo inválido. Utilize a importação de registros A × B.")
+        raise ValueError("Arquivo inválido. Utilize a importação de registros sem saldo A × B.")
     target=payload.get("target")
     if not isinstance(target,dict):
         raise ValueError("O arquivo não informa o controle de destino.")

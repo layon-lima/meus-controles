@@ -402,13 +402,31 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn('/static/pair.js',html)
         self.assertIn('/static/pair.css',html)
 
+    def test_financial_json_is_automatically_recognized_in_pair_import(self):
+        base=(STATIC / "pair.js").read_text(encoding="utf-8")
+        neutral=(STATIC / "pair_records.js").read_text(encoding="utf-8")
+        finance=(STATIC / "pair_financial_import.js").read_text(encoding="utf-8")
+        html=(STATIC / "index.html").read_text(encoding="utf-8")
+        server=(ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn("Importar lançamentos",base)
+        self.assertIn('data?.format==="central-pair-financial-v1"',neutral)
+        self.assertIn("this.pairFinancialImportForm()",neutral)
+        self.assertIn("await this.pairFinancialPreviewPayload(data)",neutral)
+        self.assertIn('pairFinancialPreviewPayload(payload)',finance)
+        self.assertIn('accept_unusual_dates',finance)
+        self.assertIn('corrected_dates:changedDates',finance)
+        self.assertIn('finance',finance)
+        self.assertIn('/static/pair_financial_import.js',html)
+        self.assertIn('pair_financial_import.initialize(con)',server)
+        self.assertIn('pair_financial_import.confirm(con,cid,request)',server)
+
     def test_pair_neutral_records_and_safe_import_ui(self):
         pair_ui=(STATIC / "pair.js").read_text(encoding="utf-8")
         records_ui=(STATIC / "pair_records.js").read_text(encoding="utf-8")
         css=(STATIC / "pair.css").read_text(encoding="utf-8")
         server=(ROOT / "app.py").read_text(encoding="utf-8")
         html=(STATIC / "index.html").read_text(encoding="utf-8")
-        for label in ("Novo registro","Importar registros","pairRecordRow(e)",
+        for label in ("Novo registro","Importar lançamentos","pairRecordRow(e)",
                       "pairRecordForm()","pairImportRecords()"):
             self.assertIn(label,pair_ui)
         for label in ("Registro · não altera saldo","De quem saiu",

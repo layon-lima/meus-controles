@@ -99,3 +99,22 @@
 .ab-import-warnings p{margin:4px 0;font-size:11px}
 .ab-row-actions{flex-wrap:wrap;justify-content:flex-end}
 .ab-neutral-row .ab-note{overflow-wrap:anywhere}
+
+/* Prévia compacta dos lançamentos financeiros de A × B. */
+.ab-financial-modal{width:min(100%,650px)}
+.ab-financial-modal .modal-body{max-height:min(65vh,620px);overflow-y:auto}
+.ab-financial-stats{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
+.ab-financial-stats span{padding:4px 8px;border:1px solid #d8e4e8;
+ border-radius:6px;background:#fff;color:#344b5d;font-size:11px}
+.ab-financial-warning{padding:8px 10px;border-radius:6px;background:#fff8eb;
+ border-left:3px solid #e9b766;color:#665131;line-height:1.5}
+.ab-financial-dates{margin-top:13px;padding:12px;border:1px solid #d9e4ea;
+ border-radius:8px;background:#fff;display:flex;flex-direction:column;gap:7px}
+.ab-financial-dates>strong{font-size:12px}
+.ab-financial-dates>p{margin:0 0 3px;font-size:11px;color:var(--muted)}
+.ab-financial-dates label{font-size:11px;color:#405568;line-height:1.4}
+.ab-financial-dates input[type=date]{min-height:34px}
+.ab-financial-consent{display:flex;align-items:flex-start;gap:8px;margin-top:12px;
+ font-size:11px;line-height:1.5}
+.ab-financial-consent input[type=checkbox]{flex:none;width:16px;height:16px;margin-top:1px}
+.ab-financial-hint{color:var(--muted);font-size:11px}

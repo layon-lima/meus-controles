@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validar sintaxe Python
-        run: python -m compileall -q app.py truck.py truck_workflow.py debt.py open_debt.py debt_import.py receiving.py receiving_import.py pair.py pair_records.py control_types.py controller/server.py tests
+        run: python -m compileall -q app.py truck.py truck_workflow.py debt.py open_debt.py debt_import.py receiving.py receiving_import.py pair.py pair_records.py pair_financial_import.py control_types.py controller/server.py tests
       - name: Executar testes de servidor, calculos e painel web
         run: python -m unittest discover -s tests -v
       - name: Validar JavaScript
@@ -26,6 +26,7 @@ jobs:
           node --check static/receiving.js
           node --check static/pair.js
           node --check static/pair_records.js
+          node --check static/pair_financial_import.js
           node --check static/control_types.js
           node --check static/receiving_import.js
           node --check tests/test_navigation.js
@@ -34,5 +35,7 @@ jobs:
           node tests/test_pair_payments.js
           node --check tests/test_pair_records_ui.js
           node tests/test_pair_records_ui.js
+          node --check tests/test_pair_financial_import_ui.js
+          node tests/test_pair_financial_import_ui.js
           node tests/test_folder_move.js
           node tests/test_navigation.js

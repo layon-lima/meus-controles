@@ -67,7 +67,7 @@ async function run(){
   assert.match(node("main").innerHTML,/ANGELA MARIA/);
   assert.match(node("main").innerHTML,/500,00/);
   assert.match(node("main").innerHTML,/Novo registro/);
-  assert.match(node("main").innerHTML,/Importar registros/);
+  assert.match(node("main").innerHTML,/Importar lançamentos/);
   App.pairRecordForm();
   assert.match(node("modalRoot").innerHTML,/De quem saiu/);
   assert.match(node("modalRoot").innerHTML,/Quem recebeu/);

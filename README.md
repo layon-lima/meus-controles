@@ -466,3 +466,33 @@ planilha, que não é usado para recomputar o saldo do A × B.
 A importação atua **somente na base SQLite local** do computador onde
 o usuário abriu o app, não no GitHub, e nunca expõe dados financeiros
 no repositório.
+
+
+## Importação real de dívidas e pagamentos no A × B
+
+O botão **Importar lançamentos** detecta automaticamente qual dos
+dois formatos JSON foi selecionado:
+- `central-pair-records-v1`: registros documentais, sem efeito no saldo.
+- `central-pair-financial-v1`: dívidas e pagamentos reais, com efeito
+  no saldo; exibe prévia separada e pede confirmação.
+
+A importação financeira exige que o controle ativo tenha as pessoas
+na **mesma ordem** do arquivo (A=Jonas, B=Marcos), para não inverter
+quem deve a quem. A planilha Jonas × Marcos contém uma dívida de
+R$ 114.000,00 de Jonas a Marcos e 55 pagamentos reais feitos por
+Jonas a Marcos; esses são os únicos efeitos financeiros autorizados.
+Os nomes de destinatários originais aparecem na descrição, como
+`QUEM RECEBEU - DESCRIÇÃO`, sem mudar a direção Jonas → Marcos.
+
+Uma dívida da planilha não tem data, e outra linha foi datada de
+13/05/1900. A interface exige uma data para o crédito e confirmação
+explícita ou correção da data incomum. O usuário deve conferir a prévia
+antes de importar; nenhuma data é inventada. O servidor também impede
+alterações de períodos já fechados.
+
+Lotes repetidos são detectados pelo conteúdo completo do arquivo,
+controle e linha original. Ao importar novamente o mesmo arquivo,
+nada é duplicado. Coincidências com lançamentos inseridos manualmente
+exigem confirmação explícita. A atualização não salva dados
+financeiros do usuário no GitHub nem acessa o banco SQLite local
+remotamente.

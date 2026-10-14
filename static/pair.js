@@ -97,7 +97,7 @@ Object.assign(App,{
       (data.current_from?'<small>Desde '+abDate(data.current_from)+'</small>':'')+'</div>'+
       '<div class="ab-row-actions"><button class="btn btn-sm" onclick="App.pairToggleHistory()">'+icon("list")+
       (all?" Período atual":" Ver histórico")+'</button>'+
-      '<button class="btn btn-sm" onclick="App.pairImportRecords()">'+icon("list")+' Importar registros</button>'+
+      '<button class="btn btn-sm" onclick="App.pairImportRecords()">'+icon("list")+' Importar lançamentos</button>'+
       '<button class="btn btn-sm" onclick="App.pairRecordForm()">'+icon("clipboard")+' Novo registro</button>'+
       '<button class="btn btn-sm" onclick="App.pairEntryForm(null,&quot;payment&quot;)">'+icon("wallet")+' Registrar pagamento</button>'+
       '<button class="btn btn-primary btn-sm" onclick="App.pairEntryForm(null,&quot;debt&quot;)">'+icon("plus")+' Nova dívida</button></div></div>'+
