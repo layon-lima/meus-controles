@@ -20,6 +20,7 @@ import receiving
 import pair
 import pair_records
 import pair_financial_import
+import pair_mixed_import
 import control_types
 import receiving_import
 import debt_import
@@ -410,6 +411,15 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0"})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/pair/mixed-import/(?:preview|confirm)",url):
+                    match=re.fullmatch(r"/api/controls/(\d+)/pair/mixed-import/(preview|confirm)",url)
+                    if method!="POST":
+                        raise LookupError("Operação não encontrada.")
+                    request=self.input()
+                    cid=int(match[1])
+                    if match[2]=="preview":
+                        return self.send(pair_mixed_import.preview(con,cid,request))
+                    return self.send(pair_mixed_import.confirm(con,cid,request),201)
                 if re.fullmatch(r"/api/controls/\d+/pair/financial-import/(?:preview|confirm)",url):
                     match=re.fullmatch(r"/api/controls/(\d+)/pair/financial-import/(preview|confirm)",url)
                     cid=int(match[1])
