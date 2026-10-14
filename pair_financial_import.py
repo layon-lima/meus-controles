@@ -128,7 +128,7 @@ def corrected_date(row,dates):
         return pair.day(raw)
     return row["date"]
 
-def confirm(con,cid,request):
+def confirm(con,cid,request,commit=True):
     if not isinstance(request,dict) or not isinstance(request.get("payload"),dict):
         raise ValueError("Envie o arquivo validado na prévia.")
     if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
@@ -186,7 +186,8 @@ def confirm(con,cid,request):
           (control_id,batch_id,source_row,entry_id) VALUES(?,?,?,?)""",
           (cid,checked["batch_id"],row["source_row"],cur.lastrowid))
         inserted+=1
-    con.commit()
+    if commit:
+        con.commit()
     updated=pair.summary(con,cid)["totals"]
     return {"inserted":inserted,"skipped":checked["count"]-inserted,
        "count":checked["count"],"balance":updated["balance"],"settlement":updated["settlement"],
