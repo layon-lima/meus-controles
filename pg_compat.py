@@ -45,7 +45,11 @@ class Cursor:
         with self.owner.native.cursor() as cur:
             cur.execute(sql, (table,))
             row = cur.fetchone()
-            return row[0] if row else None
+            # A conexão usa dict_row: consultas sem row_factory explícito retornam dict.
+            # O acesso por índice 0 levantava KeyError na primeira criação de controle.
+            if row is None:
+                return None
+            return next(iter(row.values())) if isinstance(row, dict) else row[0]
 
     @staticmethod
     def _row(value):
