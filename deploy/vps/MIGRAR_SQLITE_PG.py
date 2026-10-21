@@ -57,6 +57,11 @@ def main(filename):
             # Somente migra na primeira instalação: não apaga um banco VPS já em uso.
             cur.execute("SELECT COUNT(*) FROM controls")
             existing_controls = cur.fetchone()[0]
+            if existing_controls == 1:
+                cur.execute("SELECT name, mode FROM controls LIMIT 1")
+                seed = cur.fetchone()
+                if seed != ("Controle de Fretes", "calculo"):
+                    raise SystemExit("A VPS possui um controle próprio; migração cancelada.")
             cur.execute("SELECT COUNT(*) FROM entries")
             existing_entries = cur.fetchone()[0]
             if existing_controls > 1 or existing_entries:
