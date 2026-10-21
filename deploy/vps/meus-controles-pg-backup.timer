@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup diário do PostgreSQL - Central de Controles
+
+[Timer]
+OnCalendar=*-*-* 02:40:00
+Persistent=true
+Unit=meus-controles-pg-backup.service
+
+[Install]
+WantedBy=timers.target
