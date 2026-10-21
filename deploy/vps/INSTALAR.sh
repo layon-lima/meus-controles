@@ -1,146 +1,59 @@
 #!/usr/bin/env bash
-# Instalador de um host HTTPS dedicado, sem mexer nos outros aplicativos da VPS.
+# Implantação isolada em Docker; NÃO altera Caddy, GFARM, Pluviômetros ou Contas.
 set -euo pipefail
+[[ "$EUID" -eq 0 ]] || { echo "Execute como root." >&2; exit 1; }
+ROOT=/opt/apps/meus-controles
+DOMAIN="${1:-controles.fazendanovohorizonte.com}"
+[[ -f "$ROOT/deploy/vps/compose.yml" ]] || { echo "Faça clone em $ROOT primeiro." >&2; exit 1; }
+[[ "$DOMAIN" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$ && "$DOMAIN" == *.* && "$DOMAIN" != *..* ]] ||
+  { echo "Domínio inválido." >&2; exit 1; }
+command -v docker >/dev/null || { echo "Docker não está instalado." >&2; exit 1; }
+docker compose version >/dev/null || { echo "Docker Compose não está instalado." >&2; exit 1; }
 
-if [[ "${EUID}" -ne 0 ]]; then
-  echo "Execute com sudo/root." >&2; exit 1
-fi
-DOMAIN="${1:-}"
-EMAIL="${2:-}"
-USERNAME="${3:-admin}"
-if [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$ || "$DOMAIN" != *.* || "$DOMAIN" == *..* ]]; then
-  echo "Uso: sudo bash deploy/vps/INSTALAR.sh controles.seudominio.com email@seudominio.com [usuario]" >&2; exit 1
-fi
-if [[ ! "$EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
-  echo "Informe um e-mail válido para o certificado HTTPS." >&2; exit 1
-fi
-if [[ ! "$USERNAME" =~ ^[a-zA-Z0-9_.-]{1,40}$ ]]; then
-  echo "Usuário inválido." >&2; exit 1
-fi
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-if [[ "$ROOT" != "/opt/apps/meus-controles" ]]; then
-  echo "Faça o clone em /opt/apps/meus-controles antes de instalar. Atual: $ROOT" >&2; exit 1
-fi
-if ! getent ahostsv4 "$DOMAIN" >/dev/null; then
-  echo "O domínio $DOMAIN ainda não resolve no DNS. Crie o registro A antes da instalação." >&2; exit 1
-fi
-if [[ -e /etc/nginx/sites-enabled/meus-controles.conf &&
-      ! -L /etc/nginx/sites-enabled/meus-controles.conf ]]; then
-  echo "Site Nginx existente não é um link; não vou sobrescrever." >&2; exit 1
-fi
-
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y python3 nginx certbot apache2-utils curl
-id -u meuscontroles >/dev/null 2>&1 || useradd --system --home-dir /var/lib/meus-controles --shell /usr/sbin/nologin meuscontroles
-install -d -o meuscontroles -g meuscontroles -m 0700 /var/lib/meus-controles
-install -d -o meuscontroles -g meuscontroles -m 0700 /var/backups/meus-controles
-install -d -m 0755 /var/www/letsencrypt/.well-known/acme-challenge
-install -d -m 0755 /etc/nginx/sites-available /etc/nginx/sites-enabled
-
-if [[ ! -f /etc/nginx/.htpasswd-meus-controles ]]; then
-  echo "Defina uma senha forte para a Central de Controles. Ela não aparecerá na tela."
-  htpasswd -cB /etc/nginx/.htpasswd-meus-controles "$USERNAME"
+ENV="$ROOT/deploy/vps/.env.production"
+if [[ ! -e "$ENV" ]]; then
+  umask 077
+  PASSWORD="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
+  printf 'CONTROLES_DOMAIN=%s\nCONTROLES_DB_PASSWORD=%s\n' "$DOMAIN" "$PASSWORD" > "$ENV"
+  echo "Senha PostgreSQL exclusiva gerada na VPS (não exibida)."
 else
-  echo "Senha existente mantida. Para alterar: sudo htpasswd -B /etc/nginx/.htpasswd-meus-controles $USERNAME"
-fi
-chown root:www-data /etc/nginx/.htpasswd-meus-controles
-chmod 0640 /etc/nginx/.htpasswd-meus-controles
-
-printf 'CONTROLES_PUBLIC_ORIGIN=https://%s\n' "$DOMAIN" > /etc/meus-controles.env
-chown root:root /etc/meus-controles.env
-chmod 0600 /etc/meus-controles.env
-
-install -m 0644 "$ROOT/deploy/vps/meus-controles.service" /etc/systemd/system/meus-controles.service
-install -m 0644 "$ROOT/deploy/vps/meus-controles-backup.service" /etc/systemd/system/meus-controles-backup.service
-install -m 0644 "$ROOT/deploy/vps/meus-controles-backup.timer" /etc/systemd/system/meus-controles-backup.timer
-install -m 0644 "$ROOT/deploy/vps/meus-controles-health.service" /etc/systemd/system/meus-controles-health.service
-install -m 0644 "$ROOT/deploy/vps/meus-controles-health.timer" /etc/systemd/system/meus-controles-health.timer
-systemctl daemon-reload
-
-CONF=/etc/nginx/sites-available/meus-controles.conf
-if [[ -f "$CONF" ]] && ! grep -q "server_name $DOMAIN;" "$CONF"; then
-  echo "Já existe uma configuração da Central para outro domínio. Não vou sobrescrever $CONF." >&2; exit 1
-fi
-# Antes de emitir o certificado, somente o desafio ACME fica acessível em HTTP.
-if [[ ! -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]]; then
-  cat > "$CONF" <<NGINX
-server {
-    listen 80;
-    server_name $DOMAIN;
-    location ^~ /.well-known/acme-challenge/ {
-        root /var/www/letsencrypt;
-        default_type text/plain;
-    }
-    location / { return 404; }
-}
-NGINX
-  ln -sfn "$CONF" /etc/nginx/sites-enabled/meus-controles.conf
-  nginx -t
-  systemctl enable --now nginx
-  systemctl reload nginx
-  certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" \
-    --email "$EMAIL" --agree-tos --non-interactive --keep-until-expiring
-fi
-
-cat > "$CONF" <<NGINX
-# A Central roda somente em localhost:18765; Nginx termina HTTPS e pede senha.
-server {
-    listen 80;
-    server_name $DOMAIN;
-    location ^~ /.well-known/acme-challenge/ {
-        root /var/www/letsencrypt;
-        default_type text/plain;
-    }
-    location / { return 301 https://\$host\$request_uri; }
-}
-server {
-    listen 443 ssl;
-    server_name $DOMAIN;
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    add_header Strict-Transport-Security "max-age=31536000" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    client_max_body_size 1m;
-
-    auth_basic "Central de Controles";
-    auth_basic_user_file /etc/nginx/.htpasswd-meus-controles;
-
-    location / {
-        proxy_pass http://127.0.0.1:18765;
-        proxy_http_version 1.1;
-        proxy_set_header Host 127.0.0.1:18765;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_connect_timeout 10s;
-        proxy_read_timeout 90s;
-    }
-}
-NGINX
-
-ln -sfn "$CONF" /etc/nginx/sites-enabled/meus-controles.conf
-nginx -t
-systemctl reload nginx
-install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
-cat > /etc/letsencrypt/renewal-hooks/deploy/meus-controles-nginx.sh <<'HOOK'
-#!/bin/sh
-systemctl reload nginx
-HOOK
-chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/meus-controles-nginx.sh
-
-systemctl enable --now meus-controles.service
-systemctl enable --now meus-controles-backup.timer meus-controles-health.timer
-for i in {1..10}; do
-  if curl --fail --silent --max-time 4 http://127.0.0.1:18765/api/health >/dev/null; then
-    echo "Central no ar: https://$DOMAIN"
-    echo "Serviço: systemctl status meus-controles --no-pager"
-    echo "Backups: /var/backups/meus-controles/"
-    exit 0
+  if ! grep -Fxq "CONTROLES_DOMAIN=$DOMAIN" "$ENV"; then
+    echo "Esta instalação já pertence a outro domínio. Não alterei as credenciais." >&2
+    exit 1
   fi
-  sleep 1
-done
-echo "O serviço não respondeu. Verifique: journalctl -u meus-controles -n 80 --no-pager" >&2
-exit 1
+fi
+chmod 0600 "$ENV"
+COMPOSE=(docker compose --env-file "$ENV" -f "$ROOT/deploy/vps/compose.yml")
+"${COMPOSE[@]}" config --quiet
+systemctl enable --now docker >/dev/null
+echo "Subindo SOMENTE o PostgreSQL e a API da Central..."
+"${COMPOSE[@]}" up -d --build --wait
+echo "Verificando serviço interno..."
+"${COMPOSE[@]}" exec -T app python -c \
+  "import urllib.request;urllib.request.urlopen('http://127.0.0.1:18765/api/health',timeout=8)"
+
+# Anexa a instância Caddy já existente a uma rede SEM publicar portas.
+if docker container inspect pluv-https-caddy-1 >/dev/null 2>&1; then
+  if docker inspect pluv-https-caddy-1 --format '{{json .NetworkSettings.Networks}}' | grep -q '"meus-controles_interface_web"'; then
+    echo "Caddy já participa da rede privada da Central."
+  else
+    docker network connect meus-controles_interface_web pluv-https-caddy-1
+    echo "Caddy conectado à rede Docker da Central, sem reiniciar os outros serviços."
+  fi
+fi
+
+install -d -m 0700 /opt/apps/backups/meus-controles
+install -m 0644 "$ROOT/deploy/vps/meus-controles-pg-backup.service" \
+  /etc/systemd/system/meus-controles-pg-backup.service
+install -m 0644 "$ROOT/deploy/vps/meus-controles-pg-backup.timer" \
+  /etc/systemd/system/meus-controles-pg-backup.timer
+systemctl daemon-reload
+systemctl enable --now meus-controles-pg-backup.timer
+bash "$ROOT/deploy/vps/BACKUP_PG.sh"
+echo
+echo "CENTRAL: Docker e PostgreSQL funcionando. Os outros projetos não foram alterados."
+echo "API interna: central-controles-api:18765 (rede meus-controles_interface_web)."
+echo "IMPORTANTE: adicione um novo site no Caddyfile existente com base em:"
+echo "$ROOT/deploy/vps/Caddyfile.example"
+echo "Depois crie o DNS para: https://$DOMAIN"
+echo "Se há dados no PC, migre um BACKUP SQLite antes de começar a usar a VPS."
