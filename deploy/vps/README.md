@@ -42,34 +42,33 @@ O instalador:
 
 **A API ainda não estará acessível pela internet até configurar o Caddy (passo 3).** O banco inicial é novo; os dados do PC não são migrados automaticamente.
 
-## 3. Acrescentar a rota ao Caddy EXISTENTE
+## 3. Publicar no Caddy EXISTENTE, com senha e HTTPS
 
-Localize o Caddyfile real:
-
-```bash
-docker inspect pluv-https-caddy-1 --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
-```
-
-No arquivo Caddyfile usado por esse contêiner, **adicione** um novo bloco como em `deploy/vps/Caddyfile.example`. Preserve todos os blocos anteriores.
-
-Gere um hash bcrypt da senha de acesso em modo interativo (não cole uma senha em comandos nem nesta conversa):
+Depois de criar no DNS o registro A `controles.fazendanovohorizonte.com`, execute **na VPS**,
+com terminal interativo:
 
 ```bash
-docker exec -it pluv-https-caddy-1 caddy hash-password
+cd /opt/apps/meus-controles
+git pull --ff-only origin main
+python3 deploy/vps/CONFIGURAR_CADDY.py
 ```
 
-Substitua `SUBSTITUA_PELO_HASH_BCRYPT` no novo bloco. Para cada usuário da Central, cadastre outro usuário/hash no `basic_auth` se desejar. A aplicação compartilha o mesmo banco para todos; ainda não possui níveis próprios de permissão.
+O instalador confere a montagem do Caddyfile do contêiner `pluv-https-caddy-1`, exige
+a rede privada da Central, valida o arquivo atual, pede usuário e senha sem eco,
+gera hash bcrypt pelo próprio Caddy (sem colocar senha em argumento de comando),
+salva backup em `/root/caddy-config-backups/`, acrescenta somente o novo site,
+valida e recarrega o Caddy sem parar os serviços existentes. Em caso de falha,
+restaura o arquivo e tenta recarregar a configuração anterior.
 
-Valide **antes** de recarregar:
+O arquivo original que é preservado é
+`/opt/apps/pluviometros/source/deploy/Caddyfile` (montado como `/etc/caddy/Caddyfile`).
+Como esse arquivo pertence ao projeto de Pluviômetros, a nova rota também precisa
+ser mantida na configuração de origem do Caddy para não desaparecer numa reinstalação
+daquele projeto. **Não rode duas vezes nem substitua o Caddyfile inteiro.**
 
-```bash
-docker exec pluv-https-caddy-1 caddy validate --config /etc/caddy/Caddyfile
-docker exec pluv-https-caddy-1 caddy reload --config /etc/caddy/Caddyfile
-```
-
-O Caddy obterá/renovará o certificado HTTPS quando o DNS apontar corretamente para a VPS. Se o Caddy for recriado, reconecte-o à rede com `docker network connect meus-controles_interface_web pluv-https-caddy-1`, ou inclua essa rede externa no Docker Compose do Caddy para manter a conexão nas recriações.
-
-**Nunca retire a autenticação do Caddy**, pois o aplicativo não tem login remoto embutido.
+Depois de o DNS propagar e o Caddy obter o certificado TLS, abra
+`https://controles.fazendanovohorizonte.com`. O navegador pedirá o usuário e a senha.
+A Central só pode ser publicada com essa autenticação ativa.
 
 ## 4. Trazer todos os controles e dados que estão no PC
 
