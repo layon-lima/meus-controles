@@ -2,6 +2,12 @@
 
 Aplicativo web para criar pastas, controles independentes e formulários próprios, com lançamentos que somam, subtraem e calculam valores automaticamente.
 
+## VPS — acesso online permanente
+
+A edição VPS usa Docker Compose, **PostgreSQL 16 exclusivo** (sem porta pública), restart automático, backup diário e o Caddy existente para HTTPS e senha. O PC continua com SQLite; é necessário migrar um backup do PC para tornar a VPS a fonte de dados. **Não instale Nginx nem publique diretamente a API.**
+
+Procedimento: [deploy/vps/README.md](deploy/vps/README.md).
+
 ## Iniciar no Windows — sem terminal
 
 1. Instale Python 3.10+ e Git, se ainda não estiverem instalados.
