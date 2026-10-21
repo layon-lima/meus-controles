@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup diário da Central de Controles
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=meus-controles-backup.service
+
+[Install]
+WantedBy=timers.target
