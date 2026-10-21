@@ -1,0 +1,60 @@
+name: meus-controles
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: meus_controles
+      POSTGRES_USER: meus_controles
+      POSTGRES_PASSWORD: ${CONTROLES_DB_PASSWORD:?Defina CONTROLES_DB_PASSWORD}
+    volumes:
+      - banco_pg:/var/lib/postgresql/data
+    networks:
+      - banco_privado
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meus_controles -d meus_controles"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    security_opt: ["no-new-privileges:true"]
+
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      CONTROLES_PGHOST: db
+      CONTROLES_PGPORT: "5432"
+      CONTROLES_PGUSER: meus_controles
+      CONTROLES_PGPASSWORD: ${CONTROLES_DB_PASSWORD:?Defina CONTROLES_DB_PASSWORD}
+      CONTROLES_PGDATABASE: meus_controles
+      CONTROLES_BIND_HOST: "0.0.0.0"
+      CONTROLES_PORT: "18765"
+      CONTROLES_PUBLIC_ORIGIN: "https://${CONTROLES_DOMAIN:?Defina CONTROLES_DOMAIN}"
+      CONTROLES_DISABLE_LOCAL_SHUTDOWN: "1"
+    networks:
+      banco_privado:
+      interface_web:
+        aliases:
+          - central-controles-api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18765/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 8s
+      retries: 4
+      start_period: 15s
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  banco_pg:
+
+networks:
+  banco_privado:
+    internal: true
+  interface_web:
+    # O Caddy existente pode ser conectado a esta rede, sem mexer nas portas 80/443.
+    driver: bridge
