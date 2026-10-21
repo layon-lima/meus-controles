@@ -1,0 +1,11 @@
+[Unit]
+Description=Monitorar e recuperar API da Central de Controles
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=3min
+Persistent=true
+Unit=meus-controles-watchdog.service
+
+[Install]
+WantedBy=timers.target
