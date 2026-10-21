@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("CONTROLES_DATA_DIR", str(ROOT / "data"))).resolve()
 DB = DATA / "controles.db"
 PORT = int(os.environ.get("CONTROLES_PORT", "18765"))
-HOST = "127.0.0.1"
+HOST = os.environ.get("CONTROLES_BIND_HOST", "127.0.0.1")
 # O acesso remoto deve passar por um proxy HTTPS com autenticação.
 PUBLIC_ORIGIN = os.environ.get("CONTROLES_PUBLIC_ORIGIN", "").strip().rstrip("/")
 DISABLE_LOCAL_SHUTDOWN = os.environ.get("CONTROLES_DISABLE_LOCAL_SHUTDOWN", "") == "1"
@@ -65,6 +65,10 @@ def money(n):
     return str(n.quantize(MONEY, rounding=ROUND_HALF_UP))
 
 def db():
+    if os.environ.get("CONTROLES_PGHOST"):
+        # Cada requisição usa o PostgreSQL PRIVADO da VPS; SQLite local permanece intacto.
+        from pg_compat import connect
+        return connect()
     DATA.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB, timeout=20)
     conn.row_factory = sqlite3.Row
@@ -353,7 +357,9 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Envie um objeto.")
         return value
     def route(self):
-        if self.headers.get("Host","").split(":")[0].lower() not in ("127.0.0.1","localhost"):
+        public_host = urlsplit(PUBLIC_ORIGIN).hostname if PUBLIC_ORIGIN else None
+        allowed_hosts = ("127.0.0.1", "localhost", public_host)
+        if self.headers.get("Host","").split(":")[0].lower() not in allowed_hosts:
             return self.send({"error":"Host nao permitido."},403)
         if self.command in ("POST","PATCH","PUT","DELETE"):
             origin = self.headers.get("Origin","")
@@ -644,6 +650,8 @@ def ensure_windows_desktop_shortcut():
 
 
 if __name__=="__main__":
+    if os.environ.get("CONTROLES_PGHOST") and (not PUBLIC_ORIGIN.startswith("https://") or not DISABLE_LOCAL_SHUTDOWN):
+        raise RuntimeError("A VPS exige CONTROLES_PUBLIC_ORIGIN=https://... e desligamento remoto desabilitado.")
     initialize()
     ensure_windows_desktop_shortcut()
     server=ThreadingHTTPServer((HOST,PORT),Handler)
