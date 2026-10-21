@@ -244,3 +244,8 @@ html,body,body *:not(svg):not(svg *){
   .app-shell .top-actions{width:100%;justify-content:flex-end}
   .app-shell .control-card{min-width:0}
 }
+
+/* PWA: estado de conexão discreto e visível em desktop/mobile. */
+.connection-status{background:#fff5da;border-bottom:1px solid #e6c46a;color:#584313;padding:9px clamp(18px,3.2vw,46px);font-size:12px;font-weight:700}
+.connection-status[hidden]{display:none}
+@media(max-width:600px){.connection-status{padding:9px 14px}}
