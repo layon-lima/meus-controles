@@ -1,0 +1,8 @@
+[Unit]
+Description=Auto recuperação isolada da Central de Controles
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/apps/meus-controles/deploy/vps/VERIFICAR_APP.sh
