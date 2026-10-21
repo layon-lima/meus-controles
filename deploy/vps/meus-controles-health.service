@@ -1,6 +1,0 @@
-[Unit]
-Description=Verificar e recuperar Central de Controles
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash /opt/apps/meus-controles/deploy/vps/VERIFICAR.sh
