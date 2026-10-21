@@ -383,6 +383,24 @@ class Handler(BaseHTTPRequestHandler):
                 self.send({"ok":True,"message":"Desligando somente a Central de Controles."})
                 threading.Thread(target=self.server.shutdown,daemon=True).start()
                 return
+            if method=="GET" and url=="/api/ready":
+                try:
+                    with db() as probe:
+                        found = probe.execute("SELECT COUNT(*) AS count FROM controls").fetchone()
+                        if found is None:
+                            raise RuntimeError("Banco sem resposta")
+                    return self.send({"ok":True,"database":"ready"})
+                except Exception:
+                    return self.send({"ok":False,"database":"unavailable"},503)
+            if method=="GET" and url=="/manifest.webmanifest":
+                return self.send((ROOT/"static"/"manifest.webmanifest").read_bytes(),mime="application/manifest+json; charset=utf-8")
+            if method=="GET" and url=="/sw.js":
+                return self.send((ROOT/"static"/"sw.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/pwa.js":
+                return self.send((ROOT/"static"/"pwa.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url in ("/pwa-icon-192.png","/pwa-icon-512.png"):
+                from pwa_assets import icon_png
+                return self.send(icon_png(192 if "192" in url else 512),mime="image/png")
             if method=="GET" and url in ("/","/index.html"):
                 return self.send((ROOT/"static"/"index.html").read_bytes(),mime="text/html; charset=utf-8")
             if method=="GET" and url=="/favicon.ico":
