@@ -5,3 +5,12 @@ __pycache__/
 .venv/
 .env
 *.log
+
+# Credenciais da instalação VPS (NUNCA publicar)
+deploy/vps/.env.production
+.env.*
+*.pem
+*.key
+*.p12
+*.sqlite
+*.sqlite3
