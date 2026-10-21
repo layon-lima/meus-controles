@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Meus Controles — Central de Gestão",
+  "short_name": "Meus Controles",
+  "description": "Pastas, acertos, fretes, pagamentos e controles da fazenda.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/?pwa=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#15273d",
+  "background_color": "#f4f7fa",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {"src": "/pwa-icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any"},
+    {"src": "/pwa-icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable"}
+  ]
+}
