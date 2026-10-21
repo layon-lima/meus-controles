@@ -4,14 +4,14 @@ Aplicativo web para criar pastas, controles independentes e formulários própri
 
 ## VPS — acesso online permanente
 
-A edição VPS usa Docker Compose, **PostgreSQL 16 exclusivo** (sem porta pública), restart automático, backup diário e o Caddy existente para HTTPS e senha. O PC continua com SQLite; é necessário migrar um backup do PC para tornar a VPS a fonte de dados. **Não instale Nginx nem publique diretamente a API.**
+A edição VPS usa Docker Compose, **PostgreSQL 16 exclusivo** (sem porta pública), restart automático, backup diário e o Caddy existente para HTTPS (sem usuário/senha de acesso na Central). O PC continua com SQLite; é necessário migrar um backup do PC para tornar a VPS a fonte de dados. **Não instale Nginx nem publique diretamente a API.**
 
 Procedimento: [deploy/vps/README.md](deploy/vps/README.md).
 
 ## Iniciar no Windows — sem terminal
 
 1. Instale Python 3.10+ e Git, se ainda não estiverem instalados.
-2. Clone o repositório privado: `git clone https://github.com/layon-lima/meus-controles.git`.
+2. Clone o repositório: `git clone https://github.com/layon-lima/meus-controles.git`.
 3. Abra a pasta clonada e dê dois cliques em **INICIAR.vbs**.
 4. O **painel web** abre em http://127.0.0.1:18764.
 5. Clique em **Abrir aplicativo** para acessar http://127.0.0.1:18765.
