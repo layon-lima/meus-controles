@@ -1,52 +1,31 @@
 #!/usr/bin/env bash
-# Atualização manual: salva backup, testa sintaxe, aplica main e verifica saúde.
+# Atualização sem recriar o volume de dados PostgreSQL da Central.
 set -euo pipefail
-if [[ "$EUID" -ne 0 ]]; then echo "Execute com sudo/root." >&2; exit 1; fi
+[[ "$EUID" -eq 0 ]] || { echo "Execute como root." >&2; exit 1; }
 ROOT=/opt/apps/meus-controles
 cd "$ROOT"
 exec 9>/run/lock/meus-controles-update.lock
-flock -n 9 || { echo "Já há uma atualização em execução."; exit 1; }
+flock -n 9 || { echo "Outra atualização da Central está em andamento."; exit 1; }
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] ||
-  { echo "Há alterações locais: atualização abortada para proteger arquivos."; exit 1; }
+  { echo "Arquivos versionados alterados localmente; atualização cancelada."; exit 1; }
 [[ "$(git branch --show-current)" == "main" ]] ||
-  { echo "Atualize somente a branch main."; exit 1; }
+  { echo "Atualize apenas main."; exit 1; }
+ENV="$ROOT/deploy/vps/.env.production"
+COMPOSE=(docker compose --env-file "$ENV" -f "$ROOT/deploy/vps/compose.yml")
 OLD="$(git rev-parse HEAD)"
 git fetch --prune origin main
 NEW="$(git rev-parse FETCH_HEAD)"
-git merge-base --is-ancestor "$OLD" "$NEW" ||
-  { echo "Main divergiu: atualização interrompida, sem reset automático."; exit 1; }
+git merge-base --is-ancestor "$OLD" "$NEW" || { echo "A branch não está em fast-forward."; exit 1; }
 
-echo "Criando backup íntegro antes de atualizar..."
-runuser -u meuscontroles -- env CONTROLES_DATA_DIR=/var/lib/meus-controles \
-  CONTROLES_BACKUP_DIR=/var/backups/meus-controles \
-  /usr/bin/python3 "$ROOT/deploy/vps/BACKUP.py"
-if [[ "$OLD" == "$NEW" ]]; then
-  systemctl is-active --quiet meus-controles || systemctl start meus-controles
-  echo "Código já está atualizado."
-  exit 0
-fi
-
+echo "Salvando banco PostgreSQL antes da atualização..."
+bash "$ROOT/deploy/vps/BACKUP_PG.sh"
+if [[ "$OLD" == "$NEW" ]]; then echo "Código já atualizado."; exit 0; fi
 git merge --ff-only "$NEW"
-if ! python3 -m compileall -q app.py controller pair.py pair_records.py \
-   pair_financial_import.py pair_mixed_import.py truck.py debt.py \
-   open_debt.py receiving.py tests; then
-  echo "Código falhou na validação de sintaxe: restaurando revisão anterior." >&2
+echo "Atualizando SOMENTE a API da Central..."
+if ! "${COMPOSE[@]}" up -d --build --no-deps --wait app; then
+  echo "Nova versão falhou; restaurando revisão anterior do código." >&2
   git reset --hard "$OLD"
+  "${COMPOSE[@]}" up -d --build --no-deps app || true
   exit 1
 fi
-
-systemctl restart meus-controles.service
-OK=0
-for i in {1..12}; do
-  if curl --fail --silent --max-time 4 http://127.0.0.1:18765/api/health >/dev/null; then
-    OK=1; break
-  fi
-  sleep 2
-done
-if [[ "$OK" -ne 1 ]]; then
-  echo "Nova versão não iniciou; restaurando código anterior (banco permanece intacto)." >&2
-  git reset --hard "$OLD"
-  systemctl restart meus-controles.service
-  exit 1
-fi
-echo "Central atualizada e respondendo. Revisão: $(git rev-parse --short HEAD)"
+echo "Código atualizado e API no ar. Banco e outros aplicativos preservados."
