@@ -4,7 +4,7 @@ set -euo pipefail
 if [[ "$EUID" -ne 0 ]]; then echo "Execute com sudo/root." >&2; exit 1; fi
 SOURCE="${1:-}"
 if [[ -z "$SOURCE" || ! -f "$SOURCE" || -L "$SOURCE" ]]; then
-  echo "Uso: sudo bash deploy/vps/MIGRAR_BANCO.sh /tmp/controles-do-pc.db" >&2; exit 1
+  echo "Uso: sudo bash deploy/vps/MIGRAR_BANCO.sh /root/controles-do-pc.db" >&2; exit 1
 fi
 SOURCE="$(realpath "$SOURCE")"
 TARGET=/var/lib/meus-controles/controles.db
@@ -25,20 +25,41 @@ read -r -p "Digite MIGRAR para confirmar: " CONFIRM
 [[ "$CONFIRM" == "MIGRAR" ]] || { echo "Cancelado. Nenhum dado alterado."; exit 1; }
 
 systemctl stop meus-controles.service
-# O backup só acontece após o banco atual parar, evitando conflito.
-runuser -u meuscontroles -- env CONTROLES_DATA_DIR=/var/lib/meus-controles \
+# Em qualquer falha durante a cópia, o serviço anterior volta a iniciar.
+trap 'systemctl start meus-controles.service >/dev/null 2>&1 || true' EXIT
+# O backup acontece após o banco atual parar, evitando conflito.
+BACKUP_RESULT="$(runuser -u meuscontroles -- env CONTROLES_DATA_DIR=/var/lib/meus-controles \
   CONTROLES_BACKUP_DIR=/var/backups/meus-controles \
-  /usr/bin/python3 /opt/apps/meus-controles/deploy/vps/BACKUP.py
+  /usr/bin/python3 /opt/apps/meus-controles/deploy/vps/BACKUP.py)"
+echo "$BACKUP_RESULT"
+BACKUP_FILE=""
+if [[ "$BACKUP_RESULT" == "Backup verificado: "* ]]; then
+  BACKUP_FILE="${BACKUP_RESULT#Backup verificado: }"
+fi
 TMP=/var/lib/meus-controles/.controles-importando.db
 install -o meuscontroles -g meuscontroles -m 0600 "$SOURCE" "$TMP"
 mv -f "$TMP" "$TARGET"
 chown meuscontroles:meuscontroles "$TARGET"
 chmod 0600 "$TARGET"
 systemctl start meus-controles.service
-if curl --fail --silent --max-time 10 http://127.0.0.1:18765/api/health >/dev/null; then
-  echo "Banco migrado. Central online. O backup anterior está em /var/backups/meus-controles."
-else
-  echo "O app não respondeu. NÃO execute novamente a migração; confira os logs:" >&2
-  echo "journalctl -u meus-controles -n 80 --no-pager" >&2
+OK=0
+for i in {1..10}; do
+  if curl --fail --silent --max-time 4 http://127.0.0.1:18765/api/health >/dev/null; then
+    OK=1; break
+  fi
+  sleep 1
+done
+if [[ "$OK" -ne 1 ]]; then
+  echo "O banco migrado não iniciou. Tentando restaurar o banco anterior..." >&2
+  systemctl stop meus-controles.service
+  if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
+    install -o meuscontroles -g meuscontroles -m 0600 "$BACKUP_FILE" "$TARGET"
+    systemctl start meus-controles.service
+    echo "Banco anterior restaurado. Consulte: journalctl -u meus-controles -n 80" >&2
+  else
+    echo "Não há backup anterior; arquivo importado preservado para diagnóstico." >&2
+  fi
   exit 1
 fi
+trap - EXIT
+echo "Banco migrado. Central online. Backup anterior preservado em /var/backups/meus-controles."
