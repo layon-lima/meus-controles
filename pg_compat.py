@@ -40,14 +40,12 @@ class Cursor:
         if not _IDENTIFIER.fullmatch(table):
             return None
         sql = "SELECT currval(pg_get_serial_sequence(%s, 'id'))"
-        with self.owner.native.cursor() as cur:
-            cur.execute(sql, (table,))
-            row = cur.fetchone()
-            # A conexão usa dict_row: consultas sem row_factory explícito retornam dict.
-            # O acesso por índice 0 levantava KeyError na primeira criação de controle.
-            if row is None:
-                return None
-            return next(iter(row.values())) if isinstance(row, dict) else row[0]
+        # Executar diretamente na conexão respeita o row_factory da sessão
+        # e funciona também com cursores substitutos em testes.
+        row = self.owner.native.execute(sql, (table,)).fetchone()
+        if row is None:
+            return None
+        return next(iter(row.values())) if isinstance(row, dict) else row[0]
 
     @staticmethod
     def _row(value):
