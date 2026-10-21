@@ -1,0 +1,8 @@
+[Unit]
+Description=Backup PostgreSQL isolado - Central de Controles
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/apps/meus-controles/deploy/vps/BACKUP_PG.sh
