@@ -5,6 +5,7 @@
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const banner = document.getElementById("connectionStatus");
   let wasOffline = false;
+  let pendingReload = false;
   let nextCheck = null;
   let delay = 5000;
   function show(message) {
@@ -26,17 +27,19 @@
       if (!response.ok) throw new Error("Servidor indisponível");
       const data = await response.json();
       if (!data.ok) throw new Error("Banco indisponível");
-      if (wasOffline) {
+      if (wasOffline || pendingReload) {
         wasOffline = false;
-        // Não recarrega durante edição; evita perder o preenchimento.
         if (typeof App !== "undefined" && !App.s.modal) {
+          pendingReload = false;
           await App.load();
-        } else if (typeof App !== "undefined") {
-          App.toast("Conexão restabelecida. Recarregue após salvar ou cancelar este formulário.");
+        } else {
+          // Mantém a solicitação de atualização até o formulário ser fechado.
+          pendingReload = true;
         }
       }
       delay = 5000;
-      hide();
+      if (pendingReload) show("Conexão restabelecida. Feche o formulário para atualizar os dados.");
+      else hide();
       return true;
     } catch (_) {
       wasOffline = true;
