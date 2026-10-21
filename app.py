@@ -33,6 +33,17 @@ DATA = Path(os.environ.get("CONTROLES_DATA_DIR", str(ROOT / "data"))).resolve()
 DB = DATA / "controles.db"
 PORT = int(os.environ.get("CONTROLES_PORT", "18765"))
 HOST = "127.0.0.1"
+# O acesso remoto deve passar por um proxy HTTPS com autenticação.
+PUBLIC_ORIGIN = os.environ.get("CONTROLES_PUBLIC_ORIGIN", "").strip().rstrip("/")
+DISABLE_LOCAL_SHUTDOWN = os.environ.get("CONTROLES_DISABLE_LOCAL_SHUTDOWN", "") == "1"
+
+
+def allowed_mutation_origin(origin):
+    """Em modo público exige Origin HTTPS exato; em modo local preserva o painel Windows."""
+    if PUBLIC_ORIGIN:
+        return PUBLIC_ORIGIN.startswith("https://") and origin == PUBLIC_ORIGIN
+    return not origin or origin in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}")
+
 MONEY = Decimal("0.01")
 SAFE_KEY = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
 
@@ -326,6 +337,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length",str(len(body)))
         self.send_header("Cache-Control","no-store")
         self.send_header("X-Content-Type-Options","nosniff")
+        self.send_header("X-Frame-Options","DENY")
+        self.send_header("Referrer-Policy","no-referrer")
         self.end_headers()
         self.wfile.write(body)
     def input(self):
@@ -344,12 +357,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({"error":"Host nao permitido."},403)
         if self.command in ("POST","PATCH","PUT","DELETE"):
             origin = self.headers.get("Origin","")
-            if origin and origin not in (f"http://127.0.0.1:{PORT}",f"http://localhost:{PORT}"):
+            if not allowed_mutation_origin(origin):
                 return self.send({"error":"Origem nao permitida."},403)
         url = urlsplit(self.path).path
         method = self.command
         try:
             if method=="POST" and url=="/api/internal/shutdown":
+                if DISABLE_LOCAL_SHUTDOWN:
+                    return self.send({"error":"Desligamento remoto desabilitado."},403)
                 key_path = DATA / ".painel-token"
                 try:
                     key = key_path.read_text(encoding="utf-8").strip()
