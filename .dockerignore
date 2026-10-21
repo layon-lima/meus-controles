@@ -1,0 +1,14 @@
+.git
+.gitignore
+**/__pycache__/
+**/*.pyc
+data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+deploy/vps/.env.production
+*.key
+*.pem
