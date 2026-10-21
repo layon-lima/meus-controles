@@ -5,9 +5,7 @@ A versão VPS tem seu próprio banco PostgreSQL, com transações e IDs preserva
 """
 import re
 
-import psycopg
-from psycopg import pq
-from psycopg.rows import dict_row
+# Importação sob demanda: versão Windows não precisa ter psycopg instalado.
 
 _SIMPLE_PK = re.compile(r"\bid\s+INTEGER\s+PRIMARY\s+KEY\b", re.I)
 _TABLE_INFO = re.compile(r"^\s*PRAGMA\s+table_info\(\s*([a-z_][a-z0-9_]*)\s*\)\s*$", re.I)
@@ -69,6 +67,8 @@ class Cursor:
 class Connection:
     def __init__(self):
         import os
+        import psycopg
+        from psycopg.rows import dict_row
         self.native = psycopg.connect(
             host=os.environ["CONTROLES_PGHOST"],
             port=int(os.getenv("CONTROLES_PGPORT", "5432")),
