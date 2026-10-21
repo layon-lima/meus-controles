@@ -1,0 +1,9 @@
+# Acrescentar como um NOVO site ao Caddyfile existente (não substituir os sites atuais).
+# Antes: conectar o container Caddy à rede Docker meus-controles_interface_web.
+# Gere um hash bcrypt de senha pelo próprio Caddy; nunca guarde senha em claro.
+controles.fazendanovohorizonte.com {
+    basic_auth {
+        admin SUBSTITUA_PELO_HASH_BCRYPT
+    }
+    reverse_proxy central-controles-api:18765
+}
