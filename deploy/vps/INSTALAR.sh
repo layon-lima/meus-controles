@@ -49,9 +49,15 @@ install -m 0644 "$ROOT/deploy/vps/meus-controles-pg-backup.timer" \
   /etc/systemd/system/meus-controles-pg-backup.timer
 systemctl daemon-reload
 systemctl enable --now meus-controles-pg-backup.timer
+install -m 0644 "$ROOT/deploy/vps/meus-controles-watchdog.service" \
+  /etc/systemd/system/meus-controles-watchdog.service
+install -m 0644 "$ROOT/deploy/vps/meus-controles-watchdog.timer" \
+  /etc/systemd/system/meus-controles-watchdog.timer
+systemctl daemon-reload
+systemctl enable --now meus-controles-watchdog.timer
 bash "$ROOT/deploy/vps/BACKUP_PG.sh"
 echo
-echo "CENTRAL: Docker e PostgreSQL funcionando. Os outros projetos não foram alterados."
+echo "CENTRAL: Docker, PostgreSQL e watchdog ativados. Os outros projetos não foram alterados."
 echo "API interna: central-controles-api:18765 (rede meus-controles_interface_web)."
 echo "IMPORTANTE: adicione um novo site no Caddyfile existente com base em:"
 echo "$ROOT/deploy/vps/Caddyfile.example"
