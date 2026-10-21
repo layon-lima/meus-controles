@@ -8,7 +8,7 @@ Este projeto tem duas execuções **separadas**:
 **Não instalar Nginx, não parar/recriar o Caddy, GFARM, Pluviômetros ou Contas.**
 A VPS `srv2076923` já usa um contêiner Caddy nas portas 80/443. A Central utiliza somente a rede Docker própria `meus-controles_interface_web`.
 
-## 1. Copiar código do GitHub privado para a VPS (primeira instalação)
+## 1. Copiar código do GitHub para a VPS (primeira instalação)
 
 Acesse a VPS por SSH (Ubuntu) e execute:
 
@@ -18,7 +18,7 @@ cd /opt/apps
 git clone https://github.com/layon-lima/meus-controles.git
 ```
 
-Se o Git pedir autenticação: use um método seguro de acesso ao repositório privado (idealmente **deploy key SSH somente leitura**; não escreva PAT/senha em URL ou script).
+O repositório é público; não coloque credenciais ou dados do banco no GitHub.
 
 ## 2. Instalar sem tocar em outros aplicativos
 
@@ -37,7 +37,8 @@ O instalador:
 - cria volume Docker `meus-controles_banco_pg`, banco compartilhado entre os usuários;
 - não expõe nenhuma porta externa nem a 5432 do banco;
 - conecta o contêiner `pluv-https-caddy-1` à rede da Central sem reiniciá-lo;
-- cria backup PostgreSQL inicial e agenda backup diário às 02:40 em `/opt/apps/backups/meus-controles/`.
+- cria backup PostgreSQL inicial e agenda backup diário às 02:40 em `/opt/apps/backups/meus-controles/`;
+- ativa `meus-controles-watchdog.timer` para recuperar a API quando ficar unhealthy.
 
 **A API ainda não estará acessível pela internet até configurar o Caddy (passo 3).** O banco inicial é novo; os dados do PC não são migrados automaticamente.
 
@@ -125,3 +126,24 @@ docker compose --env-file deploy/vps/.env.production -f deploy/vps/compose.yml l
 - O backup diário fica em outro diretório da mesma VPS. Para recuperação após perda total da VPS, copie também os backups criptografados para um destino fora do servidor.
 - Uma VPS pode sofrer falha ou manutenção: `restart: unless-stopped` recupera reinicializações normais, não garante disponibilidade absoluta 100% do tempo.
 - Alterar código no GitHub não altera automaticamente a VPS: rode `ATUALIZAR.sh`. As senhas e os dados não entram no Git.
+
+## Instalar como PWA (Windows, Android e iPhone)
+
+Depois que o domínio estiver publicado pelo Caddy com HTTPS e senha, abra `https://controles.fazendanovohorizonte.com`.
+
+- Windows (Chrome/Edge): menu do navegador > Instalar Meus Controles.
+- Android (Chrome): menu > Instalar aplicativo / Adicionar à tela inicial.
+- iPhone (Safari): Compartilhar > Adicionar à Tela de Início.
+
+O PWA usa o PostgreSQL da VPS como fonte única. O service worker armazena somente o shell HTML/CSS/JS e ícones; NUNCA respostas `/api/` ou movimentações. Offline, não envia lançamentos. Ao reconectar, atualiza os dados sem reenviar ações automaticamente.
+
+## Diagnóstico de estabilidade
+
+```bash
+cd /opt/apps/meus-controles
+docker compose --env-file deploy/vps/.env.production -f deploy/vps/compose.yml ps
+systemctl status meus-controles-watchdog.timer --no-pager
+journalctl -u meus-controles-watchdog.service -n 30 --no-pager
+```
+
+A rota `/api/ready` verifica de verdade o banco PostgreSQL, além do processo da API. O watchdog só reinicia o contêiner da Central quando o banco está saudável e a API não está, protegendo os demais aplicativos. A VPS continua sujeita a falhas de rede, hardware e manutenção. Para recuperação de perda total da VPS, mantenha backups fora do servidor e configure redundância quando necessário.
