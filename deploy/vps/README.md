@@ -3,7 +3,7 @@
 Este projeto tem duas execuções **separadas**:
 
 - **PC Windows:** painel local na porta 18764, aplicativo 18765, SQLite em `data/controles.db`. Continua disponível para backup/migração.
-- **VPS:** Docker Compose com API Python e PostgreSQL 16 **exclusivo**, volume persistente, sem portas Docker publicadas; Caddy já existente entrega HTTPS e senha.
+- **VPS:** Docker Compose com API Python e PostgreSQL 16 **exclusivo**, volume persistente, sem portas Docker publicadas; Caddy já existente entrega HTTPS, sem formulário de usuário/senha da Central.
 
 **Não instalar Nginx, não parar/recriar o Caddy, GFARM, Pluviômetros ou Contas.**
 A VPS `srv2076923` já usa um contêiner Caddy nas portas 80/443. A Central utiliza somente a rede Docker própria `meus-controles_interface_web`.
@@ -42,7 +42,7 @@ O instalador:
 
 **A API ainda não estará acessível pela internet até configurar o Caddy (passo 3).** O banco inicial é novo; os dados do PC não são migrados automaticamente.
 
-## 3. Publicar no Caddy EXISTENTE, com senha e HTTPS
+## 3. Publicar no Caddy EXISTENTE, com HTTPS e sem login
 
 Depois de criar no DNS o registro A `controles.fazendanovohorizonte.com`, execute **na VPS**,
 com terminal interativo:
@@ -54,11 +54,10 @@ python3 deploy/vps/CONFIGURAR_CADDY.py
 ```
 
 O instalador confere a montagem do Caddyfile do contêiner `pluv-https-caddy-1`, exige
-a rede privada da Central, valida o arquivo atual, pede usuário e senha sem eco,
-gera hash bcrypt pelo próprio Caddy (sem colocar senha em argumento de comando),
-salva backup em `/root/caddy-config-backups/`, acrescenta somente o novo site,
-valida e recarrega o Caddy sem parar os serviços existentes. Em caso de falha,
-restaura o arquivo e tenta recarregar a configuração anterior.
+a rede privada da Central, valida o arquivo atual, salva backup em
+`/root/caddy-config-backups/`, acrescenta ou atualiza somente o site da Central e
+recarrega o Caddy sem parar os demais serviços. Se a atualização falhar,
+restaura a configuração anterior. Não solicita usuário nem senha.
 
 O arquivo original que é preservado é
 `/opt/apps/pluviometros/source/deploy/Caddyfile` (montado como `/etc/caddy/Caddyfile`).
@@ -67,8 +66,11 @@ ser mantida na configuração de origem do Caddy para não desaparecer numa rein
 daquele projeto. **Não rode duas vezes nem substitua o Caddyfile inteiro.**
 
 Depois de o DNS propagar e o Caddy obter o certificado TLS, abra
-`https://controles.fazendanovohorizonte.com`. O navegador pedirá o usuário e a senha.
-A Central só pode ser publicada com essa autenticação ativa.
+`https://controles.fazendanovohorizonte.com`. **Não haverá prompt de login.**
+**Atenção:** qualquer visitante do domínio poderá consultar, cadastrar, editar e excluir
+controles e lançamentos. HTTPS protege o tráfego, não restringe quem acessa.
+Se o endereço for público, considere proteção de acesso sem usuário/senha do Caddy,
+como uma VPN privada para os dispositivos autorizados, antes de migrar os dados reais.
 
 ## 4. Trazer todos os controles e dados que estão no PC
 
@@ -128,7 +130,7 @@ docker compose --env-file deploy/vps/.env.production -f deploy/vps/compose.yml l
 
 ## Instalar como PWA (Windows, Android e iPhone)
 
-Depois que o domínio estiver publicado pelo Caddy com HTTPS e senha, abra `https://controles.fazendanovohorizonte.com`.
+Depois que o domínio estiver publicado pelo Caddy com HTTPS, abra `https://controles.fazendanovohorizonte.com`.
 
 - Windows (Chrome/Edge): menu do navegador > Instalar Meus Controles.
 - Android (Chrome): menu > Instalar aplicativo / Adicionar à tela inicial.
