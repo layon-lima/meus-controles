@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#14263b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/pwa-icon-192.png">
   <title>Central de Controles</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/static/app.css">
@@ -29,7 +33,7 @@
       <button type="button" class="sidebar-create-board" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> Nova pasta</button>
       <div id="sideBoards" class="sidebar-items"></div>
       <div class="sidebar-bottom">
-        <div class="sidebar-version"><span class="status-dot"></span> Servidor local <span class="version">v1.0</span></div>
+        <div class="sidebar-version"><span class="status-dot"></span> Servidor conectado <span class="version">v1.0</span></div>
       </div>
     </aside>
     <div class="mobile-shade" onclick="App.toggleMenu(false)" id="mobileShade"></div>
@@ -50,8 +54,9 @@
           <button class="btn btn-primary" onclick="App.newControl()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> <span class="hide-small">Novo controle</span></button>
         </div>
       </header>
+      <div id="connectionStatus" class="connection-status" role="status" hidden></div>
       <main id="main" class="main"><div class="empty-state">Carregando controles...</div></main>
-      <footer>Central de Controles · Dados salvos neste computador · <span id="footerClock"></span></footer>
+      <footer>Central de Controles · Dados salvos no servidor configurado · <span id="footerClock"></span></footer>
     </div>
   </div>
   <div id="modalRoot"></div>
@@ -67,5 +72,6 @@
   <script src="/static/pair_financial_import.js?v=acerto-misto-formulario-20261014" defer></script>
   <script src="/static/control_types.js" defer></script>
   <script src="/static/receiving_import.js" defer></script>
+  <script src="/static/pwa.js" defer></script>
 </body>
 </html>
