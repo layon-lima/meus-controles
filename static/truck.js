@@ -21,8 +21,8 @@ const truckParseDate=value=>{
     [year,month,day]=raw.split("-").map(Number);
   }else{
     const digits=raw.replace(/[\/.\-\s]/g,"");
-    if(!/^[\d\/.\-\s]+$/.test(raw)||![6,8].includes(digits.length)||!/^\d+$/.test(digits))return null;
-    // Separadores só entre dia, mês e ano; não aceitar agrupamentos ambíguos.
+    // Com barras aceitamos dia e mês com um dígito, sem impor tamanho fixo.
+    // Sem separadores só há duas formas inequívocas: DDMMAA ou DDMMAAAA.
     const compact=/^\d{6}(?:\d{2})?$/;
     const separated=/^\d{1,2}[\/.\-\s]\d{1,2}[\/.\-\s]\d{2}(?:\d{2})?$/;
     if(!compact.test(raw)&&!separated.test(raw))return null;
