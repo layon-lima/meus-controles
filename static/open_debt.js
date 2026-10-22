@@ -35,19 +35,20 @@ Object.assign(App,{
     document.getElementById("main").innerHTML=
       '<div class="open-debt-heading"><div><div class="eyebrow">DÍVIDAS SEM VALOR FIXO</div>'+
       '<h2>'+E(c.name)+'</h2><p>Registre os pagamentos. Não há valor final nem limite de lançamentos.</p></div>'+
-      '<button class="btn btn-sm" onclick="App.openDebtSettings('+c.id+')">'+icon("settings")+' Ajustes</button></div>'+
+      '<div class="open-debt-header-actions"><button class="btn btn-sm btn-primary" onclick="App.openDebtForm()">'+icon("plus")+' Registrar pagamento</button>'+
+      '<button class="btn btn-sm" onclick="App.openDebtSettings('+c.id+')">'+icon("settings")+' Ajustes</button></div></div>'+
       '<section class="open-debt-total"><div><small>TOTAL ACUMULADO DE PAGAMENTOS</small>'+
       '<strong>'+currency(t.paid)+'</strong><p>Cada novo pagamento é somado ao total.</p></div>'+
       '<div class="open-debt-count"><strong>'+t.count+'</strong><span>pagamento(s)</span></div></section>'+
       '<section class="panel open-debt-ledger"><div class="panel-header"><h3>Histórico de pagamentos</h3>'+
       '<div class="actions-end"><button class="btn btn-sm" onclick="App.openDebtExport('+c.id+')">'+icon("download")+' Exportar CSV</button>'+
-      '<button class="btn btn-sm btn-primary" onclick="App.openDebtForm()">'+icon("plus")+' Registrar pagamento</button></div></div>'+
+      '</div></div>'+
       (data.payments.length?'<div class="table-wrap"><table><thead><tr>'+
       '<th>Data</th><th>Descrição</th><th class="numeric">Valor pago</th><th>Ações</th>'+
       '</tr></thead><tbody>'+rows+'</tbody></table></div>':
       '<div class="empty-state open-debt-empty"><strong>Nenhum pagamento registrado.</strong>'+
       '<p>Registre o primeiro pagamento para começar a somar.</p>'+
-      '<button class="btn btn-primary" onclick="App.openDebtForm()">'+icon("plus")+' Registrar pagamento</button></div>')+
+      '</div>')+
       '</section>';
   },
   openDebtForm(id){
