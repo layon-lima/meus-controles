@@ -65,7 +65,7 @@ Object.assign(App,{
       const stamp=x.event_date.slice(8,10)+"/"+x.event_date.slice(5,7)+"/"+x.event_date.slice(0,4);
       const sign=isFreight?"+":"−";
       const lockStatus=this.truckEntryStatus(x.event_date);
-      const subtitle=isFreight?'<span class="secondary-text">'+number(x.weight_kg)+' kg × '+truckMoney(x.price_tonne)+'/t · comissão '+truckMoney(x.commission_amount)+'</span>':"";
+      const subtitle=isFreight?'<span class="secondary-text">'+number(x.weight_kg)+' kg × '+truckMoney(r.settings.price_basis==="kg"?Number(x.price_tonne)/1000:x.price_tonne)+(r.settings.price_basis==="kg"?"/kg":"/t")+' · comissão '+truckMoney(x.commission_amount)+'</span>':"";
       return '<tr><td>'+E(stamp)+'</td><td><b>'+E(x.description)+'</b>'+subtitle+'</td><td><span class="chip">'+E(x.category)+'</span></td>'+
         '<td class="numeric '+(isFreight?"positive":"negative")+'">'+sign+truckMoney(x.amount)+'</td>'+
         '<td><div class="table-actions">'+(lockStatus?'<span class="truck-record-lock">'+icon("lock")+' '+E(lockStatus)+'</span>':
