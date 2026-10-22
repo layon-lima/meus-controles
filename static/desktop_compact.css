@@ -290,3 +290,20 @@
   .app-shell .receiving-status{padding:3px 5px;font-size:10px;white-space:normal}
   .app-shell .receiving-subline{margin-top:2px}
 }
+
+/* Botão principal único em telas de controle dedicadas. */
+@media (min-width:821px) {
+  .app-shell :is(.truck-nav-actions,.debt-heading-actions,.open-debt-header-actions,.ab-header-actions){
+    display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:6px;min-width:0
+  }
+  .app-shell .truck-nav{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}
+  #modalRoot .truck-entry-type{margin:0 0 9px}
+  #modalRoot .truck-entry-type-actions select{min-height:30px;height:30px;font-size:11px}
+  #modalRoot .truck-entry-type-actions .btn{min-height:30px;padding:5px 9px;font-size:11px}
+  .app-shell .truck-review-grid{min-width:0;max-width:100%;overflow-x:hidden}
+  .app-shell .truck-review-table{min-width:0;table-layout:fixed;width:100%}
+}
+@media (min-width:821px) and (max-width:1050px) {
+  .app-shell .truck-review-table thead th:nth-child(6),
+  .app-shell .truck-review-table tbody .truck-review-row td:nth-child(6){display:none}
+}
