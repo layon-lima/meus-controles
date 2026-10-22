@@ -31,7 +31,8 @@ Object.assign(App,{
     const tab=this.s.pairTab||"entries";
     const intro='<div class="ab-top"><div><div class="eyebrow">ACERTO ENTRE DUAS PESSOAS</div>'+
       '<h2>'+E(a)+' <span>×</span> '+E(b)+'</h2></div>'+
-      '<button class="btn btn-sm" onclick="App.pairSettings('+data.control_id+')">'+icon("settings")+' Ajustes</button></div>'+
+      '<div class="ab-header-actions"><button class="btn btn-sm btn-primary" onclick="App.pairNewLaunch()">'+icon("plus")+' Novo lançamento</button>'+
+       '<button class="btn btn-sm" onclick="App.pairSettings('+data.control_id+')">'+icon("settings")+' Ajustes</button></div></div>'+
       '<section class="ab-balance"><div><small>SALDO LÍQUIDO ATUAL</small>'+
       '<p>'+abResult(s)+'</p><span>Dívidas nos dois sentidos e pagamentos reais reduzem ou aumentam o saldo conforme quem deve e quem paga.</span></div>'+
       '<strong>'+currency(s.amount)+'</strong></section>';
@@ -48,6 +49,26 @@ Object.assign(App,{
   pairSelectTab(tab){
     if(!["entries","closures","details"].includes(tab))return;
     this.s.pairTab=tab;this.renderPairView();
+  },
+  pairNewLaunch(){
+    if(!this.canOpenForm())return;
+    this.s.modal="pair-new-launch";this.s.modalContext={controlId:this.s.pairData?.control_id};
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal ab-form" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Novo lançamento</h2>'+
+      '<p>Selecione o tipo de registro que deseja criar.</p></div>'+
+      '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><div class="ab-new-launch-choices">'+
+      '<button class="btn" onclick="App.pairChooseLaunch(&quot;debt&quot;)">'+icon("wallet")+' Dívida / compensação</button>'+
+      '<button class="btn" onclick="App.pairChooseLaunch(&quot;payment&quot;)">'+icon("check")+' Pagamento real</button>'+
+      '<button class="btn" onclick="App.pairChooseLaunch(&quot;record&quot;)">'+icon("clipboard")+' Registro sem efeito no saldo</button>'+
+      '</div></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button></div></div></div>';
+  },
+  pairChooseLaunch(type){
+    if(this.s.modal!=="pair-new-launch")return;
+    this.closeModal();
+    if(type==="record")this.pairRecordForm();
+    else this.pairEntryForm(null,type==="payment"?"payment":"debt");
   },
   pairDetailedSummaryHTML(){
     const data=this.s.pairData;
@@ -98,15 +119,15 @@ Object.assign(App,{
       '<div class="ab-row-actions"><button class="btn btn-sm" onclick="App.pairToggleHistory()">'+icon("list")+
       (all?" Período atual":" Ver histórico")+'</button>'+
       '<button class="btn btn-sm" onclick="App.pairImportRecords()">'+icon("list")+' Importar lançamentos</button>'+
-      '<button class="btn btn-sm" onclick="App.pairRecordForm()">'+icon("clipboard")+' Novo registro</button>'+
-      '<button class="btn btn-sm" onclick="App.pairEntryForm(null,&quot;payment&quot;)">'+icon("wallet")+' Registrar pagamento</button>'+
-      '<button class="btn btn-primary btn-sm" onclick="App.pairEntryForm(null,&quot;debt&quot;)">'+icon("plus")+' Nova dívida</button></div></div>'+
+      
+      
+      '</div></div>'+
       '<section class="panel ab-table">'+(visible.length?
       '<div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo e descrição</th><th>Origem → Destino / Quem deve ou pagou</th>'+
       '<th class="numeric">Valor</th><th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>':
       '<div class="empty-state"><strong>Sem lançamentos neste período.</strong>'+
       '<p>Cadastre dívidas, pagamentos reais ou registros que não afetam o saldo.</p>'+
-      '<button class="btn btn-primary" onclick="App.pairEntryForm()">'+icon("plus")+' Novo lançamento</button></div>')+
+      '</div>')+
       '</section>';
   },
   pairToggleHistory(){this.s.pairAll=!this.s.pairAll;this.renderPairView()},
