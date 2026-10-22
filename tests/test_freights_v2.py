@@ -35,7 +35,7 @@ class FreightsV2Tests(unittest.TestCase):
         cid=self.upgraded()
         with app.db() as con:
             conf=truck.settings(con,cid)
-            self.assertEqual(conf["price_basis"],"kg")
+            self.assertEqual(conf["price_basis"],"tonne")
             self.assertEqual(conf["commission_pct"],"13")
             self.assertEqual(conf["freight_types"],["Frete Normal","Frete Jonas"])
             self.assertEqual(conf["categories"],[
@@ -56,7 +56,7 @@ class FreightsV2Tests(unittest.TestCase):
         with app.db() as con:
             base={"date":"2026-10-01","description":"Frete de soja","kind":"freight","notes":""}
             for name in ("Frete Normal","Frete Jonas"):
-                vals=truck.compute_entry(con,cid,{**base,"category":name,"weight_kg":"1000","price_kg":"1,80"})
+                vals=truck.compute_entry(con,cid,{**base,"category":name,"weight_kg":"1000","price_tonne":"1800"})
                 self.assertEqual(vals[8],"1800.00")
                 self.assertEqual(vals[9],"234.00")
                 con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
@@ -107,7 +107,7 @@ class FreightsV2Tests(unittest.TestCase):
             old=truck.compute_entry(con,cid,{
                 "date":"2026-10-02","kind":"freight","category":"Frete Jonas",
                 "description":"Frete antigo, comissão original 10%",
-                "weight_kg":"1000","price_kg":"2","notes":""})
+                "weight_kg":"1000","price_tonne":"2000","notes":""})
             self.assertEqual(old[9],"200.00")
             con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
                 description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
@@ -119,7 +119,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(dict(saved),dict(before))
             fresh=truck.compute_entry(con,cid,{
                 "date":"2026-10-03","kind":"freight","category":"Frete Normal",
-                "description":"Novo frete", "weight_kg":"1000","price_kg":"2"})
+                "description":"Novo frete", "weight_kg":"1000","price_tonne":"2000"})
             self.assertEqual(fresh[9],"260.00")
             # A correção é única; um ajuste posterior feito pelo usuário é respeitado.
             con.execute("UPDATE truck_settings SET commission_pct='12' WHERE control_id=?",(cid,))
@@ -133,6 +133,89 @@ class FreightsV2Tests(unittest.TestCase):
             truck.save_settings(con,cid,{"commission_pct":"10"})
             app.fix_seeded_freight_commission(con)
             self.assertEqual(truck.settings(con,cid)["commission_pct"],"10")
+
+    def test_fix_wrong_per_kg_calcario_entries_once_with_audit(self):
+        cid=self.upgraded()
+        expected=[
+            ("2026-10-15","47000","10105.00","1313.65"),
+            ("2026-10-10","47610","10236.15","1330.70"),
+            ("2026-10-06","48380","10401.70","1352.22"),
+        ]
+        with app.db() as con:
+            con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
+            original={}
+            for day,weight,amount,commission in expected:
+                values=truck.compute_entry(con,cid,{"date":day,"kind":"freight",
+                    "category":"Frete Jonas","description":"CALCARIO JONAS",
+                    "weight_kg":weight,"price_kg":"215"})
+                record=con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                    description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)""",values)
+                original[record.lastrowid]=values
+            app.correct_freight_tonne_unit(con)
+            self.assertEqual(truck.settings(con,cid)["price_basis"],"tonne")
+            after=con.execute("SELECT * FROM truck_entries WHERE control_id=? ORDER BY event_date DESC",(cid,)).fetchall()
+            self.assertEqual(len(after),3)
+            for entry,(_,weight,amount,commission) in zip(after,expected):
+                self.assertEqual(entry["weight_kg"],weight)
+                self.assertEqual(entry["price_tonne"],"215")
+                self.assertEqual(entry["amount"],amount)
+                self.assertEqual(entry["commission_amount"],commission)
+                self.assertEqual(entry["commission_pct"],"13")
+                self.assertEqual(entry["description"],"CALCARIO JONAS")
+                self.assertEqual(entry["category"],"Frete Jonas")
+            before=[dict(row) for row in after]
+            app.correct_freight_tonne_unit(con)
+            again=[dict(row) for row in con.execute(
+                "SELECT * FROM truck_entries WHERE control_id=? ORDER BY event_date DESC",(cid,))]
+            self.assertEqual(before,again)
+            audit=con.execute("SELECT value FROM settings WHERE key=?",
+                ("freight_tonne_215_fix_v1_"+str(cid),)).fetchone()
+            self.assertIsNotNone(audit)
+            self.assertEqual(len(__import__("json").loads(audit["value"])),3)
+            totals=truck.summary(con,cid)["totals"]
+            self.assertEqual(totals["freight"],"30743.85")
+            self.assertEqual(totals["commission_earned"],"3996.57")
+
+    def test_existing_conference_protects_financial_history_from_auto_fix(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
+            values=truck.compute_entry(con,cid,{"date":"2026-10-06","kind":"freight",
+                "category":"Frete Jonas","description":"CALCARIO JONAS",
+                "weight_kg":"48380","price_kg":"215"})
+            con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)""",values)
+            pre=truck_workflow.review_preview(con,cid,"2026-10-06","2026-10-06")
+            truck_workflow.confirm_review(con,cid,{
+                "start":"2026-10-06","end":"2026-10-06",
+                "fingerprint":pre["fingerprint"],
+                "checked_ids":[entry["id"] for entry in pre["entries"]]})
+        with app.db() as con:
+            app.correct_freight_tonne_unit(con)
+            self.assertEqual(truck.settings(con,cid)["price_basis"],"kg")
+            entry=con.execute("SELECT amount,price_tonne FROM truck_entries WHERE control_id=?",(cid,)).fetchone()
+            self.assertEqual(entry["amount"],"10401700.00")
+            self.assertEqual(entry["price_tonne"],"215000")
+            self.assertIsNone(con.execute("SELECT value FROM settings WHERE key=?",
+                ("freight_tonne_215_fix_v1_"+str(cid),)).fetchone())
+
+    def test_other_unrelated_freights_unchanged_by_fix(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
+            vals=truck.compute_entry(con,cid,{"date":"2026-10-03","kind":"freight",
+                "category":"Frete Normal","description":"Outro frete",
+                "weight_kg":"1000","price_kg":"0,5"})
+            con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)""",vals)
+            before=dict(con.execute("SELECT * FROM truck_entries WHERE control_id=?",(cid,)).fetchone())
+            app.correct_freight_tonne_unit(con)
+            after=dict(con.execute("SELECT * FROM truck_entries WHERE control_id=?",(cid,)).fetchone())
+            self.assertEqual(before,after)
+            self.assertEqual(truck.settings(con,cid)["price_basis"],"tonne")
 
     def test_existing_tonne_pricing_unchanged(self):
         with app.db() as con:
