@@ -199,12 +199,21 @@ Object.assign(App,{
     const button=document.getElementById("truckReviewConfirmButton");
     if(message)message.textContent=count+" de "+total+" lançamentos verificados";
     if(button)button.disabled=count!==total;
+    if(Number.isInteger(id)&&id>0){
+      const row=document.querySelector('[data-review-id="'+id+'"]')?.closest(".truck-review-row");
+      const badge=row?.querySelector(".truck-review-status span");
+      if(badge){badge.className=checked?"checked":"pending";badge.textContent=checked?"Marcado":"Pendente"}
+    }
   },
   truckMarkAllReview(){
     const p=this.s.truckReviewPreview;
     if(!p)return;
     this.s.truckReviewMarked=new Set(p.entries.map(e=>e.id));
-    document.querySelectorAll("[data-review-id]").forEach(el=>{el.checked=true});
+    document.querySelectorAll("[data-review-id]").forEach(el=>{
+      el.checked=true;
+      const badge=el.closest(".truck-review-row")?.querySelector(".truck-review-status span");
+      if(badge){badge.className="checked";badge.textContent="Marcado"}
+    });
     this.truckToggleReview(null,false);
   },
   async truckConfirmReview(){
