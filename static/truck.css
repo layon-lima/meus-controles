@@ -304,3 +304,12 @@
   flex:none;
   white-space:nowrap;
 }
+
+/* Tipos de lançamento, uma opção por finalidade, com criação imediata de categoria. */
+.truck-entry-type{margin:0 0 12px}
+.truck-entry-type label{display:block;font-size:11px;font-weight:700;color:#435e6b;margin:0 0 5px}
+.truck-entry-type-actions{display:flex;gap:7px;align-items:center;min-width:0}
+.truck-entry-type-actions select{min-width:0;flex:1;height:34px;padding:5px 9px;border:1px solid #d9e2e8;border-radius:7px;background:#fff;font-size:12px}
+.truck-entry-type-actions .btn{flex:none;min-height:34px;padding:5px 9px}
+.truck-nav-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+@media(max-width:590px){.truck-entry-type-actions{flex-wrap:wrap}.truck-entry-type-actions select{flex:1 1 100%}.truck-entry-type-actions .btn{width:100%}.truck-nav-actions{justify-content:flex-end}}
