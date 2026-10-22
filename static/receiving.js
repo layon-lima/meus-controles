@@ -72,7 +72,7 @@ Object.assign(App,{
        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
        '<th>Status</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
        '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
-       '<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto</button></div>')+'</section>'+
+       '</div>')+'</section>'+
       '<section class="panel receiving-table"><div class="panel-header"><h3>Histórico de notas fiscais</h3>'+
       '<span class="secondary-text">'+t.receipts+' entrega(s)</span></div>'+
       (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
