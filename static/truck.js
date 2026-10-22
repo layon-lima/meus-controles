@@ -361,8 +361,9 @@ Object.assign(App,{
     const kind=ctx.kind;
     let title, lines;
     if(kind==="freight"){
-      const kg=truckNum(f.get("weight_kg")),pt=truckNum(f.get("price_tonne"));
-      const total=Math.round(kg/1000*pt*100)/100;
+      const kg=truckNum(f.get("weight_kg"));
+      const pt=truckNum(f.get(ctx.settings.price_basis==="kg"?"price_kg":"price_tonne"));
+      const total=Math.round(kg*(ctx.settings.price_basis==="kg"?pt:pt/1000)*100)/100;
       const commission=Math.round(total*truckNum(ctx.settings.commission_pct)/100*100)/100;
       title="Cálculo do frete";
       lines=[["Total do frete",total],["Comissão do motorista ("+ctx.settings.commission_pct+"%)",commission],
@@ -380,16 +381,11 @@ Object.assign(App,{
   async truckSave(){
     const ctx=this.s.modalContext,form=document.getElementById("truckForm");
     if(!ctx||!form)return;
-    if(ctx.kind==="expense"){
-      const category=document.getElementById("truckExpenseCategory");
-      if(!category)return;
-      this.truckValidateExpenseCategory(category,true);
-    }
     if(!form.reportValidity())return;
     const f=new FormData(form);
-    const payload={date:f.get("date"),description:f.get("description"),kind:ctx.kind,category:f.get("category"),
+    const payload={date:f.get("date"),description:f.get("description"),kind:ctx.kind,category:ctx.category,
                    notes:f.get("notes"),amount:f.get("amount"),weight_kg:f.get("weight_kg"),
-                   price_tonne:f.get("price_tonne")};
+                   price_tonne:f.get("price_tonne"),price_kg:f.get("price_kg")};
     try{
       const entryId=ctx.entry?.id;
       await this.api(entryId?"/api/truck-entries/"+entryId:"/api/controls/"+ctx.controlId+"/truck/entries",
@@ -546,7 +542,7 @@ Object.assign(App,{
     const f=new FormData(form);
     const payload={name:f.get("name"),commission_pct:f.get("commission_pct"),
       opening_cash:f.get("opening_cash"),opening_commission:f.get("opening_commission"),
-      driver_name:f.get("driver_name"),categories,category_renames:renames,
+      driver_name:f.get("driver_name"),price_basis:ctx.settings.price_basis||"tonne",categories,category_renames:renames,
       freight_types:freights,freight_type_renames:freightRenames};
     try{
       await this.api("/api/controls/"+ctx.controlId+"/truck/settings","PUT",payload);
