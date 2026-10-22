@@ -170,12 +170,39 @@ class FreightsV2Tests(unittest.TestCase):
                 "SELECT * FROM truck_entries WHERE control_id=? ORDER BY event_date DESC",(cid,))]
             self.assertEqual(before,again)
             audit=con.execute("SELECT value FROM settings WHERE key=?",
-                ("freight_tonne_215_fix_v1_"+str(cid),)).fetchone()
+                ("freight_tonne_215_fix_v2_"+str(cid),)).fetchone()
             self.assertIsNotNone(audit)
             self.assertEqual(len(__import__("json").loads(audit["value"])),3)
             totals=truck.summary(con,cid)["totals"]
             self.assertEqual(totals["freight"],"30742.85")
             self.assertEqual(totals["commission_earned"],"3996.57")
+
+    def test_fix_still_runs_if_previous_version_already_switched_to_tonnes(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            # Versão v1 pode ter alterado settings ou gravado marcador,
+            # sem efetivamente retificar os lançamentos financeiros.
+            con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
+            wrong=truck.compute_entry(con,cid,{"date":"2026-10-15",
+                "kind":"freight","category":"Frete Jonas",
+                "description":"CALCARIO JONAS",
+                "weight_kg":"47000","price_kg":"215"})
+            con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)""",wrong)
+            con.execute("UPDATE truck_settings SET price_basis='tonne' WHERE control_id=?",(cid,))
+            con.execute("INSERT INTO settings(key,value) VALUES(?,?)",
+                ("freight_tonne_215_fix_v1_"+str(cid),"[]"))
+            app.correct_freight_tonne_unit(con)
+            row=con.execute("SELECT * FROM truck_entries WHERE control_id=?",(cid,)).fetchone()
+            self.assertEqual(row["amount"],"10105.00")
+            self.assertEqual(row["commission_amount"],"1313.65")
+            self.assertEqual(row["price_tonne"],"215")
+            self.assertEqual(truck.settings(con,cid)["price_basis"],"tonne")
+            mark=con.execute("SELECT value FROM settings WHERE key=?",
+                ("freight_tonne_215_fix_v2_"+str(cid),)).fetchone()
+            self.assertIsNotNone(mark)
+            self.assertEqual(len(__import__("json").loads(mark["value"])),1)
 
     def test_existing_conference_protects_financial_history_from_auto_fix(self):
         cid=self.upgraded()
@@ -199,7 +226,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(entry["amount"],"10401700.00")
             self.assertEqual(entry["price_tonne"],"215000")
             self.assertIsNone(con.execute("SELECT value FROM settings WHERE key=?",
-                ("freight_tonne_215_fix_v1_"+str(cid),)).fetchone())
+                ("freight_tonne_215_fix_v2_"+str(cid),)).fetchone())
 
     def test_other_unrelated_freights_unchanged_by_fix(self):
         cid=self.upgraded()
