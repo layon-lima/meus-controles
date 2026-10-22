@@ -206,3 +206,87 @@
   .app-shell .board-grid,.app-shell .control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   #modalRoot .modal,#modalRoot .modal.large{width:min(760px,calc(100vw - 28px))}
 }
+
+/* Densidade uniforme nos modelos dedicados, exclusivamente em desktop. */
+@media (min-width:821px) {
+  .app-shell .truck-toolbar,
+  .app-shell .receiving-head,
+  .app-shell .debt-heading,
+  .app-shell .open-debt-heading,
+  .app-shell .ab-top{
+    gap:8px;margin-bottom:8px;min-height:28px;
+  }
+  .app-shell .truck-toolbar h2,
+  .app-shell .receiving-head h2,
+  .app-shell .debt-heading h2,
+  .app-shell .open-debt-heading h2,
+  .app-shell .ab-top h2{font-size:15px;margin:0}
+  .app-shell .ab-top h2 span{font-size:13px}
+  .app-shell .truck-toolbar .secondary-text,
+  .app-shell .receiving-head p,
+  .app-shell .debt-heading p,
+  .app-shell .open-debt-heading p{font-size:10px;margin:1px 0 0}
+  .app-shell .truck-quick-actions{gap:6px;margin:0 0 8px}
+  .app-shell .truck-quick{min-height:30px;padding:5px 9px;font-size:11px;border-radius:6px;gap:5px}
+  .app-shell .truck-quick .ui-icon{width:14px;height:14px}
+  .app-shell .truck-period{gap:8px;margin:0 0 8px}
+  .app-shell .truck-period select{min-height:30px;padding:4px 8px;font-size:11px}
+  .app-shell .truck-columns{gap:8px;margin:0 0 9px}
+  .app-shell .truck-columns .panel-header,
+  .app-shell .truck-ledger .panel-header{padding:7px 10px}
+  .app-shell .truck-columns .panel-body{padding:8px 10px}
+  .app-shell .truck-columns .info-row{padding:6px 0;font-size:11px}
+  .app-shell .truck-note{padding:7px 8px;margin:6px 0 0;font-size:10px}
+  .app-shell .truck-due{padding:7px!important;margin-top:5px}
+  .app-shell .truck-tablist{display:flex;flex-wrap:wrap;overflow-x:visible;gap:5px;max-width:100%}
+  .app-shell .truck-workflow-metrics{gap:7px;margin:7px 0 9px}
+  .app-shell .truck-workflow-metric{gap:3px;padding:8px;border-radius:6px}
+  .app-shell .truck-workflow-metric small{font-size:10px}
+  .app-shell .truck-workflow-metric strong{font-size:15px}
+  .app-shell .truck-workflow-section .panel-header{padding:7px 10px}
+  .app-shell .truck-entry-form .truck-tabs{margin:0 0 9px}
+  .app-shell .truck-entry-form .truck-tabs button{padding:7px 4px;font-size:11px}
+
+  .app-shell .ab-view{gap:8px}
+  .app-shell .ab-balance{padding:9px 12px;gap:10px;border-radius:7px}
+  .app-shell .ab-balance>div{gap:2px}
+  .app-shell .ab-balance p{font-size:12px}
+  .app-shell .ab-balance small,.app-shell .ab-balance span{font-size:10px}
+  .app-shell .ab-balance>strong{font-size:21px;white-space:normal;overflow-wrap:anywhere}
+  .app-shell .ab-stats{gap:7px}
+  .app-shell .ab-stats>div{gap:3px;padding:7px 10px;border-radius:6px}
+  .app-shell .ab-stats small{font-size:10px}
+  .app-shell .ab-stats strong{font-size:15px}
+  .app-shell .ab-tabs{flex-wrap:wrap;margin:2px 0 0}
+  .app-shell .ab-tab{padding:6px 10px;font-size:11px}
+  .app-shell .ab-section,.app-shell .ab-close-section{gap:8px}
+  .app-shell .ab-section-body{padding:9px 11px}
+  .app-shell .ab-note{margin-top:2px}
+  .app-shell .ab-table td:nth-child(2){min-width:0}
+  .app-shell .ab-table td.numeric{white-space:normal}
+  .app-shell .ab-date-row{gap:7px}
+  .app-shell .ab-date-row input,.app-shell .ab-date-row button{min-height:30px}
+  .app-shell .ab-preview{margin-top:8px;padding-top:8px}
+  .app-shell .ab-preview-line strong{font-size:20px}
+
+  .app-shell .debt-summary,
+  .app-shell .receiving-kpis{gap:7px;margin-bottom:9px}
+  .app-shell .debt-metric,
+  .app-shell .receiving-kpi{gap:3px;padding:7px 10px;min-height:53px;border-radius:7px;box-shadow:none}
+  .app-shell .debt-metric span,
+  .app-shell .receiving-kpi span{font-size:10px}
+  .app-shell .debt-metric strong,
+  .app-shell .receiving-kpi strong{font-size:18px;line-height:1.2!important;white-space:normal;overflow-wrap:anywhere}
+  .app-shell .open-debt-total{padding:9px 12px;margin-bottom:9px;gap:8px;border-radius:7px}
+  .app-shell .open-debt-total>div:first-child{gap:2px}
+  .app-shell .open-debt-total strong{font-size:21px}
+  .app-shell .open-debt-total p{font-size:10px}
+  .app-shell .open-debt-count{padding:6px 10px;min-width:75px}
+  .app-shell .open-debt-count strong{font-size:17px}
+  .app-shell .open-debt-hint{margin:8px 0;padding:6px 8px}
+  .app-shell .receiving-section-heading{gap:7px;margin-bottom:7px}
+  .app-shell .receiving-search{min-width:0;padding:4px 8px;border-radius:6px}
+  .app-shell .receiving-table{margin-bottom:9px}
+  .app-shell .receiving-status{padding:3px 5px;font-size:10px;white-space:normal}
+  .app-shell .receiving-subline{margin-top:2px}
+}
