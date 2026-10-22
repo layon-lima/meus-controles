@@ -53,7 +53,8 @@ def init(con):
         opening_cash TEXT NOT NULL DEFAULT '0',
         driver_name TEXT NOT NULL DEFAULT '',
         categories_json TEXT NOT NULL DEFAULT '',
-        freight_types_json TEXT NOT NULL DEFAULT ''
+        freight_types_json TEXT NOT NULL DEFAULT '',
+        price_basis TEXT NOT NULL DEFAULT 'tonne'
     );
     CREATE TABLE IF NOT EXISTS truck_entries(
         id INTEGER PRIMARY KEY,
@@ -79,6 +80,8 @@ def init(con):
         con.execute("ALTER TABLE truck_settings ADD COLUMN categories_json TEXT NOT NULL DEFAULT ''")
     if "freight_types_json" not in existing:
         con.execute("ALTER TABLE truck_settings ADD COLUMN freight_types_json TEXT NOT NULL DEFAULT ''")
+    if "price_basis" not in existing:
+        con.execute("ALTER TABLE truck_settings ADD COLUMN price_basis TEXT NOT NULL DEFAULT 'tonne'")
     # Migração sem perda de dados: cada caminhão conserva as categorias
     # já utilizadas em seus lançamentos, inclusive as importadas da planilha.
     rows=con.execute("SELECT control_id FROM truck_settings WHERE categories_json=''").fetchall()
@@ -138,9 +141,9 @@ def validate_freights(value):
 
 def settings(con, cid):
     check_control(con,cid)
-    row=con.execute("SELECT commission_pct,opening_commission,opening_cash,driver_name,categories_json,freight_types_json FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
+    row=con.execute("SELECT commission_pct,opening_commission,opening_cash,driver_name,categories_json,freight_types_json,price_basis FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
     if not row:
-        return {"commission_pct":"13","opening_commission":"0","opening_cash":"0","driver_name":"","categories":list(CATEGORIES),"freight_types":list(FREIGHT_CATEGORIES)}
+        return {"commission_pct":"13","opening_commission":"0","opening_cash":"0","driver_name":"","price_basis":"tonne","categories":list(CATEGORIES),"freight_types":list(FREIGHT_CATEGORIES)}
     obj=dict(row)
     freights_text=obj.pop("freight_types_json")
     obj["freight_types"]=json.loads(freights_text) if freights_text else list(FREIGHT_CATEGORIES)
@@ -163,6 +166,9 @@ def save_settings(con, cid, payload):
     opening_commission=num(payload.get("opening_commission","0"),"o saldo inicial do motorista")
     opening_cash=num(payload.get("opening_cash","0"),"o saldo inicial do caminhão")
     driver=safe_text(payload.get("driver_name",""),"o nome do motorista",100)
+    price_basis=payload.get("price_basis",previous.get("price_basis","tonne"))
+    if price_basis not in ("kg","tonne"):
+        raise ValueError("Unidade do preço do frete inválida.")
 
     categories=validate_categories(payload.get("categories",previous["categories"]))
     freight_types=validate_freights(payload.get("freight_types",previous["freight_types"]))
@@ -241,17 +247,34 @@ def save_settings(con, cid, payload):
     if "name" in payload:
         name=safe_text(payload["name"],"o nome do controle",150,True)
         con.execute("UPDATE controls SET name=? WHERE id=?",(name,cid))
-    con.execute("""INSERT INTO truck_settings(control_id,commission_pct,opening_commission,opening_cash,driver_name,categories_json,freight_types_json)
-        VALUES(?,?,?,?,?,?,?) ON CONFLICT(control_id) DO UPDATE SET
+    con.execute("""INSERT INTO truck_settings(control_id,commission_pct,opening_commission,opening_cash,driver_name,categories_json,freight_types_json,price_basis)
+        VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(control_id) DO UPDATE SET
         commission_pct=excluded.commission_pct,
         opening_commission=excluded.opening_commission,
         opening_cash=excluded.opening_cash,driver_name=excluded.driver_name,
         categories_json=excluded.categories_json,
-        freight_types_json=excluded.freight_types_json""",
+        freight_types_json=excluded.freight_types_json,
+        price_basis=excluded.price_basis""",
         (cid,str(pct),money(opening_commission),money(opening_cash),driver,
          json.dumps(categories,ensure_ascii=False),
-         json.dumps(freight_types,ensure_ascii=False)))
+         json.dumps(freight_types,ensure_ascii=False),price_basis))
     return settings(con,cid)
+
+def add_category(con,cid,new_name):
+    """Cadastra uma categoria sem reescrever dados ou valores financeiros."""
+    check_control(con,cid)
+    if not con.in_transaction:
+        con.execute("BEGIN IMMEDIATE")
+    name=safe_text(new_name,"o nome da nova categoria",90,True)
+    previous=settings(con,cid)
+    if any(name.casefold()==item.casefold() for item in
+           [*previous["categories"],*previous["freight_types"],*ADVANCE_CATEGORIES]):
+        raise ValueError("Essa categoria já existe ou tem nome reservado.")
+    saved=save_settings(con,cid,{**previous,
+        "categories":[*previous["categories"],name]})
+    con.commit()
+    return {"name":name,"categories":saved["categories"]}
+
 
 def compute_entry(con, cid, payload):
     config=settings(con,cid)
@@ -274,7 +297,11 @@ def compute_entry(con, cid, payload):
             raise ValueError("Escolha um tipo de frete cadastrado nos Ajustes.")
         category=name
         weight=num(payload.get("weight_kg"),"o peso em kg",True)
-        price=num(payload.get("price_tonne"),"o preço por tonelada",True)
+        if config.get("price_basis")=="kg":
+            per_kg=num(payload.get("price_kg"),"o valor por kg",True)
+            price=per_kg*Decimal("1000")
+        else:
+            price=num(payload.get("price_tonne"),"o preço por tonelada",True)
         amount=(weight/Decimal("1000")*price).quantize(CENT,rounding=ROUND_HALF_UP)
         if amount>MAX:
             raise ValueError("Valor total do frete acima do limite.")
@@ -362,7 +389,7 @@ def summary(con,cid,month="",scope=None):
     }
 
 def handle(handler,con,method,path):
-    base=re.fullmatch(r"/api/controls/(\d+)/truck(?:/(entries|settings|export.csv))?",path)
+    base=re.fullmatch(r"/api/controls/(\d+)/truck(?:/(entries|settings|categories|export.csv))?",path)
     entry=re.fullmatch(r"/api/truck-entries/(\d+)",path)
     if not base and not entry: return False
     if base:
@@ -389,6 +416,8 @@ def handle(handler,con,method,path):
             conf=save_settings(con,cid,p)
             con.commit()
             return handler.send(conf)
+        if method=="POST" and action=="categories":
+            return handler.send(add_category(con,cid,handler.input().get("name")),201)
         if method=="POST" and action=="entries":
             p=handler.input()
             con.execute("BEGIN IMMEDIATE")
