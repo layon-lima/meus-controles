@@ -522,7 +522,7 @@ class Handler(BaseHTTPRequestHandler):
                 if re.fullmatch(r"/api/controls/\d+/truck/(?:workflow|check-preview|checks|close-preview|closures)",url) or re.fullmatch(r"/api/truck-(?:checks|closures)/\d+(?:/export\.csv)?",url):
                     truck_workflow.handle(self,con,method,url)
                     return
-                if re.fullmatch(r"/api/controls/\d+/truck(?:/(?:entries|settings|export\.csv))?",url) or re.fullmatch(r"/api/truck-entries/\d+",url):
+                if re.fullmatch(r"/api/controls/\d+/truck(?:/(?:entries|settings|categories|export\.csv))?",url) or re.fullmatch(r"/api/truck-entries/\d+",url):
                     truck.handle(self,con,method,url)
                     return
                 if method=="GET" and url=="/api/state":
