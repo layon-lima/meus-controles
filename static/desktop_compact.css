@@ -303,7 +303,7 @@
   .app-shell .truck-review-grid{min-width:0;max-width:100%;overflow-x:hidden}
   .app-shell .truck-review-table{min-width:0;table-layout:fixed;width:100%}
 }
-@media (min-width:821px) and (max-width:1050px) {
+@media (min-width:821px) and (max-width:1100px) {
   .app-shell .truck-review-table thead th:nth-child(6),
   .app-shell .truck-review-table tbody .truck-review-row td:nth-child(6){display:none}
 }
