@@ -31,7 +31,7 @@ Object.assign(App,{
     const t=data.totals;
     const empty='<div class="empty-state debt-empty"><strong>Nenhum pagamento registrado</strong>'+
        '<p>Registre o primeiro pagamento com data, descrição e valor.</p>'+
-       '<button class="btn btn-primary" onclick="App.debtPaymentForm()">'+icon("plus")+' Registrar pagamento</button></div>';
+       '</div>';
     const rows=data.payments.map(p=>
       '<tr><td>'+E(debtDateLabel(p.payment_date))+'</td>'+
       '<td><strong>'+E(p.description)+'</strong>'+
@@ -48,7 +48,8 @@ Object.assign(App,{
     document.getElementById("main").innerHTML=
       '<div class="debt-heading"><div><div class="eyebrow">CONTROLE DE DÍVIDAS</div><h2>'+E(c.name)+'</h2>'+
       '<p>Registre cada pagamento com uma descrição. O saldo é atualizado automaticamente.</p></div>'+
-      '<button class="btn" onclick="App.debtSettings('+c.id+')">'+icon("settings")+' Ajustes</button></div>'+
+      '<div class="debt-heading-actions"><button class="btn btn-primary" onclick="App.debtPaymentForm()" '+(done?"disabled":"")+'>'+icon("plus")+' Registrar pagamento</button>'+
+      '<button class="btn" onclick="App.debtSettings('+c.id+')">'+icon("settings")+' Ajustes</button></div></div>'+
       '<div class="debt-summary">'+
       '<div class="debt-metric"><span>Dívida inicial</span><strong>'+currency(t.opening_amount)+'</strong></div>'+
       '<div class="debt-metric"><span>Total pago</span><strong>'+currency(t.paid)+'</strong></div>'+
@@ -59,8 +60,7 @@ Object.assign(App,{
       '<div class="actions-end"><span class="secondary-text">'+t.count+' pagamento(s)</span>'+
       '<button class="btn btn-sm" onclick="App.debtExport('+c.id+')">'+icon("download")+' CSV</button>'+
       '<button class="btn btn-sm" onclick="App.debtChooseImport()">'+icon("download")+' Importar pagamentos</button>'+
-      '<button class="btn btn-sm btn-primary" onclick="App.debtPaymentForm()" '+(done?"disabled":"")+'>'+
-      icon("plus")+' Registrar pagamento</button></div></div>'+
+      '</div></div>'+
       '<input id="debtImportFile" type="file" accept=".json,application/json" hidden onchange="App.debtReadImportFile(this.files[0])">'+
       (data.payments.length?'<div class="table-wrap"><table><thead><tr><th>Data</th>'+
       '<th>Descrição</th><th style="text-align:right">Valor pago</th><th>Ações</th>'+
