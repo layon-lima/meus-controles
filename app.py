@@ -129,6 +129,34 @@ def initialize():
             if not already_has_boards:
                 seed_initial(con)
         truck_workflow.initialize(con)
+        if os.environ.get('CONTROLES_PGHOST'):
+            upgrade_default_freight_control(con)
+
+def upgrade_default_freight_control(con):
+    """Converte apenas a planilha padrão vazia na VPS; nunca dados já lançados."""
+    rows=con.execute("""SELECT c.id,c.fields_json,c.rules_json,c.types_json
+        FROM controls c JOIN boards b ON c.board_id=b.id
+        WHERE c.mode='calculo' AND c.name='Controle de Fretes'
+          AND b.name='TRANSPORTADORA'""").fetchall()
+    for row in rows:
+        try:
+            original=(json.loads(row["fields_json"])==FREIGHT_FIELDS and
+                      json.loads(row["rules_json"])==FREIGHT_RULES and
+                      json.loads(row["types_json"])==FREIGHT_TYPES)
+        except (TypeError,ValueError):
+            original=False
+        cid=row["id"]
+        if not original or con.execute("SELECT 1 FROM entries WHERE control_id=? LIMIT 1",(cid,)).fetchone():
+            continue
+        if con.execute("SELECT 1 FROM truck_entries WHERE control_id=? LIMIT 1",(cid,)).fetchone():
+            continue
+        con.execute("UPDATE controls SET mode='caminhao' WHERE id=?",(cid,))
+        truck.save_settings(con,cid,{"commission_pct":"13",
+            "opening_cash":"0","opening_commission":"0","driver_name":"",
+            "price_basis":"kg","freight_types":["Frete Normal","Frete Jonas"],
+            "categories":["Abastecimento","Manutenção","Pedágio",
+                          "Seguro do Caminhão","Outros Gastos"]})
+
 
 def seed_initial(con):
     cur = con.execute("INSERT INTO boards(name) VALUES(?)", ("TRANSPORTADORA",))
