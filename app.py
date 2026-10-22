@@ -132,6 +132,7 @@ def initialize():
         if os.environ.get('CONTROLES_PGHOST'):
             upgrade_default_freight_control(con)
             fix_seeded_freight_commission(con)
+            correct_freight_tonne_unit(con)
 
 def upgrade_default_freight_control(con):
     """Converte apenas a planilha padrão vazia na VPS; nunca dados já lançados."""
@@ -154,7 +155,7 @@ def upgrade_default_freight_control(con):
         con.execute("UPDATE controls SET mode='caminhao' WHERE id=?",(cid,))
         truck.save_settings(con,cid,{"commission_pct":"13",
             "opening_cash":"0","opening_commission":"0","driver_name":"",
-            "price_basis":"kg","freight_types":["Frete Normal","Frete Jonas"],
+            "price_basis":"tonne","freight_types":["Frete Normal","Frete Jonas"],
             "categories":["Abastecimento","Manutenção","Pedágio",
                           "Seguro do Caminhão","Outros Gastos"]})
 
@@ -192,6 +193,103 @@ def fix_seeded_freight_commission(con):
                         (row["id"],))
         con.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)",
                     (key,"1"))
+
+
+def correct_freight_tonne_unit(con):
+    """Corrige a unidade do Controle de Fretes padrão e os 3 fretes de calcário.
+
+    A entrada foi digitada como R$ 215/tonelada, mas a versão anterior
+    interpretou R$ 215/kg. Altera somente três registros identificados
+    por data, peso, preço, categoria, descrição e comissão. Conferências
+    e fechamentos protegidos não são modificados. Uma auditoria e um
+    marcador por controle tornam a correção verificável e idempotente.
+    """
+    import truck_workflow
+    targets=(
+        ("2026-10-15",Decimal("47000")),
+        ("2026-10-10",Decimal("47610")),
+        ("2026-10-06",Decimal("48380")),
+    )
+    rows=con.execute("""SELECT c.id,c.fields_json,c.rules_json,c.types_json,
+                               t.price_basis,t.freight_types_json
+        FROM controls c JOIN boards b ON b.id=c.board_id
+        JOIN truck_settings t ON t.control_id=c.id
+        WHERE c.mode='caminhao' AND c.name='Controle de Fretes'
+          AND b.name='TRANSPORTADORA'""").fetchall()
+    for control in rows:
+        cid=control["id"]
+        try:
+            seeded=(json.loads(control["fields_json"])==FREIGHT_FIELDS and
+                    json.loads(control["rules_json"])==FREIGHT_RULES and
+                    json.loads(control["types_json"])==FREIGHT_TYPES)
+            freights=json.loads(control["freight_types_json"])
+        except (TypeError,ValueError):
+            continue
+        if not seeded or not {"Frete Normal","Frete Jonas"}.issubset(set(freights)):
+            continue
+        marker="freight_tonne_215_fix_v1_"+str(cid)
+        if con.execute("SELECT 1 FROM settings WHERE key=?",(marker,)).fetchone():
+            continue
+        # A nova configuração já está correta: não tocar nela.
+        if control["price_basis"]!="kg":
+            continue
+        planned=[]
+        problem=False
+        for when,weight in targets:
+            matches=con.execute("""SELECT * FROM truck_entries
+                WHERE control_id=? AND event_date=? AND kind='freight'
+                  AND category='Frete Jonas' AND description='CALCARIO JONAS'""",
+                (cid,when)).fetchall()
+            matches=[r for r in matches if Decimal(r["weight_kg"])==weight]
+            if len(matches)>1:
+                problem=True
+                break
+            if not matches:
+                continue
+            entry=matches[0]
+            expected_wrong=money(weight*Decimal("215"))
+            expected_correct=money(weight/Decimal("1000")*Decimal("215"))
+            commission_wrong=money(Decimal(expected_wrong)*Decimal("0.13"))
+            commission_correct=money(Decimal(expected_correct)*Decimal("0.13"))
+            if (Decimal(entry["price_tonne"])==Decimal("215000") and
+                Decimal(entry["amount"])==Decimal(expected_wrong) and
+                Decimal(entry["commission_amount"])==Decimal(commission_wrong) and
+                Decimal(entry["commission_pct"])==Decimal("13")):
+                try:
+                    truck_workflow.assert_entry_editable(con,cid,entry["event_date"])
+                except ValueError:
+                    problem=True
+                    break
+                planned.append((entry,expected_correct,commission_correct))
+            elif (Decimal(entry["price_tonne"])!=Decimal("215") or
+                  Decimal(entry["amount"])!=Decimal(expected_correct) or
+                  Decimal(entry["commission_amount"])!=Decimal(commission_correct)):
+                # Diverge da captura: jamais sobrescrever um lançamento alterado.
+                problem=True
+                break
+        if problem:
+            print("ATENCAO: fretes de calcario divergentes ou protegidos no controle",
+                  cid,"; revisao manual necessaria. Nenhum valor alterado.")
+            continue
+        audit=[]
+        for entry,amount,commission in planned:
+            con.execute("""UPDATE truck_entries
+                SET price_tonne=?, amount=?, commission_amount=?,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=? AND control_id=?""",
+                ("215",amount,commission,entry["id"],cid))
+            audit.append({"id":entry["id"],"date":entry["event_date"],
+                          "before":{"price_tonne":entry["price_tonne"],
+                                    "amount":entry["amount"],
+                                    "commission":entry["commission_amount"]},
+                          "after":{"price_tonne":"215","amount":amount,
+                                   "commission":commission}})
+        con.execute("UPDATE truck_settings SET price_basis='tonne' WHERE control_id=?",
+                    (cid,))
+        con.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)",
+                    (marker,json.dumps(audit,ensure_ascii=False)))
+        print("Fretes: unidade R$/tonelada corrigida no controle",cid,
+              "- lancamentos retificados:",len(audit))
 
 
 def seed_initial(con):
@@ -514,7 +612,7 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/static/truck_workflow.js":
                 return self.send((ROOT/"static"/"truck_workflow.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/api/health":
-                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-data-livre-v4","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
+                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-frete-tonelada-v5","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
                 if re.fullmatch(r"/api/controls/\d+/pair/mixed-import/(?:preview|confirm)",url):
                     match=re.fullmatch(r"/api/controls/(\d+)/pair/mixed-import/(preview|confirm)",url)
