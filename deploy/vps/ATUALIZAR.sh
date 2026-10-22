@@ -19,13 +19,20 @@ git merge-base --is-ancestor "$OLD" "$NEW" || { echo "A branch não está em fas
 
 echo "Salvando banco PostgreSQL antes da atualização..."
 bash "$ROOT/deploy/vps/BACKUP_PG.sh"
-if [[ "$OLD" == "$NEW" ]]; then echo "Código já atualizado."; exit 0; fi
-git merge --ff-only "$NEW"
+if [[ "$OLD" == "$NEW" ]]; then
+  echo "Código Git já atualizado; verificando e reconstruindo a imagem Docker para aplicar a versão em execução."
+else
+  git merge --ff-only "$NEW"
+fi
 echo "Atualizando SOMENTE a API da Central..."
 if ! "${COMPOSE[@]}" up -d --build --no-deps --wait app; then
   echo "Nova versão falhou; restaurando revisão anterior do código." >&2
-  git reset --hard "$OLD"
-  "${COMPOSE[@]}" up -d --build --no-deps app || true
+  if [[ "$OLD" != "$NEW" ]]; then
+    git reset --hard "$OLD"
+    "${COMPOSE[@]}" up -d --build --no-deps app || true
+  else
+    echo "A origem Git não mudou. Veja o erro acima; o contêiner anterior não deve ser apagado." >&2
+  fi
   exit 1
 fi
 echo "Código atualizado e API no ar. Banco e outros aplicativos preservados."
