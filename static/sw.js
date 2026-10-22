@@ -1,15 +1,15 @@
 /* PWA Central de Controles. APENAS o shell é armazenado; nunca API/dados financeiros. */
 "use strict";
-const CACHE = "central-de-controles-shell-v20261022-compact";
+const CACHE = "central-de-controles-shell-20261022-conferencia-1";
 const SHELL = [
   "/", "/manifest.webmanifest", "/static/icons.svg", "/favicon.ico",
   "/pwa-icon-192.png", "/pwa-icon-512.png",
-  "/static/app.css", "/static/desktop_compact.css?v=20261022", "/static/truck.css", "/static/truck_workflow.css",
-  "/static/debt.css", "/static/open_debt.css", "/static/receiving.css",
-  "/static/pair.css", "/static/control_types.css", "/static/receiving_import.css",
-  "/static/app.js", "/static/truck.js", "/static/truck_workflow.js",
-  "/static/debt.js", "/static/open_debt.js", "/static/receiving.js",
-  "/static/pair.js", "/static/pair_records.js?v=acerto-misto-formulario-20261014",
+  "/static/app.css", "/static/desktop_compact.css?v=20261022-conferencia-1", "/static/truck.css?v=20261022-conferencia-1", "/static/truck_workflow.css?v=20261022-conferencia-1",
+  "/static/debt.css?v=20261022-conferencia-1", "/static/open_debt.css?v=20261022-conferencia-1", "/static/receiving.css?v=20261022-conferencia-1",
+  "/static/pair.css?v=20261022-conferencia-1", "/static/control_types.css", "/static/receiving_import.css",
+  "/static/app.js?v=20261022-conferencia-1", "/static/truck.js?v=20261022-conferencia-1", "/static/truck_workflow.js?v=20261022-conferencia-1",
+  "/static/debt.js?v=20261022-conferencia-1", "/static/open_debt.js?v=20261022-conferencia-1", "/static/receiving.js?v=20261022-conferencia-1",
+  "/static/pair.js?v=20261022-conferencia-1", "/static/pair_records.js?v=acerto-misto-formulario-20261014",
   "/static/pair_financial_import.js?v=acerto-misto-formulario-20261014",
   "/static/control_types.js", "/static/receiving_import.js", "/static/pwa.js"
 ];
