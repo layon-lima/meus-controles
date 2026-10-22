@@ -131,6 +131,7 @@ def initialize():
         truck_workflow.initialize(con)
         if os.environ.get('CONTROLES_PGHOST'):
             upgrade_default_freight_control(con)
+            fix_seeded_freight_commission(con)
 
 def upgrade_default_freight_control(con):
     """Converte apenas a planilha padrão vazia na VPS; nunca dados já lançados."""
@@ -151,11 +152,46 @@ def upgrade_default_freight_control(con):
         if con.execute("SELECT 1 FROM truck_entries WHERE control_id=? LIMIT 1",(cid,)).fetchone():
             continue
         con.execute("UPDATE controls SET mode='caminhao' WHERE id=?",(cid,))
-        truck.save_settings(con,cid,{"commission_pct":"10",
+        truck.save_settings(con,cid,{"commission_pct":"13",
             "opening_cash":"0","opening_commission":"0","driver_name":"",
             "price_basis":"kg","freight_types":["Frete Normal","Frete Jonas"],
             "categories":["Abastecimento","Manutenção","Pedágio",
                           "Seguro do Caminhão","Outros Gastos"]})
+
+
+def fix_seeded_freight_commission(con):
+    """Corrige uma única vez 10% -> 13% no Controle de Fretes padrão da VPS.
+
+    Só altera a taxa dos próximos lançamentos. Não modifica valores, datas,
+    comissões históricas, saldos iniciais nem outros controles personalizados.
+    O marcador impede que futuras configurações manuais sejam sobrescritas.
+    """
+    rows=con.execute("""SELECT c.id,c.fields_json,c.rules_json,c.types_json,
+                               t.commission_pct,t.price_basis,t.freight_types_json
+        FROM controls c
+        JOIN boards b ON b.id=c.board_id
+        JOIN truck_settings t ON t.control_id=c.id
+        WHERE c.mode='caminhao' AND c.name='Controle de Fretes'
+          AND b.name='TRANSPORTADORA'""").fetchall()
+    for row in rows:
+        try:
+            seeded=(json.loads(row["fields_json"])==FREIGHT_FIELDS and
+                    json.loads(row["rules_json"])==FREIGHT_RULES and
+                    json.loads(row["types_json"])==FREIGHT_TYPES)
+            freights=json.loads(row["freight_types_json"])
+        except (TypeError,ValueError):
+            continue
+        if (not seeded or row["price_basis"]!="kg" or
+            not {"Frete Normal","Frete Jonas"}.issubset(set(freights))):
+            continue
+        key="freight_seed_pct13_v1_"+str(row["id"])
+        if con.execute("SELECT 1 FROM settings WHERE key=?",(key,)).fetchone():
+            continue
+        if row["commission_pct"]=="10":
+            con.execute("UPDATE truck_settings SET commission_pct='13' WHERE control_id=?",
+                        (row["id"],))
+        con.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)",
+                    (key,"1"))
 
 
 def seed_initial(con):
@@ -478,7 +514,7 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/static/truck_workflow.js":
                 return self.send((ROOT/"static"/"truck_workflow.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/api/health":
-                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-fretes-conferencia-v2","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
+                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-fretes-conferencia-v3-pct13","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
                 if re.fullmatch(r"/api/controls/\d+/pair/mixed-import/(?:preview|confirm)",url):
                     match=re.fullmatch(r"/api/controls/(\d+)/pair/mixed-import/(preview|confirm)",url)
