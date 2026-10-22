@@ -142,44 +142,95 @@ Object.assign(App,{
   },
   renderTruckForm(){
     const ctx=this.s.modalContext,r=ctx.entry||{},kind=ctx.kind;
-    const expenseCategories=ctx.settings.categories||TRUCK_EXPENSES;
-    const initialExpenseCategory=r.category||"";
-    const freightTypes=ctx.settings.freight_types||TRUCK_FREIGHTS;
+    const expenses=ctx.settings.categories||TRUCK_EXPENSES;
+    const freights=ctx.settings.freight_types||TRUCK_FREIGHTS;
+    const options=[...freights.map(n=>({kind:"freight",category:n,label:n})),
+      ...expenses.map(n=>({kind:"expense",category:n,label:n})),
+      {kind:"advance",category:"Vale motorista",label:"Vale Motorista"}];
+    const chosen=ctx.category||r.category||(kind==="freight"?freights[0]:
+      kind==="expense"?expenses[0]:"Vale motorista");
+    ctx.category=chosen;
+    if(!options.some(o=>o.kind===kind&&o.category===chosen))
+      options.push({kind,category:chosen,label:chosen});
+    const select=options.map(o=>'<option value="'+E(JSON.stringify([o.kind,o.category]))+'"'+
+      (o.kind===kind&&o.category===chosen?" selected":"")+'>'+E(o.label)+'</option>').join("");
+    const isKg=ctx.settings.price_basis==="kg";
+    const rateName=isKg?"price_kg":"price_tonne";
+    const rateValue=isKg?(r.price_kg??(r.price_tonne?String(truckNum(r.price_tonne)/1000):"")):(r.price_tonne||"");
     const fields=kind==="freight"?
-      truckField("Tipo de frete",'<select name="category">'+truckOptions(
-        r.category&&!freightTypes.includes(r.category)?[...freightTypes,r.category]:freightTypes,
-        r.category||freightTypes[0])+'</select>')+
       truckField("Peso carregado (kg)",truckInput("weight_kg",r.weight_kg||"",'required inputmode="decimal" oninput="App.truckPreview()"'))+
-      truckField("Preço por tonelada (R$)",truckInput("price_tonne",r.price_tonne||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
-      kind==="expense"?
-      truckField("Categoria da despesa",'<div class="truck-expense-combobox" id="truckExpenseCombobox">'+
-        '<div class="truck-expense-input-row">'+
-        '<input type="text" id="truckExpenseCategory" name="category" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="truckExpenseOptions" aria-describedby="truckExpenseHint" autocomplete="off" maxlength="90" required placeholder="Selecione ou digite para pesquisar" value="'+E(initialExpenseCategory)+'" onfocus="App.truckCategoryFocus()" oninput="App.truckCategoryInput(this)" onkeydown="App.truckCategoryKeydown(event)" onblur="App.truckCategoryBlur()">'+
-        '<button type="button" class="truck-expense-arrow" aria-label="Mostrar todas as categorias" aria-controls="truckExpenseOptions" aria-expanded="false" onpointerdown="event.preventDefault()" onclick="App.truckCategoryToggle()">'+icon("chevron-down")+'</button></div>'+
-        '<div id="truckExpenseOptions" class="truck-expense-options" role="listbox" aria-label="Categorias de despesa" hidden></div></div>'+
-        '<small id="truckExpenseHint" class="truck-category-hint">Digite para filtrar, ou clique na seta para ver todas as categorias.</small>')+
-      truckField("Valor pago (R$)",truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"')):
-      truckField("Tipo de pagamento",'<select name="category">'+truckOptions(TRUCK_ADVANCES,r.category||"Vale motorista")+'</select>')+
-      truckField("Valor pago ao motorista (R$)",truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"'));
-    const heading={"freight":"Registrar frete","expense":"Registrar despesa","advance":"Vale / acerto do motorista"}[kind];
+      truckField(isKg?"Valor por kg (R$/kg)":"Preço por tonelada (R$/t)",
+        truckInput(rateName,rateValue,'required inputmode="decimal" oninput="App.truckPreview()"')):
+      truckField(kind==="advance"?"Valor pago ao motorista (R$)":"Valor da despesa (R$)",
+        truckInput("amount",r.amount||"",'required inputmode="decimal" oninput="App.truckPreview()"'));
     document.getElementById("modalRoot").innerHTML=
      '<div class="modal-backdrop"><div class="modal truck-entry-form" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
-     '<div class="modal-header"><div><h2 id="modalTitle">'+E(ctx.entry?"Editar lançamento":heading)+'</h2>'+
-     '<p>As movimentações são calculadas automaticamente.</p></div>'+
+     '<div class="modal-header"><div><h2 id="modalTitle">'+(ctx.entry?.id?"Editar lançamento":"Novo lançamento")+'</h2>'+
+     '<p>O cálculo se adapta automaticamente ao tipo.</p></div>'+
      '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
-     '<div class="modal-body">'+
-     '<div class="truck-tabs">'+[["freight","Frete"],["expense","Despesa"],["advance","Vale motorista"]].map(([v,label])=>
-       '<button class="'+(kind===v?"active":"")+'" type="button" onclick="App.truckChangeKind(\''+v+'\')">'+label+'</button>').join("")+'</div>'+
-     '<form id="truckForm" onsubmit="event.preventDefault();App.truckSave()">'+
+     '<div class="modal-body"><form id="truckForm" onsubmit="event.preventDefault();App.truckSave()">'+
+     '<div class="field truck-entry-type"><label for="truckEntryType">Tipo de lançamento *</label>'+
+     '<div class="truck-entry-type-actions"><select id="truckEntryType" required onchange="App.truckChangeType(this.value)">'+select+'</select>'+
+     '<button type="button" class="btn btn-sm" onclick="App.truckNewCategory()">'+icon("plus")+' Nova categoria</button></div></div>'+
      '<div class="form-grid">'+truckField("Data",truckInput("date",r.event_date||truckDate(),'type="date" required'))+
-     truckField("Descrição",truckInput("description",r.description||"",'maxlength="200" required placeholder="Ex.: Calcário para Jonas"'))+
-     fields+
-     '<div class="field full"><label>Observações (opcional)</label><textarea name="notes" maxlength="1500" rows="2">'+E(r.notes||"")+'</textarea></div>'+
-     '</div></form>'+
-     '<div id="truckPreview" class="calc-preview"></div>'+
-     '</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
-     '<button class="btn btn-primary" onclick="App.truckSave()">'+icon("plus")+' Salvar lançamento</button></div></div></div>';
+     truckField("Descrição",truckInput("description",r.description||"",'maxlength="200" required placeholder="Descreva o lançamento"))+
+     fields+'<div class="field full"><label>Observações (opcional)</label><textarea name="notes" maxlength="1500" rows="2">'+E(r.notes||"")+'</textarea></div>'+
+     '</div></form><div id="truckPreview" class="calc-preview"></div></div>'+
+     '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
+     '<button class="btn btn-primary" onclick="App.truckSave()">'+icon("check")+' Salvar lançamento</button></div></div></div>';
     this.truckPreview();
+  },
+  truckChangeType(value){
+    const ctx=this.s.modalContext;
+    if(!ctx||this.s.modal!=="truck-record")return;
+    let tuple;
+    try{tuple=JSON.parse(value)}catch{return}
+    if(!Array.isArray(tuple)||tuple.length!==2)return;
+    const [kind,category]=tuple;
+    const allowed=kind==="freight"?(ctx.settings.freight_types||TRUCK_FREIGHTS):
+      kind==="expense"?(ctx.settings.categories||TRUCK_EXPENSES):
+      kind==="advance"?TRUCK_ADVANCES:[];
+    if(!allowed.includes(category))return;
+    const form=document.getElementById("truckForm");
+    if(form){
+      const values=new FormData(form);
+      ctx.entry={...ctx.entry,event_date:values.get("date"),
+        description:values.get("description"),notes:values.get("notes"),
+        amount:values.get("amount")||ctx.entry?.amount||"",
+        weight_kg:values.get("weight_kg")||ctx.entry?.weight_kg||"",
+        price_kg:values.get("price_kg")||ctx.entry?.price_kg||"",
+        price_tonne:values.get("price_tonne")||ctx.entry?.price_tonne||""};
+    }
+    ctx.kind=kind;ctx.category=category;
+    this.renderTruckForm();
+  },
+  async truckNewCategory(){
+    const ctx=this.s.modalContext;
+    if(!ctx||this.s.modal!=="truck-record")return;
+    const raw=prompt("Nome da nova categoria de gastos:");
+    if(raw===null)return;
+    const name=raw.trim();
+    if(!name||name.length>90){this.toast("Informe uma categoria de até 90 caracteres.",true);return}
+    const existing=[...(ctx.settings.categories||[]),...(ctx.settings.freight_types||[]),...TRUCK_ADVANCES];
+    if(existing.some(c=>normalizeSearch(c)===normalizeSearch(name))){
+      this.toast("Já existe uma categoria com esse nome.",true);return;
+    }
+    const form=document.getElementById("truckForm");
+    if(form){
+      const data=new FormData(form);
+      ctx.entry={...ctx.entry,event_date:data.get("date"),description:data.get("description"),
+        notes:data.get("notes"),amount:data.get("amount")||"",
+        weight_kg:data.get("weight_kg")||"",price_kg:data.get("price_kg")||"",
+        price_tonne:data.get("price_tonne")||""};
+    }
+    try{
+      const saved=await this.api("/api/controls/"+ctx.controlId+"/truck/categories","POST",{name});
+      if(this.s.modal!=="truck-record"||this.s.modalContext!==ctx)return;
+      ctx.settings.categories=saved.categories;
+      if(this.s.truckReport?.settings)this.s.truckReport.settings.categories=saved.categories;
+      ctx.kind="expense";ctx.category=saved.name;
+      this.renderTruckForm();this.toast("Categoria criada e selecionada.");
+    }catch(err){this.toast(err.message,true)}
   },
   truckCategoryList(){
     return this.s.modalContext?.settings?.categories||TRUCK_EXPENSES;
@@ -295,17 +346,11 @@ Object.assign(App,{
     return !!selected;
   },
   truckChangeKind(kind){
-    if(!["freight","expense","advance"].includes(kind))return;
     const ctx=this.s.modalContext;
-    if(!ctx||ctx.kind===kind)return;
-    const form=document.getElementById("truckForm");
-    if(form){
-      const data=new FormData(form);
-      const common={event_date:data.get("date"),description:data.get("description"),notes:data.get("notes")};
-      ctx.entry={...(ctx.entry?.id?{id:ctx.entry.id}:{}),...common};
-    }
-    ctx.kind=kind;
-    this.renderTruckForm();
+    if(!ctx)return;
+    const name=kind==="freight"?(ctx.settings.freight_types||TRUCK_FREIGHTS)[0]:
+      kind==="expense"?(ctx.settings.categories||TRUCK_EXPENSES)[0]:"Vale motorista";
+    this.truckChangeType(JSON.stringify([kind,name]));
   },
   truckPreview(){
     const ctx=this.s.modalContext;
