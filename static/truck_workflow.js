@@ -25,41 +25,96 @@ Object.assign(App,{
     const wf=this.s.truckReport?.workflow;
     if(!wf?.enabled)return "";
     const earliest=wf.pending_check_from||truckDate();
-    const suggestedEnd=workflowPlusDays(earliest,6);
-    const endSuggested=suggestedEnd>truckDate()? (earliest>truckDate()?earliest:truckDate()):suggestedEnd;
-    const range=this.s.truckReviewRange||{start:earliest,end:endSuggested};
+    const weekEnd=workflowPlusDays(earliest,6);
+    const suggested=weekEnd>truckDate()?truckDate():weekEnd;
+    const range=this.s.truckReviewRange||{start:earliest,end:suggested<earliest?earliest:suggested};
     const preview=this.s.truckReviewPreview;
     const checks=wf.checks||[];
-    const previews=preview?'<div class="truck-review-preview">'+
-      '<div class="truck-workflow-panel-head"><strong>'+workflowDate(preview.start_date)+' a '+workflowDate(preview.end_date)+' · '+preview.count+' lançamento(s)</strong>'+
-      '<button class="btn btn-sm" type="button" onclick="App.truckMarkAllReview()">'+icon("check")+' Marcar todos</button></div>'+
-      (preview.entries.length?'<div class="truck-review-items">'+preview.entries.map(item=>{
-        const checked=this.s.truckReviewMarked?.has(item.id);
-        const kind=item.kind==="freight"?"Frete":item.kind==="expense"?"Despesa":"Vale";
-        return '<label class="truck-review-item"><input type="checkbox" data-review-id="'+item.id+'" onchange="App.truckToggleReview('+item.id+',this.checked)" '+(checked?"checked":"")+'>'+
-          '<span class="truck-review-item-content"><strong>'+E(item.description)+'</strong><small>'+workflowDate(item.event_date)+' · '+E(kind)+' · '+E(item.category)+'</small></span>'+
-          '<b>'+truckMoney(item.amount)+'</b></label>';
-      }).join("")+'</div>':'<p class="secondary-text">Nenhum lançamento neste período. Verifique se realmente não houve movimentações.</p>')+
-      '<div class="truck-review-confirm"><span id="truckReviewProgress" class="secondary-text">'+
+    const rows=preview?.entries||[];
+    const expensePriority=["Abastecimento","Manutenção","Pedágio",
+      "Vale motorista","Seguro do Caminhão","Outros Gastos"];
+    const ordered=new Map();
+    rows.forEach(row=>{
+      const key=row.kind+"::"+row.category;
+      if(!ordered.has(key))ordered.set(key,{category:row.category,kind:row.kind,rows:[]});
+      ordered.get(key).rows.push(row);
+    });
+    const groups=[...ordered.values()].sort((a,b)=>{
+      const getOrder=x=>{
+        if(x.kind==="freight")return 100;
+        const n=expensePriority.findIndex(v=>normalizeSearch(v)===normalizeSearch(x.category));
+        return n>=0?n:50;
+      };
+      return getOrder(a)-getOrder(b)||a.category.localeCompare(b.category,"pt-BR");
+    });
+    const totals=groups.reduce((s,g)=>s+g.rows.reduce((n,row)=>n+Number(row.amount||0),0),0);
+    const who=this.s.truckReport?.settings?.driver_name||"—";
+    const groupHtml=groups.map(group=>{
+      const name=group.category;
+      const subtotal=group.rows.reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const categoryType=group.kind==="freight"?"freight":group.kind==="advance"?"advance":"expense";
+      const groupLabel=name==="Vale motorista"?"Vale Motorista":name;
+      const header='<tr class="truck-review-group '+categoryType+'" data-review-category="'+E(name)+'">'+
+        '<th colspan="6">'+E(groupLabel)+' <small>('+group.rows.length+' lançamento(s))</small></th>'+
+        '<th colspan="2" class="truck-review-subtotal">Subtotal: '+truckMoney(subtotal)+'</th></tr>';
+      const details=group.rows.map(item=>{
+        const checked=!!this.s.truckReviewMarked?.has(item.id);
+        const type=item.kind==="freight"?item.category:
+          item.kind==="advance"?"Vale Motorista":"Despesa";
+        return '<tr class="truck-review-row" data-review-category="'+E(name)+'">'+
+          '<td class="truck-review-check"><input type="checkbox" aria-label="Conferir lançamento '+item.id+'" data-review-id="'+item.id+'" onchange="App.truckToggleReview('+item.id+',this.checked)" '+(checked?"checked":"")+'></td>'+
+          '<td>'+workflowDate(item.event_date)+'</td>'+
+          '<td>'+E(type)+'</td>'+
+          '<td class="truck-review-description"><strong>'+E(item.description)+'</strong>'+
+          (item.notes?'<small>'+E(item.notes)+'</small>':"")+'</td>'+
+          '<td>'+E(item.category)+'</td>'+
+          '<td>'+E(who)+'</td>'+
+          '<td class="numeric">'+truckMoney(item.amount)+'</td>'+
+          '<td class="truck-review-status"><span class="'+(checked?"checked":"pending")+'">'+(checked?"Marcado":"Pendente")+'</span></td>'+
+          '</tr>';
+      }).join("");
+      return header+details;
+    }).join("");
+    const options=groups.map(g=>'<option value="'+E(g.category)+'">'+E(g.category)+'</option>').join("");
+    const table=preview?'<section class="truck-review-preview">'+
+      '<div class="truck-workflow-panel-head"><strong>'+preview.count+' lançamento(s) · '+workflowDate(preview.start_date)+' a '+workflowDate(preview.end_date)+'</strong>'+
+      '<div class="truck-review-tools"><select aria-label="Filtrar categoria" id="truckReviewCategoryFilter" onchange="App.truckReviewFilterCategory(this.value)">'+
+      '<option value="">Todas as categorias</option>'+options+'</select>'+
+      '<button type="button" class="btn btn-sm" onclick="App.truckMarkAllReview()">'+icon("check")+' Marcar todos</button></div></div>'+
+      (rows.length?'<div class="truck-review-grid"><table class="truck-review-table"><thead><tr>'+
+      '<th aria-label="Marcar">✓</th><th>Data</th><th>Tipo</th><th>Descrição</th><th>Categoria</th>'+
+      '<th>Motorista</th><th class="numeric">Valor (R$)</th><th>Conferido</th>'+
+      '</tr></thead><tbody>'+groupHtml+'</tbody></table></div>':
+      '<p class="truck-workflow-warning">Nenhum lançamento neste período. Confira se não houve movimentações.</p>')+
+      '<div class="truck-review-confirm"><div><span id="truckReviewProgress" class="secondary-text">'+
       (this.s.truckReviewMarked?.size||0)+' de '+preview.count+' lançamentos verificados</span>'+
-      '<button type="button" id="truckReviewConfirmButton" class="btn btn-primary" onclick="App.truckConfirmReview()" '+((this.s.truckReviewMarked?.size||0)!==preview.count?"disabled":"")+'>'+
-      icon("check")+' Confirmar conferência</button></div></div>':"";
-    const history=checks.length?checks.map(c=>'<div class="truck-workflow-history-row">'+
-      '<div><strong>'+workflowDate(c.start_date)+' a '+workflowDate(c.end_date)+'</strong>'+
-      '<small>'+c.entry_count+' lançamento(s) · confirmado em '+E(c.created_at.slice(0,16).replace("T"," "))+'</small></div>'+
-      (c.closed?'<span class="truck-workflow-tag closed">Fechado</span>':
-      '<button type="button" class="btn btn-sm" onclick="App.truckReopenReview('+c.id+')">'+icon("edit")+' Reabrir</button>')+'</div>').join(""):
-      '<p class="secondary-text">Nenhuma conferência registrada ainda.</p>';
+      '<small class="truck-review-total">Total listado: '+truckMoney(totals)+'</small></div>'+
+      '<button type="button" id="truckReviewConfirmButton" class="btn btn-primary" onclick="App.truckConfirmReview()" '+
+      ((this.s.truckReviewMarked?.size||0)!==preview.count?"disabled":"")+'>'+
+      icon("check")+' Confirmar conferência</button></div></section>':"";
+    const history=checks.length?'<div class="truck-review-history-table"><table><thead><tr>'+
+      '<th>Período</th><th>Lançamentos</th><th>Conferido em</th><th>Situação</th><th>Ações</th></tr></thead><tbody>'+
+      checks.map(c=>'<tr><td>'+workflowDate(c.start_date)+' a '+workflowDate(c.end_date)+'</td>'+
+        '<td>'+c.entry_count+'</td><td>'+E(c.created_at.slice(0,16).replace("T"," "))+'</td>'+
+        '<td><span class="truck-workflow-tag '+(c.closed?"closed":"")+'">'+(c.closed?"Fechado":"Conferido")+'</span></td>'+
+        '<td>'+(c.closed?'—':'<button type="button" class="btn btn-sm" onclick="App.truckReopenReview('+c.id+')">'+icon("edit")+' Reabrir</button>')+'</td></tr>').join("")+
+      '</tbody></table></div>':'<p class="secondary-text">Nenhuma conferência registrada ainda.</p>';
     return '<section id="truck-panel-checks" role="tabpanel" aria-labelledby="truck-tab-checks" class="truck-workflow-view">'+
       '<div class="truck-workflow-head"><div><h2>Conferência de comprovantes</h2>'+
-      '<p>Verifique os comprovantes físicos e marque cada lançamento antes de confirmar.</p></div>'+
+      '<p>Verifique os comprovantes e marque cada lançamento antes de confirmar.</p></div>'+
       '<div class="truck-workflow-status"><strong>Conferido até: '+workflowDate(wf.last_checked_until)+'</strong>'+
       '<span>Conferência pendente desde '+workflowDate(wf.pending_check_from)+'</span></div></div>'+
-      '<section class="panel truck-workflow-section"><div class="panel-header"><h3>Conferir um período</h3></div>'+
+      '<section class="panel truck-workflow-section"><div class="panel-header"><h3>Conferência por período</h3></div>'+
       '<div class="panel-body"><div class="truck-workflow-form">'+workflowDateControls("truckReview",range.start,range.end)+
-      '<button class="btn btn-primary" type="button" onclick="App.truckPreviewReview()">'+icon("search")+' Buscar lançamentos</button></div>'+previews+'</div></section>'+
+      '<button class="btn btn-primary" type="button" onclick="App.truckPreviewReview()">'+icon("search")+' Buscar lançamentos</button></div>'+
+      table+'</div></section>'+
       '<section class="panel truck-workflow-section"><div class="panel-header"><h3>Conferências registradas</h3></div>'+
       '<div class="panel-body">'+history+'</div></section></section>';
+  },
+  truckReviewFilterCategory(value){
+    document.querySelectorAll("[data-review-category]").forEach(el=>{
+      el.hidden=!!value&&el.getAttribute("data-review-category")!==value;
+    });
   },
   truckCloseMarkup(){
     const wf=this.s.truckReport?.workflow;
