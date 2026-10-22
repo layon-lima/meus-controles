@@ -287,7 +287,13 @@ def correct_freight_tonne_unit(con):
             con.execute("UPDATE truck_settings SET price_basis='tonne' WHERE control_id=?",
                         (cid,))
         key="freight_tonne_215_fix_v2_"+str(cid)
-        if not con.execute("SELECT 1 FROM settings WHERE key=?",(key,)).fetchone():
+        previous=con.execute("SELECT value FROM settings WHERE key=?",(key,)).fetchone()
+        if previous:
+            earlier=json.loads(previous["value"])
+            if audit:
+                con.execute("UPDATE settings SET value=? WHERE key=?",
+                            (json.dumps(earlier+audit,ensure_ascii=False),key))
+        else:
             con.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)",
                         (key,json.dumps(audit,ensure_ascii=False)))
         print("FRETES/R$/T: controle",cid,"| corrigidos:",len(audit),
@@ -615,7 +621,7 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/static/truck_workflow.js":
                 return self.send((ROOT/"static"/"truck_workflow.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/api/health":
-                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-frete-tonelada-v5","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
+                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-frete-tonelada-v6","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
                 if re.fullmatch(r"/api/controls/\d+/pair/mixed-import/(?:preview|confirm)",url):
                     match=re.fullmatch(r"/api/controls/(\d+)/pair/mixed-import/(preview|confirm)",url)
