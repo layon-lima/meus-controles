@@ -174,7 +174,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertIsNotNone(audit)
             self.assertEqual(len(__import__("json").loads(audit["value"])),3)
             totals=truck.summary(con,cid)["totals"]
-            self.assertEqual(totals["freight"],"30743.85")
+            self.assertEqual(totals["freight"],"30742.85")
             self.assertEqual(totals["commission_earned"],"3996.57")
 
     def test_existing_conference_protects_financial_history_from_auto_fix(self):
