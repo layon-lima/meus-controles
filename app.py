@@ -196,13 +196,12 @@ def fix_seeded_freight_commission(con):
 
 
 def correct_freight_tonne_unit(con):
-    """Corrige a unidade do Controle de Fretes padrão e os 3 fretes de calcário.
+    """Reconcilia exclusivamente os três fretes de calcário confirmados.
 
-    A entrada foi digitada como R$ 215/tonelada, mas a versão anterior
-    interpretou R$ 215/kg. Altera somente três registros identificados
-    por data, peso, preço, categoria, descrição e comissão. Conferências
-    e fechamentos protegidos não são modificados. Uma auditoria e um
-    marcador por controle tornam a correção verificável e idempotente.
+    Independe da configuração anterior (kg/tonne) e da migração v1:
+    o próprio registro precisa coincidir com os valores inflados, 215/kg,
+    comissão de 13%, nome, categoria, data e peso. Sem mudar datas
+    conferidas/fechadas, sem mexer em outros fretes ou apagar histórico.
     """
     import truck_workflow
     targets=(
@@ -210,86 +209,90 @@ def correct_freight_tonne_unit(con):
         ("2026-10-10",Decimal("47610")),
         ("2026-10-06",Decimal("48380")),
     )
-    rows=con.execute("""SELECT c.id,c.fields_json,c.rules_json,c.types_json,
-                               t.price_basis,t.freight_types_json
+    controls=con.execute("""SELECT c.id,t.price_basis
         FROM controls c JOIN boards b ON b.id=c.board_id
         JOIN truck_settings t ON t.control_id=c.id
-        WHERE c.mode='caminhao' AND c.name='Controle de Fretes'
-          AND b.name='TRANSPORTADORA'""").fetchall()
-    for control in rows:
+        WHERE c.mode='caminhao' AND LOWER(TRIM(c.name))='controle de fretes'
+          AND UPPER(TRIM(b.name))='TRANSPORTADORA'""").fetchall()
+    if not controls:
+        print("FRETES/R$/T: controle TRANSPORTADORA / Controle de Fretes não encontrado.")
+    for control in controls:
         cid=control["id"]
-        try:
-            seeded=(json.loads(control["fields_json"])==FREIGHT_FIELDS and
-                    json.loads(control["rules_json"])==FREIGHT_RULES and
-                    json.loads(control["types_json"])==FREIGHT_TYPES)
-            freights=json.loads(control["freight_types_json"])
-        except (TypeError,ValueError):
-            continue
-        if not seeded or not {"Frete Normal","Frete Jonas"}.issubset(set(freights)):
-            continue
-        marker="freight_tonne_215_fix_v1_"+str(cid)
-        if con.execute("SELECT 1 FROM settings WHERE key=?",(marker,)).fetchone():
-            continue
-        # A nova configuração já está correta: não tocar nela.
-        if control["price_basis"]!="kg":
-            continue
-        planned=[]
-        problem=False
+        pending=[]
+        already=[]
+        absent=[]
+        issues=[]
         for when,weight in targets:
-            matches=con.execute("""SELECT * FROM truck_entries
-                WHERE control_id=? AND event_date=? AND kind='freight'
-                  AND category='Frete Jonas' AND description='CALCARIO JONAS'""",
+            candidates=con.execute("""SELECT * FROM truck_entries
+                WHERE control_id=? AND event_date=? AND kind='freight'""",
                 (cid,when)).fetchall()
-            matches=[r for r in matches if Decimal(r["weight_kg"])==weight]
-            if len(matches)>1:
-                problem=True
-                break
+            matches=[r for r in candidates
+                     if str(r["category"]).strip().casefold()=="frete jonas"
+                     and str(r["description"]).strip().casefold()=="calcario jonas"
+                     and Decimal(r["weight_kg"])==weight]
             if not matches:
+                absent.append(when)
                 continue
-            entry=matches[0]
-            expected_wrong=money(weight*Decimal("215"))
-            expected_correct=money(weight/Decimal("1000")*Decimal("215"))
-            commission_wrong=money(Decimal(expected_wrong)*Decimal("0.13"))
-            commission_correct=money(Decimal(expected_correct)*Decimal("0.13"))
-            if (Decimal(entry["price_tonne"])==Decimal("215000") and
-                Decimal(entry["amount"])==Decimal(expected_wrong) and
-                Decimal(entry["commission_amount"])==Decimal(commission_wrong) and
-                Decimal(entry["commission_pct"])==Decimal("13")):
-                try:
-                    truck_workflow.assert_entry_editable(con,cid,entry["event_date"])
-                except ValueError:
-                    problem=True
-                    break
-                planned.append((entry,expected_correct,commission_correct))
-            elif (Decimal(entry["price_tonne"])!=Decimal("215") or
-                  Decimal(entry["amount"])!=Decimal(expected_correct) or
-                  Decimal(entry["commission_amount"])!=Decimal(commission_correct)):
-                # Diverge da captura: jamais sobrescrever um lançamento alterado.
-                problem=True
-                break
-        if problem:
-            print("ATENCAO: fretes de calcario divergentes ou protegidos no controle",
-                  cid,"; revisao manual necessaria. Nenhum valor alterado.")
+            if len(matches)!=1:
+                issues.append(when+": encontrados "+str(len(matches))+" registros idênticos")
+                continue
+            item=matches[0]
+            old_amount=money(weight*Decimal("215"))
+            new_amount=money(weight/Decimal("1000")*Decimal("215"))
+            old_commission=money(Decimal(old_amount)*Decimal("0.13"))
+            new_commission=money(Decimal(new_amount)*Decimal("0.13"))
+            old_data=(Decimal(item["price_tonne"])==Decimal("215000")
+                      and Decimal(item["amount"])==Decimal(old_amount)
+                      and Decimal(item["commission_amount"])==Decimal(old_commission)
+                      and Decimal(item["commission_pct"])==Decimal("13"))
+            corrected=(Decimal(item["price_tonne"])==Decimal("215")
+                       and Decimal(item["amount"])==Decimal(new_amount)
+                       and Decimal(item["commission_amount"])==Decimal(new_commission)
+                       and Decimal(item["commission_pct"])==Decimal("13"))
+            if corrected:
+                already.append(item["id"])
+                continue
+            if not old_data:
+                issues.append(when+": valores diferentes da captura; entrada "+str(item["amount"])
+                              +", frete/t "+str(item["price_tonne"])
+                              +", comissão "+str(item["commission_amount"]))
+                continue
+            try:
+                truck_workflow.assert_entry_editable(con,cid,when)
+            except ValueError as exc:
+                issues.append(when+": "+str(exc))
+                continue
+            pending.append((item,new_amount,new_commission))
+        if issues:
+            print("FRETES/R$/T: controle",cid,"SEM ALTERAÇÕES:","; ".join(issues),
+                  "| já corretos:",len(already),"| não encontrados:",",".join(absent))
             continue
         audit=[]
-        for entry,amount,commission in planned:
+        for entry,amount,commission in pending:
             con.execute("""UPDATE truck_entries
-                SET price_tonne=?, amount=?, commission_amount=?,
-                    updated_at=CURRENT_TIMESTAMP
+                SET price_tonne=?,amount=?,commission_amount=?,updated_at=CURRENT_TIMESTAMP
                 WHERE id=? AND control_id=?""",
                 ("215",amount,commission,entry["id"],cid))
-            audit.append({"id":entry["id"],"date":entry["event_date"],
-                          "before":{"price_tonne":entry["price_tonne"],
-                                    "amount":entry["amount"],
-                                    "commission":entry["commission_amount"]},
-                          "after":{"price_tonne":"215","amount":amount,
-                                   "commission":commission}})
-        con.execute("UPDATE truck_settings SET price_basis='tonne' WHERE control_id=?",
-                    (cid,))
-        con.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)",
-                    (marker,json.dumps(audit,ensure_ascii=False)))
-        print("Fretes: unidade R$/tonelada corrigida no controle",cid,
-              "- lancamentos retificados:",len(audit))
+            audit.append({
+                "entry_id":entry["id"],"date":entry["event_date"],
+                "old_price_tonne":str(entry["price_tonne"]),
+                "old_amount":str(entry["amount"]),
+                "old_commission":str(entry["commission_amount"]),
+                "new_price_tonne":"215","new_amount":amount,
+                "new_commission":commission
+            })
+        # R$/tonelada para novos lançamentos, mesmo se a migração v1
+        # já havia mudado a configuração mas deixado linhas antigas erradas.
+        if control["price_basis"]!="tonne":
+            con.execute("UPDATE truck_settings SET price_basis='tonne' WHERE control_id=?",
+                        (cid,))
+        key="freight_tonne_215_fix_v2_"+str(cid)
+        if not con.execute("SELECT 1 FROM settings WHERE key=?",(key,)).fetchone():
+            con.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)",
+                        (key,json.dumps(audit,ensure_ascii=False)))
+        print("FRETES/R$/T: controle",cid,"| corrigidos:",len(audit),
+              "| já corretos:",len(already),"| não encontrados:",",".join(absent) or "nenhum",
+              "| unidade atual: R$/tonelada")
 
 
 def seed_initial(con):
