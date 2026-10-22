@@ -151,7 +151,7 @@ def upgrade_default_freight_control(con):
         if con.execute("SELECT 1 FROM truck_entries WHERE control_id=? LIMIT 1",(cid,)).fetchone():
             continue
         con.execute("UPDATE controls SET mode='caminhao' WHERE id=?",(cid,))
-        truck.save_settings(con,cid,{"commission_pct":"13",
+        truck.save_settings(con,cid,{"commission_pct":"10",
             "opening_cash":"0","opening_commission":"0","driver_name":"",
             "price_basis":"kg","freight_types":["Frete Normal","Frete Jonas"],
             "categories":["Abastecimento","Manutenção","Pedágio",
