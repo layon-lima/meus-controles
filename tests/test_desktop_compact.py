@@ -13,7 +13,7 @@ SERVER = ROOT / "app.py"
 class DesktopCompactTests(unittest.TestCase):
     def test_loaded_after_all_modular_stylesheets(self):
         html = HTML.read_text(encoding="utf-8")
-        self.assertEqual(html.count('href="/static/desktop_compact.css?v=20261022-conferencia-1-conferencia-1"'), 1)
+        self.assertEqual(html.count('href="/static/desktop_compact.css?v=20261022-conferencia-1"'), 1)
         self.assertGreater(html.index('href="/static/desktop_compact.css'),
                            html.index('href="/static/receiving_import.css'))
         server = SERVER.read_text(encoding="utf-8")
