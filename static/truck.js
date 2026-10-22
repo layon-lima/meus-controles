@@ -58,7 +58,8 @@ Object.assign(App,{
     const nav='<div class="truck-nav"><div class="truck-tablist" role="tablist" aria-label="Visualização do controle">'+
        tab("entries","Lançamentos")+tab("details","Resumo detalhado")+
        (enabled?tab("checks","Conferência")+tab("closures","Fechamentos"):"")+'</div>'+
-       '<button type="button" class="btn btn-sm truck-adjust" onclick="App.truckSettings('+control.id+')">'+icon("settings")+' Ajustes</button></div>';
+       '<div class="truck-nav-actions"><button type="button" class="btn btn-sm btn-primary" onclick="App.truckForm()">'+icon("plus")+' Novo lançamento</button>'+
+       '<button type="button" class="btn btn-sm truck-adjust" onclick="App.truckSettings('+control.id+')">'+icon("settings")+' Ajustes</button></div></div>';
     const rows=r.entries.map(x=>{
       const isFreight=x.kind==="freight";
       const stamp=x.event_date.slice(8,10)+"/"+x.event_date.slice(5,7)+"/"+x.event_date.slice(0,4);
@@ -77,19 +78,15 @@ Object.assign(App,{
       (r.entries.length?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th>'+
       '<th style="text-align:right">Valor</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
       '<div class="empty-state truck-empty"><strong>Nenhum lançamento neste período</strong>'+
-      '<p>Registre um frete, uma despesa ou um vale para começar.</p>'+
-      '<button class="btn btn-primary" onclick="App.truckForm(\'freight\')">'+icon("plus")+' Registrar frete</button></div>')+'</section>';
-    const quick='<div class="truck-quick-actions" aria-label="Novo lançamento">'+
-      '<button class="truck-quick freight" onclick="App.truckForm(\'freight\')">'+icon("truck")+' Registrar frete</button>'+
-      '<button class="truck-quick" onclick="App.truckForm(\'expense\')">'+icon("circle-minus")+' Registrar despesa</button>'+
-      '<button class="truck-quick" onclick="App.truckForm(\'advance\')">'+icon("wallet")+' Vale / acerto motorista</button></div>';
+      '<p>Utilize Novo lançamento no topo para começar.</p>'+
+      '</div>')+'</section>';
     let body;
     if(active==="entries"){
       body='<div id="truck-panel-entries" class="truck-view truck-entries-view" role="tabpanel" aria-labelledby="truck-tab-entries">'+
         '<div class="truck-fast-summary" aria-label="Resumo rápido do período">'+
         '<div class="truck-fast-total"><span>Entradas do período</span><strong>'+truckMoney(t.freight)+'</strong></div>'+
         '<div class="truck-fast-total"><span>Saídas do período</span><strong>'+truckMoney(t.cash_out)+'</strong></div></div>'+
-        '<div class="truck-action-filter-row">'+quick+monthFilter+'</div>'+
+        '<div class="truck-action-filter-row">'+monthFilter+'</div>'+
         ledger+'</div>';
     }else if(active==="checks"){
       body=this.truckReviewMarkup();
@@ -138,7 +135,8 @@ Object.assign(App,{
       controlId:this.s.detail.control.id,
       entry:record?deep(record):null,
       settings:deep(this.s.truckReport.settings),
-      kind:record?.kind||kind||"freight"
+      kind:record?.kind||kind||"freight",
+       category:record?.category||null
     };
     this.renderTruckForm();
   },
