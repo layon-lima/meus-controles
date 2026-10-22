@@ -173,7 +173,7 @@ Object.assign(App,{
      '<div class="truck-entry-type-actions"><select id="truckEntryType" required onchange="App.truckChangeType(this.value)">'+select+'</select>'+
      '<button type="button" class="btn btn-sm" onclick="App.truckNewCategory()">'+icon("plus")+' Nova categoria</button></div></div>'+
      '<div class="form-grid">'+truckField("Data",truckInput("date",r.event_date||truckDate(),'type="date" required'))+
-     truckField("Descrição",truckInput("description",r.description||"",'maxlength="200" required placeholder="Descreva o lançamento"))+
+     truckField("Descrição",truckInput("description",r.description||"",'maxlength="200" required placeholder="Descreva o lançamento"'))+
      fields+'<div class="field full"><label>Observações (opcional)</label><textarea name="notes" maxlength="1500" rows="2">'+E(r.notes||"")+'</textarea></div>'+
      '</div></form><div id="truckPreview" class="calc-preview"></div></div>'+
      '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
