@@ -13,14 +13,14 @@ SERVER = ROOT / "app.py"
 class DesktopCompactTests(unittest.TestCase):
     def test_loaded_after_all_modular_stylesheets(self):
         html = HTML.read_text(encoding="utf-8")
-        self.assertEqual(html.count('href="/static/desktop_compact.css?v=20261022"'), 1)
+        self.assertEqual(html.count('href="/static/desktop_compact.css?v=20261022-conferencia-1-conferencia-1"'), 1)
         self.assertGreater(html.index('href="/static/desktop_compact.css'),
                            html.index('href="/static/receiving_import.css'))
         server = SERVER.read_text(encoding="utf-8")
         self.assertIn('url=="/static/desktop_compact.css"', server)
         worker = SW.read_text(encoding="utf-8")
-        self.assertIn('/static/desktop_compact.css?v=20261022', worker)
-        self.assertIn('central-de-controles-shell-v20261022-compact', worker)
+        self.assertIn('/static/desktop_compact.css?v=20261022-conferencia-1', worker)
+        self.assertIn('central-de-controles-shell-v20261022-conferencia-1', worker)
 
     def test_desktop_rules_stay_inside_media_queries(self):
         css = re.sub(r"/\*.*?\*/", "", CSS.read_text(encoding="utf-8"), flags=re.S)
