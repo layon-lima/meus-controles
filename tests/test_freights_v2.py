@@ -36,7 +36,7 @@ class FreightsV2Tests(unittest.TestCase):
         with app.db() as con:
             conf=truck.settings(con,cid)
             self.assertEqual(conf["price_basis"],"kg")
-            self.assertEqual(conf["commission_pct"],"10")
+            self.assertEqual(conf["commission_pct"],"13")
             self.assertEqual(conf["freight_types"],["Frete Normal","Frete Jonas"])
             self.assertEqual(conf["categories"],[
                 "Abastecimento","Manutenção","Pedágio",
@@ -58,7 +58,7 @@ class FreightsV2Tests(unittest.TestCase):
             for name in ("Frete Normal","Frete Jonas"):
                 vals=truck.compute_entry(con,cid,{**base,"category":name,"weight_kg":"1000","price_kg":"1,80"})
                 self.assertEqual(vals[8],"1800.00")
-                self.assertEqual(vals[9],"180.00")
+                self.assertEqual(vals[9],"234.00")
                 con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
                     description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
                     VALUES(?,?,?,?,?,?,?,?,?,?,?)""",vals)
@@ -77,7 +77,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(report["totals"]["freight"],"3600.00")
             self.assertEqual(report["totals"]["cash_out"],"350.00")
             self.assertEqual(report["totals"]["cash_balance"],"3250.00")
-            self.assertEqual(report["totals"]["commission_earned"],"360.00")
+            self.assertEqual(report["totals"]["commission_earned"],"468.00")
             preview=truck_workflow.review_preview(con,cid,"2026-10-01","2026-10-10")
             self.assertEqual(preview["count"],8)
             self.assertEqual(len(preview["entries"]),8)
@@ -99,6 +99,40 @@ class FreightsV2Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"existe"):
                 truck.add_category(con,cid,"lavagem")
             self.assertIn("Lavagem",truck.settings(con,cid)["categories"])
+
+    def test_previously_installed_ten_percent_fixed_once_preserving_history(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            con.execute("UPDATE truck_settings SET commission_pct='10' WHERE control_id=?",(cid,))
+            old=truck.compute_entry(con,cid,{
+                "date":"2026-10-02","kind":"freight","category":"Frete Jonas",
+                "description":"Frete antigo, comissão original 10%",
+                "weight_kg":"1000","price_kg":"2","notes":""})
+            self.assertEqual(old[9],"200.00")
+            con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)""",old)
+            before=con.execute("SELECT * FROM truck_entries WHERE control_id=?",(cid,)).fetchone()
+            app.fix_seeded_freight_commission(con)
+            self.assertEqual(truck.settings(con,cid)["commission_pct"],"13")
+            saved=con.execute("SELECT * FROM truck_entries WHERE control_id=?",(cid,)).fetchone()
+            self.assertEqual(dict(saved),dict(before))
+            fresh=truck.compute_entry(con,cid,{
+                "date":"2026-10-03","kind":"freight","category":"Frete Normal",
+                "description":"Novo frete", "weight_kg":"1000","price_kg":"2"})
+            self.assertEqual(fresh[9],"260.00")
+            # A correção é única; um ajuste posterior feito pelo usuário é respeitado.
+            con.execute("UPDATE truck_settings SET commission_pct='12' WHERE control_id=?",(cid,))
+            app.fix_seeded_freight_commission(con)
+            self.assertEqual(truck.settings(con,cid)["commission_pct"],"12")
+
+    def test_non_default_truck_not_affected_by_commission_fix(self):
+        with app.db() as con:
+            cid=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
+                VALUES(1,'Outro controle','caminhao','[]','[]','[]')""").lastrowid
+            truck.save_settings(con,cid,{"commission_pct":"10"})
+            app.fix_seeded_freight_commission(con)
+            self.assertEqual(truck.settings(con,cid)["commission_pct"],"10")
 
     def test_existing_tonne_pricing_unchanged(self):
         with app.db() as con:
