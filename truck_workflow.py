@@ -1,4 +1,4 @@
-"""Conferências e fechamentos exclusivos do CONTROLE CHAVE ERRADA.
+"""Conferências e fechamentos por período para os controles de fretes habilitados.
 
 O fechamento não apaga lançamentos: arquiva uma fotografia imutável, com
 apuração por competência e a comissão histórica do motorista preservada.
@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 import truck
 
-TARGET_NAME = "CONTROLE CHAVE ERRADA"
+TARGET_NAMES = ("CONTROLE CHAVE ERRADA","CONTROLE DE FRETES")
 
 def initialize(con):
     con.executescript("""
@@ -45,14 +45,14 @@ def initialize(con):
        ON truck_closures(control_id,start_date,end_date);
     """)
     con.execute("""INSERT OR IGNORE INTO truck_workflow_controls(control_id)
-        SELECT id FROM controls WHERE mode='caminhao' AND UPPER(TRIM(name))=?""",
-        (TARGET_NAME,))
+        SELECT id FROM controls WHERE mode='caminhao' AND UPPER(TRIM(name)) IN (?,?)""",
+        TARGET_NAMES)
 
 def is_enabled(con,cid):
     if con.execute("SELECT 1 FROM truck_workflow_controls WHERE control_id=?",(cid,)).fetchone():
         return True
     row=con.execute("SELECT mode,name FROM controls WHERE id=?",(cid,)).fetchone()
-    if row and row["mode"]=="caminhao" and row["name"].strip().upper()==TARGET_NAME:
+    if row and row["mode"]=="caminhao" and row["name"].strip().upper() in TARGET_NAMES:
         con.execute("INSERT OR IGNORE INTO truck_workflow_controls(control_id) VALUES(?)",(cid,))
         return True
     return False
@@ -60,7 +60,7 @@ def is_enabled(con,cid):
 def require_enabled(con,cid):
     truck.check_control(con,cid)
     if not is_enabled(con,cid):
-        raise ValueError("Conferências e fechamentos estão disponíveis somente no CONTROLE CHAVE ERRADA.")
+        raise ValueError("Conferências e fechamentos indisponíveis neste controle de fretes.")
 
 def date_range(start,end):
     if not isinstance(start,str) or not isinstance(end,str):
