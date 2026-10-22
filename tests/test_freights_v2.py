@@ -103,11 +103,11 @@ class FreightsV2Tests(unittest.TestCase):
     def test_previously_installed_ten_percent_fixed_once_preserving_history(self):
         cid=self.upgraded()
         with app.db() as con:
-            con.execute("UPDATE truck_settings SET commission_pct='10' WHERE control_id=?",(cid,))
+            con.execute("UPDATE truck_settings SET commission_pct='10',price_basis='kg' WHERE control_id=?",(cid,))
             old=truck.compute_entry(con,cid,{
                 "date":"2026-10-02","kind":"freight","category":"Frete Jonas",
                 "description":"Frete antigo, comissão original 10%",
-                "weight_kg":"1000","price_tonne":"2000","notes":""})
+                "weight_kg":"1000","price_kg":"2","notes":""})
             self.assertEqual(old[9],"200.00")
             con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
                 description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
@@ -119,7 +119,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(dict(saved),dict(before))
             fresh=truck.compute_entry(con,cid,{
                 "date":"2026-10-03","kind":"freight","category":"Frete Normal",
-                "description":"Novo frete", "weight_kg":"1000","price_tonne":"2000"})
+                "description":"Novo frete", "weight_kg":"1000","price_kg":"2"})
             self.assertEqual(fresh[9],"260.00")
             # A correção é única; um ajuste posterior feito pelo usuário é respeitado.
             con.execute("UPDATE truck_settings SET commission_pct='12' WHERE control_id=?",(cid,))
