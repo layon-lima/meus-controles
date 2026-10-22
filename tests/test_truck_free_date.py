@@ -49,11 +49,11 @@ class TruckFreeDateTests(unittest.TestCase):
         self.assertIn('.truck-entry-form .truck-free-date',CSS)
 
     def test_pwa_loads_new_asset_versions(self):
-        for asset in ('truck.js','truck.css'):
-            version='/static/'+asset+'?v=20261022-data-livre-v4'
+        for asset,version_id in (('truck.js','20261022-comissao-v7'),('truck.css','20261022-data-livre-v4')):
+            version='/static/'+asset+'?v='+version_id
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261022-data-livre-v4',SW)
+        self.assertIn('central-de-controles-shell-v20261022-comissao-v7',SW)
         # A versão do servidor evolui independentemente do campo de data.
         # Não prender o deploy a uma release antiga.
         self.assertRegex(SERVER,r'"release":"20261022-[a-z0-9-]+"')
