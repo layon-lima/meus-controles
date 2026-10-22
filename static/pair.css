@@ -118,3 +118,9 @@
  font-size:11px;line-height:1.5}
 .ab-financial-consent input[type=checkbox]{flex:none;width:16px;height:16px;margin-top:1px}
 .ab-financial-hint{color:var(--muted);font-size:11px}
+
+/* Única ação principal, escolha do tipo dentro do formulário A × B. */
+.ab-header-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.ab-new-launch-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ab-new-launch-choices .btn{white-space:normal;min-height:55px;padding:10px;text-align:center}
+@media(max-width:590px){.ab-new-launch-choices{grid-template-columns:1fr}.ab-new-launch-choices .btn{min-height:40px}}
