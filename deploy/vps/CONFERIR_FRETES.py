@@ -5,6 +5,8 @@ Execução no contêiner: python -m deploy.vps.CONFERIR_FRETES
 Não altera banco de dados, configurações, conferências nem lançamentos.
 """
 import json
+import re
+from pathlib import Path
 from decimal import Decimal
 
 import app
@@ -14,7 +16,9 @@ TARGETS=(("2026-10-15","47000"),("2026-10-10","47610"),("2026-10-06","48380"))
 
 def main():
     print("=== DIAGNOSTICO: FRETES CALCARIO JONAS / PRECO POR TONELADA ===")
-    print("Versao do codigo no container:",getattr(app,"FREIGHT_VERSION","20261022-frete-tonelada-v6"))
+    source=Path(app.__file__).read_text(encoding="utf-8")
+    release=re.search(r'"release":"([^"]+)"',source)
+    print("Versao REAL da API no container:",release.group(1) if release else "nao informada")
     with app.db() as con:
         controls=con.execute("""SELECT c.id,c.mode,c.name,b.name AS board,t.price_basis,
                                t.commission_pct
