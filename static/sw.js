@@ -1,10 +1,10 @@
 /* PWA Central de Controles. APENAS o shell é armazenado; nunca API/dados financeiros. */
 "use strict";
-const CACHE = "central-de-controles-shell-v20261021";
+const CACHE = "central-de-controles-shell-v20261022-compact";
 const SHELL = [
   "/", "/manifest.webmanifest", "/static/icons.svg", "/favicon.ico",
   "/pwa-icon-192.png", "/pwa-icon-512.png",
-  "/static/app.css", "/static/truck.css", "/static/truck_workflow.css",
+  "/static/app.css", "/static/desktop_compact.css?v=20261022", "/static/truck.css", "/static/truck_workflow.css",
   "/static/debt.css", "/static/open_debt.css", "/static/receiving.css",
   "/static/pair.css", "/static/control_types.css", "/static/receiving_import.css",
   "/static/app.js", "/static/truck.js", "/static/truck_workflow.js",
