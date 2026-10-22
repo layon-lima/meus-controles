@@ -62,3 +62,71 @@
  .truck-tablist{gap:12px;overflow-x:auto}
  .truck-tab{font-size:11px}
 }
+
+/* CONFERENCIA 2026: grade estilo Excel, gastos agrupados e subtotais. */
+.truck-review-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.truck-review-tools select{height:31px;max-width:230px;min-width:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-size:11px;padding:4px 8px}
+.truck-review-grid,.truck-review-history-table{width:100%;max-width:100%;min-width:0;overflow-x:hidden;border:1px solid var(--line);border-radius:7px;margin-top:8px}
+.truck-review-grid{max-height:min(60vh,650px);overflow-y:auto}
+.truck-review-table,.truck-review-history-table table{border-collapse:collapse;table-layout:fixed;width:100%;min-width:0}
+.truck-review-table :is(th,td),.truck-review-history-table :is(th,td){border-right:1px solid #e6ecf0;border-bottom:1px solid #e6ecf0;padding:6px 7px;line-height:1.35!important;font-size:11px;min-width:0;overflow-wrap:anywhere}
+.truck-review-table thead th,.truck-review-history-table thead th{background:#f2f6f8;font-size:10px;font-weight:800;color:#536c7d;text-align:left;position:sticky;top:0;z-index:2}
+.truck-review-table thead th:first-child{width:34px;text-align:center}
+.truck-review-table thead th:nth-child(2){width:92px}
+.truck-review-table thead th:nth-child(3){width:112px}
+.truck-review-table thead th:nth-child(4){width:auto}
+.truck-review-table thead th:nth-child(5){width:125px}
+.truck-review-table thead th:nth-child(6){width:112px}
+.truck-review-table thead th:nth-child(7){width:110px}
+.truck-review-table thead th:nth-child(8){width:88px}
+.truck-review-table th.numeric,.truck-review-table td.numeric{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.truck-review-table tbody tr:hover td{background:#f5faf8}
+.truck-review-table tbody .truck-review-group th{background:#eaf6ed;color:#235d49;font-weight:750;padding:7px 9px;text-align:left}
+.truck-review-table .truck-review-group.expense th{background:#e8f1fa;color:#265677}
+.truck-review-table .truck-review-group.advance th{background:#fdf0d7;color:#8b5c1c}
+.truck-review-table .truck-review-group.freight th{background:#dff5ed;color:#166e50}
+.truck-review-table .truck-review-group th small{font-size:10px;font-weight:500}
+.truck-review-table .truck-review-subtotal{text-align:right!important;white-space:normal}
+.truck-review-table .truck-review-description strong{font-size:11px;font-weight:700}
+.truck-review-table .truck-review-description small{display:block;margin-top:2px;color:var(--muted)}
+.truck-review-table .truck-review-check{text-align:center}
+.truck-review-table input[type=checkbox]{width:15px;height:15px;accent-color:#16866d;vertical-align:middle}
+.truck-review-table .truck-review-status{text-align:center}
+.truck-review-status span{display:inline-flex;align-items:center;justify-content:center;padding:3px 5px;border-radius:5px;font-size:10px;min-width:60px}
+.truck-review-status .checked{background:#dbf3e5;color:#166a50}
+.truck-review-status .pending{background:#f1f4f6;color:#576c7c}
+.truck-review-total{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+.truck-review-row[hidden],.truck-review-group[hidden]{display:none!important}
+.truck-review-history-table{margin-top:0}
+.truck-review-history-table th,.truck-review-history-table td{position:static;line-height:1.3!important}
+@media(max-width:1020px){
+  .truck-review-table thead th:nth-child(6){width:74px}
+  .truck-review-table thead th:nth-child(5){width:95px}
+  .truck-review-table :is(th,td){padding:5px;font-size:10px}
+}
+@media(max-width:820px){
+  .truck-review-grid{max-height:60vh}
+  .truck-review-table thead th:nth-child(2){width:76px}
+  .truck-review-table thead th:nth-child(3){width:74px}
+  .truck-review-table thead th:nth-child(5){width:72px}
+  .truck-review-table thead th:nth-child(6){display:none}
+  .truck-review-table tbody .truck-review-row td:nth-child(6){display:none}
+  .truck-review-table .truck-review-group th:first-child{padding-left:6px}
+  .truck-review-table .truck-review-group th[colspan="6"]{padding-left:7px}
+  .truck-review-table thead th:nth-child(7){width:87px}
+  .truck-review-table thead th:nth-child(8){width:66px}
+}
+@media(max-width:590px){
+  .truck-review-grid :is(th,td){font-size:9px;padding:4px 3px}
+  .truck-review-table thead th:nth-child(1){width:24px}
+  .truck-review-table thead th:nth-child(2){width:67px}
+  .truck-review-table thead th:nth-child(3){display:none}
+  .truck-review-table tbody .truck-review-row td:nth-child(3){display:none}
+  .truck-review-table thead th:nth-child(5){display:none}
+  .truck-review-table tbody .truck-review-row td:nth-child(5){display:none}
+  .truck-review-table thead th:nth-child(7){width:80px}
+  .truck-review-table thead th:nth-child(8){width:55px}
+  .truck-review-status span{min-width:0;padding:3px}
+  .truck-review-table .truck-review-description small{display:none}
+  .truck-review-history-table :is(th,td){padding:5px 3px;font-size:9px}
+}
