@@ -11,6 +11,53 @@ const truckNum = value => {
   return Number.isFinite(n)?n:0;
 };
 const truckDate=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+
+// A digitação é totalmente livre; interpretar/formatar apenas ao sair ou salvar.
+// Formatos aceitos: 221026, 22102026, 22/10/26, 22/10/2026, 2026-10-22.
+const truckParseDate=value=>{
+  const raw=String(value??"").trim();
+  let day,month,year;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){
+    [year,month,day]=raw.split("-").map(Number);
+  }else{
+    const digits=raw.replace(/[\/.\-\s]/g,"");
+    if(!/^[\d\/.\-\s]+$/.test(raw)||![6,8].includes(digits.length)||!/^\d+$/.test(digits))return null;
+    // Separadores só entre dia, mês e ano; não aceitar agrupamentos ambíguos.
+    const compact=/^\d{6}(?:\d{2})?$/;
+    const separated=/^\d{1,2}[\/.\-\s]\d{1,2}[\/.\-\s]\d{2}(?:\d{2})?$/;
+    if(!compact.test(raw)&&!separated.test(raw))return null;
+    if(separated.test(raw)){
+      const parts=raw.split(/[\/.\-\s]/);
+      day=Number(parts[0]);month=Number(parts[1]);year=Number(parts[2]);
+      if(parts[2].length===2)year+=2000;
+    }else{
+      day=Number(digits.slice(0,2));month=Number(digits.slice(2,4));
+      year=Number(digits.slice(4));
+      if(digits.length===6)year+=2000;
+    }
+  }
+  if(!Number.isInteger(year)||year<1||year>9999||
+     !Number.isInteger(month)||month<1||month>12||
+     !Number.isInteger(day)||day<1)return null;
+  const leap=year%4===0&&(year%100!==0||year%400===0);
+  const length=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31][month-1];
+  if(day>length)return null;
+  const pad=n=>String(n).padStart(2,"0");
+  const yyyy=String(year).padStart(4,"0");
+  return {iso:yyyy+"-"+pad(month)+"-"+pad(day),display:pad(day)+"/"+pad(month)+"/"+yyyy};
+};
+const truckDateDisplay=value=>truckParseDate(value)?.display??String(value??"");
+const truckFreeDateInput=value=>
+  '<div class="truck-free-date">'+
+  '<input type="text" id="truckDateText" name="date" required inputmode="numeric" autocomplete="off" maxlength="18" '+
+  'placeholder="dd/mm/aaaa" aria-label="Data em dia, mês e ano; digitação livre" '+
+  'value="'+E(truckDateDisplay(value))+'" oninput="this.setCustomValidity(&quot;&quot;)" '+
+  'onblur="App.truckDateBlur(this)">'+
+  '<button type="button" class="truck-date-picker-button" aria-label="Escolher data no calendário" onclick="App.truckOpenDatePicker()">'+icon("calendar-days")+'</button>'+
+  '<input type="date" class="truck-date-native" id="truckDatePicker" tabindex="-1" aria-label="Calendário" '+
+  'value="'+E(truckParseDate(value)?.iso||truckDate())+'" onchange="App.truckDatePicked(this)">'+
+  '</div>';
+
 const truckOptions=(arr,selected)=>arr.map(n=>'<option value="'+E(n)+'"'+(n===selected?' selected':'')+'>'+E(n)+'</option>').join("");
 const truckField=(label,html)=>'<div class="field"><label>'+E(label)+'</label>'+html+'</div>';
 const truckInput=(name,value,more="")=>'<input name="'+name+'" value="'+E(value??"")+'" '+more+'>';
@@ -172,13 +219,42 @@ Object.assign(App,{
      '<div class="field truck-entry-type"><label for="truckEntryType">Tipo de lançamento *</label>'+
      '<div class="truck-entry-type-actions"><select id="truckEntryType" required onchange="App.truckChangeType(this.value)">'+select+'</select>'+
      '<button type="button" class="btn btn-sm" onclick="App.truckNewCategory()">'+icon("plus")+' Nova categoria</button></div></div>'+
-     '<div class="form-grid">'+truckField("Data",truckInput("date",r.event_date||truckDate(),'type="date" required'))+
+     '<div class="form-grid">'+truckField("Data",truckFreeDateInput(r.event_date??truckDate()))+
      truckField("Descrição",truckInput("description",r.description||"",'maxlength="200" required placeholder="Descreva o lançamento"'))+
      fields+'<div class="field full"><label>Observações (opcional)</label><textarea name="notes" maxlength="1500" rows="2">'+E(r.notes||"")+'</textarea></div>'+
      '</div></form><div id="truckPreview" class="calc-preview"></div></div>'+
      '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
      '<button class="btn btn-primary" onclick="App.truckSave()">'+icon("check")+' Salvar lançamento</button></div></div></div>';
     this.truckPreview();
+  },
+  truckDateBlur(input){
+    const date=truckParseDate(input.value);
+    if(date){
+      input.value=date.display;
+      input.setCustomValidity("");
+      const picker=document.getElementById("truckDatePicker");
+      if(picker)picker.value=date.iso;
+    }
+    // Não mudar textos incompletos: Backspace e edição do mês/ano continuam livres.
+  },
+  truckOpenDatePicker(){
+    const picker=document.getElementById("truckDatePicker");
+    if(!picker)return;
+    const text=document.getElementById("truckDateText");
+    const date=truckParseDate(text?.value);
+    if(date)picker.value=date.iso;
+    if(typeof picker.showPicker==="function"){
+      try{picker.showPicker();return}catch(_){}
+    }
+    picker.focus();
+    picker.click();
+  },
+  truckDatePicked(picker){
+    const input=document.getElementById("truckDateText");
+    const date=truckParseDate(picker.value);
+    if(!input||!date)return;
+    input.value=date.display;
+    input.setCustomValidity("");
   },
   truckChangeType(value){
     const ctx=this.s.modalContext;
@@ -381,9 +457,15 @@ Object.assign(App,{
   async truckSave(){
     const ctx=this.s.modalContext,form=document.getElementById("truckForm");
     if(!ctx||!form)return;
+    const dateInput=document.getElementById("truckDateText");
+    const parsedDate=truckParseDate(dateInput?.value);
+    if(dateInput){
+      dateInput.setCustomValidity(parsedDate?"":"Informe uma data válida. Ex.: 221026 ou 22/10/2026.");
+    }
     if(!form.reportValidity())return;
+    if(dateInput&&parsedDate)dateInput.value=parsedDate.display;
     const f=new FormData(form);
-    const payload={date:f.get("date"),description:f.get("description"),kind:ctx.kind,category:ctx.category,
+    const payload={date:parsedDate.iso,description:f.get("description"),kind:ctx.kind,category:ctx.category,
                    notes:f.get("notes"),amount:f.get("amount"),weight_kg:f.get("weight_kg"),
                    price_tonne:f.get("price_tonne"),price_kg:f.get("price_kg")};
     try{
