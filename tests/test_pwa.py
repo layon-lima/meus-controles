@@ -53,7 +53,7 @@ class PWATests(unittest.TestCase):
                     ("/pwa-icon-512.png", b"\x89PNG"),
                     ("/sw.js", b"/* PWA"),
                     ("/static/pwa.js", b"/* Instala"),
-                    ("/static/desktop_compact.css?v=20261022", b"/* CENTRAL"),
+                    ("/static/desktop_compact.css?v=20261022-conferencia-1", b"/* CENTRAL"),
                 ):
                     with self.subTest(route=route):
                         with urlopen(f"http://127.0.0.1:{app.PORT}{route}", timeout=10) as response:
