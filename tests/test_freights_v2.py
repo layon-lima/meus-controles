@@ -36,6 +36,7 @@ class FreightsV2Tests(unittest.TestCase):
         with app.db() as con:
             conf=truck.settings(con,cid)
             self.assertEqual(conf["price_basis"],"kg")
+            self.assertEqual(conf["commission_pct"],"10")
             self.assertEqual(conf["freight_types"],["Frete Normal","Frete Jonas"])
             self.assertEqual(conf["categories"],[
                 "Abastecimento","Manutenção","Pedágio",
@@ -57,7 +58,7 @@ class FreightsV2Tests(unittest.TestCase):
             for name in ("Frete Normal","Frete Jonas"):
                 vals=truck.compute_entry(con,cid,{**base,"category":name,"weight_kg":"1000","price_kg":"1,80"})
                 self.assertEqual(vals[8],"1800.00")
-                self.assertEqual(vals[9],"234.00")
+                self.assertEqual(vals[9],"180.00")
                 con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
                     description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
                     VALUES(?,?,?,?,?,?,?,?,?,?,?)""",vals)
@@ -76,7 +77,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(report["totals"]["freight"],"3600.00")
             self.assertEqual(report["totals"]["cash_out"],"350.00")
             self.assertEqual(report["totals"]["cash_balance"],"3250.00")
-            self.assertEqual(report["totals"]["commission_earned"],"468.00")
+            self.assertEqual(report["totals"]["commission_earned"],"360.00")
             preview=truck_workflow.review_preview(con,cid,"2026-10-01","2026-10-10")
             self.assertEqual(preview["count"],8)
             self.assertEqual(len(preview["entries"]),8)
