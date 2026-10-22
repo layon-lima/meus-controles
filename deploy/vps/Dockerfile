@@ -8,7 +8,8 @@ RUN python -m compileall -q /srv/app \
     && python -m unittest discover -s tests -p test_pg_compat.py -v \
     && python -m unittest discover -s tests -p test_pwa.py -v \
     && python -m unittest discover -s tests -p test_desktop_compact.py -v \
-    && python -m unittest discover -s tests -p test_freights_v2.py -v
+    && python -m unittest discover -s tests -p test_freights_v2.py -v \
+    && python -m unittest discover -s tests -p test_truck_free_date.py -v
 USER controles
 EXPOSE 18765
 CMD ["python", "app.py"]
