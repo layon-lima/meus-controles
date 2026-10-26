@@ -99,6 +99,18 @@ class EmployeeAdvancesTests(unittest.TestCase):
             vales.delete_payment(con,last["id"])
             self.assertGreater(Decimal(vales.get_summary(con,self.cid)["totals"]["remaining"]),0)
 
+    def test_decimal_precision_when_paying_in_small_parts(self):
+        eid=self.employee()
+        did=self.debt(eid,"0.30",1,"2027-01")
+        with app.db() as con:
+            i=vales.all_installments(con,did)[0]
+            vales.payment(con,i["id"],{"month":"2027-01","amount":"0.10"})
+            vales.payment(con,i["id"],{"month":"2027-01","amount":"0.20"})
+            status=vales.get_summary(con,self.cid)
+            self.assertEqual(status["totals"]["remaining"],"0.00")
+            self.assertEqual(status["employees"][0]["debts"][0]["installments"][0]["status"],"pago")
+            self.assertEqual(status["employees"][0]["debts"][0]["installments"][0]["remaining"],"0.00")
+
     def test_archive_keeps_history_but_prevents_new_debt(self):
         eid=self.employee()
         self.debt(eid)
