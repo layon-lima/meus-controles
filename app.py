@@ -22,6 +22,7 @@ import pair_records
 import pair_financial_import
 import pair_mixed_import
 import control_types
+import vales
 import receiving_import
 import debt_import
 import truck_workflow
@@ -116,6 +117,7 @@ def initialize():
         """)
         truck.init(con)
         debt.initialize(con)
+        vales.initialize(con)
         receiving.initialize(con)
         pair.initialize(con)
         pair_records.initialize(con)
@@ -328,7 +330,7 @@ def validate_config(p):
     name = require(p.get("name"), "o nome")
     board_id = int(p.get("board_id") or 0)
     mode = p.get("mode", "calculo")
-    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "divida_sem_valor", "recebimento", "acerto_ab"):
+    if mode not in ("calculo", "saldo", "financeiro", "caminhao", "divida", "divida_sem_valor", "recebimento", "acerto_ab", "vale_funcionarios"):
         raise ValueError("Modelo de controle invalido.")
     fields = p.get("fields", [])
     rules = p.get("rules", [])
@@ -468,6 +470,11 @@ def state(con):
                 "plus":money(Decimal(totals["b_to_a"])+Decimal(totals["payments_a_to_b"])),
                 "minus":money(Decimal(totals["a_to_b"])+Decimal(totals["payments_b_to_a"])),
                 "by_category":[],"by_type":[]}
+        elif c["mode"]=="vale_funcionarios":
+            totals=vales.get_summary(con,c["id"])["totals"]
+            c["summary"]={"count":totals["debts"],"balance":totals["remaining"],
+                "plus":totals["lent"],"minus":totals["paid"],
+                "employees":totals["active"],"by_category":[],"by_type":[]}
         elif c["mode"]=="recebimento":
             totals=receiving.summary(con,c["id"])["totals"]
             c["summary"]={"count":totals["receipts"],"balance":"0.00",
@@ -623,6 +630,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-frete-tonelada-v6","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
+                if re.fullmatch(r"/api/controls/\d+/vales(?:/(?:employees|payments))?",url) or re.fullmatch(r"/api/vales-(?:employees|debts|installments|payments)/\d+(?:/(?:debts|plan|payments))?",url):
+                    vales.handle(self,con,method,url)
+                    return
                 if re.fullmatch(r"/api/controls/\d+/pair/mixed-import/(?:preview|confirm)",url):
                     match=re.fullmatch(r"/api/controls/(\d+)/pair/mixed-import/(preview|confirm)",url)
                     if method!="POST":
