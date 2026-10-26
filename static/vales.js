@@ -93,7 +93,7 @@ Object.assign(App,{
         (i.status==="parcial"?'<small>'+vfMoney(i.remaining)+' restante</small>':'')+'</td>'+
         '<td data-label="Ações" class="vf-ledger-actions">'+
           (Number(i.remaining)>0?'<button class="btn btn-sm btn-primary" onclick="App.valesPaymentForm('+i.id+')">Descontar</button>':'')+
-          '<button class="btn btn-sm" onclick="App.valesManageDebt('+i.employeeId+')">Gerenciar</button></td></tr>';
+          '<button class="btn btn-sm" onclick="App.'+(Number(data.employees.find(e=>e.id===i.employeeId)?.remaining)>0?'valesManageDebt('+i.employeeId+')':'valesDebtTitleForm('+i.debtId+')')+'">'+(Number(data.employees.find(e=>e.id===i.employeeId)?.remaining)>0?'Gerenciar':'Editar título')+'</button></td></tr>';
     }).join("");
     const ledger='<div class="vf-ledger panel">'+
       '<div class="vf-table-head"><strong>Todos os lançamentos</strong><span>'+entries.length+
@@ -105,7 +105,9 @@ Object.assign(App,{
       '<th>Para quem foi</th><th>Quando descontar</th><th>Situação</th><th>Ações</th></tr></thead>'+
       '<tbody>'+ (rows||'<tr><td colspan="7" class="vf-table-empty">Nenhum lançamento encontrado para o funcionário selecionado.</td></tr>')+
       '</tbody></table></div>';
-    const totalsRows=all.filter(emp=>selected==="all"||String(emp.id)===selected).map(emp=>
+    const withOpenBalance=all.filter(emp=>Number(emp.remaining)>0);
+    const visibleTotals=withOpenBalance.filter(emp=>selected==="all"||String(emp.id)===selected);
+    const totalsRows=visibleTotals.map(emp=>
       '<tr><td data-label="Funcionário"><strong>'+E(emp.name)+'</strong>'+
       (!emp.active?'<small>Arquivado</small>':'')+'</td>'+
       '<td data-label="Total emprestado" class="numeric">'+vfMoney(emp.lent)+'</td>'+
@@ -117,8 +119,7 @@ Object.assign(App,{
         '<button class="btn btn-sm" onclick="App.valesEmployeeDetails('+emp.id+')">Detalhes</button>'+
         '<button class="btn btn-sm" onclick="App.valesSetActive('+emp.id+','+(!emp.active)+')">'+
         (emp.active?"Arquivar":"Reativar")+'</button></td></tr>').join("");
-    const detailEmp=all.find(e=>e.id===this.s.valesDetailEmployee&&
-      (selected==="all"||String(e.id)===selected));
+    const detailEmp=visibleTotals.find(e=>e.id===this.s.valesDetailEmployee);
     const detailDebts=detailEmp?'<section class="vf-details"><div class="vf-details-heading"><h3>Vales de '+E(detailEmp.name)+'</h3>'+
       '<button class="btn btn-sm" onclick="App.valesEmployeeDetails(null)">Fechar detalhes</button></div>'+
       (detailEmp.debts.length?detailEmp.debts.map(d=>{
@@ -137,10 +138,10 @@ Object.assign(App,{
       }).join(""):'<p class="vf-table-empty">Nenhum vale para este funcionário.</p>')+
       '</section>':"";
     const summary='<section class="vf-summary panel"><div class="vf-table-head"><strong>Totais por funcionário</strong>'+
-      '<span>'+all.length+' funcionário(s) cadastrado(s)</span></div>'+
+      '<span>'+visibleTotals.length+' funcionário(s) com saldo em aberto</span></div>'+
       '<table class="vf-summary-table"><thead><tr><th>Funcionário</th><th>Total emprestado</th>'+
       '<th>Total descontado</th><th>Em aberto</th><th>Vales</th><th>Ações</th></tr></thead>'+
-      '<tbody>'+(totalsRows||'<tr><td colspan="6" class="vf-table-empty">Nenhum funcionário encontrado.</td></tr>')+
+      '<tbody>'+(totalsRows||'<tr><td colspan="6" class="vf-table-empty">Nenhum funcionário com vales em aberto.</td></tr>')+
       '</tbody></table>'+detailDebts+'</section>'+
       '<details class="panel vf-history" ontoggle="if(this.open) App.valesLoadPayments()">'+
       '<summary>Histórico de descontos realizados</summary>'+
