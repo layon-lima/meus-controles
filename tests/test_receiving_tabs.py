@@ -64,7 +64,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
             version="/static/"+asset+"?v=20261026-recebimento-flutuante-v8"
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261026-recebimento-abas-v7',SW)
+        self.assertIn('central-de-controles-shell-v20261026-recebimento-flutuante-v8',SW)
 
 
 if __name__=="__main__":
