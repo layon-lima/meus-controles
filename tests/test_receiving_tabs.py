@@ -63,6 +63,32 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertNotIn('Buscar nota, pedido, fornecedor ou produto...',JS)
         self.assertNotIn('<th>Ações</th>',JS)
 
+    def test_receipt_picker_accepts_typing_and_click_selection(self):
+        self.assertIn('id="receivingPickSearch"',JS)
+        self.assertIn('type="search"',JS)
+        self.assertIn('role="combobox"',JS)
+        self.assertIn('aria-autocomplete="list"',JS)
+        self.assertIn('id="receivingPickResults"',JS)
+        self.assertIn('role="listbox"',JS)
+        self.assertIn('onclick="App.receivingPickSelect(',JS)
+        self.assertIn('oninput="App.receivingFilterPick(this.value)"',JS)
+        self.assertIn('onkeydown="App.receivingPickKeydown(event)"',JS)
+        self.assertIn('receivingPickShowAll(){',JS)
+        self.assertIn('receivingPickReceiptProduct(){',JS)
+        self.assertIn('picker.selectedId=id;',JS)
+        self.assertIn('const terms=rxPickNormalize(query).split(" ").filter(Boolean)',JS)
+        self.assertIn('normalize("NFD")',JS)
+        self.assertIn('terms.every(term=>search.includes(term))',JS)
+        self.assertIn('if(continueBtn)continueBtn.disabled=!valid;',JS)
+        self.assertNotIn('id="receivingPickItem"',JS)
+
+    def test_search_results_are_clickable_and_mobile_friendly(self):
+        self.assertIn('.receiving-pick-input',CSS)
+        self.assertIn('.receiving-pick-results',CSS)
+        self.assertIn('.receiving-pick-option:hover',CSS)
+        self.assertIn('overscroll-behavior:contain',CSS)
+        self.assertIn('.receiving-pick-results[hidden]{display:none!important}',CSS)
+
     def test_tabs_are_compact_and_non_scrolling(self):
         self.assertIn(".receiving-tabs",CSS)
         self.assertIn(".receiving-tabs button.active",CSS)
