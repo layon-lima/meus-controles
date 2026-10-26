@@ -81,8 +81,11 @@ Object.assign(App,{
     if(!ctrl||ctrl.mode!=="recebimento")return;
     const id=ctrl.id;
     // Cada controle tem sua propria busca. Uma atualizacao dos dados nao a apaga.
+    if(this.s.receivingTab?.controlId!==id){
+      this.s.receivingTab={controlId:id,value:"pedidos"};
+    }
     if(this.s.receivingSearch?.controlId!==id){
-      this.s.receivingSearch={controlId:id,query:""};
+      this.s.receivingSearch={controlId:id,queries:{pedidos:"",notas:""}};
     }
     document.getElementById("main").innerHTML='<div class="empty-state">Carregando pedidos...</div>';
     try{
@@ -104,8 +107,10 @@ Object.assign(App,{
     }
     this.s.receivingSelection.ids=this.s.receivingSelection.ids.filter(id=>available.has(id));
     const selected=this.s.receivingSelection.ids;
+    const activeTab=this.s.receivingTab?.controlId===c.id&&this.s.receivingTab.value==="notas"?
+      "notas":"pedidos";
     const savedSearch=this.s.receivingSearch?.controlId===c.id?
-      this.s.receivingSearch.query:"";
+      (this.s.receivingSearch.queries?.[activeTab]||""):"";
     const supplierCatalog=rxSupplierCatalog(r.items);
     const supplierGroups=rxSupplierGroups(r.items,supplierCatalog);
     const renderRow=p=>{
@@ -143,38 +148,55 @@ Object.assign(App,{
       '<div class="receiving-head"><div><div class="eyebrow">RECEBIMENTO DE PRODUTOS</div>'+
       '<p>Controle de pedidos, fornecedores e entregas por nota fiscal.</p></div>'+
       '<div class="receiving-header-actions">'+
-      (t.items===0?'<button class="btn btn-sm" onclick="App.receivingChooseImport()">'+icon("download")+' Importar pedidos</button>':'')+
+      (activeTab==="pedidos"&&t.items===0?'<button class="btn btn-sm" onclick="App.receivingChooseImport()">'+icon("download")+' Importar pedidos</button>':'')+
       '<button class="btn btn-sm" onclick="App.receivingSettings('+c.id+')">'+icon("settings")+' Ajustes</button>'+
-      '<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto do pedido</button></div></div>'+
+      (activeTab==="pedidos"?'<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto do pedido</button>':'')+
+      '</div></div>'+
       '<input type="file" accept=".json,application/json" id="receivingImportInput" hidden onchange="App.receivingLoadImportFile(this.files[0])">'+
-      '<div class="receiving-kpis">'+
-      [['Produtos cadastrados',t.items],['Totalmente recebidos',t.complete],['Parcialmente recebidos',t.partial],['Entregas registradas',t.receipts]].map(x=>
-      '<div class="receiving-kpi"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join("")+'</div>'+
-      '<div class="receiving-section-heading"><h3>Pedidos e produtos</h3>'+
-      '<div class="receiving-toolbar"><span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
-      '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+icon("trash")+' Excluir selecionados</button>'+
+      '<div class="receiving-tabs" role="tablist" aria-label="Seções do recebimento de produtos">'+
+      '<button type="button" role="tab" aria-selected="'+(activeTab==="pedidos")+'" class="'+(activeTab==="pedidos"?"active":"")+
+      '" onclick="App.receivingSwitchTab(&quot;pedidos&quot;)">Pedidos</button>'+
+      '<button type="button" role="tab" aria-selected="'+(activeTab==="notas")+'" class="'+(activeTab==="notas"?"active":"")+
+      '" onclick="App.receivingSwitchTab(&quot;notas&quot;)">Notas fiscais</button></div>'+
+      '<div class="receiving-section-heading"><h3>'+(activeTab==="pedidos"?"Pedidos e produtos":"Histórico de notas fiscais")+'</h3>'+
+      '<div class="receiving-toolbar">'+
+      (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
+      '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+icon("trash")+' Excluir selecionados</button>':'')+
       '<label class="receiving-search">'+icon("search")+
-      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="Buscar pedido, fornecedor, produto ou nota..." aria-label="Pesquisar" oninput="App.receivingFilter(this.value)"></label></div></div>'+
-      '<section class="panel receiving-table">'+
-      (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
-       '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
-       '<th>Status</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
-       '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
-       '</div>')+'</section>'+
-      '<section class="panel receiving-table"><div class="panel-header"><h3>Histórico de notas fiscais</h3>'+
-      '<span class="secondary-text">'+t.receipts+' entrega(s)</span></div>'+
-      (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
-       '<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th><th>Ações</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
-       '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>';
+      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="'+
+      (activeTab==="pedidos"?"Buscar pedido, fornecedor ou produto...":"Buscar nota, pedido, fornecedor ou produto...")+
+      '" aria-label="Pesquisar '+(activeTab==="pedidos"?"pedidos":"notas fiscais")+
+      '" oninput="App.receivingFilter(this.value)"></label></div></div>'+
+      (activeTab==="pedidos"?
+        '<section class="panel receiving-table">'+
+        (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
+        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
+        '<th>Status</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
+        '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
+        '</div>')+'</section>'
+      :
+        '<section class="panel receiving-table">'+
+        (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
+        '<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th><th>Ações</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
+        '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>');
     // Aplicar novamente apos redesenhar a tabela (ex.: salvar/editar/excluir NF).
     this.receivingApplyFilter(savedSearch);
+  },
+  receivingSwitchTab(tab){
+    if(tab!=="pedidos"&&tab!=="notas")return;
+    const controlId=this.s.detail?.control?.id;
+    if(controlId==null||this.s.detail?.control?.mode!=="recebimento")return;
+    this.s.receivingTab={controlId,value:tab};
+    this.renderReceivingView();
   },
   receivingFilter(query){
     const controlId=this.s.detail?.control?.id;
     if(controlId==null)return;
-    const raw=String(query??"");
-    this.s.receivingSearch={controlId,query:raw};
-    this.receivingApplyFilter(raw);
+    const tab=this.s.receivingTab?.controlId===controlId&&this.s.receivingTab.value==="notas"?"notas":"pedidos";
+    const queries={...(this.s.receivingSearch?.controlId===controlId?this.s.receivingSearch.queries:{}),
+      [tab]:String(query??"")};
+    this.s.receivingSearch={controlId,queries};
+    this.receivingApplyFilter(queries[tab]);
   },
   receivingApplyFilter(query){
     const value=rxSupplierKey(query);
