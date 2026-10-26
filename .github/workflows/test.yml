@@ -14,6 +14,8 @@ jobs:
           python-version: '3.12'
       - name: Validar sintaxe Python
         run: python -m compileall -q app.py truck.py truck_workflow.py debt.py open_debt.py debt_import.py receiving.py receiving_import.py pair.py pair_records.py pair_financial_import.py pair_mixed_import.py control_types.py controller/server.py tests
+      - name: Testar agrupamento e sugestoes de fornecedores
+        run: node tests/test_receiving_suppliers.js
       - name: Executar testes de servidor, calculos e painel web
         run: python -m unittest discover -s tests -v
       - name: Validar JavaScript
