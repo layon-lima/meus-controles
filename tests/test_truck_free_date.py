@@ -53,7 +53,7 @@ class TruckFreeDateTests(unittest.TestCase):
             version='/static/'+asset+'?v='+version_id
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261022-comissao-v7',SW)
+        self.assertIn('central-de-controles-shell-v20261026-vales-v1',SW)
         # A versão do servidor evolui independentemente do campo de data.
         # Não prender o deploy a uma release antiga.
         self.assertRegex(SERVER,r'"release":"20261022-[a-z0-9-]+"')
