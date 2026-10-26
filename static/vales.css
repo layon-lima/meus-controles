@@ -25,6 +25,7 @@
 .vf-debt:last-child{border:0}
 .vf-debt-head{display:grid;grid-template-columns:minmax(150px,1fr) minmax(120px,190px) auto;align-items:center;gap:10px}
 .vf-debt-head b{font-size:12px}
+.vf-debt-description{font-size:11px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere;max-width:620px}
 .vf-debt-head .secondary-text{font-size:10px;margin-top:4px}
 .vf-debt-money{text-align:right;font-size:12px;font-weight:700}
 .vf-debt-money small{display:block;color:var(--muted);font-weight:400;font-size:10px;margin-top:2px}
