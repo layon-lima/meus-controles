@@ -155,13 +155,17 @@ def debt(con,did):
 
 
 def all_installments(con,did):
-    return [dict(r) for r in con.execute("""
-      SELECT i.id,i.debt_id,i.installment_number,i.due_month,i.amount,
-             COALESCE((SELECT SUM(CAST(p.amount AS DECIMAL)) FROM vale_payments p
-                       WHERE p.installment_id=i.id),0) AS paid
-      FROM vale_installments i
-      WHERE i.debt_id=?
-      ORDER BY i.installment_number""",(did,))]
+    """Somente Decimal; SUM SQL pode usar float e criar saldo de 1 centavo."""
+    result=[]
+    for row in con.execute("""SELECT id,debt_id,installment_number,due_month,amount
+            FROM vale_installments WHERE debt_id=? ORDER BY installment_number""",(did,)):
+        data=dict(row)
+        paid=sum((Decimal(p["amount"]) for p in con.execute(
+            "SELECT amount FROM vale_payments WHERE installment_id=?",(data["id"],))),
+            Decimal("0"))
+        data["paid"]=money(paid)
+        result.append(data)
+    return result
 
 
 def get_summary(con,cid):
@@ -203,6 +207,7 @@ def get_summary(con,cid):
 
 
 def create_employee(con,cid,name):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     ensure_control(con,cid)
     name=label(name,"o nome do funcionário")
     matches=con.execute("SELECT * FROM vale_employees WHERE control_id=?",(cid,)).fetchall()
@@ -214,6 +219,7 @@ def create_employee(con,cid,name):
 
 
 def archive_employee(con,eid,active):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     e=employee(con,eid)
     con.execute("UPDATE vale_employees SET active=? WHERE id=?",(1 if active else 0,eid))
     con.commit()
@@ -221,6 +227,7 @@ def archive_employee(con,eid,active):
 
 
 def create_debt(con,eid,p):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     e=employee(con,eid)
     if not e["active"]:raise ValueError("Reative o funcionário antes de lançar um novo vale.")
     if not isinstance(p,dict):raise ValueError("Dados inválidos.")
@@ -245,6 +252,7 @@ def create_debt(con,eid,p):
 
 
 def replan_debt(con,did,p):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     d=debt(con,did)
     if not isinstance(p,dict):raise ValueError("Dados inválidos.")
     current=all_installments(con,did)
@@ -261,6 +269,7 @@ def replan_debt(con,did,p):
 
 
 def payment(con,iid,p):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     if not isinstance(p,dict):raise ValueError("Pagamento inválido.")
     i=con.execute("""SELECT i.*,d.control_id FROM vale_installments i
       JOIN vale_debts d ON d.id=i.debt_id WHERE i.id=?""",(iid,)).fetchone()
@@ -281,6 +290,7 @@ def payment(con,iid,p):
 
 
 def settle_debt(con,did,p):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     """Quita todas as parcelas restantes em um único registro lógico (transação)."""
     d=debt(con,did)
     if not isinstance(p,dict):raise ValueError("Dados inválidos.")
@@ -309,6 +319,7 @@ def payments(con,cid):
 
 
 def delete_payment(con,pid):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     row=con.execute("""SELECT p.id,d.control_id FROM vale_payments p
        JOIN vale_installments i ON i.id=p.installment_id
        JOIN vale_debts d ON d.id=i.debt_id WHERE p.id=?""",(pid,)).fetchone()
@@ -320,6 +331,7 @@ def delete_payment(con,pid):
 
 
 def delete_debt(con,did):
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     d=debt(con,did)
     if con.execute("""SELECT 1 FROM vale_payments p JOIN vale_installments i ON i.id=p.installment_id
                       WHERE i.debt_id=? LIMIT 1""",(did,)).fetchone():
