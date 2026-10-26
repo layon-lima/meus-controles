@@ -218,3 +218,54 @@
   .receiving-table .receiving-grid th,
   .receiving-table .receiving-grid td{padding:7px 9px}
 }
+
+
+/* Busca sempre visível, acima da grade, ocupando a área útil do desktop. */
+.receiving-search-band{display:block;width:100%;margin:4px 0 11px;min-width:0}
+.receiving-search-band .receiving-search{width:100%;min-width:0;max-width:none;border:1px solid #9ebdad;
+  background:#fff;min-height:42px;box-shadow:0 2px 5px rgba(11,73,54,.05);border-radius:8px}
+.receiving-search-band .receiving-search:focus-within{outline:2px solid #13856c;outline-offset:1px}
+.receiving-search-band .receiving-search input{font-size:13px;width:100%;min-width:0}
+.receiving-table .receiving-orders th:nth-child(1){width:3.5%}
+.receiving-table .receiving-orders th:nth-child(2){width:15%}
+.receiving-table .receiving-orders th:nth-child(3){width:13%}
+.receiving-table .receiving-orders th:nth-child(4){width:27%}
+.receiving-table .receiving-orders th:nth-child(5){width:12%}
+.receiving-table .receiving-orders th:nth-child(6){width:10%}
+.receiving-table .receiving-orders th:nth-child(7){width:11%}
+.receiving-table .receiving-orders th:nth-child(8){width:8.5%}
+.receiving-table .receiving-invoices th:nth-child(1){width:10%}
+.receiving-table .receiving-invoices th:nth-child(2){width:10%}
+.receiving-table .receiving-invoices th:nth-child(3){width:28%}
+.receiving-table .receiving-invoices th:nth-child(4){width:12%}
+.receiving-table .receiving-invoices th:nth-child(5){width:16%}
+.receiving-table .receiving-invoices th:nth-child(6){width:12%}
+.receiving-table .receiving-invoices th:nth-child(7){width:12%}
+.receiving-table .receiving-orders,.receiving-table .receiving-invoices{min-width:0}
+.receiving-table .receiving-grid tbody tr[tabindex="0"]{cursor:pointer}
+.receiving-table .receiving-grid tbody tr[tabindex="0"]:focus-visible td{outline:2px solid #18866b;outline-offset:-2px}
+.receiving-table .receiving-grid tbody tr.receiving-focused td{background:#e1f3eb!important}
+.receiving-table .receiving-grid .receiving-key{font-size:10px;overflow-wrap:anywhere;word-break:break-all;color:#3b5267}
+.receiving-table .receiving-invoices th:last-child,
+.receiving-table .receiving-invoices td:last-child{text-align:right}
+.receiving-table .receiving-orders th:last-child,
+.receiving-table .receiving-orders td:last-child{text-align:left}
+.receiving-fab{position:fixed;z-index:38;right:28px;bottom:26px;display:flex;
+ align-items:center;justify-content:center;width:58px;height:58px;padding:0;
+ border:0;border-radius:50%;background:#13846d;color:#fff;box-shadow:0 6px 20px rgba(5,56,40,.3);
+ cursor:pointer;transition:transform .16s,background .16s}
+.receiving-fab:hover{background:#0b6b56;transform:scale(1.06)}
+.receiving-fab:focus-visible{outline:3px solid #95d8c7;outline-offset:3px}
+.receiving-fab .ui-icon{width:27px;height:27px;color:inherit}
+.receiving-manage{max-width:450px}
+.receiving-manage-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.receiving-danger{border-color:#f0c2c2!important;color:#a12f32!important}
+.receiving-pick-label{display:block;font-weight:700;font-size:12px;margin-bottom:7px}
+.receiving-pick-select{display:block;width:100%;min-width:0;min-height:40px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:7px}
+@media(max-width:740px){
+ .receiving-fab{right:17px;bottom:18px;width:54px;height:54px}
+ .receiving-search-band .receiving-search{min-width:0}
+ /* A rolagem, quando necessária, ocorre apenas dentro da tabela. */
+ .receiving-table .receiving-grid{min-width:680px}
+ .receiving-table .receiving-invoices{min-width:820px}
+}
