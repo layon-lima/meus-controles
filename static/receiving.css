@@ -8,6 +8,18 @@
 .receiving-kpi strong{font-size:23px;line-height:1.15;color:#183349;font-variant-numeric:tabular-nums}
 .receiving-kpi:nth-child(2){border-top:2px solid #13846c}
 .receiving-kpi:nth-child(3){border-top:2px solid #c88a32}
+
+/* Subabas exclusivas: pedidos e notas fiscais, sem quadro-resumo. */
+.receiving-tabs{display:flex;align-items:center;gap:18px;max-width:100%;min-width:0;
+  border-bottom:1px solid var(--line);margin:1px 0 12px}
+.receiving-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;
+  color:var(--muted);font-size:12px;font-weight:650;padding:9px 4px;cursor:pointer;white-space:nowrap}
+.receiving-tabs button.active{color:#167b65;border-bottom-color:#17856d}
+.receiving-tabs button:hover{color:#167b65}
+@media(max-width:590px){
+  .receiving-tabs{gap:13px}
+  .receiving-tabs button{font-size:11px}
+}
 .receiving-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 9px}
 .receiving-section-heading h3{font-size:14px;margin:0}
 .receiving-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
