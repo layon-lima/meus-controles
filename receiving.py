@@ -94,6 +94,27 @@ def get_receipt(con,receipt_id):
     ensure_control(con,row["control_id"])
     return dict(row)
 
+def supplier_key(value):
+    """Compara nomes ignorando acentos, caixa e espacos repetidos."""
+    raw=unicodedata.normalize("NFKD",str(value).strip().casefold())
+    return " ".join("".join(ch for ch in raw if not unicodedata.combining(ch)).split())
+
+
+def canonical_supplier(con,control_id,name):
+    """Reutiliza a grafia ja cadastrada apenas quando equivalente, sem adivinhar erros."""
+    if not name:
+        return ""
+    counts={}
+    for row in con.execute("SELECT supplier FROM purchase_items WHERE control_id=? ORDER BY id",
+                           (control_id,)):
+        existing=row["supplier"]
+        if existing and supplier_key(existing)==supplier_key(name):
+            counts[existing]=counts.get(existing,0)+1
+    if not counts:
+        return name
+    return sorted(counts,key=lambda existing:(-counts[existing],existing.casefold()))[0]
+
+
 def validate_item(payload):
     if not isinstance(payload,dict):raise ValueError("Dados do pedido inválidos.")
     unit=text(payload.get("unit","un"),"a unidade de medida",12)
@@ -231,6 +252,7 @@ def handle(handler,con,method,path):
         if method=="POST" and root[2]=="items":
             row=validate_item(handler.input())
             con.execute("BEGIN IMMEDIATE")
+            row["supplier"]=canonical_supplier(con,cid,row["supplier"])
             cur=con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
               VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
             con.commit()
@@ -255,6 +277,7 @@ def handle(handler,con,method,path):
                 con.execute("DELETE FROM purchase_items WHERE id=?",(iid,))
             else:
                 row=validate_item(handler.input())
+                row["supplier"]=canonical_supplier(con,item["control_id"],row["supplier"])
                 if Decimal(row["ordered_qty"])<received_total(con,iid):
                     raise ValueError("A quantidade pedida não pode ser menor que a quantidade já recebida.")
                 # Alterar o pedido de um produto já recebido não pode inserir
