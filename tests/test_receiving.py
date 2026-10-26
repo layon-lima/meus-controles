@@ -44,8 +44,9 @@ class ReceivingTests(unittest.TestCase):
             receiving.ensure_capacity(con,item_id,p["received_qty"])
             receiving.ensure_not_duplicate(con,item_id,p)
             return con.execute("""INSERT INTO purchase_receipts
-              (item_id,received_date,invoice_number,received_qty,notes)
-              VALUES(?,?,?,?,?)""",(item_id,*p.values())).lastrowid
+              (item_id,received_date,invoice_number,received_qty,access_key,notes)
+              VALUES(?,?,?,?,?,?)""",
+              (item_id,p["received_date"],p["invoice_number"],p["received_qty"],p["access_key"],p["notes"])).lastrowid
 
     def test_partial_receipts_by_invoice_reduce_balance(self):
         item=self.item()
@@ -90,8 +91,10 @@ class ReceivingTests(unittest.TestCase):
             receiving.ensure_capacity(con,item,"70",rid)
             values=receiving.validate_receipt({
                 "date":"2026-10-11","invoice_number":"NF-102","quantity":"70","notes":""})
-            con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,notes=?
-                 WHERE id=?""",(*values.values(),rid))
+            con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,access_key=?,notes=?
+                 WHERE id=?""",
+                 (values["received_date"],values["invoice_number"],values["received_qty"],
+                  values["access_key"],values["notes"],rid))
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"30.000")
             con.execute("DELETE FROM purchase_receipts WHERE id=?",(rid,))
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"100.000")
@@ -262,6 +265,61 @@ class ReceivingTests(unittest.TestCase):
         with app.db() as con:
             self.assertGreater(receiving.received_total(con,item),0)
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_access_key_is_optional_for_legacy_but_validates_new_key(self):
+        payload={"date":"2026-10-15","invoice_number":"12345","quantity":"50"}
+        self.assertEqual(receiving.validate_receipt(payload)["access_key"],"")
+        key="35261012345678000190550010000123451000012345"
+        self.assertEqual(len(key),44)
+        self.assertEqual(receiving.validate_receipt({**payload,"access_key":key})["access_key"],key)
+        self.assertEqual(receiving.validate_receipt({**payload,
+            "access_key":key[:22]+" "+key[22:]})["access_key"],key)
+        for bad in ("123",key[:-1],"X"*44,12345):
+            with self.assertRaisesRegex(ValueError,"chave"):
+                receiving.validate_receipt({**payload,"access_key":bad})
+
+    def test_key_is_saved_read_and_updated_without_affecting_balance(self):
+        class Handler:
+            def __init__(self,p):self.payload=p
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+        iid=self.item(ordered="100")
+        key="35261012345678000190550010000123451000012345"
+        with app.db() as con:
+            row=receiving.handle(Handler({"date":"2026-10-15","invoice_number":"321",
+                "quantity":"30","access_key":key}),con,"POST",
+                "/api/receiving-items/"+str(iid)+"/receipts")
+        with app.db() as con:
+            history=receiving.summary(con,self.cid)
+            self.assertEqual(history["receipts"][0]["access_key"],key)
+            self.assertEqual(history["items"][0]["remaining_qty"],"70.000")
+            receiving.handle(Handler({"date":"2026-10-15","invoice_number":"321",
+                "quantity":"35","access_key":key,"notes":""}),con,"PUT",
+                "/api/receiving-receipts/"+str(row["id"]))
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"65.000")
+            self.assertEqual(receiving.get_receipt(con,row["id"])["access_key"],key)
+
+    def test_legacy_invoice_schema_migrates_without_data_loss(self):
+        import sqlite3
+        db=sqlite3.connect(":memory:")
+        db.row_factory=sqlite3.Row
+        db.execute("""CREATE TABLE purchase_receipts (
+            id INTEGER PRIMARY KEY,item_id INTEGER NOT NULL,received_date TEXT NOT NULL,
+            invoice_number TEXT NOT NULL,received_qty TEXT NOT NULL,notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+        db.execute("""INSERT INTO purchase_receipts(item_id,received_date,invoice_number,received_qty,notes)
+            VALUES(3,'2026-10-16','999','49.940','documento antigo')""")
+        receiving.initialize(db)
+        row=db.execute("SELECT * FROM purchase_receipts").fetchone()
+        self.assertEqual(row["access_key"],"")
+        self.assertEqual(row["invoice_number"],"999")
+        self.assertEqual(row["received_qty"],"49.940")
+        self.assertEqual(row["notes"],"documento antigo")
+        receiving.initialize(db)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM purchase_receipts").fetchone()[0],1)
+        db.close()
 
     def test_invalid_inputs_and_precision(self):
         for value in ["0","-1","NaN","Infinity","2.1234","bad"]:
