@@ -35,4 +35,17 @@ if ! "${COMPOSE[@]}" up -d --build --no-deps --wait app; then
   fi
   exit 1
 fi
-echo "Código atualizado e API no ar. Banco e outros aplicativos preservados."
+echo "Verificando que o contêiner executa os MESMOS arquivos publicados..."
+for file in app.py receiving.py static/receiving.js static/receiving.css; do
+  expected="$(sha256sum "$ROOT/$file" | awk '{print $1}')"
+  running="$("${COMPOSE[@]}" exec -T app sha256sum "/srv/app/$file" | awk '{print $1}')"
+  if [[ "$expected" != "$running" ]]; then
+    echo "ERRO: arquivo diferente na VPS e no contêiner: $file" >&2
+    echo "Não considere a atualização concluída." >&2
+    exit 1
+  fi
+done
+echo "Verificando a versão reportada pela API em execução..."
+"${COMPOSE[@]}" exec -T app python -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:18765/api/health",timeout=10)); assert d.get("ok") and "release" in d, d; print("Versão ativa:",d["release"])'
+echo "Revisão Git aplicada: $(git rev-parse --short HEAD)"
+echo "Arquivos e API verificados. Banco PostgreSQL preservado. Atualização concluída."
