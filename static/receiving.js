@@ -30,12 +30,20 @@ Object.assign(App,{
     const r=this.s.receivingData,c=this.s.detail?.control;
     if(!r||!c)return;
     const t=r.totals;
+    const available=new Set(r.items.filter(p=>!p.receipts_count).map(p=>p.id));
+    if(this.s.receivingSelection?.controlId!==c.id){
+      this.s.receivingSelection={controlId:c.id,ids:[]};
+    }
+    this.s.receivingSelection.ids=this.s.receivingSelection.ids.filter(id=>available.has(id));
+    const selected=this.s.receivingSelection.ids;
     const savedSearch=this.s.receivingSearch?.controlId===c.id?
       this.s.receivingSearch.query:"";
     const rows=r.items.map(p=>{
       const status=p.status==="complete"?"Recebido":p.status==="partial"?"Parcial":"Pendente";
       const action=p.status==="complete"?"":'<button class="mini-action" onclick="App.receivingReceiptForm('+p.id+')">'+icon("plus")+' Receber</button>';
-      return '<tr data-receiving-search="'+E([p.order_number,p.supplier,p.product].join(" ").toLowerCase())+'">'+
+      const canDelete=!p.receipts_count;
+      return '<tr data-receiving-id="'+p.id+'" data-receiving-selectable="'+(canDelete?"1":"0")+'" data-receiving-search="'+E([p.order_number,p.supplier,p.product].join(" ").toLowerCase())+'">'+
+        '<td class="receiving-select-cell"><input type="checkbox" data-receiving-checkbox="'+p.id+'" aria-label="Selecionar '+E(p.product)+'" '+(canDelete?'':'disabled title="Exclua as entregas antes de excluir este produto" ')+(selected.includes(p.id)?'checked ':'')+'onchange="App.receivingSelectItem('+p.id+',this.checked)"></td>'+
         '<td><strong>'+E(p.order_number)+'</strong></td><td>'+E(p.supplier)+'</td><td><strong>'+E(p.product)+'</strong></td>'+
         '<td class="numeric">'+rxNum(p.ordered_qty)+' '+E(p.unit)+'</td>'+
         '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td>'+
@@ -65,10 +73,12 @@ Object.assign(App,{
       [['Produtos cadastrados',t.items],['Totalmente recebidos',t.complete],['Parcialmente recebidos',t.partial],['Entregas registradas',t.receipts]].map(x=>
       '<div class="receiving-kpi"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join("")+'</div>'+
       '<div class="receiving-section-heading"><h3>Pedidos e produtos</h3>'+
+      '<div class="receiving-toolbar"><span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
+      '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+icon("trash")+' Excluir selecionados</button>'+
       '<label class="receiving-search">'+icon("search")+
-      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="Buscar pedido, fornecedor, produto ou nota..." aria-label="Pesquisar" oninput="App.receivingFilter(this.value)"></label></div>'+
+      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="Buscar pedido, fornecedor, produto ou nota..." aria-label="Pesquisar" oninput="App.receivingFilter(this.value)"></label></div></div>'+
       '<section class="panel receiving-table">'+
-      (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
+      (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
        '<th>Status</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
        '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
@@ -93,6 +103,76 @@ Object.assign(App,{
     document.querySelectorAll("[data-receiving-search]").forEach(el=>{
       el.hidden=!el.getAttribute("data-receiving-search").toLocaleLowerCase("pt-BR").includes(value);
     });
+    this.receivingUpdateSelectionToolbar();
+  },
+  receivingSelectItem(id,checked){
+    const item=this.s.receivingData?.items.find(p=>p.id===id);
+    if(!item||item.receipts_count)return;
+    const ids=new Set(this.s.receivingSelection?.ids||[]);
+    if(checked)ids.add(id);
+    else ids.delete(id);
+    this.s.receivingSelection.ids=[...ids];
+    this.receivingUpdateSelectionToolbar();
+  },
+  receivingToggleAll(checked){
+    const ids=new Set(this.s.receivingSelection?.ids||[]);
+    document.querySelectorAll(".receiving-orders tbody tr[data-receiving-selectable='1']").forEach(row=>{
+      if(row.hidden)return;
+      const id=Number(row.dataset.receivingId);
+      if(checked)ids.add(id);
+      else ids.delete(id);
+      const checkbox=row.querySelector("input[type=checkbox]");
+      if(checkbox)checkbox.checked=checked;
+    });
+    this.s.receivingSelection.ids=[...ids];
+    this.receivingUpdateSelectionToolbar();
+  },
+  receivingUpdateSelectionToolbar(){
+    const selected=new Set(this.s.receivingSelection?.ids||[]);
+    const rows=[...document.querySelectorAll(".receiving-orders tbody tr[data-receiving-id]")];
+    const eligible=rows.filter(row=>!row.hidden&&row.dataset.receivingSelectable==="1");
+    let visibleSelected=0;
+    rows.forEach(row=>{
+      const checked=selected.has(Number(row.dataset.receivingId));
+      row.classList.toggle("receiving-selected",checked);
+      const checkbox=row.querySelector("input[type=checkbox]");
+      if(checkbox)checkbox.checked=checked;
+      if(!row.hidden&&row.dataset.receivingSelectable==="1"&&checked)visibleSelected++;
+    });
+    const all=document.getElementById("receivingSelectAll");
+    if(all){
+      all.disabled=!eligible.length;
+      all.checked=eligible.length>0&&visibleSelected===eligible.length;
+      all.indeterminate=visibleSelected>0&&visibleSelected<eligible.length;
+    }
+    const count=document.getElementById("receivingSelectedCount");
+    if(count){
+      count.hidden=!selected.size;
+      count.textContent=selected.size+" selecionado"+(selected.size===1?"":"s");
+    }
+    const button=document.getElementById("receivingBulkDeleteBtn");
+    if(button){
+      button.hidden=!selected.size;
+      button.disabled=!selected.size||!!this.s.receivingDeleteBusy;
+    }
+  },
+  async receivingBulkDelete(){
+    const controlId=this.s.detail?.control?.id;
+    const ids=[...(this.s.receivingSelection?.ids||[])];
+    if(!controlId||!ids.length||this.s.receivingDeleteBusy)return;
+    if(!confirm("Excluir definitivamente "+ids.length+" produto"+(ids.length===1?"":"s")+" selecionado"+(ids.length===1?"":"s")+"? Esta ação não poderá ser desfeita."))return;
+    this.s.receivingDeleteBusy=true;
+    this.receivingUpdateSelectionToolbar();
+    try{
+      const result=await this.api("/api/controls/"+controlId+"/receiving/bulk-delete","POST",{ids});
+      if(this.s.receivingSelection?.controlId===controlId)this.s.receivingSelection.ids=[];
+      await this.load();
+      this.toast(result.deleted+" produto"+(result.deleted===1?" excluído.":"s excluídos."));
+    }catch(err){this.toast(err.message,true)}
+    finally{
+      this.s.receivingDeleteBusy=false;
+      this.receivingUpdateSelectionToolbar();
+    }
   },
   receivingItemForm(id){
     if(!this.canOpenForm())return;
