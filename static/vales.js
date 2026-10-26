@@ -7,6 +7,7 @@ const vfNum=v=>{
 };
 const vfCurrentMonth=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
 const vfMonth=m=>m?m.slice(5,7)+"/"+m.slice(0,4):"—";
+const vfEntryDate=raw=>{const m=String(raw||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"/"+m[2]+"/"+m[1]:"—"};
 const vfAddMonth=(value,offset)=>{
   const [y,m]=String(value).split("-").map(Number);
   const d=new Date(Date.UTC(y,m-1+offset,1));
@@ -31,85 +32,145 @@ Object.assign(App,{
   renderValesView(){
     const data=this.s.valesData,c=this.s.detail?.control;
     if(!data||!c)return;
-    const selected=this.s.valesSelected||"all";
-    const t=data.totals;
-    const employees=data.employees.filter(p=>
-      (selected==="all"||String(p.id)===String(selected))&&
-      (this.s.valesShowArchived||p.active));
-    const cards=employees.map(emp=>{
-      const dues=emp.debts.map(d=>{
-        const expanded=this.s.valeExpandedDebt===d.id;
-        const remains=Number(d.remaining)>0;
-        const schedule=expanded?'<div class="vf-installment-table"><table><thead><tr>'+
-          '<th>Parcela</th><th>Mês de desconto</th><th>Previsto</th><th>Descontado</th><th>Restante</th><th>Ação</th>'+
-          '</tr></thead><tbody>'+d.installments.map(i=>'<tr>'+
-          '<td>'+i.installment_number+'/'+d.installments.length+'</td>'+
-          '<td>'+vfMonth(i.due_month)+'</td><td class="numeric">'+vfMoney(i.amount)+'</td>'+
-          '<td class="numeric">'+vfMoney(i.paid)+'</td><td class="numeric">'+vfMoney(i.remaining)+'</td>'+
-          '<td>'+(Number(i.remaining)>0?'<button class="btn btn-sm" onclick="App.valesPaymentForm('+i.id+')">Registrar desconto</button>':
-          '<span class="vf-paid">Pago</span>')+'</td></tr>').join("")+
-          '</tbody></table></div>':"";
-        return '<div class="vf-debt">'+
-          '<div class="vf-debt-head"><div><b>'+E(d.title||d.description)+'</b>'+
-          (d.description&&d.description!==(d.title||d.description)?'<div class="vf-debt-description">'+E(d.description)+'</div>':'')+
-          '<div class="secondary-text">'+d.installments.length+' parcela(s) · início '+vfMonth(d.first_month)+'</div></div>'+
-          '<div class="vf-debt-money"><span>'+vfMoney(d.amount)+'</span>'+
-          '<small>Em aberto: <b>'+vfMoney(d.remaining)+'</b></small></div>'+
-          '<div class="vf-debt-actions"><button class="btn btn-sm" onclick="App.valesToggleDebt('+d.id+')">'+
-          (expanded?"Ocultar parcelas":"Ver parcelas")+'</button>'+
-          '<button class="btn btn-sm" onclick="App.valesDebtTitleForm('+d.id+')">Editar título</button>'+
-          (!Number(d.paid)?'<button class="btn btn-sm" onclick="App.valesDebtForm('+emp.id+','+d.id+')">Dividir / ajustar</button>':"")+
-          (remains?'<button class="btn btn-sm btn-primary" onclick="App.valesSettleForm('+d.id+')">Quitar dívida</button>':
-          '<span class="vf-paid">Quitado</span>')+
-          (!Number(d.paid)?'<button class="btn btn-sm vf-danger" onclick="App.valesDeleteDebt('+d.id+')">Excluir</button>':"")+
-          '</div></div>'+schedule+'</div>';
-      }).join("");
-      return '<section class="vf-person panel">'+
-        '<div class="vf-person-header"><div><h3>'+E(emp.name)+'</h3>'+
-        (!emp.active?'<span class="vf-archived">Arquivado</span>':'')+
-        '<p>Emprestado '+vfMoney(emp.lent)+' · Pago '+vfMoney(emp.paid)+'</p></div>'+
-        '<div class="vf-person-controls"><div class="vf-balance"><small>Saldo a descontar</small><strong>'+vfMoney(emp.remaining)+'</strong></div>'+
-        (emp.active?'<button class="btn btn-sm btn-primary" onclick="App.valesDebtForm('+emp.id+')">'+icon("plus")+' Novo vale</button>':"")+
-        '<button class="btn btn-sm" onclick="App.valesSetActive('+emp.id+','+(!emp.active)+')">'+
-        (emp.active?"Arquivar funcionário":"Reativar funcionário")+'</button></div></div>'+
-        (emp.debts.length?'<div class="vf-debts">'+dues+'</div>':
-        '<p class="vf-empty">Nenhum vale registrado para este funcionário.</p>')+'</section>';
+    const selected=String(this.s.valesSelected||"all");
+    const tab=this.s.valesTab||"lancamentos";
+    const all=data.employees||[];
+    // Cada parcela é uma linha individual, inclusive as já quitadas.
+    // A data do lançamento vem do vale original; não é o mês previsto para descontar.
+    const entries=all.flatMap(emp=>emp.debts.flatMap(d=>d.installments.map(i=>({
+      ...i,employeeId:emp.id,employeeName:emp.name,employeeActive:emp.active,
+      debtId:d.id,title:d.title||d.description,description:d.description,
+      launchDate:d.created_at,numberOfInstallments:d.installments.length
+    })))).filter(i=>selected==="all"||String(i.employeeId)===selected)
+      .sort((a,b)=>String(b.launchDate||"").localeCompare(String(a.launchDate||""))||
+        b.debtId-a.debtId||a.installment_number-b.installment_number);
+    const choices=all.map(emp=>'<option value="'+emp.id+'" '+
+      (String(emp.id)===selected?'selected':'')+'>'+E(emp.name)+'</option>').join("");
+    const rows=entries.map(i=>{
+      const status=i.status==="pago"?"Pago":i.status==="parcial"?"Parcial":"Pendente";
+      const statusStyle=i.status==="pago"?"paid":i.status==="parcial"?"partial":"pending";
+      const itemTitle=i.title||"Vale";
+      const parts=i.numberOfInstallments>1?"Parcela "+i.installment_number+"/"+i.numberOfInstallments:"À vista";
+      return '<tr class="vf-ledger-row">'+
+        '<td data-label="Data">'+vfEntryDate(i.launchDate)+'</td>'+
+        '<td data-label="Descrição"><strong>'+E(itemTitle)+'</strong>'+
+        '<small>'+E(parts)+(i.description&&i.description!==itemTitle?" · "+E(i.description):"")+'</small></td>'+
+        '<td data-label="Valor" class="numeric vf-amount">'+vfMoney(i.amount)+'</td>'+
+        '<td data-label="Funcionário">'+E(i.employeeName)+'</td>'+
+        '<td data-label="Descontar em">'+vfMonth(i.due_month)+'</td>'+
+        '<td data-label="Situação"><span class="vf-status '+statusStyle+'">'+status+'</span>'+
+        (i.status==="parcial"?'<small>'+vfMoney(i.remaining)+' restante</small>':'')+'</td>'+
+        '<td data-label="Ações" class="vf-ledger-actions">'+
+          (Number(i.remaining)>0?'<button class="btn btn-sm btn-primary" onclick="App.valesPaymentForm('+i.id+')">Descontar</button>':'')+
+          '<button class="btn btn-sm" onclick="App.valesManageDebt('+i.employeeId+')">Gerenciar</button></td></tr>';
     }).join("");
-    const choices=data.employees.map(e=>'<option value="'+e.id+'"'+
-      (String(e.id)===String(selected)?" selected":"")+'>'+E(e.name)+'</option>').join("");
-    const schedule=data.schedule.filter(i=>Number(i.remaining)>0).slice(0,120);
-    const calendar=schedule.length?'<div class="vf-month-grid"><table><thead><tr>'+
-      '<th>Competência</th><th>Funcionário</th><th>Vale</th><th>Parcela</th><th>A descontar</th>'+
-      '</tr></thead><tbody>'+schedule.map(i=>'<tr><td>'+vfMonth(i.due_month)+'</td>'+
-      '<td>'+E(i.employee)+'</td><td>'+E(i.debt_title||i.debt_description)+'</td>'+
-      '<td>'+i.installment_number+'</td><td class="numeric">'+vfMoney(i.remaining)+'</td></tr>').join("")+
-      '</tbody></table></div>':'<p class="vf-empty">Nenhuma parcela pendente.</p>';
-    const payments=(this.s.valesPaymentHistory||[]).map(p=>'<tr><td>'+vfMonth(p.payment_month)+'</td>'+
-      '<td>'+E(p.employee)+'</td><td>'+E(p.title||p.description)+'</td><td>'+vfMoney(p.amount)+'</td>'+
-      '<td><button class="btn btn-sm vf-danger" onclick="App.valesUndoPayment('+p.id+')">Estornar</button></td></tr>').join("");
-    document.getElementById("main").innerHTML='<div class="vf-page">'+
-      '<div class="vf-heading"><div><div class="eyebrow">CONTROLE DE VALES</div><h2>'+E(c.name)+'</h2>'+
-      '<p>Empréstimos a funcionários, descontos por mês e parcelamentos.</p></div>'+
-      '<button class="btn btn-primary" onclick="App.valesEmployeeForm()">'+icon("plus")+' Cadastrar funcionário</button></div>'+
-      '<div class="vf-stats"><div><small>Funcionários ativos</small><strong>'+t.active+'</strong></div>'+
-      '<div><small>Total emprestado</small><strong>'+vfMoney(t.lent)+'</strong></div>'+
-      '<div><small>Total descontado</small><strong>'+vfMoney(t.paid)+'</strong></div>'+
-      '<div><small>Em aberto</small><strong>'+vfMoney(t.remaining)+'</strong></div></div>'+
-      '<div class="vf-toolbar"><label>Funcionário <select onchange="App.valesSelectEmployee(this.value)">'+
-      '<option value="all">Todos</option>'+choices+'</select></label>'+
-      '<label class="vf-archive-option"><input type="checkbox" '+(this.s.valesShowArchived?"checked":"")+
-      ' onchange="App.s.valesShowArchived=this.checked;App.renderValesView()"> Mostrar arquivados</label></div>'+
-      '<div class="vf-people">'+(cards||'<div class="vf-empty">Nenhum funcionário encontrado. Cadastre o primeiro.</div>')+'</div>'+
-      '<details class="panel vf-future" '+(this.s.valesCalendarOpen?"open":"")+' ontoggle="App.s.valesCalendarOpen=this.open">'+
-      '<summary>Calendário de descontos previstos ('+schedule.length+' parcelas em aberto exibidas)</summary>'+calendar+'</details>'+
+    const ledger='<div class="vf-ledger panel">'+
+      '<div class="vf-table-head"><strong>Todos os lançamentos</strong><span>'+entries.length+
+      ' parcela(s) / lançamento(s)</span></div>'+
+      '<table class="vf-ledger-table"><colgroup><col class="vf-col-date"><col class="vf-col-desc">'+
+      '<col class="vf-col-amount"><col class="vf-col-person"><col class="vf-col-month">'+
+      '<col class="vf-col-status"><col class="vf-col-action"></colgroup>'+
+      '<thead><tr><th>Data do lançamento</th><th>Descrição</th><th>Valor</th>'+
+      '<th>Para quem foi</th><th>Quando descontar</th><th>Situação</th><th>Ações</th></tr></thead>'+
+      '<tbody>'+ (rows||'<tr><td colspan="7" class="vf-table-empty">Nenhum lançamento encontrado para o funcionário selecionado.</td></tr>')+
+      '</tbody></table></div>';
+    const totalsRows=all.filter(emp=>selected==="all"||String(emp.id)===selected).map(emp=>
+      '<tr><td data-label="Funcionário"><strong>'+E(emp.name)+'</strong>'+
+      (!emp.active?'<small>Arquivado</small>':'')+'</td>'+
+      '<td data-label="Total emprestado" class="numeric">'+vfMoney(emp.lent)+'</td>'+
+      '<td data-label="Total descontado" class="numeric">'+vfMoney(emp.paid)+'</td>'+
+      '<td data-label="Em aberto" class="numeric"><strong>'+vfMoney(emp.remaining)+'</strong></td>'+
+      '<td data-label="Vales" class="numeric">'+emp.debts.length+'</td>'+
+      '<td data-label="Ações" class="vf-summary-actions">'+
+        (emp.active?'<button class="btn btn-sm btn-primary" onclick="App.valesDebtForm('+emp.id+')">Novo vale</button>':'')+
+        '<button class="btn btn-sm" onclick="App.valesEmployeeDetails('+emp.id+')">Detalhes</button>'+
+        '<button class="btn btn-sm" onclick="App.valesSetActive('+emp.id+','+(!emp.active)+')">'+
+        (emp.active?"Arquivar":"Reativar")+'</button></td></tr>').join("");
+    const detailEmp=all.find(e=>e.id===this.s.valesDetailEmployee&&
+      (selected==="all"||String(e.id)===selected));
+    const detailDebts=detailEmp?'<section class="vf-details"><div class="vf-details-heading"><h3>Vales de '+E(detailEmp.name)+'</h3>'+
+      '<button class="btn btn-sm" onclick="App.valesEmployeeDetails(null)">Fechar detalhes</button></div>'+
+      (detailEmp.debts.length?detailEmp.debts.map(d=>{
+        const canEdit=!Number(d.paid),remaining=Number(d.remaining)>0;
+        return '<div class="vf-detail-debt"><div class="vf-detail-title"><strong>'+E(d.title||d.description)+'</strong>'+
+        (d.description&&d.description!==d.title?'<small>'+E(d.description)+'</small>':'')+
+        '<small>'+d.installments.length+' parcela(s) · início '+vfMonth(d.first_month)+'</small></div>'+
+        '<div class="vf-detail-balances">Emprestado '+vfMoney(d.amount)+
+        ' · Pago '+vfMoney(d.paid)+' · <b>Em aberto '+vfMoney(d.remaining)+'</b></div>'+
+        '<div class="vf-detail-actions">'+
+        '<button class="btn btn-sm" onclick="App.valesDebtTitleForm('+d.id+')">Editar título</button>'+
+        (canEdit?'<button class="btn btn-sm" onclick="App.valesDebtForm('+detailEmp.id+','+d.id+')">Ajustar parcelas</button>':'')+
+        (remaining?'<button class="btn btn-sm btn-primary" onclick="App.valesSettleForm('+d.id+')">Quitar dívida</button>':'')+
+        (canEdit?'<button class="btn btn-sm vf-danger" onclick="App.valesDeleteDebt('+d.id+')">Excluir vale</button>':'')+
+        '</div></div>';
+      }).join(""):'<p class="vf-table-empty">Nenhum vale para este funcionário.</p>')+
+      '</section>':"";
+    const summary='<section class="vf-summary panel"><div class="vf-table-head"><strong>Totais por funcionário</strong>'+
+      '<span>'+all.length+' funcionário(s) cadastrado(s)</span></div>'+
+      '<table class="vf-summary-table"><thead><tr><th>Funcionário</th><th>Total emprestado</th>'+
+      '<th>Total descontado</th><th>Em aberto</th><th>Vales</th><th>Ações</th></tr></thead>'+
+      '<tbody>'+(totalsRows||'<tr><td colspan="6" class="vf-table-empty">Nenhum funcionário encontrado.</td></tr>')+
+      '</tbody></table>'+detailDebts+'</section>'+
       '<details class="panel vf-history" ontoggle="if(this.open) App.valesLoadPayments()">'+
-      '<summary>Histórico de descontos efetivados</summary>'+
-      '<div class="vf-month-grid"><table><thead><tr><th>Mês pago</th><th>Funcionário</th><th>Vale</th><th>Valor</th><th>Ação</th></tr></thead>'+
-      '<tbody id="vf-payment-history">'+(payments||'<tr><td colspan="5">Abra para carregar o histórico.</td></tr>')+'</tbody></table></div></details>'+
-      '</div>';
+      '<summary>Histórico de descontos realizados</summary>'+
+      '<div class="vf-month-grid"><table><thead><tr><th>Mês pago</th><th>Funcionário</th>'+
+      '<th>Vale</th><th>Valor descontado</th><th>Ação</th></tr></thead>'+
+      '<tbody id="vf-payment-history"><tr><td colspan="5">Abra para consultar os descontos registrados.</td></tr></tbody>'+
+      '</table></div></details>';
+    document.getElementById("main").innerHTML='<div class="vf-page">'+
+      '<div class="vf-heading"><div><div class="eyebrow">CONTROLE DE VALES</div><h2>'+E(c.name)+'</h2></div>'+
+      '<div class="vf-heading-actions"><button class="btn btn-primary" onclick="App.valesNewDebt()">'+
+      icon("plus")+' Novo vale</button>'+
+      '<button class="btn" onclick="App.valesEmployeeForm()">'+icon("user-plus")+' Cadastrar funcionário</button></div></div>'+
+      '<div class="vf-tabs" role="tablist" aria-label="Seções do controle de vales">'+
+      '<button role="tab" aria-selected="'+(tab==="lancamentos")+'" class="'+(tab==="lancamentos"?"active":"")+
+      '" onclick="App.valesSwitchTab(&quot;lancamentos&quot;)">Lançamentos</button>'+
+      '<button role="tab" aria-selected="'+(tab==="totais")+'" class="'+(tab==="totais"?"active":"")+
+      '" onclick="App.valesSwitchTab(&quot;totais&quot;)">Totais por funcionário</button></div>'+
+      '<div class="vf-toolbar"><label>Filtrar funcionário <select onchange="App.valesSelectEmployee(this.value)">'+
+      '<option value="all">Todos os funcionários</option>'+choices+'</select></label></div>'+
+      (tab==="totais"?summary:ledger)+'</div>';
+  },
+  valesSwitchTab(tab){
+    if(tab!=="lancamentos"&&tab!=="totais")return;
+    this.s.valesTab=tab;
+    this.renderValesView();
+  },
+  valesEmployeeDetails(id){
+    this.s.valesDetailEmployee=this.s.valesDetailEmployee===id?null:id;
+    this.s.valesTab="totais";
+    this.renderValesView();
+  },
+  valesManageDebt(employeeId){
+    this.s.valesDetailEmployee=employeeId;
+    this.s.valesTab="totais";
+    this.renderValesView();
+  },
+  valesNewDebt(){
+    if(!this.canOpenForm())return;
+    const employees=(this.s.valesData?.employees||[]).filter(e=>e.active);
+    if(!employees.length){this.toast("Cadastre ou reative um funcionário primeiro.",true);return}
+    const selected=employees.find(e=>String(e.id)===String(this.s.valesSelected));
+    if(selected){this.valesDebtForm(selected.id);return}
+    if(employees.length===1){this.valesDebtForm(employees[0].id);return}
+    this.valesOpenModal("Novo vale","Selecione o funcionário que receberá o vale.",
+      vfField("Funcionário",'<select name="employee" required>'+
+        '<option value="">Selecione...</option>'+employees.map(e=>
+          '<option value="'+e.id+'">'+E(e.name)+'</option>').join("")+'</select>'),
+      "valesSelectNewDebt","Continuar");
+  },
+  valesSelectNewDebt(){
+    const form=document.getElementById("vf-form");
+    if(!form?.reportValidity())return;
+    const id=Number(new FormData(form).get("employee"));
+    if(!this.s.valesData?.employees.some(e=>e.id===id&&e.active)){
+      this.toast("Selecione um funcionário válido.",true);return;
+    }
+    this.closeModal();
+    this.valesDebtForm(id);
   },
   valesSelectEmployee(value){this.s.valesSelected=value;this.renderValesView()},
-  valesToggleDebt(id){this.s.valeExpandedDebt=this.s.valeExpandedDebt===id?null:id;this.renderValesView()},
+
   async valesRefresh(){
     const id=this.s.detail?.control?.id;
     const [data]=await Promise.all([this.api("/api/controls/"+id+"/vales"),this.load()]);
