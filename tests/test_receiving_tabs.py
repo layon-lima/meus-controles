@@ -18,12 +18,18 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn("receiving-orders",JS)
         self.assertIn("receiving-invoices",JS)
         self.assertIn("Histórico de notas fiscais",JS)
+        self.assertIn("Chave da NF-e",JS)
+        self.assertNotIn("<th>Ações</th>",JS)
         self.assertIn('aria-selected=',JS)
         self.assertIn('receivingSwitchTab(tab){',JS)
 
     def test_history_can_still_edit_and_delete_a_receipt(self):
-        self.assertIn("App.receivingReceiptForm('+p.item_id+','+p.id+')",JS)
-        self.assertIn("App.receivingDeleteReceipt('+p.id+')",JS)
+        self.assertIn('ondblclick="App.receivingManageReceipt(',JS)
+        self.assertIn('ondblclick="App.receivingManageItem(',JS)
+        self.assertIn('receivingManageReceiptAction(action)',JS)
+        self.assertIn('receivingManageAction(action)',JS)
+        self.assertIn('this.receivingReceiptForm(receipt.item_id,id)',JS)
+        self.assertIn('this.receivingDeleteReceipt(id)',JS)
         self.assertIn('Nº nota fiscal',JS)
         self.assertIn("t.receipts?",JS)
         self.assertIn('Ainda não existem recebimentos lançados.',JS)
@@ -41,6 +47,12 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('activeTab==="pedidos"?',JS)
         self.assertIn("receivingBulkDeleteBtn",JS)
         self.assertIn("receivingApplyFilter(savedSearch)",JS)
+        self.assertIn("receivingFloatingAdd(){",JS)
+        self.assertIn("receivingChooseReceiptProduct(){",JS)
+        self.assertIn("receivingPickReceiptProduct(){",JS)
+        self.assertIn("receivingFocusItem(id)",JS)
+        self.assertIn('class="receiving-search-band"',JS)
+        self.assertIn('class="receiving-fab"',JS)
 
     def test_tabs_are_compact_and_non_scrolling(self):
         self.assertIn(".receiving-tabs",CSS)
@@ -49,7 +61,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
 
     def test_pwa_precaches_fresh_versions(self):
         for asset in ("receiving.js","receiving.css"):
-            version="/static/"+asset+"?v=20261026-recebimento-abas-v7"
+            version="/static/"+asset+"?v=20261026-recebimento-flutuante-v8"
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
         self.assertIn('central-de-controles-shell-v20261026-recebimento-abas-v7',SW)
