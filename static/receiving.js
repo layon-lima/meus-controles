@@ -59,6 +59,27 @@ function rxSupplierMatches(value,catalog){
   });
   return matches.sort((a,b)=>a.score-b.score||a.name.localeCompare(b.name,"pt-BR")).slice(0,6);
 }
+
+// Pesquisa textual sem diferenciar maiúsculas, acentos ou espaços repetidos.
+function rxPickNormalize(value){
+  return String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toLocaleLowerCase("pt-BR").trim().replace(/\s+/g," ");
+}
+function rxPickLabel(p){
+  return (p.supplier||"Sem fornecedor")+" · "+p.order_number+" · "+p.product+
+    " (restante "+rxNum(p.remaining_qty)+" "+p.unit+")";
+}
+function rxPickMatches(items,query){
+  const terms=rxPickNormalize(query).split(" ").filter(Boolean);
+  return (items||[]).filter(p=>{
+    if(!(Number(p.remaining_qty)>0))return false;
+    const search=rxPickNormalize([p.supplier,p.order_number,p.product].join(" "));
+    return terms.every(term=>search.includes(term));
+  }).sort((a,b)=>String(a.supplier).localeCompare(String(b.supplier),"pt-BR")||
+    String(a.order_number).localeCompare(String(b.order_number),"pt-BR",{numeric:true})||
+    String(a.product).localeCompare(String(b.product),"pt-BR"));
+}
+
 function rxSupplierGroups(items,catalog){
   const canonical=new Map(catalog.map(x=>[x.key,x.name]));
   const groups=new Map();
@@ -252,28 +273,130 @@ Object.assign(App,{
   },
   receivingChooseReceiptProduct(){
     if(!this.canOpenForm())return;
-    const available=(this.s.receivingData?.items||[]).filter(p=>Number(p.remaining_qty)>0)
-      .sort((a,b)=>String(a.supplier).localeCompare(String(b.supplier),"pt-BR")||
-        String(a.order_number).localeCompare(String(b.order_number),"pt-BR")||
-        String(a.product).localeCompare(String(b.product),"pt-BR"));
+    const available=rxPickMatches(this.s.receivingData?.items,"");
     if(!available.length)return this.toast("Todos os produtos já foram recebidos ou não existem pedidos.",true);
+    this.s.receivingPick={
+      controlId:this.s.detail?.control?.id,
+      query:"",selectedId:null,highlight:0,expanded:true
+    };
     this.s.modal="receiving-pick";
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal receiving-form" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
-      '<div class="modal-header"><div><h2 id="modalTitle">Novo recebimento</h2><p>Selecione o pedido e o produto que está chegando.</p></div>'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Novo recebimento</h2><p>Digite para localizar ou clique em um produto.</p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
-      '<div class="modal-body"><label class="receiving-pick-label">Pedido / produto</label>'+
-      '<select id="receivingPickItem" class="receiving-pick-select" required>'+
-      '<option value="">Selecione o produto...</option>'+
-      available.map(p=>'<option value="'+p.id+'">'+E(p.supplier||"Sem fornecedor")+' · '+E(p.order_number)+
-        ' · '+E(p.product)+' (restante '+rxNum(p.remaining_qty)+' '+E(p.unit)+')</option>').join("")+
-      '</select></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
-      '<button class="btn btn-primary" onclick="App.receivingPickReceiptProduct()">Continuar</button></div></div></div>';
+      '<div class="modal-body"><label class="receiving-pick-label" for="receivingPickSearch">Pedido / produto</label>'+
+      '<div class="receiving-pick-combobox">'+
+      '<input id="receivingPickSearch" class="receiving-pick-input" type="search" autocomplete="off" spellcheck="false" '+
+      'placeholder="Digite o pedido, fornecedor ou produto..." role="combobox" aria-autocomplete="list" '+
+      'aria-controls="receivingPickResults" aria-expanded="true" '+
+      'oninput="App.receivingFilterPick(this.value)" onkeydown="App.receivingPickKeydown(event)" '+
+      'onfocus="App.receivingPickFocus()">'+
+      '<button type="button" class="receiving-pick-show" aria-label="Exibir produtos" '+
+      'onclick="App.receivingPickShowAll()">'+icon("chevron-down")+'</button></div>'+
+      '<div id="receivingPickResults" class="receiving-pick-results" role="listbox" aria-label="Produtos correspondentes"></div>'+
+      '<div id="receivingPickFeedback" class="receiving-pick-feedback" aria-live="polite"></div>'+
+      '</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button id="receivingPickContinue" class="btn btn-primary" disabled onclick="App.receivingPickReceiptProduct()">Continuar</button>'+
+      '</div></div></div>';
+    this.receivingRenderPick();
+    document.getElementById("receivingPickSearch")?.focus();
+  },
+  receivingRenderPick(){
+    const picker=this.s.receivingPick,items=this.s.receivingData?.items||[];
+    if(!picker)return;
+    const matches=rxPickMatches(items,picker.query);
+    const results=document.getElementById("receivingPickResults");
+    const feedback=document.getElementById("receivingPickFeedback");
+    const input=document.getElementById("receivingPickSearch");
+    const continueBtn=document.getElementById("receivingPickContinue");
+    if(!results||!input)return;
+    picker.highlight=Math.max(0,Math.min(picker.highlight,matches.length-1));
+    const limited=matches.slice(0,60);
+    results.hidden=!picker.expanded;
+    results.innerHTML=matches.length?
+      limited.map((p,index)=>
+        '<button type="button" role="option" id="receivingPickOption'+p.id+'" class="receiving-pick-option'+
+        (index===picker.highlight?' highlighted':'')+'" aria-selected="'+(p.id===picker.selectedId)+
+        '" onclick="App.receivingPickSelect('+p.id+')">'+
+        '<strong>'+E(p.product)+'</strong><small>'+E(p.supplier||"Sem fornecedor")+
+        ' · '+E(p.order_number)+' · Restante: '+rxNum(p.remaining_qty)+' '+E(p.unit)+
+        '</small></button>').join(""):
+      '<p class="receiving-pick-empty">Nenhum produto encontrado. Tente outro termo.</p>';
+    if(feedback)feedback.textContent=picker.selectedId?
+      'Produto selecionado. Clique em Continuar para registrar o recebimento.':
+      matches.length>60?'Mostrando 60 de '+matches.length+' produtos. Digite mais para refinar.':
+      matches.length+' produto(s) encontrado(s)';
+    const valid=items.some(p=>p.id===picker.selectedId&&Number(p.remaining_qty)>0);
+    if(continueBtn)continueBtn.disabled=!valid;
+    input.setAttribute("aria-expanded",String(picker.expanded));
+    const active=limited[picker.highlight];
+    if(picker.expanded&&active)input.setAttribute("aria-activedescendant","receivingPickOption"+active.id);
+    else input.removeAttribute("aria-activedescendant");
+  },
+  receivingFilterPick(value){
+    const picker=this.s.receivingPick;
+    if(!picker)return;
+    picker.query=String(value||"");
+    picker.selectedId=null;
+    picker.highlight=0;
+    picker.expanded=true;
+    this.receivingRenderPick();
+  },
+  receivingPickSelect(id){
+    const picker=this.s.receivingPick;
+    const selected=this.s.receivingData?.items.find(p=>p.id===id&&Number(p.remaining_qty)>0);
+    if(!picker||!selected)return;
+    picker.selectedId=id;
+    picker.query=rxPickLabel(selected);
+    picker.expanded=false;
+    const input=document.getElementById("receivingPickSearch");
+    if(input)input.value=picker.query;
+    this.receivingRenderPick();
+  },
+  receivingPickShowAll(){
+    const picker=this.s.receivingPick;
+    if(!picker)return;
+    picker.query="";picker.selectedId=null;picker.highlight=0;picker.expanded=true;
+    const input=document.getElementById("receivingPickSearch");
+    if(input){input.value="";input.focus()}
+    this.receivingRenderPick();
+  },
+  receivingPickFocus(){
+    const picker=this.s.receivingPick;
+    if(!picker||picker.expanded||picker.selectedId)return;
+    picker.expanded=true;
+    this.receivingRenderPick();
+  },
+  receivingPickKeydown(event){
+    const picker=this.s.receivingPick;
+    if(!picker)return;
+    const matches=rxPickMatches(this.s.receivingData?.items,picker.query).slice(0,60);
+    if(event.key==="Escape"&&picker.expanded){
+      event.preventDefault();picker.expanded=false;this.receivingRenderPick();return;
+    }
+    if(event.key==="ArrowDown"||event.key==="ArrowUp"){
+      event.preventDefault();
+      if(!picker.expanded)picker.expanded=true;
+      if(matches.length){
+        picker.highlight=(picker.highlight+(event.key==="ArrowDown"?1:-1)+matches.length)%matches.length;
+      }
+      this.receivingRenderPick();
+      const highlighted=matches[picker.highlight];
+      if(highlighted)document.getElementById("receivingPickOption"+highlighted.id)?.scrollIntoView({block:"nearest"});
+      return;
+    }
+    if(event.key==="Enter"){
+      event.preventDefault();
+      if(picker.selectedId){this.receivingPickReceiptProduct();return}
+      if(picker.expanded&&matches.length)this.receivingPickSelect(matches[picker.highlight].id);
+    }
   },
   receivingPickReceiptProduct(){
-    const id=Number(document.getElementById("receivingPickItem")?.value);
-    if(!this.s.receivingData?.items.some(p=>p.id===id&&Number(p.remaining_qty)>0)){
-      this.toast("Selecione um pedido com saldo a receber.",true);return;
+    const picker=this.s.receivingPick;
+    const id=picker?.selectedId;
+    if(!picker||picker.controlId!==this.s.detail?.control?.id||
+       !this.s.receivingData?.items.some(p=>p.id===id&&Number(p.remaining_qty)>0)){
+      this.toast("Selecione um produto da lista antes de continuar.",true);return;
     }
     this.closeModal();
     this.receivingFocusItem(id);
