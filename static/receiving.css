@@ -269,3 +269,31 @@
  .receiving-table .receiving-grid{min-width:680px}
  .receiving-table .receiving-invoices{min-width:820px}
 }
+
+
+/* Seletor digitável de pedido / produto: filtra durante a digitação e permite clique. */
+.receiving-pick-combobox{display:flex;align-items:stretch;min-width:0;width:100%;
+  border:1px solid #9ebdad;border-radius:8px;background:#fff;overflow:hidden}
+.receiving-pick-combobox:focus-within{outline:2px solid #8acbb6;outline-offset:1px;border-color:#15866e}
+.receiving-pick-input{flex:1 1 auto;width:100%;min-width:0;min-height:40px;padding:8px 11px;
+  border:0!important;outline:none!important;background:#fff;font-size:13px}
+.receiving-pick-show{display:flex;align-items:center;justify-content:center;flex:0 0 39px;
+  border:0;border-left:1px solid #dce6e6;background:#f3f8f6;color:#226d57;cursor:pointer}
+.receiving-pick-show:hover{background:#e0f3e9}
+.receiving-pick-results{display:flex;flex-direction:column;gap:0;max-height:min(310px,41dvh);
+  overflow-y:auto;overscroll-behavior:contain;border:1px solid #d3e0df;border-radius:7px;
+  margin-top:6px;background:#fff}
+.receiving-pick-results[hidden]{display:none!important}
+.receiving-pick-option{display:block;flex:0 0 auto;width:100%;min-width:0;padding:9px 12px;text-align:left;
+  border:0;border-bottom:1px solid #e5eded;background:#fff;color:var(--ink);cursor:pointer}
+.receiving-pick-option:last-child{border-bottom:0}
+.receiving-pick-option strong{display:block;overflow-wrap:anywhere;font-size:12px}
+.receiving-pick-option small{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}
+.receiving-pick-option:hover,.receiving-pick-option.highlighted{background:#e7f5ef}
+.receiving-pick-option:focus-visible{outline:2px solid #18866b;outline-offset:-2px}
+.receiving-pick-feedback{min-height:17px;margin-top:7px;font-size:11px;color:#536a70}
+.receiving-pick-empty{padding:12px;color:var(--muted);font-size:12px;margin:0}
+@media(max-width:540px){
+  .receiving-pick-results{max-height:min(260px,38dvh)}
+  .receiving-pick-option{padding:10px 9px}
+}
