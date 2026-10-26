@@ -173,13 +173,7 @@ Object.assign(App,{
       (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
       '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+
       icon("trash")+' Excluir selecionados</button>':'')+'</div></div>'+
-      (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
-      '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+icon("trash")+' Excluir selecionados</button>':'')+
-      '<label class="receiving-search">'+icon("search")+
-      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="'+
-      (activeTab==="pedidos"?"Buscar pedido, fornecedor ou produto...":"Buscar nota, pedido, fornecedor ou produto...")+
-      '" aria-label="Pesquisar '+(activeTab==="pedidos"?"pedidos":"notas fiscais")+
-      '" oninput="App.receivingFilter(this.value)"></label></div></div>'+
+
       (activeTab==="pedidos"?
         '<section class="panel receiving-table">'+
         (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
