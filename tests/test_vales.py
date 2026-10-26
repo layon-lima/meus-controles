@@ -85,6 +85,20 @@ class EmployeeAdvancesTests(unittest.TestCase):
             self.assertEqual(records[0]["title"],"Almoço")
             self.assertEqual(records[0]["description"],"")
 
+    def test_title_only_edit_preserves_original_description(self):
+        eid=self.employee("Layon")
+        with app.db() as con:
+            did=vales.create_debt(con,eid,{
+                "title":"Vale original","description":"Detalhe histórico",
+                "amount":"1000.00","first_month":"2026-11","count":3})["id"]
+            before=vales.get_summary(con,self.cid)["employees"][0]["debts"][0]
+            vales.update_debt_details(con,did,{"title":"Vale revisado"})
+            after=vales.get_summary(con,self.cid)["employees"][0]["debts"][0]
+            self.assertEqual(after["title"],"Vale revisado")
+            self.assertEqual(after["description"],"Detalhe histórico")
+            self.assertEqual(after["amount"],before["amount"])
+            self.assertEqual(after["installments"],before["installments"])
+
     def test_title_changes_after_payments_without_changing_money(self):
         eid=self.employee("Pedro")
         with app.db() as con:
