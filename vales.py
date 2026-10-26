@@ -380,7 +380,9 @@ def handle(handler,con,method,url):
         ensure_control(con,cid)
         if method=="GET" and part is None:return handler.send(get_summary(con,cid))
         if method=="GET" and part=="payments":return handler.send(payments(con,cid))
-        if method=="POST" and part=="employees":return handler.send(create_employee(con,cid,handler.input()),201)
+        if method=="POST" and part=="employees":
+            data=handler.input()
+            return handler.send(create_employee(con,cid,data.get("name")),201)
     if person:
         eid=int(person[1]);employee(con,eid)
         if method=="PATCH" and person[2] is None:
