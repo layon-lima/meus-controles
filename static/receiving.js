@@ -107,6 +107,8 @@ Object.assign(App,{
     }
     this.s.receivingSelection.ids=this.s.receivingSelection.ids.filter(id=>available.has(id));
     const selected=this.s.receivingSelection.ids;
+    if(this.s.receivingFocused?.controlId!==c.id)this.s.receivingFocused={controlId:c.id,itemId:null};
+    if(!r.items.some(p=>p.id===this.s.receivingFocused.itemId))this.s.receivingFocused.itemId=null;
     const activeTab=this.s.receivingTab?.controlId===c.id&&this.s.receivingTab.value==="notas"?
       "notas":"pedidos";
     const savedSearch=this.s.receivingSearch?.controlId===c.id?
@@ -115,35 +117,38 @@ Object.assign(App,{
     const supplierGroups=rxSupplierGroups(r.items,supplierCatalog);
     const renderRow=p=>{
       const status=p.status==="complete"?"Recebido":p.status==="partial"?"Parcial":"Pendente";
-      const action=p.status==="complete"?"":'<button class="mini-action" onclick="App.receivingReceiptForm('+p.id+')">'+icon("plus")+' Receber</button>';
       const canDelete=!p.receipts_count;
-      return '<tr data-receiving-id="'+p.id+'" data-receiving-selectable="'+(canDelete?"1":"0")+'" data-receiving-search="'+E([p.order_number,p.supplier,p.product].join(" ").toLowerCase())+'">'+
-        '<td class="receiving-select-cell"><input type="checkbox" data-receiving-checkbox="'+p.id+'" aria-label="Selecionar '+E(p.product)+'" '+(canDelete?'':'disabled title="Exclua as entregas antes de excluir este produto" ')+(selected.includes(p.id)?'checked ':'')+'onchange="App.receivingSelectItem('+p.id+',this.checked)"></td>'+
+      return '<tr data-receiving-id="'+p.id+'" data-receiving-selectable="'+(canDelete?"1":"0")+
+        '" data-receiving-search="'+E([p.order_number,p.supplier,p.product].join(" ").toLowerCase())+
+        '" tabindex="0" title="Clique para selecionar; duplo clique para editar ou excluir" '+
+        'onclick="App.receivingFocusItem('+p.id+')" ondblclick="App.receivingManageItem('+p.id+')" '+
+        'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingManageItem('+p.id+')}">'+
+        '<td class="receiving-select-cell"><input type="checkbox" data-receiving-checkbox="'+p.id+'" aria-label="Selecionar '+E(p.product)+'" '+
+        (canDelete?'':'disabled title="Exclua as entregas antes de excluir este produto" ')+(selected.includes(p.id)?'checked ':'')+
+        'onclick="event.stopPropagation()" onchange="App.receivingSelectItem('+p.id+',this.checked)"></td>'+
         '<td><strong>'+E(p.order_number)+'</strong></td><td>'+E(p.supplier)+'</td><td><strong>'+E(p.product)+'</strong></td>'+
         '<td class="numeric">'+rxNum(p.ordered_qty)+' '+E(p.unit)+'</td>'+
         '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td>'+
         '<td class="numeric receiving-remaining">'+rxNum(p.remaining_qty)+' '+E(p.unit)+'</td>'+
-        '<td><span class="receiving-status '+E(p.status)+'">'+status+'</span></td>'+
-        '<td><div class="table-actions">'+action+
-        '<button class="mini-action" onclick="App.receivingItemForm('+p.id+')">'+icon("edit")+' Editar</button>'+
-        '<button class="mini-action" onclick="App.receivingDeleteItem('+p.id+')">'+icon("trash")+' Excluir</button></div></td></tr>';
+        '<td><span class="receiving-status '+E(p.status)+'">'+status+'</span></td></tr>';
     };
     const rows=supplierGroups.map(group=>{
       const orders=new Set(group.items.map(p=>p.order_number)).size;
-      return '<tr class="receiving-supplier-group" data-receiving-supplier="'+E(group.key)+'"><td colspan="9">'+
+      return '<tr class="receiving-supplier-group" data-receiving-supplier="'+E(group.key)+'"><td colspan="8">'+
         '<strong>'+E(group.name)+'</strong>'+
         '<span class="receiving-group-count">'+orders+' pedido'+(orders===1?"":"s")+' · '+group.items.length+
         ' produto'+(group.items.length===1?"":"s")+'</span></td></tr>'+
         group.items.map(renderRow).join("");
     }).join("");
     const receipts=r.receipts.map(p=>
-      '<tr data-receiving-search="'+E([p.invoice_number,p.order_number,p.product,p.supplier].join(" ").toLowerCase())+'">'+
+      '<tr data-receiving-search="'+E([p.invoice_number,p.access_key||"",p.order_number,p.product,p.supplier].join(" ").toLowerCase())+
+      '" tabindex="0" title="Duplo clique para editar ou excluir a nota" '+
+      'ondblclick="App.receivingManageReceipt('+p.id+')" '+
+      'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingManageReceipt('+p.id+')}">'+
       '<td>'+rxDate(p.received_date)+'</td><td><b>'+E(p.invoice_number)+'</b></td>'+
-      '<td>'+E(p.order_number)+'</td><td>'+E(p.product)+'</td><td class="receiving-supplier">'+E(p.supplier)+'</td>'+
-      '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td><td><div class="table-actions">'+
-      '<button class="mini-action" onclick="App.receivingReceiptForm('+p.item_id+','+p.id+')">'+icon("edit")+' Editar</button>'+
-      '<button class="mini-action" onclick="App.receivingDeleteReceipt('+p.id+')">'+icon("trash")+' Excluir</button>'+
-      '</div></td></tr>').join("");
+      '<td class="receiving-key">'+E(p.access_key||"—")+'</td><td>'+E(p.order_number)+'</td>'+
+      '<td>'+E(p.product)+'</td><td class="receiving-supplier">'+E(p.supplier)+'</td>'+
+      '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td></tr>').join("");
     document.getElementById("main").innerHTML=
       '<div class="receiving-head"><div><div class="eyebrow">RECEBIMENTO DE PRODUTOS</div>'+
       '<p>Controle de pedidos, fornecedores e entregas por nota fiscal.</p></div>'+
@@ -158,8 +163,16 @@ Object.assign(App,{
       '" onclick="App.receivingSwitchTab(&quot;pedidos&quot;)">Pedidos</button>'+
       '<button type="button" role="tab" aria-selected="'+(activeTab==="notas")+'" class="'+(activeTab==="notas"?"active":"")+
       '" onclick="App.receivingSwitchTab(&quot;notas&quot;)">Notas fiscais</button></div>'+
+      '<div class="receiving-search-band"><label class="receiving-search">'+icon("search")+
+      '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="'+
+      (activeTab==="pedidos"?"Pesquisar pedido, fornecedor ou produto...":"Pesquisar número, chave da NF-e, pedido ou produto...")+
+      '" aria-label="Pesquisar '+(activeTab==="pedidos"?"pedidos":"notas fiscais")+
+      '" oninput="App.receivingFilter(this.value)"></label></div>'+
       '<div class="receiving-section-heading"><h3>'+(activeTab==="pedidos"?"Pedidos e produtos":"Histórico de notas fiscais")+'</h3>'+
       '<div class="receiving-toolbar">'+
+      (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
+      '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+
+      icon("trash")+' Excluir selecionados</button>':'')+'</div></div>'+
       (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
       '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+icon("trash")+' Excluir selecionados</button>':'')+
       '<label class="receiving-search">'+icon("search")+
@@ -171,16 +184,19 @@ Object.assign(App,{
         '<section class="panel receiving-table">'+
         (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
         '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
-        '<th>Status</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
+        '<th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
         '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
         '</div>')+'</section>'
       :
         '<section class="panel receiving-table">'+
-        (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Pedido</th>'+
-        '<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th><th>Ações</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
-        '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>');
+        (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Chave da NF-e</th><th>Pedido</th>'+
+        '<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
+        '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>')+
+      '<button type="button" class="receiving-fab" onclick="App.receivingFloatingAdd()" '+
+      'title="Registrar recebimento" aria-label="Novo recebimento">'+icon("plus")+'</button>';
     // Aplicar novamente apos redesenhar a tabela (ex.: salvar/editar/excluir NF).
     this.receivingApplyFilter(savedSearch);
+    this.receivingHighlightFocused();
   },
   receivingSwitchTab(tab){
     if(tab!=="pedidos"&&tab!=="notas")return;
