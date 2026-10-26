@@ -55,6 +55,45 @@ class ValesSpreadsheetUITests(unittest.TestCase):
         self.assertIn("content:attr(data-label)",CSS)
         self.assertNotIn("min-width:530px",CSS)
 
+    def test_new_advance_form_only_asks_title_total_month_and_count(self):
+        form=JS[JS.index("  valesDebtForm(employeeId,debtId=null){"):
+                JS.index("  valesDebtTitleForm(id){")]
+        self.assertIn('Título da dívida *',form)
+        self.assertIn('Valor total (R$)',form)
+        self.assertIn('Primeiro desconto (mês/ano)',form)
+        self.assertIn('Quantidade de parcelas',form)
+        self.assertNotIn('Descrição (opcional)',form)
+        self.assertNotIn('Observações (opcional)',form)
+        self.assertNotIn('Valor desejado por parcela',form)
+        self.assertIn("const vfRedistribute=",JS)
+        self.assertIn('if(!adjusted)',form)
+
+    def test_one_installment_is_automatically_the_whole_advance(self):
+        form=JS[JS.index("  valesShowPlan(plan){"):
+                JS.index("  valesEditPlan(index,key,raw){")]
+        self.assertIn("const single=plan.length===1;",form)
+        self.assertIn("vf-single-amount",form)
+        self.assertIn("single?",form)
+        self.assertIn("vfMoney(p.amount)",form)
+
+    def test_edits_lock_manual_amounts_and_allocate_remaining_cents(self):
+        self.assertIn('const vfRedistribute=(total,plan,editedIndex,editedCents)=>',JS)
+        self.assertIn('locked:true',JS)
+        self.assertIn('const free=next.filter(p=>!p.locked)',JS)
+        self.assertIn('const amounts=vfSplitCents(total-held,free.length)',JS)
+        self.assertIn("total-held<free.length",JS)
+        self.assertIn('const edited=vfToCents(raw)',JS)
+        self.assertIn('this.valesShowPlan(adjusted)',JS)
+        self.assertIn('amount:vfFromCents(total)',JS)
+        self.assertIn('ctx.plan.some((p,i)=>i>0&&p.month<=ctx.plan[i-1].month)',JS)
+
+    def test_title_only_edit_keeps_legacy_descriptions(self):
+        form=JS[JS.index('  valesDebtTitleForm(id){'):
+                JS.index('  valesPaymentForm(id){')]
+        self.assertIn('Título *',form)
+        self.assertNotIn('vfField("Descrição (opcional)"',form)
+        self.assertIn('{title:fd.get("title")}',form)
+
     def test_pwa_cache_bust_matches_frontend_release(self):
         for asset in ("vales.js","vales.css"):
             version="/static/"+asset+"?v=20261026-vales-v3"
