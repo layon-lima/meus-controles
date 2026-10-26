@@ -107,7 +107,8 @@ def initialize(con):
       control_id INTEGER NOT NULL REFERENCES controls(id) ON DELETE CASCADE,
       employee_id INTEGER NOT NULL REFERENCES vale_employees(id) ON DELETE RESTRICT,
       amount TEXT NOT NULL,
-      description TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
       first_month TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -131,6 +132,12 @@ def initialize(con):
     );
     CREATE INDEX IF NOT EXISTS idx_vale_payment ON vale_payments(installment_id);
     """)
+    # Migração não destrutiva para instalações com vales existentes.
+    # A descrição antiga vira o título inicial; valores e parcelas permanecem intactos.
+    cols={row["name"] for row in con.execute("PRAGMA table_info(vale_debts)")}
+    if "title" not in cols:
+        con.execute("ALTER TABLE vale_debts ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+    con.execute("UPDATE vale_debts SET title=description WHERE TRIM(title)='' AND TRIM(description)!=''")
 
 
 def ensure_control(con,cid):
@@ -191,7 +198,8 @@ def get_summary(con,cid):
         by_person[d["employee_id"]]["lent"]+=due
         by_person[d["employee_id"]]["paid"]+=spent
         scheduled.extend([{**i,"employee":by_person[d["employee_id"]]["employee"]["name"],
-                           "debt_description":d["description"],"debt_id":d["id"]} for i in item["installments"]])
+                           "debt_title":d["title"],"debt_description":d["description"],
+                           "debt_id":d["id"]} for i in item["installments"]])
         total+=due;paid+=spent
     employees=[]
     for record in by_person.values():
@@ -232,7 +240,12 @@ def create_debt(con,eid,p):
     if not e["active"]:raise ValueError("Reative o funcionário antes de lançar um novo vale.")
     if not isinstance(p,dict):raise ValueError("Dados inválidos.")
     amount=money(value(p.get("amount")))
-    description=label(p.get("description"),"a descrição",220)
+    # Compatibilidade com os vales criados antes da chegada do campo título.
+    title=label(p.get("title") or p.get("description"),"o título da dívida",160)
+    description=p.get("description","")
+    if not isinstance(description,str) or len(description)>500:
+        raise ValueError("Descrição da dívida inválida.")
+    description=description.strip()
     first=month(p.get("first_month"))
     if "installments" in p:
         plan=verify_plan(p["installments"],amount)
@@ -241,14 +254,29 @@ def create_debt(con,eid,p):
         if type(count) is not int:raise ValueError("Quantidade de parcelas inválida.")
         plan=schedule(amount,first,count,p.get("each"))
     if plan[0]["month"]!=first:raise ValueError("A primeira parcela deve começar no mês selecionado.")
-    cur=con.execute("""INSERT INTO vale_debts(control_id,employee_id,amount,description,first_month)
-      VALUES(?,?,?,?,?)""",(e["control_id"],eid,amount,description,first))
+    cur=con.execute("""INSERT INTO vale_debts(control_id,employee_id,amount,title,description,first_month)
+      VALUES(?,?,?,?,?,?)""",(e["control_id"],eid,amount,title,description,first))
     did=cur.lastrowid
     for n,row in enumerate(plan,1):
         con.execute("""INSERT INTO vale_installments(debt_id,installment_number,due_month,amount)
           VALUES(?,?,?,?)""",(did,n,row["month"],row["amount"]))
     con.commit()
     return {"id":did}
+
+
+def update_debt_details(con,did,p):
+    """Altera somente título e descrição, mesmo após descontos registrados."""
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
+    d=debt(con,did)
+    if not isinstance(p,dict):raise ValueError("Dados inválidos.")
+    title=label(p.get("title"),"o título da dívida",160)
+    description=p.get("description","")
+    if not isinstance(description,str) or len(description)>500:
+        raise ValueError("Descrição da dívida inválida.")
+    con.execute("UPDATE vale_debts SET title=?,description=? WHERE id=? AND control_id=?",
+                (title,description.strip(),did,d["control_id"]))
+    con.commit()
+    return {"ok":True}
 
 
 def replan_debt(con,did,p):
@@ -310,7 +338,7 @@ def settle_debt(con,did,p):
 def payments(con,cid):
     ensure_control(con,cid)
     return [dict(x) for x in con.execute("""SELECT p.id,p.installment_id,p.payment_month,p.amount,p.notes,
-       e.name AS employee,d.description,i.due_month
+       e.name AS employee,d.title,d.description,i.due_month
        FROM vale_payments p
        JOIN vale_installments i ON i.id=p.installment_id
        JOIN vale_debts d ON d.id=i.debt_id
@@ -363,6 +391,8 @@ def handle(handler,con,method,url):
             return handler.send(create_debt(con,eid,handler.input()),201)
     if debt_route:
         did=int(debt_route[1]);debt(con,did)
+        if method=="PATCH" and debt_route[2] is None:
+            return handler.send(update_debt_details(con,did,handler.input()))
         if method=="PUT" and debt_route[2]=="plan":
             return handler.send(replan_debt(con,did,handler.input()))
         if method=="POST" and debt_route[2]=="pay":
