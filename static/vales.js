@@ -50,12 +50,14 @@ Object.assign(App,{
           '<span class="vf-paid">Pago</span>')+'</td></tr>').join("")+
           '</tbody></table></div>':"";
         return '<div class="vf-debt">'+
-          '<div class="vf-debt-head"><div><b>'+E(d.description)+'</b>'+
+          '<div class="vf-debt-head"><div><b>'+E(d.title||d.description)+'</b>'+
+          (d.description&&d.description!==(d.title||d.description)?'<div class="vf-debt-description">'+E(d.description)+'</div>':'')+
           '<div class="secondary-text">'+d.installments.length+' parcela(s) · início '+vfMonth(d.first_month)+'</div></div>'+
           '<div class="vf-debt-money"><span>'+vfMoney(d.amount)+'</span>'+
           '<small>Em aberto: <b>'+vfMoney(d.remaining)+'</b></small></div>'+
           '<div class="vf-debt-actions"><button class="btn btn-sm" onclick="App.valesToggleDebt('+d.id+')">'+
           (expanded?"Ocultar parcelas":"Ver parcelas")+'</button>'+
+          '<button class="btn btn-sm" onclick="App.valesDebtTitleForm('+d.id+')">Editar título</button>'+
           (!Number(d.paid)?'<button class="btn btn-sm" onclick="App.valesDebtForm('+emp.id+','+d.id+')">Dividir / ajustar</button>':"")+
           (remains?'<button class="btn btn-sm btn-primary" onclick="App.valesSettleForm('+d.id+')">Quitar dívida</button>':
           '<span class="vf-paid">Quitado</span>')+
@@ -79,11 +81,11 @@ Object.assign(App,{
     const calendar=schedule.length?'<div class="vf-month-grid"><table><thead><tr>'+
       '<th>Competência</th><th>Funcionário</th><th>Vale</th><th>Parcela</th><th>A descontar</th>'+
       '</tr></thead><tbody>'+schedule.map(i=>'<tr><td>'+vfMonth(i.due_month)+'</td>'+
-      '<td>'+E(i.employee)+'</td><td>'+E(i.debt_description)+'</td>'+
+      '<td>'+E(i.employee)+'</td><td>'+E(i.debt_title||i.debt_description)+'</td>'+
       '<td>'+i.installment_number+'</td><td class="numeric">'+vfMoney(i.remaining)+'</td></tr>').join("")+
       '</tbody></table></div>':'<p class="vf-empty">Nenhuma parcela pendente.</p>';
     const payments=(this.s.valesPaymentHistory||[]).map(p=>'<tr><td>'+vfMonth(p.payment_month)+'</td>'+
-      '<td>'+E(p.employee)+'</td><td>'+E(p.description)+'</td><td>'+vfMoney(p.amount)+'</td>'+
+      '<td>'+E(p.employee)+'</td><td>'+E(p.title||p.description)+'</td><td>'+vfMoney(p.amount)+'</td>'+
       '<td><button class="btn btn-sm vf-danger" onclick="App.valesUndoPayment('+p.id+')">Estornar</button></td></tr>').join("");
     document.getElementById("main").innerHTML='<div class="vf-page">'+
       '<div class="vf-heading"><div><div class="eyebrow">CONTROLE DE VALES</div><h2>'+E(c.name)+'</h2>'+
@@ -127,7 +129,7 @@ Object.assign(App,{
   valesEmployeeForm(){
     if(!this.canOpenForm())return;
     this.valesOpenModal("Cadastrar funcionário","O funcionário ficará disponível para receber vales.",
-      vfField("Nome completo",vfInput("name","",'required maxlength="160" placeholder="Nome do funcionário"')),
+      vfField("Nome ou apelido",vfInput("name","",'required maxlength="160" placeholder="Ex.: João, Zé, Maria"')),
       "valesSaveEmployee","Cadastrar");
   },
   async valesSaveEmployee(){
@@ -151,7 +153,8 @@ Object.assign(App,{
     this.s.valesDebtCtx={employeeId,debtId,plan:existing?.installments.map(i=>({month:i.due_month,amount:i.amount}))||[]};
     const form='<div class="vf-form-grid">'+
       vfField("Funcionário",'<input value="'+E(emp.name)+'" disabled>')+
-      vfField("Descrição do vale",vfInput("description",existing?.description||"",'required maxlength="220" '+(existing?"disabled":"")))+
+      vfField("Título da dívida *",vfInput("title",existing?.title||existing?.description||"",'required maxlength="160" placeholder="Ex.: Adiantamento salarial" '+(existing?"disabled":"")))+
+      vfField("Descrição (opcional)",vfInput("description",existing?.description||"",'maxlength="500" placeholder="Informações adicionais" '+(existing?"disabled":"")))+
       vfField("Valor total (R$)",vfInput("amount",value,'required inputmode="decimal" '+(existing?"readonly":"oninput=&quot;App.valesPropose()&quot;")))+
       vfField("Primeiro desconto (mês/ano)",'<input type="month" name="first_month" value="'+E(first)+'" required onchange="App.valesPropose()">')+
       vfField("Número de parcelas",'<input type="number" min="1" max="120" step="1" name="count" value="'+count+'" required oninput="App.valesPropose()">')+
@@ -222,19 +225,39 @@ Object.assign(App,{
     try{
       const id=ctx.debtId;
       const payload=id?{installments}:{
-        description:fd.get("description"),amount:fd.get("amount"),
-        first_month:fd.get("first_month"),installments
+        title:fd.get("title"),description:fd.get("description"),
+        amount:fd.get("amount"),first_month:fd.get("first_month"),installments
       };
       await this.api(id?"/api/vales-debts/"+id+"/plan":"/api/vales-employees/"+ctx.employeeId+"/debts",id?"PUT":"POST",payload);
       this.closeModal();this.s.valeExpandedDebt=id||null;
       await this.valesRefresh();this.toast(id?"Parcelas atualizadas.":"Vale cadastrado.");
     }catch(e){this.toast(e.message,true)}
   },
+  valesDebtTitleForm(id){
+    if(!this.canOpenForm())return;
+    const d=this.s.valesData?.employees.flatMap(e=>e.debts).find(x=>x.id===id);
+    if(!d)return;
+    this.s.valesDetailsId=id;
+    this.valesOpenModal("Editar título da dívida","Apenas o título e a descrição serão alterados, sem recalcular valores ou parcelas.",
+      vfField("Título *",vfInput("title",d.title||d.description||"",'required maxlength="160"'))+
+      vfField("Descrição (opcional)",vfInput("description",d.description||"",'maxlength="500"')),
+      "valesSaveDebtTitle","Salvar alterações");
+  },
+  async valesSaveDebtTitle(){
+    const form=document.getElementById("vf-form");
+    if(!form?.reportValidity())return;
+    try{
+      const fd=new FormData(form);
+      await this.api("/api/vales-debts/"+this.s.valesDetailsId,"PATCH",
+        {title:fd.get("title"),description:fd.get("description")});
+      this.closeModal();await this.valesRefresh();this.toast("Título atualizado.");
+    }catch(e){this.toast(e.message,true)}
+  },
   valesPaymentForm(id){
     if(!this.canOpenForm())return;
     const item=this.s.valesData?.schedule.find(i=>i.id===id);if(!item)return;
     this.s.valesPaymentCtx={id};
-    const body='<p>Funcionário: <b>'+E(item.employee)+'</b> · Vale: <b>'+E(item.debt_description)+'</b></p>'+
+    const body='<p>Funcionário: <b>'+E(item.employee)+'</b> · Vale: <b>'+E(item.debt_title||item.debt_description)+'</b></p>'+
       '<p>Parcela de '+vfMonth(item.due_month)+' · Restante '+vfMoney(item.remaining)+'</p>'+
       '<div class="vf-form-grid">'+vfField("Mês em que foi descontado",'<input type="month" name="month" value="'+vfCurrentMonth()+'" required>')+
       vfField("Valor realmente descontado (R$)",vfInput("amount",item.remaining,'required inputmode="decimal"'))+'</div>'+
@@ -287,7 +310,7 @@ Object.assign(App,{
       this.s.valesPaymentHistory=await this.api("/api/controls/"+this.s.detail.control.id+"/vales/payments");
       const tbody=document.getElementById("vf-payment-history");
       if(tbody)tbody.innerHTML=this.s.valesPaymentHistory.map(p=>'<tr><td>'+vfMonth(p.payment_month)+'</td>'+
-        '<td>'+E(p.employee)+'</td><td>'+E(p.description)+'</td><td class="numeric">'+vfMoney(p.amount)+'</td>'+
+        '<td>'+E(p.employee)+'</td><td>'+E(p.title||p.description)+'</td><td class="numeric">'+vfMoney(p.amount)+'</td>'+
         '<td><button class="btn btn-sm vf-danger" onclick="App.valesUndoPayment('+p.id+')">Estornar</button></td></tr>').join("")||
         '<tr><td colspan="5">Nenhum desconto registrado.</td></tr>';
     }catch(e){this.toast(e.message,true)}
