@@ -17,11 +17,13 @@ MODELS = {
     "divida_sem_valor": "Dívidas sem valor fixo",
     "recebimento": "Recebimento de Produtos",
     "acerto_ab": "Acerto A × B",
+    "vale_funcionarios": "Vales de Funcionários",
 }
 GROUPS = {
     "calculo": "generic", "saldo": "generic", "financeiro": "generic",
     "caminhao": "truck", "divida": "debt",
-    "divida_sem_valor": "debt", "recebimento": "receiving", "acerto_ab": "pair"
+    "divida_sem_valor": "debt", "recebimento": "receiving", "acerto_ab": "pair",
+    "vale_funcionarios": "vales"
 }
 
 def initialize(con):
@@ -48,6 +50,7 @@ def counts(con,cid):
         "debt": con.execute("SELECT COUNT(*) FROM debt_payments WHERE control_id=?",(cid,)).fetchone()[0],
         "receiving": con.execute("SELECT COUNT(*) FROM purchase_items WHERE control_id=?",(cid,)).fetchone()[0],
         "pair": con.execute("SELECT COUNT(*) FROM pair_entries WHERE control_id=?",(cid,)).fetchone()[0],
+        "vales": con.execute("SELECT COUNT(*) FROM vale_debts WHERE control_id=?",(cid,)).fetchone()[0],
     }
 
 def preview(con,cid):
