@@ -68,13 +68,14 @@ class EmployeeAdvancesTests(unittest.TestCase):
             vales.payment(con,installment["id"],{
                 "month":"2026-11","amount":"50.00"})
             before=vales.get_summary(con,self.cid)
+            old_installments=[dict(row) for row in vales.all_installments(con,did)]
             vales.update_debt_details(con,did,{
                 "title":"Vale de farmácia","description":"Medicamentos"})
             after=vales.get_summary(con,self.cid)
             self.assertEqual(after["employees"][0]["debts"][0]["title"],"Vale de farmácia")
             self.assertEqual(after["employees"][0]["debts"][0]["description"],"Medicamentos")
             self.assertEqual(after["totals"],before["totals"])
-            self.assertEqual(vales.all_installments(con,did),vales.all_installments(con,did))
+            self.assertEqual(vales.all_installments(con,did),old_installments)
             history=vales.payments(con,self.cid)
             self.assertEqual(history[0]["title"],"Vale de farmácia")
             self.assertEqual(history[0]["amount"],"50.00")
