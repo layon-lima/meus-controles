@@ -630,7 +630,7 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261022-frete-tonelada-v6","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
-                if re.fullmatch(r"/api/controls/\d+/vales(?:/(?:employees|payments))?",url) or re.fullmatch(r"/api/vales-(?:employees|debts|installments|payments)/\d+(?:/(?:debts|plan|payments))?",url):
+                if re.fullmatch(r"/api/controls/\d+/vales(?:/(?:employees|payments))?",url) or re.fullmatch(r"/api/vales-(?:employees|debts|installments|payments)/\d+(?:/(?:debts|plan|pay|payments))?",url):
                     vales.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/pair/mixed-import/(?:preview|confirm)",url):
