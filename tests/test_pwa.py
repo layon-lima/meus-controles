@@ -54,8 +54,8 @@ class PWATests(unittest.TestCase):
                     ("/sw.js", b"/* PWA"),
                     ("/static/pwa.js", b"/* Instala"),
                     ("/static/desktop_compact.css?v=20261022-conferencia-1", b"/* CENTRAL"),
-                    ("/static/vales.js?v=20261026-vales-v2", b'"use strict"'),
-                    ("/static/vales.css?v=20261026-vales-v2", b"/* Vales"),
+                    ("/static/vales.js?v=20261026-vales-v3", b'"use strict"'),
+                    ("/static/vales.css?v=20261026-vales-v3", b"/* Vales"),
                 ):
                     with self.subTest(route=route):
                         with urlopen(f"http://127.0.0.1:{app.PORT}{route}", timeout=10) as response:
