@@ -2,8 +2,10 @@
 /* Vales de funcionários: pessoas, novas dívidas, parcelas previstas e descontos reais. */
 const vfMoney=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(n||0));
 const vfNum=v=>{
-  const s=String(v??"").trim().replace(/\s/g,"");
-  return Number(s.includes(",")?s.replace(/\./g,"").replace(",","."):s);
+  let s=String(v??"").trim().replace(/\s/g,"");
+  if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");
+  else if(/^\d{1,3}(?:\.\d{3})+$/.test(s))s=s.replace(/\./g,"");
+  return Number(s);
 };
 const vfCurrentMonth=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
 const vfMonth=m=>m?m.slice(5,7)+"/"+m.slice(0,4):"—";
