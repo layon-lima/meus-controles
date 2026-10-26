@@ -182,6 +182,45 @@ class ReceivingTests(unittest.TestCase):
             self.assertLess(Decimal(proposed["ordered_qty"]),receiving.received_total(con,item))
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["ordered_qty"],"1000.000")
 
+    def test_bulk_delete_is_atomic_and_blocks_receipts(self):
+        class Handler:
+            def __init__(self,payload):self.payload=payload
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+        free_a=self.item("Adubo")
+        delivered=self.item("Produto recebido")
+        free_b=self.item("Semente")
+        self.deliver(delivered)
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"entregas registradas"):
+                receiving.handle(Handler({"ids":[free_a,delivered,free_b]}),con,
+                                 "POST","/api/controls/"+str(self.cid)+"/receiving/bulk-delete")
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],3)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_bulk_delete_scopes_control_and_validates_selection(self):
+        class Handler:
+            def __init__(self,payload):self.payload=payload
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+        a=self.item("Adubo")
+        b=self.item("Semente")
+        other=self.item("Outro controle",cid=self.other)
+        url="/api/controls/"+str(self.cid)+"/receiving/bulk-delete"
+        for ids in ([a,other],[a,a],[a,999999],[],[True],[a,"2"]):
+            with app.db() as con:
+                with self.assertRaises(ValueError):
+                    receiving.handle(Handler({"ids":ids}),con,"POST",url)
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],2)
+            self.assertEqual(receiving.summary(con,self.other)["totals"]["items"],1)
+            result=receiving.handle(Handler({"ids":[a,b]}),con,"POST",url)
+            self.assertEqual(result,{"deleted":2})
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],0)
+            self.assertEqual(receiving.summary(con,self.other)["items"][0]["id"],other)
+
     def test_cannot_delete_item_with_receipts(self):
         item=self.item()
         self.deliver(item)
