@@ -94,6 +94,16 @@ class ValesSpreadsheetUITests(unittest.TestCase):
         self.assertNotIn('vfField("Descrição (opcional)"',form)
         self.assertIn('{title:fd.get("title")}',form)
 
+    def test_totals_only_show_employees_with_unpaid_advances(self):
+        self.assertIn("const withOpenBalance=all.filter(emp=>Number(emp.remaining)>0);",JS)
+        self.assertIn('const visibleTotals=withOpenBalance.filter(emp=>selected==="all"||String(emp.id)===selected);',JS)
+        self.assertIn("const totalsRows=visibleTotals.map(emp=>",JS)
+        self.assertIn("Nenhum funcionário com vales em aberto.",JS)
+        self.assertIn("funcionário(s) com saldo em aberto",JS)
+        # Os lançamentos pagos continuam acessíveis no histórico.
+        self.assertIn("const entries=all.flatMap(",JS)
+        self.assertIn("valesDebtTitleForm('+i.debtId+')",JS)
+
     def test_pwa_cache_bust_matches_frontend_release(self):
         for asset in ("vales.js","vales.css"):
             version="/static/"+asset+"?v=20261026-vales-v4"
