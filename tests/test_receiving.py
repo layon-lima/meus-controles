@@ -275,7 +275,7 @@ class ReceivingTests(unittest.TestCase):
         self.assertEqual(receiving.validate_receipt({**payload,
             "access_key":key[:22]+" "+key[22:]})["access_key"],key)
         for bad in ("123",key[:-1],"X"*44,12345):
-            with self.assertRaisesRegex(ValueError,"chave"):
+            with self.assertRaisesRegex(ValueError,"(?i)chave"):
                 receiving.validate_receipt({**payload,"access_key":bad})
 
     def test_key_is_saved_read_and_updated_without_affecting_balance(self):
