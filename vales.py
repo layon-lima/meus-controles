@@ -270,7 +270,7 @@ def update_debt_details(con,did,p):
     d=debt(con,did)
     if not isinstance(p,dict):raise ValueError("Dados inválidos.")
     title=label(p.get("title"),"o título da dívida",160)
-    description=p.get("description","")
+    description=p.get("description",d["description"])
     if not isinstance(description,str) or len(description)>500:
         raise ValueError("Descrição da dívida inválida.")
     con.execute("UPDATE vale_debts SET title=?,description=? WHERE id=? AND control_id=?",
