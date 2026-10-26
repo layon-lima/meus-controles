@@ -16,6 +16,35 @@ const vfAddMonth=(value,offset)=>{
 const vfInput=(name,value,attrs="")=>'<input name="'+name+'" value="'+E(value??"")+'" '+attrs+'>';
 const vfField=(label,inner)=>'<div class="field"><label>'+E(label)+'</label>'+inner+'</div>';
 
+// Distribui exatamente os centavos restantes nas parcelas ainda automáticas.
+// Cada valor alterado manualmente é preservado; valores impossíveis são recusados.
+const vfToCents=raw=>{
+  const n=vfNum(raw);
+  return Number.isFinite(n)&&n>0&&n<=1000000000&&Math.abs(n*100-Math.round(n*100))<0.00001
+    ?Math.round(n*100):null;
+};
+const vfFromCents=cents=>(cents/100).toFixed(2);
+const vfSplitCents=(total,count)=>{
+  if(!Number.isSafeInteger(total)||!Number.isInteger(count)||count<1||count>120||total<count)return null;
+  const base=Math.floor(total/count),rest=total%count;
+  return Array.from({length:count},(_,i)=>base+(i<rest?1:0));
+};
+const vfRedistribute=(total,plan,editedIndex,editedCents)=>{
+  if(!Number.isSafeInteger(total)||total<plan.length||!Array.isArray(plan)||!plan.length||
+      !Number.isInteger(editedIndex)||editedIndex<0||editedIndex>=plan.length||
+      !Number.isSafeInteger(editedCents)||editedCents<=0)return null;
+  const next=plan.map((p,i)=>({...p,locked:!!p.locked}));
+  next[editedIndex]={...next[editedIndex],amount:vfFromCents(editedCents),locked:true};
+  const held=next.reduce((sum,p)=>sum+(p.locked?vfToCents(p.amount)||0:0),0);
+  const free=next.filter(p=>!p.locked);
+  if(held>total||total-held<free.length)return null;
+  if(!free.length)return held===total?next:null;
+  const amounts=vfSplitCents(total-held,free.length);
+  if(!amounts)return null;
+  let position=0;
+  return next.map(p=>p.locked?p:{...p,amount:vfFromCents(amounts[position++])});
+};
+
 Object.assign(App,{
   async renderVales(){
     const ctrl=this.s.detail?.control;
@@ -208,90 +237,145 @@ Object.assign(App,{
     const existing=debtId?emp.debts.find(d=>d.id===debtId):null;
     if(debtId&&!existing)return;
     if(existing&&Number(existing.paid)>0){this.toast("Esse vale já possui descontos e não pode ser redividido.",true);return}
-    const value=existing?.amount||"";
+    const amount=existing?.amount||"";
     const first=existing?.first_month||vfCurrentMonth();
     const count=existing?.installments?.length||1;
-    this.s.valesDebtCtx={employeeId,debtId,plan:existing?.installments.map(i=>({month:i.due_month,amount:i.amount}))||[]};
+    this.s.valesDebtCtx={
+      employeeId,debtId,plan:existing?.installments.map(i=>({
+        month:i.due_month,amount:i.amount,locked:false
+      }))||[]
+    };
     const form='<div class="vf-form-grid">'+
       vfField("Funcionário",'<input value="'+E(emp.name)+'" disabled>')+
-      vfField("Título da dívida *",vfInput("title",existing?.title||existing?.description||"",'required maxlength="160" placeholder="Ex.: Adiantamento salarial" '+(existing?"disabled":"")))+
-      vfField("Descrição (opcional)",vfInput("description",existing?.description||"",'maxlength="500" placeholder="Informações adicionais" '+(existing?"disabled":"")))+
-      vfField("Valor total (R$)",vfInput("amount",value,'required inputmode="decimal" '+(existing?"readonly":"oninput=&quot;App.valesPropose()&quot;")))+
-      vfField("Primeiro desconto (mês/ano)",'<input type="month" name="first_month" value="'+E(first)+'" required onchange="App.valesPropose()">')+
-      vfField("Número de parcelas",'<input type="number" min="1" max="120" step="1" name="count" value="'+count+'" required oninput="App.valesPropose()">')+
-      vfField("Valor desejado por parcela (R$)",vfInput("each","",'inputmode="decimal" placeholder="Automático (parcelas iguais)" oninput="App.valesPropose()"'))+
-      '</div><p class="secondary-text">A sugestão divide igualmente. Você pode alterar o valor e o mês de cada parcela antes de salvar.</p>'+
-      '<div id="vf-plan-editor" class="vf-plan-editor"></div><div id="vf-plan-total" class="vf-plan-total"></div>';
-    this.valesOpenModal(existing?"Dividir / ajustar parcelas":"Novo vale",
-      "Funcionário: "+emp.name+" · descontos mensais sem necessidade de informar o dia.",
+      vfField("Título da dívida *",vfInput("title",existing?.title||existing?.description||"",
+        'required maxlength="160" placeholder="Ex.: Vale pessoal" '+(existing?"disabled":"")))+
+      vfField("Valor total (R$)",vfInput("amount",amount,'required inputmode="decimal" '+
+        (existing?'readonly':'oninput="App.valesPropose()"')))+
+      vfField("Primeiro desconto (mês/ano)",'<input type="month" name="first_month" value="'+E(first)+
+        '" required onchange="App.valesPropose(true)">')+
+      vfField("Quantidade de parcelas",'<input type="number" min="1" max="120" step="1" name="count" value="'+count+
+        '" required oninput="App.valesPropose()">')+'</div>'+
+      '<div class="vf-plan-help">O valor é distribuído automaticamente. Altere qualquer parcela para distribuir o restante nas outras.</div>'+
+      '<div id="vf-plan-editor" class="vf-plan-editor"></div>'+
+      '<div id="vf-plan-total" class="vf-plan-total"></div>';
+    this.valesOpenModal(existing?"Ajustar parcelas":"Novo vale",
+      "Funcionário: "+emp.name+" · os descontos são definidos pelo mês, sem informar o dia.",
       form,"valesSaveDebt",existing?"Salvar parcelas":"Cadastrar vale");
     if(existing)this.valesShowPlan(this.s.valesDebtCtx.plan);
     else this.valesPropose();
   },
-  valesPropose(){
-    const form=document.getElementById("vf-form");if(!form||!this.s.valesDebtCtx)return;
+  valesPropose(regenerateMonths=false){
+    const form=document.getElementById("vf-form"),ctx=this.s.valesDebtCtx;
+    if(!form||!ctx)return;
     const fd=new FormData(form);
-    const amount=vfNum(fd.get("amount")),each=String(fd.get("each")||"").trim();
+    const cents=vfToCents(fd.get("amount"));
     const count=Number(fd.get("count")),first=fd.get("first_month");
-    if(!Number.isFinite(amount)||amount<=0||!Number.isInteger(count)||count<1||count>120||!/^\d{4}-\d{2}$/.test(first)){
-      document.getElementById("vf-plan-editor").innerHTML='<p class="secondary-text">Informe valor, mês inicial e número de parcelas.</p>';
-      document.getElementById("vf-plan-total").textContent="";this.s.valesDebtCtx.plan=[];return;
+    const editor=document.getElementById("vf-plan-editor");
+    if(cents===null||!Number.isInteger(count)||count<1||count>120||
+       !/^\d{4}-(0[1-9]|1[0-2])$/.test(first)){
+      editor.innerHTML='<p class="secondary-text">Preencha o valor, o primeiro mês e a quantidade de parcelas.</p>';
+      document.getElementById("vf-plan-total").textContent="";
+      ctx.plan=[];return;
     }
-    const cents=Math.round(amount*100),basic=Math.floor(cents/count),extra=cents%count;
-    if(cents<count){this.toast("Número de parcelas maior que o valor em centavos.",true);return}
-    let parts=Array.from({length:count},(_,i)=>basic+(i<extra?1:0));
-    if(each){
-      const fixed=Math.round(vfNum(each)*100);
-      if(!(fixed>0&&fixed*(count-1)<cents)){
-        document.getElementById("vf-plan-editor").innerHTML='<p class="secondary-text">Valor por parcela inválido para a quantidade escolhida.</p>';
-        this.s.valesDebtCtx.plan=[];return;
-      }
-      parts=Array(count-1).fill(fixed).concat(cents-fixed*(count-1));
+    const parts=vfSplitCents(cents,count);
+    if(!parts){
+      editor.innerHTML='<p class="vf-error">O total não comporta essa quantidade de parcelas.</p>';
+      document.getElementById("vf-plan-total").textContent="";
+      ctx.plan=[];return;
     }
-    const plan=parts.map((c,i)=>({month:vfAddMonth(first,i),amount:(c/100).toFixed(2)}));
+    const preserveMonths=!regenerateMonths&&ctx.plan.length===count&&
+      ctx.plan[0]?.month===first;
+    const plan=parts.map((amount,i)=>({
+      month:preserveMonths?ctx.plan[i].month:vfAddMonth(first,i),
+      amount:vfFromCents(amount),locked:false
+    }));
     this.valesShowPlan(plan);
   },
   valesShowPlan(plan){
-    this.s.valesDebtCtx.plan=plan;
-    document.getElementById("vf-plan-editor").innerHTML='<table><thead><tr><th>Parcela</th><th>Mês de desconto</th><th>Valor (R$)</th></tr></thead><tbody>'+
-      plan.map((p,i)=>'<tr><td>'+Number(i+1)+'/'+plan.length+'</td>'+
+    const ctx=this.s.valesDebtCtx;
+    if(!ctx)return;
+    ctx.plan=plan.map(p=>({...p,locked:!!p.locked}));
+    const single=plan.length===1;
+    document.getElementById("vf-plan-editor").innerHTML='<table><thead><tr>'+
+      '<th>Parcela</th><th>Mês de desconto</th><th>Valor (R$)</th></tr></thead><tbody>'+
+      ctx.plan.map((p,i)=>'<tr><td>'+(i+1)+'/'+ctx.plan.length+'</td>'+
       '<td><input type="month" value="'+E(p.month)+'" onchange="App.valesEditPlan('+i+',&quot;month&quot;,this.value)"></td>'+
-      '<td><input type="text" inputmode="decimal" value="'+E(p.amount)+'" onchange="App.valesEditPlan('+i+',&quot;amount&quot;,this.value)"></td></tr>').join("")+
-      '</tbody></table>';
+      '<td>'+(single?'<strong class="vf-single-amount">'+vfMoney(p.amount)+'</strong>':
+        '<input type="text" inputmode="decimal" data-vf-amount="'+i+'" value="'+E(p.amount)+
+        '" aria-label="Valor da parcela '+(i+1)+'" onchange="App.valesEditPlan('+i+',&quot;amount&quot;,this.value)">')+
+      '</td></tr>').join("")+'</tbody></table>';
     this.valesPlanTotal();
   },
-  valesEditPlan(index,key,value){
-    const ctx=this.s.valesDebtCtx;if(!ctx?.plan[index])return;
-    ctx.plan[index][key]=value;this.valesPlanTotal();
+  valesEditPlan(index,key,raw){
+    const ctx=this.s.valesDebtCtx;
+    if(!ctx?.plan[index])return;
+    const original=ctx.plan.map(p=>({...p}));
+    if(key==="amount"){
+      const total=vfToCents(document.querySelector('#vf-form input[name="amount"]')?.value);
+      const edited=vfToCents(raw);
+      const adjusted=total===null||edited===null?null:vfRedistribute(total,ctx.plan,index,edited);
+      if(!adjusted){
+        this.toast("Valor inválido. As parcelas não podem ultrapassar a dívida e devem somar o total.",true);
+        this.valesShowPlan(original);return;
+      }
+      this.valesShowPlan(adjusted);
+      return;
+    }
+    if(key==="month"){
+      if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(raw)||
+        (index>0&&raw<=ctx.plan[index-1].month)||
+        (index<ctx.plan.length-1&&raw>=ctx.plan[index+1].month)){
+        this.toast("Os meses precisam estar em ordem crescente, sem repetições.",true);
+        this.valesShowPlan(original);return;
+      }
+      ctx.plan[index].month=raw;
+      if(index===0){
+        const first=document.querySelector('#vf-form input[name="first_month"]');
+        if(first)first.value=raw;
+      }
+      this.valesShowPlan(ctx.plan);
+    }
   },
   valesPlanTotal(){
-    const ctx=this.s.valesDebtCtx,field=document.querySelector('#vf-form input[name="amount"]');
-    const planned=ctx.plan.reduce((s,p)=>s+Math.round(vfNum(p.amount)*100||0),0)/100;
-    const original=vfNum(field?.value);
-    const good=Number.isFinite(original)&&Math.round(original*100)===Math.round(planned*100);
+    const ctx=this.s.valesDebtCtx;
+    if(!ctx)return;
+    const total=vfToCents(document.querySelector('#vf-form input[name="amount"]')?.value);
+    const amounts=ctx.plan.map(p=>vfToCents(p.amount));
+    const sum=amounts.every(n=>n!==null)?amounts.reduce((a,b)=>a+b,0):null;
+    const valid=total!==null&&sum===total;
     document.getElementById("vf-plan-total").innerHTML=
-      'Soma das parcelas: <b>'+vfMoney(planned)+'</b> / Total do vale: <b>'+vfMoney(original)+'</b>'+
-      (good?'<span class="vf-paid">Confere</span>':'<strong class="vf-error"> Ajuste os valores para igualar o total.</strong>');
+      'Total das parcelas: <b>'+vfMoney(sum===null?0:sum/100)+'</b> / Vale: <b>'+
+      vfMoney(total===null?0:total/100)+'</b>'+
+      (valid?'<span class="vf-paid">Valores conferem</span>':
+        '<strong class="vf-error"> As parcelas devem somar exatamente o total.</strong>');
   },
   async valesSaveDebt(){
-    const form=document.getElementById("vf-form");if(!form?.reportValidity())return;
+    const form=document.getElementById("vf-form");
+    if(!form?.reportValidity())return;
     const ctx=this.s.valesDebtCtx;
     if(!ctx)return;
     const fd=new FormData(form);
-    const installments=ctx.plan.map(p=>({month:p.month,amount:String(vfNum(p.amount).toFixed(2))}));
-    const sum=Math.round(installments.reduce((s,p)=>s+Number(p.amount),0)*100);
-    const amount=Math.round(vfNum(fd.get("amount"))*100);
-    if(!installments.length||sum!==amount){this.toast("As parcelas precisam somar exatamente o valor do vale.",true);return}
-    if(installments[0].month!==fd.get("first_month")){this.toast("A primeira parcela precisa começar no mês selecionado.",true);return}
+    const total=vfToCents(fd.get("amount"));
+    const amounts=ctx.plan.map(p=>vfToCents(p.amount));
+    if(total===null||!amounts.length||amounts.includes(null)||
+       amounts.reduce((a,b)=>a+b,0)!==total){
+      this.toast("As parcelas devem somar exatamente o valor do vale.",true);return;
+    }
+    if(ctx.plan[0].month!==fd.get("first_month")||
+      ctx.plan.some((p,i)=>i>0&&p.month<=ctx.plan[i-1].month)){
+      this.toast("Confira os meses de desconto, que precisam estar em ordem crescente.",true);return;
+    }
+    const installments=ctx.plan.map((p,i)=>({month:p.month,amount:vfFromCents(amounts[i])}));
     try{
       const id=ctx.debtId;
       const payload=id?{installments}:{
-        title:fd.get("title"),description:fd.get("description"),
-        amount:fd.get("amount"),first_month:fd.get("first_month"),installments
+        title:fd.get("title"),amount:vfFromCents(total),
+        first_month:fd.get("first_month"),installments
       };
-      await this.api(id?"/api/vales-debts/"+id+"/plan":"/api/vales-employees/"+ctx.employeeId+"/debts",id?"PUT":"POST",payload);
-      this.closeModal();this.s.valeExpandedDebt=id||null;
-      await this.valesRefresh();this.toast(id?"Parcelas atualizadas.":"Vale cadastrado.");
+      await this.api(id?"/api/vales-debts/"+id+"/plan":
+        "/api/vales-employees/"+ctx.employeeId+"/debts",id?"PUT":"POST",payload);
+      this.closeModal();await this.valesRefresh();
+      this.toast(id?"Parcelas atualizadas.":"Vale cadastrado.");
     }catch(e){this.toast(e.message,true)}
   },
   valesDebtTitleForm(id){
@@ -299,9 +383,8 @@ Object.assign(App,{
     const d=this.s.valesData?.employees.flatMap(e=>e.debts).find(x=>x.id===id);
     if(!d)return;
     this.s.valesDetailsId=id;
-    this.valesOpenModal("Editar título da dívida","Apenas o título e a descrição serão alterados, sem recalcular valores ou parcelas.",
-      vfField("Título *",vfInput("title",d.title||d.description||"",'required maxlength="160"'))+
-      vfField("Descrição (opcional)",vfInput("description",d.description||"",'maxlength="500"')),
+    this.valesOpenModal("Editar título da dívida","A alteração não modifica valores nem parcelas.",
+      vfField("Título *",vfInput("title",d.title||d.description||"",'required maxlength="160"')),
       "valesSaveDebtTitle","Salvar alterações");
   },
   async valesSaveDebtTitle(){
@@ -310,7 +393,7 @@ Object.assign(App,{
     try{
       const fd=new FormData(form);
       await this.api("/api/vales-debts/"+this.s.valesDetailsId,"PATCH",
-        {title:fd.get("title"),description:fd.get("description")});
+        {title:fd.get("title")});
       this.closeModal();await this.valesRefresh();this.toast("Título atualizado.");
     }catch(e){this.toast(e.message,true)}
   },
@@ -321,8 +404,7 @@ Object.assign(App,{
     const body='<p>Funcionário: <b>'+E(item.employee)+'</b> · Vale: <b>'+E(item.debt_title||item.debt_description)+'</b></p>'+
       '<p>Parcela de '+vfMonth(item.due_month)+' · Restante '+vfMoney(item.remaining)+'</p>'+
       '<div class="vf-form-grid">'+vfField("Mês em que foi descontado",'<input type="month" name="month" value="'+vfCurrentMonth()+'" required>')+
-      vfField("Valor realmente descontado (R$)",vfInput("amount",item.remaining,'required inputmode="decimal"'))+'</div>'+
-      vfField("Observações (opcional)",vfInput("notes","",'maxlength="500"'));
+      vfField("Valor realmente descontado (R$)",vfInput("amount",item.remaining,'required inputmode="decimal"'))+'</div>';
     this.valesOpenModal("Registrar desconto","Este valor reduzirá a dívida do funcionário.",body,"valesSavePayment","Confirmar desconto");
   },
   async valesSavePayment(){
@@ -330,7 +412,7 @@ Object.assign(App,{
     try{
       const f=new FormData(form);
       await this.api("/api/vales-installments/"+this.s.valesPaymentCtx.id+"/payments","POST",
-        {month:f.get("month"),amount:f.get("amount"),notes:f.get("notes")});
+        {month:f.get("month"),amount:f.get("amount")});
       this.closeModal();await this.valesRefresh();this.toast("Desconto registrado.");
     }catch(e){this.toast(e.message,true)}
   },
