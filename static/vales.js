@@ -5,7 +5,7 @@ const vfNum=v=>{
   const s=String(v??"").trim().replace(/\s/g,"");
   return Number(s.includes(",")?s.replace(/\./g,"").replace(",","."):s);
 };
-const vfCurrentMonth=()=>new Date().toISOString().slice(0,7);
+const vfCurrentMonth=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
 const vfMonth=m=>m?m.slice(5,7)+"/"+m.slice(0,4):"—";
 const vfAddMonth=(value,offset)=>{
   const [y,m]=String(value).split("-").map(Number);
