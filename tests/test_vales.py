@@ -34,6 +34,33 @@ class EmployeeAdvancesTests(unittest.TestCase):
             return vales.create_debt(con,eid,{"description":description,"amount":amount,
                 "first_month":start,"count":count})["id"]
 
+    def test_employee_registration_via_real_api_route(self):
+        # Captura o defeito anterior: o endpoint passava todo o JSON
+        # {"name":"Albetiza"} em vez da string "Albetiza".
+        class Handler:
+            def __init__(self,payload):
+                self.payload=payload
+                self.status=None
+                self.result=None
+            def input(self):
+                return self.payload
+            def send(self,data,status=200):
+                self.status=status
+                self.result=data
+                return data
+        with app.db() as con:
+            endpoint=f"/api/controls/{self.cid}/vales/employees"
+            handler=Handler({"name":"Albetiza"})
+            vales.handle(handler,con,"POST",endpoint)
+            self.assertEqual(handler.status,201)
+            self.assertEqual(
+                vales.employee(con,handler.result["id"])["name"],"Albetiza")
+            self.assertEqual(vales.get_summary(con,self.cid)["totals"]["active"],1)
+            with self.assertRaisesRegex(ValueError,"já cadastrado"):
+                vales.handle(Handler({"name":"Albetiza"}),con,"POST",endpoint)
+            with self.assertRaisesRegex(ValueError,"nome"):
+                vales.handle(Handler({"name":"   "}),con,"POST",endpoint)
+
     def test_short_employee_name_is_valid(self):
         eid=self.employee("Zé")
         with app.db() as con:
