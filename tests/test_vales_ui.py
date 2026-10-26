@@ -106,10 +106,10 @@ class ValesSpreadsheetUITests(unittest.TestCase):
 
     def test_pwa_cache_bust_matches_frontend_release(self):
         for asset in ("vales.js","vales.css"):
-            version="/static/"+asset+"?v=20261026-vales-v4"
+            version="/static/"+asset+"?v="+("20261026-vales-v5" if asset=="vales.js" else "20261026-vales-v4")
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn("central-de-controles-shell-v20261026-vales-v4",SW)
+        self.assertIn("central-de-controles-shell-v20261026-vales-v5",SW)
 
 
 if __name__=="__main__":
