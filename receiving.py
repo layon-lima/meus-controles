@@ -186,14 +186,48 @@ def summary(con,cid):
       "items":items,"receipts":history
     }
 
+def delete_items(con,cid,payload):
+    """Exclui varios produtos pendentes em uma unica transacao.
+
+    Todos devem pertencer ao controle informado e nenhum pode possuir entrega.
+    Se qualquer item for invalido, nenhum sera apagado.
+    """
+    ensure_control(con,cid)
+    ids=payload.get("ids") if isinstance(payload,dict) else None
+    if not isinstance(ids,list) or not 1<=len(ids)<=500 or \
+       any(type(i) is not int or i<=0 for i in ids) or len(set(ids))!=len(ids):
+        raise ValueError("Selecione de 1 a 500 produtos validos, sem repeticoes.")
+    marks=",".join("?" for _ in ids)
+    con.execute("BEGIN IMMEDIATE")
+    rows=list(con.execute(
+        "SELECT i.id,i.product,COUNT(r.id) AS receipts FROM purchase_items i "
+        "LEFT JOIN purchase_receipts r ON r.item_id=i.id "
+        "WHERE i.control_id=? AND i.id IN ("+marks+") "
+        "GROUP BY i.id,i.product",(cid,*ids)))
+    if len(rows)!=len(ids):
+        raise ValueError("Um ou mais produtos nao existem neste controle. Atualize a lista.")
+    blocked=[row["product"] for row in rows if row["receipts"]>0]
+    if blocked:
+        names=", ".join(blocked[:3])
+        if len(blocked)>3:names+=" e outros"
+        raise ValueError("Nao e possivel excluir produtos com entregas registradas: "+
+                         names+". Exclua as entregas primeiro.")
+    con.execute("DELETE FROM purchase_items WHERE control_id=? AND id IN ("+marks+")",
+                (cid,*ids))
+    con.commit()
+    return {"deleted":len(ids)}
+
+
 def handle(handler,con,method,path):
-    root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items))?",path)
+    root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items|bulk-delete))?",path)
     itemroute=re.fullmatch(r"/api/receiving-items/(\d+)(?:/(receipts))?",path)
     receiptroute=re.fullmatch(r"/api/receiving-receipts/(\d+)",path)
     if root:
         cid=int(root[1]);ensure_control(con,cid)
         if method=="GET" and root[2] is None:
             return handler.send(summary(con,cid))
+        if method=="POST" and root[2]=="bulk-delete":
+            return handler.send(delete_items(con,cid,handler.input()))
         if method=="POST" and root[2]=="items":
             row=validate_item(handler.input())
             con.execute("BEGIN IMMEDIATE")
