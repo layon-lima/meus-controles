@@ -54,6 +54,15 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('class="receiving-search-band"',JS)
         self.assertIn('class="receiving-fab"',JS)
 
+    def test_only_one_visible_search_markup_and_no_actions_column(self):
+        # O formulário antigo não pode continuar escondido atrás da busca nova.
+        self.assertEqual(JS.count('id="receivingSearch"'),1)
+        self.assertEqual(JS.count('id="receivingSelectedCount"'),1)
+        self.assertEqual(JS.count('id="receivingBulkDeleteBtn"'),1)
+        self.assertIn('class="receiving-search-band"',JS)
+        self.assertNotIn('Buscar nota, pedido, fornecedor ou produto...',JS)
+        self.assertNotIn('<th>Ações</th>',JS)
+
     def test_tabs_are_compact_and_non_scrolling(self):
         self.assertIn(".receiving-tabs",CSS)
         self.assertIn(".receiving-tabs button.active",CSS)
