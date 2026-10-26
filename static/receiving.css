@@ -10,6 +10,11 @@
 .receiving-kpi:nth-child(3){border-top:2px solid #c88a32}
 .receiving-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 9px}
 .receiving-section-heading h3{font-size:14px;margin:0}
+.receiving-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.receiving-selected-count{font-size:11px;font-weight:650;color:#446374;white-space:nowrap}
+.receiving-delete-selected{display:inline-flex;align-items:center;gap:5px;color:#a43636;border-color:#e7cece}
+.receiving-delete-selected:hover:not(:disabled){background:#fff2f2;border-color:#d99a9a}
+.receiving-delete-selected[hidden],.receiving-selected-count[hidden]{display:none!important}
 .receiving-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:7px 12px;min-width:300px;max-width:100%}
 .receiving-search .ui-icon{flex:none;color:#637b8d}
 .receiving-search input{border:0!important;background:transparent!important;outline:0!important;box-shadow:none!important;font-size:12px;width:100%;min-width:0;padding:0!important}
@@ -95,6 +100,14 @@
   line-height:1.4!important;
 }
 .receiving-table .receiving-grid tbody tr:hover td{background:#f6faf9}
+.receiving-table .receiving-grid tbody tr.receiving-selected td{background:#edf7f3}
+.receiving-table .receiving-grid .receiving-select-cell{
+  width:3%;padding:6px 4px;text-align:center;vertical-align:middle;
+}
+.receiving-table .receiving-grid .receiving-select-cell input{
+  width:15px;height:15px;margin:0;vertical-align:middle;accent-color:#177e6a;cursor:pointer;
+}
+.receiving-table .receiving-grid .receiving-select-cell input:disabled{cursor:not-allowed;opacity:.35}
 .receiving-table .receiving-grid tbody tr[hidden]{display:none}
 .receiving-table .receiving-grid td strong,
 .receiving-table .receiving-grid td b{font-weight:600}
@@ -149,14 +162,15 @@
   padding:4px 7px;
 }
 /* Larguras coerentes em ambas as grades. Produto recebe mais espaço. */
-.receiving-table .receiving-orders th:nth-child(1){width:10%}
-.receiving-table .receiving-orders th:nth-child(2){width:10%}
-.receiving-table .receiving-orders th:nth-child(3){width:23%}
-.receiving-table .receiving-orders th:nth-child(4){width:10%}
-.receiving-table .receiving-orders th:nth-child(5){width:9%}
-.receiving-table .receiving-orders th:nth-child(6){width:11%}
-.receiving-table .receiving-orders th:nth-child(7){width:8%}
-.receiving-table .receiving-orders th:nth-child(8){width:19%}
+.receiving-table .receiving-orders th:nth-child(1){width:3%}
+.receiving-table .receiving-orders th:nth-child(2){width:9%}
+.receiving-table .receiving-orders th:nth-child(3){width:9%}
+.receiving-table .receiving-orders th:nth-child(4){width:22%}
+.receiving-table .receiving-orders th:nth-child(5){width:10%}
+.receiving-table .receiving-orders th:nth-child(6){width:9%}
+.receiving-table .receiving-orders th:nth-child(7){width:11%}
+.receiving-table .receiving-orders th:nth-child(8){width:8%}
+.receiving-table .receiving-orders th:nth-child(9){width:19%}
 .receiving-table .receiving-invoices th:nth-child(1){width:11%}
 .receiving-table .receiving-invoices th:nth-child(2){width:13%}
 .receiving-table .receiving-invoices th:nth-child(3){width:13%}
