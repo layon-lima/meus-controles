@@ -233,6 +233,107 @@ Object.assign(App,{
     });
     this.receivingUpdateSelectionToolbar();
   },
+  receivingFocusItem(id){
+    const controlId=this.s.detail?.control?.id;
+    if(!this.s.receivingData?.items.some(p=>p.id===id)||controlId==null)return;
+    this.s.receivingFocused={controlId,itemId:id};
+    this.receivingHighlightFocused();
+  },
+  receivingHighlightFocused(){
+    const focus=this.s.receivingFocused;
+    document.querySelectorAll(".receiving-orders tbody tr[data-receiving-id]").forEach(row=>{
+      row.classList.toggle("receiving-focused",!!focus&&Number(row.dataset.receivingId)===focus.itemId);
+    });
+  },
+  receivingFloatingAdd(){
+    if(!this.canOpenForm())return;
+    const cid=this.s.detail?.control?.id;
+    const focused=this.s.receivingFocused?.controlId===cid?
+      this.s.receivingData?.items.find(p=>p.id===this.s.receivingFocused.itemId):null;
+    if(focused&&Number(focused.remaining_qty)>0){
+      this.receivingReceiptForm(focused.id);
+      return;
+    }
+    this.receivingChooseReceiptProduct();
+  },
+  receivingChooseReceiptProduct(){
+    if(!this.canOpenForm())return;
+    const available=(this.s.receivingData?.items||[]).filter(p=>Number(p.remaining_qty)>0)
+      .sort((a,b)=>String(a.supplier).localeCompare(String(b.supplier),"pt-BR")||
+        String(a.order_number).localeCompare(String(b.order_number),"pt-BR")||
+        String(a.product).localeCompare(String(b.product),"pt-BR"));
+    if(!available.length)return this.toast("Todos os produtos já foram recebidos ou não existem pedidos.",true);
+    this.s.modal="receiving-pick";
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal receiving-form" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Novo recebimento</h2><p>Selecione o pedido e o produto que está chegando.</p></div>'+
+      '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><label class="receiving-pick-label">Pedido / produto</label>'+
+      '<select id="receivingPickItem" class="receiving-pick-select" required>'+
+      '<option value="">Selecione o produto...</option>'+
+      available.map(p=>'<option value="'+p.id+'">'+E(p.supplier||"Sem fornecedor")+' · '+E(p.order_number)+
+        ' · '+E(p.product)+' (restante '+rxNum(p.remaining_qty)+' '+E(p.unit)+')</option>').join("")+
+      '</select></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button class="btn btn-primary" onclick="App.receivingPickReceiptProduct()">Continuar</button></div></div></div>';
+  },
+  receivingPickReceiptProduct(){
+    const id=Number(document.getElementById("receivingPickItem")?.value);
+    if(!this.s.receivingData?.items.some(p=>p.id===id&&Number(p.remaining_qty)>0)){
+      this.toast("Selecione um pedido com saldo a receber.",true);return;
+    }
+    this.closeModal();
+    this.receivingFocusItem(id);
+    this.receivingReceiptForm(id);
+  },
+  receivingManageItem(id){
+    if(!this.canOpenForm())return;
+    const item=this.s.receivingData?.items.find(p=>p.id===id);
+    if(!item)return;
+    this.receivingFocusItem(id);
+    this.s.modal="receiving-manage-item";
+    this.s.modalContext={itemId:id};
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal receiving-manage" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Gerenciar pedido</h2>'+
+      '<p>'+E(item.order_number)+' · '+E(item.product)+'</p></div>'+
+      '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><p>Escolha o que deseja fazer com este produto.</p>'+
+      '<div class="receiving-manage-actions">'+
+      '<button class="btn btn-primary" onclick="App.receivingManageAction(&quot;edit&quot;)">'+icon("edit")+' Editar pedido</button>'+
+      '<button class="btn receiving-danger" onclick="App.receivingManageAction(&quot;delete&quot;)">'+icon("trash")+' Excluir pedido</button>'+
+      '</div></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button></div></div></div>';
+  },
+  receivingManageAction(action){
+    const id=this.s.modalContext?.itemId;
+    if(!id)return;
+    this.closeModal();
+    if(action==="edit")this.receivingItemForm(id);
+    if(action==="delete")this.receivingDeleteItem(id);
+  },
+  receivingManageReceipt(id){
+    if(!this.canOpenForm())return;
+    const receipt=this.s.receivingData?.receipts.find(p=>p.id===id);
+    if(!receipt)return;
+    this.s.modal="receiving-manage-receipt";
+    this.s.modalContext={receiptId:id};
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal receiving-manage" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Gerenciar nota fiscal</h2>'+
+      '<p>NF-e '+E(receipt.invoice_number)+' · '+E(receipt.product)+'</p></div>'+
+      '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><div class="receiving-manage-actions">'+
+      '<button class="btn btn-primary" onclick="App.receivingManageReceiptAction(&quot;edit&quot;)">'+icon("edit")+' Editar recebimento</button>'+
+      '<button class="btn receiving-danger" onclick="App.receivingManageReceiptAction(&quot;delete&quot;)">'+icon("trash")+' Excluir recebimento</button>'+
+      '</div></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button></div></div></div>';
+  },
+  receivingManageReceiptAction(action){
+    const id=this.s.modalContext?.receiptId;
+    const receipt=this.s.receivingData?.receipts.find(p=>p.id===id);
+    if(!receipt)return;
+    this.closeModal();
+    if(action==="edit")this.receivingReceiptForm(receipt.item_id,id);
+    if(action==="delete")this.receivingDeleteReceipt(id);
+  },
   receivingSelectItem(id,checked){
     const item=this.s.receivingData?.items.find(p=>p.id===id);
     if(!item||item.receipts_count)return;
@@ -438,12 +539,13 @@ Object.assign(App,{
       '<span>Disponível: <b>'+rxNum(max)+' '+E(item.unit)+'</b></span></div>'+
       '<form id="receivingReceiptForm" onsubmit="event.preventDefault();App.receivingSaveReceipt()">'+
       '<div class="form-grid">'+
-      rxField("Data da entrega",rxInput("date",old?.received_date||rxToday(),'type="date" required'))+
-      rxField("Número da nota fiscal",rxInput("invoice_number",old?.invoice_number||"",'required maxlength="100" placeholder="Ex.: 123456"'))+
+      rxField("Data do recebimento",rxInput("date",old?.received_date||rxToday(),'type="date" required'))+
+      rxField("Nº NF-e",rxInput("invoice_number",old?.invoice_number||"",'required maxlength="100" placeholder="Ex.: 123456"'))+
       '<div class="field full"><label>Quantidade recebida ('+E(item.unit)+')</label>'+
       rxInput("quantity",old?.received_qty||"",'required inputmode="decimal" placeholder="Ex.: 450"')+'</div>'+
-      '<div class="field full"><label>Observações (opcional)</label>'+
-      '<textarea rows="2" name="notes" maxlength="1200">'+E(old?.notes||"")+'</textarea></div>'+
+      '<div class="field full"><label>Chave de acesso da NF-e (44 dígitos)</label>'+
+      rxInput("access_key",old?.access_key||"",'inputmode="numeric" maxlength="64" autocomplete="off" placeholder="Cole os 44 dígitos da chave"')+
+      '</div>'+
       '</div></form><div class="receiving-hint">Esta quantidade será descontada automaticamente do saldo pendente.</div></div>'+
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.receivingSaveReceipt()">'+icon("check")+' Salvar entrega</button></div></div></div>';
@@ -453,7 +555,7 @@ Object.assign(App,{
     if(!form||!ctx||!form.reportValidity())return;
     const f=new FormData(form),payload={
       date:f.get("date"),invoice_number:f.get("invoice_number"),
-      quantity:f.get("quantity"),notes:f.get("notes")
+      quantity:f.get("quantity"),access_key:f.get("access_key"),notes:ctx.receipt?.notes||""
     };
     try{
       await this.api(ctx.receipt?"/api/receiving-receipts/"+ctx.receipt.id:
