@@ -54,7 +54,7 @@ class PWATests(unittest.TestCase):
                     ("/sw.js", b"/* PWA"),
                     ("/static/pwa.js", b"/* Instala"),
                     ("/static/desktop_compact.css?v=20261022-conferencia-1", b"/* CENTRAL"),
-                    ("/static/vales.js?v=20261026-vales-v4", b'"use strict"'),
+                    ("/static/vales.js?v=20261026-vales-v5", b'"use strict"'),
                     ("/static/vales.css?v=20261026-vales-v4", b"/* Controle de Vales"),
                 ):
                     with self.subTest(route=route):
