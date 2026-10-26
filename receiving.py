@@ -32,6 +32,7 @@ def initialize(con):
         item_id INTEGER NOT NULL REFERENCES purchase_items(id) ON DELETE CASCADE,
         received_date TEXT NOT NULL,
         invoice_number TEXT NOT NULL,
+        access_key TEXT NOT NULL DEFAULT '',
         received_qty TEXT NOT NULL,
         notes TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -40,6 +41,10 @@ def initialize(con):
       CREATE INDEX IF NOT EXISTS idx_purchase_receipts
         ON purchase_receipts(item_id,received_date DESC,id DESC);
     """)
+    # Migração sem perda dos recebimentos já cadastrados.
+    columns={row["name"] for row in con.execute("PRAGMA table_info(purchase_receipts)")}
+    if "access_key" not in columns:
+        con.execute("ALTER TABLE purchase_receipts ADD COLUMN access_key TEXT NOT NULL DEFAULT ''")
 
 def text(value, description, max_length=150, required=True):
     if not isinstance(value,str):
@@ -128,10 +133,16 @@ def validate_item(payload):
 
 def validate_receipt(payload):
     if not isinstance(payload,dict):raise ValueError("Dados da entrega inválidos.")
+    key=payload.get("access_key","")
+    if not isinstance(key,str):raise ValueError("Chave da NF-e inválida.")
+    key="".join(key.split())
+    if key and not re.fullmatch(r"[0-9]{44}",key):
+        raise ValueError("A chave de acesso da NF-e deve ter 44 dígitos numéricos.")
     return {
       "received_date":receive_date(payload.get("date")),
       "invoice_number":text(payload.get("invoice_number"),"o número da nota fiscal",100),
       "received_qty":display(qty(payload.get("quantity"),"a quantidade recebida")),
+      "access_key":key,
       "notes":text(payload.get("notes",""),"as observações",1200,False)
     }
 
@@ -265,8 +276,9 @@ def handle(handler,con,method,path):
             ensure_capacity(con,iid,row["received_qty"])
             ensure_not_duplicate(con,iid,row)
             cur=con.execute("""INSERT INTO purchase_receipts
-              (item_id,received_date,invoice_number,received_qty,notes) VALUES(?,?,?,?,?)""",
-              (iid,*row.values()))
+              (item_id,received_date,invoice_number,received_qty,access_key,notes) VALUES(?,?,?,?,?,?)""",
+              (iid,row["received_date"],row["invoice_number"],row["received_qty"],
+               row["access_key"],row["notes"]))
             con.commit()
             return handler.send({"id":cur.lastrowid},201)
         if itemroute[2] is None and method in ("PUT","DELETE"):
@@ -302,8 +314,9 @@ def handle(handler,con,method,path):
             row=validate_receipt(handler.input())
             ensure_capacity(con,existing["item_id"],row["received_qty"],rid)
             ensure_not_duplicate(con,existing["item_id"],row,rid)
-            con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,notes=?,
-              updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*row.values(),rid))
+            con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,access_key=?,notes=?,
+              updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+              (row["received_date"],row["invoice_number"],row["received_qty"],row["access_key"],row["notes"],rid))
         con.commit()
         return handler.send({"ok":True})
     raise LookupError("Operação não encontrada.")
