@@ -177,9 +177,9 @@ Object.assign(App,{
     this.receivingApplyFilter(raw);
   },
   receivingApplyFilter(query){
-    const value=String(query??"").trim().toLocaleLowerCase("pt-BR");
+    const value=rxSupplierKey(query);
     document.querySelectorAll("[data-receiving-search]").forEach(el=>{
-      el.hidden=!el.getAttribute("data-receiving-search").toLocaleLowerCase("pt-BR").includes(value);
+      el.hidden=!rxSupplierKey(el.getAttribute("data-receiving-search")).includes(value);
     });
     document.querySelectorAll(".receiving-supplier-group").forEach(group=>{
       let row=group.nextElementSibling,count=0;
