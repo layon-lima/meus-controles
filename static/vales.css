@@ -1,0 +1,73 @@
+/* Vales de funcionários: grade compacta, com calendário editável e sem scroll horizontal da página. */
+.vf-page{width:100%;max-width:none;min-width:0;padding:4px 0 20px;color:var(--ink)}
+.vf-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+.vf-heading h2{font-size:18px;margin:3px 0 2px}
+.vf-heading p{font-size:11px;color:var(--muted);margin:0}
+.vf-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:12px}
+.vf-stats>div{min-width:0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px 13px}
+.vf-stats small,.vf-balance small{display:block;color:var(--muted);font-size:10px;font-weight:700;margin-bottom:5px}
+.vf-stats strong{display:block;font-size:20px;font-weight:750;overflow-wrap:anywhere;line-height:1.12}
+.vf-stats>div:last-child{border-top:2px solid #188369;background:#f5fbf8}
+.vf-toolbar{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin:10px 0}
+.vf-toolbar label{font-size:11px;display:flex;align-items:center;gap:7px}
+.vf-toolbar select{min-width:200px;max-width:100%;border:1px solid var(--line);border-radius:6px;background:#fff;padding:6px;font-size:12px}
+.vf-toolbar .vf-archive-option input{accent-color:#188369}
+.vf-people{display:grid;grid-template-columns:1fr;gap:10px;min-width:0}
+.vf-person{padding:0!important;min-width:0;overflow:hidden}
+.vf-person-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px}
+.vf-person-header h3{display:inline-block;font-size:14px;margin:0 7px 3px 0}
+.vf-person-header p{color:var(--muted);font-size:11px;margin:0}
+.vf-person-controls{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.vf-balance{min-width:150px;text-align:right;margin-right:7px}
+.vf-balance strong{font-size:15px}
+.vf-debts{border-top:1px solid var(--line);padding:2px 13px 11px}
+.vf-debt{border-bottom:1px solid var(--line);padding:10px 0}
+.vf-debt:last-child{border:0}
+.vf-debt-head{display:grid;grid-template-columns:minmax(150px,1fr) minmax(120px,190px) auto;align-items:center;gap:10px}
+.vf-debt-head b{font-size:12px}
+.vf-debt-head .secondary-text{font-size:10px;margin-top:4px}
+.vf-debt-money{text-align:right;font-size:12px;font-weight:700}
+.vf-debt-money small{display:block;color:var(--muted);font-weight:400;font-size:10px;margin-top:2px}
+.vf-debt-actions{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.vf-debt-actions .btn,.vf-person-controls .btn{font-size:10px}
+.vf-danger{color:#a13838!important}
+.vf-paid{display:inline-block;font-size:10px;font-weight:700;color:#14664b;padding:3px 7px;background:#e1f5e8;border-radius:5px;margin-left:5px}
+.vf-archived{padding:3px 6px;border-radius:5px;font-size:10px;background:#eff1f4;color:#626b75}
+.vf-empty{padding:14px;color:var(--muted);font-size:12px}
+.vf-future,.vf-history{padding:0!important;margin-top:12px;min-width:0;overflow:hidden}
+.vf-future summary,.vf-history summary{padding:12px 15px;font-weight:700;cursor:pointer;font-size:12px}
+.vf-future[open] summary,.vf-history[open] summary{border-bottom:1px solid var(--line)}
+.vf-installment-table,.vf-month-grid{width:100%;max-width:100%;overflow-x:auto}
+.vf-installment-table{margin-top:8px}
+.vf-installment-table table,.vf-month-grid table{border-collapse:collapse;width:100%;min-width:530px;font-size:11px}
+.vf-installment-table th,.vf-month-grid th{background:#f4f7f8;color:#597281;font-size:10px;text-align:left}
+.vf-installment-table :is(td,th),.vf-month-grid :is(td,th){border-bottom:1px solid #e4ebef;padding:8px 11px}
+.vf-installment-table .numeric,.vf-month-grid .numeric{text-align:right;font-variant-numeric:tabular-nums}
+.vf-modal{max-width:780px!important;width:min(780px,calc(100vw - 26px))!important}
+.vf-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:8px 0 11px}
+.vf-form-grid .field{min-width:0}
+.vf-form-grid .field input{width:100%;min-width:0}
+.vf-plan-editor{max-height:320px;overflow-y:auto;margin:8px 0;border:1px solid var(--line);border-radius:7px}
+.vf-plan-editor table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}
+.vf-plan-editor th{font-size:10px;text-align:left;color:var(--muted);background:#f2f6f8}
+.vf-plan-editor :is(th,td){border-bottom:1px solid var(--line);padding:6px}
+.vf-plan-editor td:first-child{width:80px}
+.vf-plan-editor input{width:100%;min-width:0;min-height:30px;padding:5px 7px;border:1px solid var(--line);border-radius:5px}
+.vf-plan-total{font-size:11px;margin-top:9px}
+.vf-error{color:#aa3540;margin-left:7px}
+@media(max-width:850px){
+ .vf-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .vf-debt-head{grid-template-columns:minmax(140px,1fr) auto}
+ .vf-debt-actions{grid-column:1/-1;justify-content:flex-start}
+}
+@media(max-width:550px){
+ .vf-stats strong{font-size:15px}
+ .vf-heading h2{font-size:15px}
+ .vf-person-header{align-items:flex-start}
+ .vf-person-controls{justify-content:flex-start;width:100%}
+ .vf-balance{text-align:left}
+ .vf-debt-head{display:block}
+ .vf-debt-money{text-align:left;margin:8px 0}
+ .vf-form-grid{grid-template-columns:1fr}
+ .vf-plan-editor :is(td,th){padding:4px 3px}
+}
