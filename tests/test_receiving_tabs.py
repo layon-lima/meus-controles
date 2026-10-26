@@ -96,10 +96,10 @@ class ReceivingSubtabsTests(unittest.TestCase):
 
     def test_pwa_precaches_fresh_versions(self):
         for asset in ("receiving.js","receiving.css"):
-            version="/static/"+asset+"?v=20261026-recebimento-flutuante-v8"
+            version="/static/"+asset+"?v=20261026-recebimento-busca-v9"
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261026-recebimento-flutuante-v8',SW)
+        self.assertIn('central-de-controles-shell-v20261026-recebimento-busca-v9',SW)
 
 
 if __name__=="__main__":
