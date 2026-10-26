@@ -39,7 +39,7 @@
 .vf-future[open] summary,.vf-history[open] summary{border-bottom:1px solid var(--line)}
 .vf-installment-table,.vf-month-grid{width:100%;max-width:100%;overflow-x:auto}
 .vf-installment-table{margin-top:8px}
-.vf-installment-table table,.vf-month-grid table{border-collapse:collapse;width:100%;min-width:530px;font-size:11px}
+.vf-installment-table table,.vf-month-grid table{border-collapse:collapse;width:100%;min-width:0;table-layout:fixed;font-size:11px}
 .vf-installment-table th,.vf-month-grid th{background:#f4f7f8;color:#597281;font-size:10px;text-align:left}
 .vf-installment-table :is(td,th),.vf-month-grid :is(td,th){border-bottom:1px solid #e4ebef;padding:8px 11px}
 .vf-installment-table .numeric,.vf-month-grid .numeric{text-align:right;font-variant-numeric:tabular-nums}
@@ -71,3 +71,4 @@
  .vf-form-grid{grid-template-columns:1fr}
  .vf-plan-editor :is(td,th){padding:4px 3px}
 }
+\n.vf-installment-table :is(th,td),.vf-month-grid :is(th,td){overflow-wrap:anywhere}\n@media(max-width:550px){.vf-installment-table :is(th,td),.vf-month-grid :is(th,td){padding:5px 3px;font-size:9px}.vf-installment-table .btn{white-space:normal;font-size:9px;padding:4px}.vf-month-grid table{table-layout:fixed}}\n
