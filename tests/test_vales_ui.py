@@ -55,6 +55,14 @@ class ValesSpreadsheetUITests(unittest.TestCase):
         self.assertIn("content:attr(data-label)",CSS)
         self.assertNotIn("min-width:530px",CSS)
 
+    def test_spreadsheet_has_visible_row_and_column_borders(self):
+        # Não basta border-bottom: a grade precisa de linhas verticais também.
+        self.assertIn("border-collapse:collapse;border:1px solid #c7d2db",CSS)
+        self.assertIn(".vf-ledger-table :is(td,th),.vf-summary-table :is(td,th){padding:8px 9px;border:1px solid #c7d2db",CSS)
+        self.assertIn(".vf-month-grid :is(th,td){border:1px solid #c7d2db",CSS)
+        self.assertNotIn("tbody tr:last-child td{border-bottom:0}",CSS)
+        self.assertIn(".vf-ledger-table :is(td,th),.vf-summary-table :is(td,th){display:block;border:1px solid #c7d2db",CSS)
+
     def test_new_advance_form_only_asks_title_total_month_and_count(self):
         form=JS[JS.index("  valesDebtForm(employeeId,debtId=null){"):
                 JS.index("  valesDebtTitleForm(id){")]
