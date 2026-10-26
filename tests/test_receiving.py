@@ -182,6 +182,41 @@ class ReceivingTests(unittest.TestCase):
             self.assertLess(Decimal(proposed["ordered_qty"]),receiving.received_total(con,item))
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["ordered_qty"],"1000.000")
 
+    def test_supplier_names_reuse_existing_spelling_without_fuzzy_merge(self):
+        class Handler:
+            def __init__(self,payload):self.payload=payload
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+
+        # O nome canônico deve ficar restrito a cada controle.
+        initial=self.item("Adubo original",order="PED-1")
+        with app.db() as con:
+            self.assertEqual(receiving.supplier_key(" FÓRNECEDOR   A "),
+                             receiving.supplier_key("fornecedor a"))
+            self.assertEqual(receiving.canonical_supplier(con,self.cid,"fórnecedor a"),
+                             "Fornecedor A")
+            self.assertEqual(receiving.canonical_supplier(con,self.other,"fórnecedor a"),
+                             "fórnecedor a")
+            new=receiving.handle(Handler({
+                "order_number":"PED-2","supplier":"  FÓRNECEDOR    Á ",
+                "product":"Semente","unit":"kg","ordered_qty":"10"}),con,
+                "POST","/api/controls/"+str(self.cid)+"/receiving/items")
+            self.assertEqual(receiving.get_item(con,new["id"])["supplier"],"Fornecedor A")
+        with app.db() as con:
+            distinct=receiving.handle(Handler({
+                "order_number":"PED-3","supplier":"Fornecedor AB",
+                "product":"Óleo","unit":"L","ordered_qty":"20"}),con,
+                "POST","/api/controls/"+str(self.cid)+"/receiving/items")
+            self.assertEqual(receiving.get_item(con,distinct["id"])["supplier"],"Fornecedor AB")
+        with app.db() as con:
+            receiving.handle(Handler({
+                "order_number":"PED-3","supplier":"  fornecedor á ",
+                "product":"Óleo","unit":"L","ordered_qty":"20"}),con,
+                "PUT","/api/receiving-items/"+str(distinct["id"]))
+            self.assertEqual(receiving.get_item(con,distinct["id"])["supplier"],"Fornecedor A")
+            self.assertEqual(receiving.get_item(con,initial)["supplier"],"Fornecedor A")
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],3)
+
     def test_bulk_delete_is_atomic_and_blocks_receipts(self):
         class Handler:
             def __init__(self,payload):self.payload=payload
