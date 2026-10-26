@@ -33,7 +33,7 @@ function template(mode="caminhao"){
     {key:"data",label:"Data",type:"date",required:true},
     {key:"descricao",label:"Descrição",type:"text",required:true}
   ];
-  return {name:mode==="caminhao"?"Controle de Caminhão":mode==="divida"?"Controle de Dívidas":mode==="divida_sem_valor"?"Dívidas sem valor fixo":mode==="recebimento"?"Recebimento de Produtos":mode==="acerto_ab"?"Acerto A × B":mode==="calculo"?"Controle de Fretes":"Novo controle",mode,board_id:App.s.state?.boards?.[0]?.id||0,
+  return {name:mode==="caminhao"?"Controle de Caminhão":mode==="divida"?"Controle de Dívidas":mode==="divida_sem_valor"?"Dívidas sem valor fixo":mode==="recebimento"?"Recebimento de Produtos":mode==="acerto_ab"?"Acerto A × B":mode==="vale_funcionarios"?"Vales de Funcionários":mode==="calculo"?"Controle de Fretes":"Novo controle",mode,board_id:App.s.state?.boards?.[0]?.id||0,
     fields,
     truck_settings:mode==="caminhao"?{commission_pct:"13",driver_name:"",opening_commission:"0",opening_cash:"0"}:undefined,
     debt_settings:mode==="divida"?{opening_amount:"0"}:undefined,
@@ -291,6 +291,7 @@ const App = {
     if(c.mode==="divida_sem_valor")return this.renderOpenDebt();
     if(c.mode==="recebimento")return this.renderReceiving();
     if(c.mode==="acerto_ab")return this.renderPair();
+    if(c.mode==="vale_funcionarios")return this.renderVales();
     const mode={"saldo":"Saldo devedor","financeiro":"Entradas e saídas","calculo":"Controle calculado","caminhao":"Controle de Caminhão"}[c.mode];
     const entries=d.entries;
     const datefield=c.fields.find(f=>f.type==="date");
@@ -442,6 +443,7 @@ const App = {
     if(source.mode==="divida_sem_valor")return this.openDebtSettings(id);
     if(source.mode==="recebimento")return this.receivingSettings(id);
     if(source.mode==="acerto_ab")return this.pairSettings(id);
+    if(source.mode==="vale_funcionarios")return this.valesEmployeeForm();
     this.s.modal="builder";this.s.editing=id;this.s.modalContext=null;this.s.step=0;this.s.draft=deep(source);
     this.renderModal();
   },
@@ -475,7 +477,7 @@ const App = {
     if(this.s.editing)return;
     const old=this.s.draft;
     this.s.draft=template(mode);
-    this.s.draft.name=["Novo controle","Controle de Fretes","Controle de Caminhão","Controle de Dívidas","Dívidas sem valor fixo","Recebimento de Produtos","Acerto A × B"].includes(old.name)?
+    this.s.draft.name=["Novo controle","Controle de Fretes","Controle de Caminhão","Controle de Dívidas","Dívidas sem valor fixo","Recebimento de Produtos","Acerto A × B","Vales de Funcionários"].includes(old.name)?
        this.s.draft.name:old.name;
     this.s.draft.board_id=old.board_id;
     this.renderModal();
@@ -601,14 +603,17 @@ const App = {
          '<button type="button" class="choice '+(d.mode==="recebimento"?"selected":"")+'" onclick="App.mode(&quot;recebimento&quot;)">'+icon("clipboard")+
          ' <strong>Recebimento de Produtos</strong><small>Pedidos, fornecedores, produtos e notas fiscais.</small></button>'+
          '<button type="button" class="choice '+(d.mode==="acerto_ab"?"selected":"")+'" onclick="App.mode(&quot;acerto_ab&quot;)">'+icon("wallet")+
-         ' <strong>Acerto A × B</strong><small>Quem deve a quem, saldo compensado e fechamentos.</small></button></div>'+
-        '<details class="model-advanced" '+(!["caminhao","divida","divida_sem_valor","recebimento","acerto_ab"].includes(d.mode)?"open":"")+'><summary>Outros modelos (configuração avançada)</summary><div class="wizard-choice">'+
+         ' <strong>Acerto A × B</strong><small>Quem deve a quem, saldo compensado e fechamentos.</small></button>'+
+          '<button type="button" class="choice '+(d.mode==="vale_funcionarios"?"selected":"")+'" onclick="App.mode(&quot;vale_funcionarios&quot;)">'+icon("users")+
+          ' <strong>Vales de Funcionários</strong><small>Funcionários, empréstimos, parcelas por mês e descontos.</small></button></div>'+
+        '<details class="model-advanced" '+(!["caminhao","divida","divida_sem_valor","recebimento","acerto_ab","vale_funcionarios"].includes(d.mode)?"open":"")+'><summary>Outros modelos (configuração avançada)</summary><div class="wizard-choice">'+
         [["saldo","Saldo devedor","Acompanhar quanto falta receber."],["financeiro","Entradas e saídas","Registrar entradas, despesas e saldo."],["calculo","Cálculos personalizados","Crie seus campos e cálculos."]].map(([m,title,desc])=>
           '<button type="button" class="choice '+(d.mode===m?"selected":"")+'" onclick="App.mode(\''+m+'\')"><strong>'+title+'</strong><small>'+desc+'</small></button>').join("")+'</div></details></div>'+
         (d.mode==="acerto_ab"?'<div class="pair-setup"><p class="hint">Informe as duas pessoas. Você poderá lançar dívidas nos dois sentidos e fechar períodos.</p>'+
            '<div class="form-grid">'+
            '<div class="field"><label>Pessoa A</label><input maxlength="160" value="'+E(d.pair_settings.party_a)+'" oninput="App.s.draft.pair_settings.party_a=this.value"></div>'+
            '<div class="field"><label>Pessoa B</label><input maxlength="160" value="'+E(d.pair_settings.party_b)+'" oninput="App.s.draft.pair_settings.party_b=this.value"></div></div></div>':
+        d.mode==="vale_funcionarios"?'<div class="hint" style="margin-top:15px">Cadastre funcionários, lance vales à vista ou parcelados e acompanhe os descontos mensais. Você poderá ajustar o calendário antes de salvar.</div>':
         d.mode==="divida_sem_valor"?'<div class="hint" style="margin-top:15px">Registre pagamentos com data, valor e descrição. Cada valor aumenta o total acumulado, sem meta, dívida inicial ou limite.</div>':
         d.mode==="recebimento"?'<div class="hint" style="margin-top:15px">Cadastre pedidos e produtos dentro do controle. Cada entrega terá quantidade e número da nota fiscal. Sem fórmulas.</div>':
         d.mode==="divida"?'<div class="debt-setup"><p class="hint">Informe a dívida inicial. Depois registre pagamentos com data, descrição e valor.</p>'+
@@ -649,11 +654,11 @@ const App = {
        '<button class="btn btn-sm" style="margin-top:10px" onclick="App.addType()">'+icon("plus")+' Novo tipo de lançamento</button>'+
        '<p class="secondary-text" style="margin-top:14px">Registros antigos permanecem guardados com seus valores e cálculos originais quando você muda as regras.</p>';
     }
-    return '<div class="modal-header"><div><h2 id="modalTitle">'+(this.s.editing?"Configurar controle":"Criar controle")+'</h2><p>'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab"].includes(d.mode)?"Modelo pronto":E(heads[step]))+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
-      '<div class="modal-body">'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab"].includes(d.mode)?"":'<div class="step-dots">'+[0,1,2,3].map(i=>'<div class="step-dot '+(i<=step?"done":"")+'"></div>').join("")+'</div>')+
-      '<h3 style="margin-bottom:13px">'+(d.mode==="caminhao"?"Escolha um nome e a comissão. Os lançamentos já vêm prontos.":d.mode==="divida"?"Informe o nome e o valor inicial da dívida.":d.mode==="divida_sem_valor"?"Informe o nome. Os pagamentos serão somados sem limite e sem valor final.":d.mode==="recebimento"?"Informe o nome do controle. Depois você poderá cadastrar quantos pedidos e produtos precisar.":d.mode==="acerto_ab"?"Informe os nomes de A e B. O saldo compensado é automático.":E(sub[step]))+'</h3>'+body+'</div>'+
+    return '<div class="modal-header"><div><h2 id="modalTitle">'+(this.s.editing?"Configurar controle":"Criar controle")+'</h2><p>'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab","vale_funcionarios"].includes(d.mode)?"Modelo pronto":E(heads[step]))+'</p></div><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body">'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab","vale_funcionarios"].includes(d.mode)?"":'<div class="step-dots">'+[0,1,2,3].map(i=>'<div class="step-dot '+(i<=step?"done":"")+'"></div>').join("")+'</div>')+
+      '<h3 style="margin-bottom:13px">'+(d.mode==="caminhao"?"Escolha um nome e a comissão. Os lançamentos já vêm prontos.":d.mode==="divida"?"Informe o nome e o valor inicial da dívida.":d.mode==="divida_sem_valor"?"Informe o nome. Os pagamentos serão somados sem limite e sem valor final.":d.mode==="recebimento"?"Informe o nome do controle. Depois você poderá cadastrar quantos pedidos e produtos precisar.":d.mode==="acerto_ab"?"Informe os nomes de A e B. O saldo compensado é automático.":d.mode==="vale_funcionarios"?"Informe o nome do controle. Depois cadastre funcionários e seus vales.":E(sub[step]))+'</h3>'+body+'</div>'+
       '<div class="modal-footer"><button class="btn" onclick="'+(step===0?"App.closeModal()":"App.builderNext(-1)")+'">'+(step===0?"Cancelar":"Voltar")+'</button>'+
-      '<div class="tagline"><span class="secondary-text">'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab"].includes(d.mode)?"Modelo pronto, sem fórmulas":"Etapa "+(step+1)+" de 4")+'</span><button class="btn btn-primary" onclick="'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab"].includes(d.mode)||step===3?"App.saveControl()":"App.builderNext(1)")+'">'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab"].includes(d.mode)?"Criar controle":step===3?"Salvar controle":"Continuar →")+'</button></div></div>';
+      '<div class="tagline"><span class="secondary-text">'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab","vale_funcionarios"].includes(d.mode)?"Modelo pronto, sem fórmulas":"Etapa "+(step+1)+" de 4")+'</span><button class="btn btn-primary" onclick="'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab","vale_funcionarios"].includes(d.mode)||step===3?"App.saveControl()":"App.builderNext(1)")+'">'+(["caminhao","divida","divida_sem_valor","recebimento","acerto_ab","vale_funcionarios"].includes(d.mode)?"Criar controle":step===3?"Salvar controle":"Continuar →")+'</button></div></div>';
   },
   entryHTML(){
     const c=this.s.modalContext.control;
@@ -707,8 +712,8 @@ function boardCard(b,count){
   return '<div class="board-card" tabindex="0" role="button" onclick="App.navigate(\'board\','+b.id+')" onkeydown="if(event.key===\'Enter\')App.navigate(\'board\','+b.id+')"><div class="card-top"><span class="folder-icon">'+icon("folder")+'</span><span class="card-arrow">'+icon("arrow-right")+'</span></div><h3>'+E(b.name)+'</h3><p>'+count+' controle(s)</p></div>';
 }
 function controlCard(c){
-  const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado","caminhao":"Caminhão","divida":"Dívidas","divida_sem_valor":"Pagamentos acumulados","recebimento":"Recebimentos","acerto_ab":"A × B"}[c.mode];
-  const controlIcon=["calculo","caminhao"].includes(c.mode)?"truck":["financeiro","divida","divida_sem_valor"].includes(c.mode)?"wallet":"clipboard";
+  const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado","caminhao":"Caminhão","divida":"Dívidas","divida_sem_valor":"Pagamentos acumulados","recebimento":"Recebimentos","acerto_ab":"A × B","vale_funcionarios":"Vales de Funcionários"}[c.mode];
+  const controlIcon=["calculo","caminhao"].includes(c.mode)?"truck":["financeiro","divida","divida_sem_valor","vale_funcionarios"].includes(c.mode)?"wallet":"clipboard";
   const menu='<div class="card-action-menu" id="controlMenu-'+c.id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+
    '<button type="button" onclick="App.controlMenuAction(event,\'configure\','+c.id+')">'+icon("settings")+' Configurar / editar</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'type\','+c.id+')">'+icon("settings")+' Alterar tipo de controle</button>'+
@@ -718,8 +723,8 @@ function controlCard(c){
   return '<div class="control-card" tabindex="0" role="link" aria-label="Abrir '+E(c.name)+'" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.target===this && event.key===\'Enter\')App.navigate(\'control\','+c.id+')">'+
    '<div class="title-line"><span class="control-icon">'+icon(controlIcon)+'</span><h3>'+E(c.name)+'</h3>'+
    '<button type="button" class="control-card-edit" title="Editar e configurar controle" aria-label="Ações de '+E(c.name)+'" aria-haspopup="true" aria-expanded="false" onclick="App.toggleControlMenu(event,'+c.id+')" onkeydown="event.stopPropagation()">'+icon("edit")+'</button>'+
-   menu+'</div><p class="control-desc">'+(c.mode==="recebimento"?c.summary.item_total+' produto(s) · '+c.summary.count+' entrega(s)':c.summary.count+' lançamento(s)'+(c.mode==="divida"||c.mode==="divida_sem_valor"?" · Pagamentos com descrição":" · "+c.fields.length+" campos"))+'</p>'+
-   '<div class="control-bottom"><span><small>'+(c.mode==="acerto_ab"?"Saldo compensado":c.mode==="recebimento"?"Produtos concluídos":c.mode==="divida"?"Restante da dívida":c.mode==="divida_sem_valor"?"Total acumulado":"Saldo do controle")+'</small><strong>'+(c.mode==="acerto_ab"?(c.summary.settlement?.debtor?E(c.summary.settlement.debtor)+' deve '+currency(c.summary.settlement.amount):"Quitado"):c.mode==="recebimento"?c.summary.complete+' de '+c.summary.item_total:currency(c.summary.balance))+'</strong></span><span class="card-arrow">'+icon("arrow-right")+'</span></div></div>';
+   menu+'</div><p class="control-desc">'+(c.mode==="recebimento"?c.summary.item_total+' produto(s) · '+c.summary.count+' entrega(s)':c.mode==="vale_funcionarios"?c.summary.employees+' funcionário(s) · '+c.summary.count+' vale(s)':c.summary.count+' lançamento(s)'+(c.mode==="divida"||c.mode==="divida_sem_valor"?" · Pagamentos com descrição":" · "+c.fields.length+" campos"))+'</p>'+
+   '<div class="control-bottom"><span><small>'+(c.mode==="acerto_ab"?"Saldo compensado":c.mode==="vale_funcionarios"?"Total a descontar":c.mode==="recebimento"?"Produtos concluídos":c.mode==="divida"?"Restante da dívida":c.mode==="divida_sem_valor"?"Total acumulado":"Saldo do controle")+'</small><strong>'+(c.mode==="acerto_ab"?(c.summary.settlement?.debtor?E(c.summary.settlement.debtor)+' deve '+currency(c.summary.settlement.amount):"Quitado"):c.mode==="recebimento"?c.summary.complete+' de '+c.summary.item_total:currency(c.summary.balance))+'</strong></span><span class="card-arrow">'+icon("arrow-right")+'</span></div></div>';
 }
 function empty(title,desc,action,label){
   return '<div class="empty-state"><strong>'+E(title)+'</strong><p>'+E(desc)+'</p><button class="btn btn-primary" onclick="'+action+'">'+icon("plus")+' '+E(label)+'</button></div>';
