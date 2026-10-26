@@ -370,7 +370,10 @@ Object.assign(App,{
     try{
       this.s.valesPaymentHistory=await this.api("/api/controls/"+this.s.detail.control.id+"/vales/payments");
       const tbody=document.getElementById("vf-payment-history");
-      if(tbody)tbody.innerHTML=this.s.valesPaymentHistory.map(p=>'<tr><td>'+vfMonth(p.payment_month)+'</td>'+
+      const selected=String(this.s.valesSelected||"all");
+      const selectedEmployee=this.s.valesData.employees.find(e=>String(e.id)===selected);
+      const filtered=selectedEmployee?this.s.valesPaymentHistory.filter(p=>p.employee===selectedEmployee.name):this.s.valesPaymentHistory;
+      if(tbody)tbody.innerHTML=filtered.map(p=>'<tr><td>'+vfMonth(p.payment_month)+'</td>'+
         '<td>'+E(p.employee)+'</td><td>'+E(p.title||p.description)+'</td><td class="numeric">'+vfMoney(p.amount)+'</td>'+
         '<td><button class="btn btn-sm vf-danger" onclick="App.valesUndoPayment('+p.id+')">Estornar</button></td></tr>').join("")||
         '<tr><td colspan="5">Nenhum desconto registrado.</td></tr>';
