@@ -37,9 +37,7 @@ const sandbox={
 vm.createContext(sandbox);
 vm.runInContext(script,sandbox);
 const evaluate=expression=>vm.runInContext(expression,sandbox);
-const catalog=evaluate('rxSupplierCatalog([
-  {supplier:"AGREX"},{supplier:"Ágrex"},{supplier:"Bayer"},{supplier:"Agrex Rural"},
-  {supplier:""}])');
+const catalog=evaluate(`rxSupplierCatalog([{supplier:"AGREX"},{supplier:"Ágrex"},{supplier:"Bayer"},{supplier:"Agrex Rural"},{supplier:""}])`);
 assert.equal(catalog.length,3,"acentos/caixa devem ser equivalentes");
 assert.equal(catalog.find(x=>x.key==="agrex").total,2);
 assert.equal(evaluate('rxSupplierKey("  ÁgrÉx   rural  ")'),"agrex rural");
