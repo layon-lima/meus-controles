@@ -34,6 +34,78 @@ class EmployeeAdvancesTests(unittest.TestCase):
             return vales.create_debt(con,eid,{"description":description,"amount":amount,
                 "first_month":start,"count":count})["id"]
 
+    def test_short_employee_name_is_valid(self):
+        eid=self.employee("Zé")
+        with app.db() as con:
+            self.assertEqual(vales.employee(con,eid)["name"],"Zé")
+
+    def test_debt_title_and_optional_description_are_separate(self):
+        eid=self.employee("João")
+        with app.db() as con:
+            did=vales.create_debt(con,eid,{
+                "title":"Compra de bicicleta","description":"Adiantamento solicitado em outubro",
+                "amount":"345.90","first_month":"2026-11","count":3})["id"]
+            result=vales.get_summary(con,self.cid)
+            d=result["employees"][0]["debts"][0]
+            self.assertEqual(d["id"],did)
+            self.assertEqual(d["title"],"Compra de bicicleta")
+            self.assertEqual(d["description"],"Adiantamento solicitado em outubro")
+            self.assertEqual(result["schedule"][0]["debt_title"],"Compra de bicicleta")
+            vales.create_debt(con,eid,{
+                "title":"Almoço","description":"",
+                "amount":"25.00","first_month":"2026-12","count":1})
+            records=vales.get_summary(con,self.cid)["employees"][0]["debts"]
+            self.assertEqual(records[0]["title"],"Almoço")
+            self.assertEqual(records[0]["description"],"")
+
+    def test_title_changes_after_payments_without_changing_money(self):
+        eid=self.employee("Pedro")
+        with app.db() as con:
+            did=vales.create_debt(con,eid,{
+                "title":"Vale inicial","amount":"300.00",
+                "first_month":"2026-11","count":3})["id"]
+            installment=vales.all_installments(con,did)[0]
+            vales.payment(con,installment["id"],{
+                "month":"2026-11","amount":"50.00"})
+            before=vales.get_summary(con,self.cid)
+            vales.update_debt_details(con,did,{
+                "title":"Vale de farmácia","description":"Medicamentos"})
+            after=vales.get_summary(con,self.cid)
+            self.assertEqual(after["employees"][0]["debts"][0]["title"],"Vale de farmácia")
+            self.assertEqual(after["employees"][0]["debts"][0]["description"],"Medicamentos")
+            self.assertEqual(after["totals"],before["totals"])
+            self.assertEqual(vales.all_installments(con,did),vales.all_installments(con,did))
+            history=vales.payments(con,self.cid)
+            self.assertEqual(history[0]["title"],"Vale de farmácia")
+            self.assertEqual(history[0]["amount"],"50.00")
+            with self.assertRaisesRegex(ValueError,"título"):
+                vales.update_debt_details(con,did,{"title":"","description":"Sem título"})
+
+    def test_old_vale_migration_adds_title_and_preserves_financial_values(self):
+        import sqlite3
+        db=sqlite3.connect(":memory:")
+        db.row_factory=sqlite3.Row
+        try:
+            db.execute("""CREATE TABLE vale_debts(
+                id INTEGER PRIMARY KEY,control_id INTEGER NOT NULL,
+                employee_id INTEGER NOT NULL,amount TEXT NOT NULL,
+                description TEXT NOT NULL,first_month TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+            db.execute("""INSERT INTO vale_debts
+                (control_id,employee_id,amount,description,first_month)
+                VALUES(1,1,'580.75','Vale existente','2026-10')""")
+            vales.initialize(db)
+            data=dict(db.execute("SELECT * FROM vale_debts").fetchone())
+            self.assertEqual(data["title"],"Vale existente")
+            self.assertEqual(data["description"],"Vale existente")
+            self.assertEqual(data["amount"],"580.75")
+            self.assertEqual(data["first_month"],"2026-10")
+            vales.initialize(db)
+            self.assertEqual(db.execute("SELECT title FROM vale_debts").fetchone()["title"],
+                "Vale existente")
+        finally:
+            db.close()
+
     def test_suggest_equal_installments_with_cents_and_month_rollover(self):
         self.assertEqual(vales.schedule("100.00","2026-12",3),[
             {"month":"2026-12","amount":"33.34"},
