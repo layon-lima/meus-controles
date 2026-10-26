@@ -1,6 +1,6 @@
 /* PWA Central de Controles. APENAS o shell é armazenado; nunca API/dados financeiros. */
 "use strict";
-const CACHE = "central-de-controles-shell-v20261026-vales-v4";
+const CACHE = "central-de-controles-shell-v20261026-vales-v5";
 const SHELL = [
   "/", "/manifest.webmanifest", "/static/icons.svg", "/favicon.ico",
   "/pwa-icon-192.png", "/pwa-icon-512.png",
@@ -11,7 +11,7 @@ const SHELL = [
   "/static/debt.js?v=20261022-conferencia-1", "/static/open_debt.js?v=20261022-conferencia-1", "/static/receiving.js?v=20261022-conferencia-1",
   "/static/pair.js?v=20261022-conferencia-1", "/static/pair_records.js?v=acerto-misto-formulario-20261014",
   "/static/pair_financial_import.js?v=acerto-misto-formulario-20261014",
-  "/static/vales.js?v=20261026-vales-v4", "/static/control_types.js", "/static/receiving_import.js", "/static/pwa.js"
+  "/static/vales.js?v=20261026-vales-v5", "/static/control_types.js", "/static/receiving_import.js", "/static/pwa.js"
 ];
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
