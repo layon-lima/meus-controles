@@ -288,7 +288,9 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn("justify-content:center;",css)
         # Pedido e NF usam o mesmo estilo, sem forçar larguras que gerem scroll.
         self.assertGreaterEqual(js.count('<th class="numeric">'),4)
-        self.assertGreaterEqual(js.count('class="numeric"'),8)
+        self.assertGreaterEqual(js.count('class="numeric"'),7)
+        self.assertIn('id="receivingSelectAll"',js)
+        self.assertIn("receivingBulkDelete()",js)
 
     def test_receiving_clean_grid_supplier_column_and_subtle_balance(self):
         css=(STATIC / "receiving.css").read_text(encoding="utf-8")
@@ -330,7 +332,7 @@ class LayoutAssetsTests(unittest.TestCase):
         self.assertIn("padding:4px 6px;",css)
         self.assertIn(".receiving-table .receiving-orders{min-width:1200px}",css)
         self.assertIn(".receiving-table .receiving-invoices{min-width:950px}",css)
-        self.assertIn(".receiving-table .receiving-orders th:nth-child(8){width:19%}",css)
+        self.assertIn(".receiving-table .receiving-orders th:nth-child(9){width:19%}",css)
         self.assertIn(".receiving-table .receiving-invoices th:nth-child(7){width:17%}",css)
         self.assertIn("App.receivingReceiptForm(",js)
         self.assertIn("App.receivingItemForm(",js)
