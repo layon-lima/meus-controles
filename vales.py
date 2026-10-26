@@ -280,6 +280,23 @@ def payment(con,iid,p):
     return {"id":result.lastrowid}
 
 
+def settle_debt(con,did,p):
+    """Quita todas as parcelas restantes em um único registro lógico (transação)."""
+    d=debt(con,did)
+    if not isinstance(p,dict):raise ValueError("Dados inválidos.")
+    paid_month=month(p.get("month"))
+    plan=all_installments(con,did)
+    remains=[(i,Decimal(i["amount"])-Decimal(str(i["paid"]))) for i in plan]
+    remains=[(i,amount) for i,amount in remains if amount>0]
+    if not remains:raise ValueError("Este vale já está quitado.")
+    for i,amount in remains:
+        con.execute("""INSERT INTO vale_payments(installment_id,payment_month,amount,notes)
+            VALUES(?,?,?,?)""",(i["id"],paid_month,money(amount),"Quitação do vale"))
+    con.commit()
+    return {"ok":True,"paid":money(sum((a for _,a in remains),Decimal("0"))),
+            "installments":len(remains)}
+
+
 def payments(con,cid):
     ensure_control(con,cid)
     return [dict(x) for x in con.execute("""SELECT p.id,p.installment_id,p.payment_month,p.amount,p.notes,
@@ -315,7 +332,7 @@ def delete_debt(con,did):
 def handle(handler,con,method,url):
     root=re.fullmatch(r"/api/controls/(\d+)/vales(?:/(employees|payments))?",url)
     person=re.fullmatch(r"/api/vales-employees/(\d+)(?:/(debts))?",url)
-    debt_route=re.fullmatch(r"/api/vales-debts/(\d+)(?:/(plan))?",url)
+    debt_route=re.fullmatch(r"/api/vales-debts/(\d+)(?:/(plan|pay))?",url)
     installment=re.fullmatch(r"/api/vales-installments/(\d+)/payments",url)
     payroute=re.fullmatch(r"/api/vales-payments/(\d+)",url)
     if root:
@@ -336,6 +353,8 @@ def handle(handler,con,method,url):
         did=int(debt_route[1]);debt(con,did)
         if method=="PUT" and debt_route[2]=="plan":
             return handler.send(replan_debt(con,did,handler.input()))
+        if method=="POST" and debt_route[2]=="pay":
+            return handler.send(settle_debt(con,did,handler.input()))
         if method=="DELETE" and debt_route[2] is None:
             return handler.send(delete_debt(con,did))
     if installment and method=="POST":
