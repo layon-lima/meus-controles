@@ -12,7 +12,8 @@ RUN python -m compileall -q /srv/app \
     && python -m unittest discover -s tests -p test_truck_free_date.py -v \
     && python -m unittest discover -s tests -p test_vales.py -v \
     && python -m unittest discover -s tests -p test_vales_ui.py -v \
-    && python -m unittest discover -s tests -p test_receiving_tabs.py -v
+    && python -m unittest discover -s tests -p test_receiving_tabs.py -v \
+    && python -m unittest discover -s tests -p test_receiving.py -v
 USER controles
 EXPOSE 18765
 CMD ["python", "app.py"]
