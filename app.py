@@ -595,6 +595,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/truck.js":
                 return self.send((ROOT/"static"/"truck.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_pdf.js":
+                return self.send((ROOT/"static"/"receiving_pdf.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_pdf.css":
+                return self.send((ROOT/"static"/"receiving_pdf.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/receiving_import.js":
                 return self.send((ROOT/"static"/"receiving_import.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving_import.css":
