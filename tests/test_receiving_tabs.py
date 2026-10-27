@@ -104,6 +104,13 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn(".receiving-tabs button.active",CSS)
         self.assertIn('max-width:100%;min-width:0',CSS)
 
+    def test_completed_receiving_action_has_correct_api_signature(self):
+        self.assertIn('Concluir recebimento',JS)
+        self.assertIn('this.api("/api/receiving-items/"+id+"/complete","POST",{})',JS)
+        self.assertIn('if(p.closed||!(Number(p.remaining_qty)>0))return false;',JS)
+        self.assertIn('receiving-closed',JS)
+        self.assertIn('receiving-status.closed',CSS)
+
     def test_pwa_precaches_fresh_versions(self):
         for asset in ("receiving.js","receiving.css"):
             version="/static/"+asset+"?v=20261027-conclusao-v14"
