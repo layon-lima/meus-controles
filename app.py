@@ -673,7 +673,7 @@ class Handler(BaseHTTPRequestHandler):
                 if re.fullmatch(r"/api/controls/\d+/receiving/import/(?:preview|confirm)",url):
                     receiving_import.handle(self,con,method,url)
                     return
-                if re.fullmatch(r"/api/controls/\d+/receiving(?:/(?:items|bulk-delete))?",url) or re.fullmatch(r"/api/receiving-items/\d+(?:/receipts)?",url) or re.fullmatch(r"/api/receiving-receipts/\d+",url):
+                if re.fullmatch(r"/api/controls/\d+/receiving(?:/(?:items|bulk-delete))?",url) or re.fullmatch(r"/api/receiving-items/\d+(?:/(?:receipts|complete))?",url) or re.fullmatch(r"/api/receiving-receipts/\d+",url):
                     receiving.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/open-debt(?:/(?:payments|settings|export\.csv))?",url) or re.fullmatch(r"/api/open-debt-payments/\d+",url):
