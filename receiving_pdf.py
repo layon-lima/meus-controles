@@ -212,7 +212,10 @@ def extract_pdf(pdf_bytes):
             "items":parse_rows(body),"ocr_pages":ocr_pages,"pages":len(pages)}
 
 def initialize(con):
-    con.execute("""CREATE TABLE IF NOT EXISTS receiving_pdf_batches(
+    # executescript aplica a tradução de INTEGER PRIMARY KEY -> BIGSERIAL
+    # na camada PostgreSQL. Usar execute() aqui criava a coluna sem sequência
+    # na VPS e o primeiro upload falhava com HTTP 500 ao tentar inserir o lote.
+    con.executescript("""CREATE TABLE IF NOT EXISTS receiving_pdf_batches(
       id INTEGER PRIMARY KEY,
       control_id INTEGER NOT NULL REFERENCES controls(id) ON DELETE CASCADE,
       fingerprint TEXT NOT NULL,
@@ -221,7 +224,22 @@ def initialize(con):
       status TEXT NOT NULL DEFAULT 'pending',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(control_id,fingerprint)
-    )""")
+    );""")
+    # Repara de forma não destrutiva a tabela já criada na VPS pela versão
+    # anterior, cujo id INTEGER PRIMARY KEY não tinha DEFAULT nextval().
+    if hasattr(con,"native"):
+        existing=con.execute("""SELECT column_default AS value
+            FROM information_schema.columns
+            WHERE table_schema=current_schema()
+              AND table_name='receiving_pdf_batches' AND column_name='id'""").fetchone()
+        if existing and not existing["value"]:
+            con.execute("CREATE SEQUENCE IF NOT EXISTS receiving_pdf_batches_id_seq")
+            con.execute("""ALTER SEQUENCE receiving_pdf_batches_id_seq
+                         OWNED BY receiving_pdf_batches.id""")
+            con.execute("""ALTER TABLE receiving_pdf_batches ALTER COLUMN id
+                         SET DEFAULT nextval('receiving_pdf_batches_id_seq')""")
+            con.execute("""SELECT setval('receiving_pdf_batches_id_seq',
+                  COALESCE((SELECT MAX(id) FROM receiving_pdf_batches), 0) + 1, false)""")
 
 def _existing(con,cid,fingerprint):
     return con.execute("""SELECT * FROM receiving_pdf_batches
