@@ -127,6 +127,7 @@ def initialize():
         control_types.initialize(con)
         receiving_import.initialize(con)
         receiving_pdf.initialize(con)
+        receiving_xml.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
@@ -670,7 +671,7 @@ class Handler(BaseHTTPRequestHandler):
                 if re.fullmatch(r"/api/controls/\d+/pair(?:/(?:entries|settings|preview|closures))?",url) or re.fullmatch(r"/api/pair-entries/\d+",url) or re.fullmatch(r"/api/pair-closures/\d+(?:/export\.csv)?",url):
                     pair.handle(self,con,method,url)
                     return
-                if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm)",url):
+                if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm|pending(?:/\d+/assign)?)",url):
                     receiving_xml.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:preview|confirm)",url):
