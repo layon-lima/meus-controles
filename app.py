@@ -622,6 +622,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"pair.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/receiving.js":
                 return self.send((ROOT/"static"/"receiving.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_xml.js":
+                return self.send((ROOT/"static"/"receiving_xml.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/receiving.css":
                 return self.send((ROOT/"static"/"receiving.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/open_debt.js":
