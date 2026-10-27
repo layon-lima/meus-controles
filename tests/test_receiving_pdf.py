@@ -23,6 +23,7 @@ def build_pdf(rows,scanned=False):
     pdf.close()
     return data
 
+@unittest.skipIf(fitz is None,"PyMuPDF necessário no contêiner VPS")
 class PdfReceivingTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
@@ -122,10 +123,6 @@ class PdfReceivingTests(unittest.TestCase):
     def test_non_pdf_payload_is_rejected(self):
         with self.assertRaisesRegex(ValueError,"PDF válido"):
             receiving_pdf.extract_pdf(b"hello world")
-
-@unittest.skipIf(fitz is None,"PyMuPDF necessário no contêiner VPS")
-class PdfReceivingRealTests(PdfReceivingTests):
-    pass
 
 if __name__=="__main__":
     unittest.main()
