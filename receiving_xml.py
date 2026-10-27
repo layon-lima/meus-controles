@@ -124,6 +124,19 @@ def candidates(orders,xml,line):
     rows.sort(key=lambda r:(not r["eligible"],-r["score"],r["order"]))
     return rows[:30]
 
+def ensure_new_access_key(con,cid,key):
+    """A mesma chave nao pode ser importada duas vezes, nem em outro pedido."""
+    if not re.fullmatch(r"\\d{44}",key or ""):
+        raise ValueError("Chave de acesso da NF-e de 44 dígitos obrigatória.")
+    receipt=con.execute("""SELECT r.id FROM purchase_receipts r
+      JOIN purchase_items i ON i.id=r.item_id
+      WHERE i.control_id=? AND r.access_key=? LIMIT 1""",(cid,key)).fetchone()
+    waiting=con.execute("""SELECT id FROM receiving_xml_pending
+      WHERE control_id=? AND access_key=? LIMIT 1""",(cid,key)).fetchone()
+    if receipt or waiting:
+        raise ValueError("NF-e duplicada: esta chave de acesso já foi lançada ou está em Sem pedido. Nenhum produto foi importado.")
+
+
 def preview(con,cid,payload):
     raw=payload.get("xml")
     if not isinstance(raw,str):raise ValueError("Envie um XML.")
@@ -131,6 +144,7 @@ def preview(con,cid,payload):
     except (ValueError,TypeError) as exc:
         if isinstance(exc,ValueError) and "XML" in str(exc):raise
         raise ValueError("Arquivo XML inválido.") from None
+    ensure_new_access_key(con,cid,xml["access_key"])
     orders=receiving.summary(con,cid)["items"]
     for line in xml["lines"]:
         line["options"]=candidates(orders,xml,line)
@@ -145,6 +159,7 @@ def confirm(con,cid,payload):
         raise ValueError("Revise todos os itens antes de confirmar.")
     if not any(x is not None for x in selections):raise ValueError("Nenhum produto selecionado.")
     con.execute("BEGIN IMMEDIATE")
+    ensure_new_access_key(con,cid,xml["access_key"])
     orders={x["id"]:x for x in receiving.summary(con,cid)["items"]}
     chosen=[]
     pending=[]
