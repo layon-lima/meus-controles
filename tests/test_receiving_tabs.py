@@ -82,6 +82,16 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('if(continueBtn)continueBtn.disabled=!valid;',JS)
         self.assertNotIn('id="receivingPickItem"',JS)
 
+    def test_new_delivery_must_not_reuse_last_selected_product(self):
+        floating=JS[JS.index("  receivingFloatingAdd(){"):
+                    JS.index("  receivingChooseReceiptProduct(){")]
+        self.assertIn("this.receivingChooseReceiptProduct();",floating)
+        self.assertNotIn("this.receivingReceiptForm(focused.id)",floating)
+        self.assertIn("this.s.receivingFocused={controlId:this.s.detail?.control?.id,itemId:null};",JS)
+        self.assertIn('Trocar produto / pedido',JS)
+        self.assertIn('receivingChangeReceiptProduct(){',JS)
+        self.assertIn('this.s.receivingPick=null;',JS)
+
     def test_search_results_are_clickable_and_mobile_friendly(self):
         self.assertIn('.receiving-pick-input',CSS)
         self.assertIn('.receiving-pick-results',CSS)
