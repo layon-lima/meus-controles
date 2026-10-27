@@ -126,7 +126,7 @@ def candidates(orders,xml,line):
 
 def ensure_new_access_key(con,cid,key):
     """A mesma chave nao pode ser importada duas vezes, nem em outro pedido."""
-    if not re.fullmatch(r"\\d{44}",key or ""):
+    if not re.fullmatch(r"\d{44}",key or ""):
         raise ValueError("Chave de acesso da NF-e de 44 dígitos obrigatória.")
     receipt=con.execute("""SELECT r.id FROM purchase_receipts r
       JOIN purchase_items i ON i.id=r.item_id
