@@ -63,6 +63,13 @@ class XMLTests(unittest.TestCase):
             self.assertFalse(result["lines"][0]["options"])
             with self.assertRaisesRegex(ValueError,"concluído"):
                 receiving_xml.confirm(con,self.cid,{"xml":base64.b64encode(sample()).decode(),"selections":[self.iid]})
+    def test_access_key_fallback_from_protocol(self):
+        raw=sample().decode()
+        raw=raw.replace(" Id=\"NFe"+("1"*44)+"\"","")
+        raw=raw.replace("</nfeProc>","<protNFe><infProt><chNFe>"+("2"*44)+"</chNFe></infProt></protNFe></nfeProc>")
+        result=receiving_xml.parse(raw.encode())
+        self.assertEqual(result["access_key"],"2"*44)
+
     def test_external_entities_rejected(self):
         with self.assertRaisesRegex(ValueError,"XML"):
             receiving_xml.parse(b'<!DOCTYPE foo [<!ENTITY x SYSTEM "file:///etc/passwd">]><foo>&x;</foo>')
