@@ -111,6 +111,12 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('receiving-closed',JS)
         self.assertIn('receiving-status.closed',CSS)
 
+    def test_xml_importer_is_served_by_backend(self):
+        app_source=(ROOT/"app.py").read_text(encoding="utf-8")
+        self.assertIn('url=="/static/receiving_xml.js"',app_source)
+        self.assertIn('(ROOT/"static"/"receiving_xml.js").read_bytes()',app_source)
+        self.assertIn('receivingXMLLoad', (ROOT/"static"/"receiving_xml.js").read_text(encoding="utf-8"))
+
     def test_pwa_precaches_fresh_versions(self):
         for asset,release in (("receiving.js","20261027-xml-drop-v17"),("receiving.css","20261027-xml-v15")):
             version="/static/"+asset+"?v="+release
