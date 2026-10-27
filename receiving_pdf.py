@@ -288,14 +288,14 @@ def confirm(con,cid,data):
         original=json.loads(found["extracted_json"])
         original_items=original.get("items",[])
         rows=f.get("items")
-        if not isinstance(rows,list) or not 1<=len(rows)<=len(original_items):
+        if not isinstance(rows,list) or not 1<=len(rows)<=MAX_ITEMS:
             raise ValueError("Lista de produtos inválida para "+found["filename"])
         indexes=set()
         for incoming in rows:
             if not isinstance(incoming,dict) or type(incoming.get("index")) is not int:
                 raise ValueError("Identificação do produto inválida.")
             index=incoming["index"]
-            if index<0 or index>=len(original_items) or index in indexes:
+            if index<0 or index>=MAX_ITEMS or index in indexes:
                 raise ValueError("Produto repetido na prévia.")
             indexes.add(index)
             row=receiving.validate_item({
