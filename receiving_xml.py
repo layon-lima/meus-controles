@@ -63,6 +63,10 @@ def parse(raw):
     ident=inf.attrib.get("Id","")
     key=ident[3:] if ident.startswith("NFe") else ""
     if key and not re.fullmatch(r"\d{44}",key):key=""
+    if not key:
+        key=val(child(root,"protNFe"),"chNFe")
+    if key and not re.fullmatch(r"\d{44}",key):
+        raise ValueError("Chave de acesso da NF-e inválida.")
     lines=[]
     for det in [e for e in inf if e.tag.rsplit("}",1)[-1]=="det"]:
         prod=child(det,"prod")
