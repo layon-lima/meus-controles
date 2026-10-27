@@ -301,3 +301,11 @@
 /* Em cada recebimento é possível corrigir o pedido/produto escolhido. */
 .receiving-receipt-switch{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .receiving-receipt-switch .btn{font-size:11px;white-space:normal}
+
+/* Pedido encerrado: verde persistente e destacado na grade. */
+.receiving-table .receiving-grid tbody tr.receiving-closed td{background:#e0f5e7!important;color:#17613d}
+.receiving-table .receiving-grid tbody tr.receiving-closed:hover td{background:#d3efdf!important}
+.receiving-table .receiving-grid .receiving-status.closed{background:#bce9ce;color:#116138}
+.receiving-complete-action{background:#e0f5e7;color:#136b3f;border:1px solid #a0d5b6}
+.receiving-complete-action:hover{background:#c9ecd8}
+.receiving-completed-note{color:#14683e;font-weight:650;font-size:12px}
