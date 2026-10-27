@@ -46,7 +46,7 @@
       return '<div class="receiving-xml-line"><strong>'+escapeHTML(line.name)+'</strong>'+
         '<small>NF-e: '+escapeHTML(line.quantity+' '+line.unit)+(line.code?' · Código '+escapeHTML(line.code):'')+'</small>'+
         '<label>Vincular ao pedido</label><select class="receiving-xml-choice" data-index="'+index+'">'+
-        '<option value="">Selecione o pedido para lançar</option>'+
+        '<option value="">Selecione o pedido para lançar</option><option value="pending">Sem pedido — guardar para vincular depois</option>'+
         (choices?'<optgroup label="Correspondências verificadas">'+choices+'</optgroup>':'')+
         (alternatives?'<optgroup label="Opções para conferência manual">'+alternatives+'</optgroup>':'')+
         (manual?'<optgroup label="Outros pedidos abertos">'+manual+'</optgroup>':'')+
@@ -70,7 +70,7 @@
     async receivingXMLConfirm(){
       const ctx=this.s.receivingXML;
       if(!ctx||this.s.receivingXMLBusy)return;
-      const selections=[...document.querySelectorAll(".receiving-xml-choice")].map(el=>el.value?Number(el.value):null);
+      const selections=[...document.querySelectorAll(".receiving-xml-choice")].map(el=>el.value==="pending"?"pending":el.value?Number(el.value):null);
       if(selections.some(x=>x===null)){this.toast("Selecione o pedido de todos os produtos antes de confirmar.",true);return;}
       if(!window.confirm("Confirmar "+selections.length+" item(ns) da NF-e "+ctx.report.invoice_number+"? Verifique as quantidades e os pedidos selecionados."))return;
       this.s.receivingXMLBusy=true;
@@ -80,7 +80,7 @@
         this.closeModal();
         this.s.receivingXML=null;
         await this.renderReceiving();
-        this.toast(result.inserted+" item(ns) da NF-e lançados.");
+        this.toast(result.inserted+" lançado(s), "+result.pending+" em Sem pedido.");
       }catch(err){this.toast(err.message,true);}
       finally{this.s.receivingXMLBusy=false;}
     }
