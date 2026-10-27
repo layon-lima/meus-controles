@@ -117,6 +117,14 @@ def confirm(con,cid,payload):
     orders={x["id"]:x for x in receiving.summary(con,cid)["items"]}
     chosen=[]
     seen=set()
+    # Verificar notas ja importadas antes de saldo, para informar duplicidade corretamente.
+    selected_orders=set()
+    for selected in selections:
+        if selected is not None and type(selected) is int and selected in orders:
+            item=orders[selected]
+            selected_orders.add((item["order_number"],item["supplier"]))
+    for order,supplier in selected_orders:
+        receiving.ensure_invoice_unique_in_order(con,cid,order,xml["invoice_number"])
     for line,selected in zip(xml["lines"],selections):
         if selected is None:continue
         if type(selected) is not int or selected not in orders:raise ValueError("Pedido não encontrado.")
@@ -125,7 +133,7 @@ def confirm(con,cid,payload):
         quantity=converted(line["quantity"],line["unit"],item["unit"])
         if quantity is None:raise ValueError("Unidade incompatível: "+line["name"])
         key=selected
-        already=seen_count= sum(q for iid,q in chosen if iid==key)
+        already=sum(q for iid,q in chosen if iid==key)
         if quantity+Decimal(already)>Decimal(item["remaining_qty"]):
             raise ValueError("Quantidade superior ao saldo disponível: "+item["product"])
         chosen.append((selected,quantity))
