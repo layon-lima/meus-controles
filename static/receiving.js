@@ -216,6 +216,22 @@ Object.assign(App,{
       '<button type="button" class="receiving-fab" onclick="App.receivingFloatingAdd()" '+
       'title="Registrar recebimento" aria-label="Novo recebimento">'+icon("plus")+'</button>';
     // Aplicar novamente apos redesenhar a tabela (ex.: salvar/editar/excluir NF).
+    // Zona real de recebimento: impedir que o navegador navegue para o XML.
+    const surface=document.getElementById("main");
+    if(surface){
+      surface.ondragenter=event=>{event.preventDefault();document.body.classList.add("receiving-xml-drag");};
+      surface.ondragover=event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect="copy";};
+      surface.ondragleave=event=>{if(!surface.contains(event.relatedTarget))document.body.classList.remove("receiving-xml-drag");};
+      surface.ondrop=event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        document.body.classList.remove("receiving-xml-drag");
+        const files=event.dataTransfer?.files;
+        if(files?.length!==1){this.toast("Arraste apenas um arquivo XML por vez.",true);return;}
+        if(typeof this.receivingXMLLoad==="function")this.receivingXMLLoad(files);
+        else this.toast("Importador XML indisponível. Atualize a página.",true);
+      };
+    }
     this.receivingApplyFilter(savedSearch);
     this.receivingHighlightFocused();
   },
