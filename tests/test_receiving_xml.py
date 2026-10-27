@@ -58,6 +58,7 @@ class XMLTests(unittest.TestCase):
     def test_closed_orders_are_not_available(self):
         with app.db() as con:
             con.execute("UPDATE purchase_items SET closed=1 WHERE id=?",(self.iid,))
+            con.commit()
             result=receiving_xml.preview(con,self.cid,{"xml":base64.b64encode(sample()).decode()})
             self.assertFalse(result["lines"][0]["options"])
             with self.assertRaisesRegex(ValueError,"concluído"):
