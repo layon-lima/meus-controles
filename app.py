@@ -24,6 +24,7 @@ import pair_mixed_import
 import control_types
 import vales
 import receiving_import
+import receiving_pdf
 import debt_import
 import truck_workflow
 import threading
@@ -124,6 +125,7 @@ def initialize():
         pair_financial_import.initialize(con)
         control_types.initialize(con)
         receiving_import.initialize(con)
+        receiving_pdf.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
@@ -523,9 +525,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy","no-referrer")
         self.end_headers()
         self.wfile.write(body)
-    def input(self):
+    def input(self,max_bytes=1024*512):
         size = int(self.headers.get("Content-Length","0"))
-        if not 0 <= size <= 1024*512:
+        if not 0 <= size <= max_bytes:
             raise ValueError("Requisicao muito grande.")
         try:
             value = json.loads(self.rfile.read(size))
@@ -632,7 +634,7 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/static/truck_workflow.js":
                 return self.send((ROOT/"static"/"truck_workflow.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/api/health":
-                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261026-recebimento-busca-v9","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
+                return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261027-pedidos-pdf-ocr-v10","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
                 if re.fullmatch(r"/api/controls/\d+/vales(?:/(?:employees|payments))?",url) or re.fullmatch(r"/api/vales-(?:employees|debts|installments|payments)/\d+(?:/(?:debts|plan|pay|payments))?",url):
                     vales.handle(self,con,method,url)
@@ -660,6 +662,9 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if re.fullmatch(r"/api/controls/\d+/pair(?:/(?:entries|settings|preview|closures))?",url) or re.fullmatch(r"/api/pair-entries/\d+",url) or re.fullmatch(r"/api/pair-closures/\d+(?:/export\.csv)?",url):
                     pair.handle(self,con,method,url)
+                    return
+                if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:preview|confirm)",url):
+                    receiving_pdf.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/import/(?:preview|confirm)",url):
                     receiving_import.handle(self,con,method,url)
