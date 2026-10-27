@@ -104,6 +104,36 @@ def find_supplier(lines):
             if 2<len(orig)<=160 and not re.match(r"^\d",orig):return orig
     return ""
 
+def supplier_alias_key(name):
+    normalized=receiving.supplier_key(name)
+    normalized=re.sub(r"(?:\s+(?:LTDA|EIRELI|ME|EPP|S/A|SA|S A))+$","",normalized,flags=re.I)
+    return "".join(ch for ch in normalized if ch.isalnum())
+
+def canonical_pdf_supplier(con,cid,name):
+    """Reutiliza grafia existente só para o mesmo nome, sem unir empresas distintas."""
+    normal=receiving.canonical_supplier(con,cid,name)
+    if normal!=name:return normal
+    alias=supplier_alias_key(name)
+    if not alias:return name
+    candidates={row["supplier"] for row in con.execute(
+      "SELECT supplier FROM purchase_items WHERE control_id=?",(cid,))
+      if row["supplier"] and supplier_alias_key(row["supplier"])==alias}
+    if len(candidates)==1:return next(iter(candidates))
+    return name
+
+def layout_text(page):
+    """Recompõe linhas horizontais usando coordenadas das palavras do PDF."""
+    try:words=page.get_text("words",sort=True)
+    except Exception:return ""
+    buckets=[]
+    for w in sorted(words,key=lambda row:(row[1],row[0])):
+        x,y,_,_,label=w[:5]
+        if not label.strip():continue
+        if buckets and abs(y-buckets[-1][0])<=4:
+            buckets[-1][1].append((x,label))
+        else:buckets.append([y,[(x,label)]])
+    return "\n".join(" ".join(label for _,label in sorted(values)) for _,values in buckets)
+
 def parse_rows(text):
     """Heurística conservadora: produto + quantidade/unidade na mesma linha.
     Também suporta linhas de produto terminadas pela quantidade em linha seguinte.
@@ -158,7 +188,8 @@ def extract_pdf(pdf_bytes):
     pages=[];ocr_pages=0
     for page in doc:
         raw=page.get_text("text",sort=True)
-        if len(raw.strip())<90:
+        aligned=layout_text(page) if raw.strip() else ""
+        if len(raw.strip())<90 and not parse_rows(raw):
             try:
                 png=page.get_pixmap(matrix=fitz.Matrix(2,2),colorspace=fitz.csGRAY,alpha=False).tobytes("png")
                 result=subprocess.run(["tesseract","stdin","stdout","-l","por+eng","--psm","3"],
@@ -171,6 +202,8 @@ def extract_pdf(pdf_bytes):
                 ocr_pages+=1
             except subprocess.TimeoutExpired as e:
                 raise ValueError("O OCR demorou demais nesta página. Tente um PDF menor.") from e
+        if aligned and len(parse_rows(aligned))>len(parse_rows(raw)):
+            raw=aligned
         pages.append(raw)
     doc.close()
     body="\n".join(pages)
@@ -276,7 +309,7 @@ def confirm(con,cid,data):
                 raise ValueError("Preencha o fornecedor antes de confirmar: "+row["product"]+".")
             to_insert.append(row)
     for row in to_insert:
-        row["supplier"]=receiving.canonical_supplier(con,cid,row["supplier"])
+        row["supplier"]=canonical_pdf_supplier(con,cid,row["supplier"])
         con.execute("""INSERT INTO purchase_items
             (control_id,order_number,supplier,product,unit,ordered_qty)
             VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
