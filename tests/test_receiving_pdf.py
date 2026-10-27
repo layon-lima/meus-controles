@@ -46,8 +46,8 @@ class PdfReceivingTests(unittest.TestCase):
         app.DATA,app.DB=self.saved
         self.tmp.cleanup()
 
-    def pdf_preview(self,rows=None):
-        pdf=build_pdf(rows or self.sample)
+    def pdf_preview(self,rows=None,raw_pdf=None):
+        pdf=raw_pdf if raw_pdf is not None else build_pdf(rows or self.sample)
         with app.db() as con:
             return receiving_pdf.preview(con,self.cid,{
                 "filename":"Pedido_Mestre_04.pdf",
@@ -95,9 +95,10 @@ class PdfReceivingTests(unittest.TestCase):
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],3)
 
     def test_fingerprint_blocks_repeated_upload(self):
-        first=self.pdf_preview()
+        original=build_pdf(self.sample)
+        first=self.pdf_preview(raw_pdf=original)
         self.assertFalse(first["already_imported"])
-        same=self.pdf_preview()
+        same=self.pdf_preview(raw_pdf=original)
         self.assertEqual(first["fingerprint"],same["fingerprint"])
         with app.db() as con:
             receiving_pdf.confirm(con,self.cid,{"files":[{
@@ -105,7 +106,7 @@ class PdfReceivingTests(unittest.TestCase):
                 "items":[{"index":0,"order_number":"PED-X","supplier":"AGREX",
                           "product":"Assist","unit":"L","ordered_qty":"2000"}]}]})
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["items"],1)
-        after=self.pdf_preview()
+        after=self.pdf_preview(raw_pdf=original)
         self.assertTrue(after["already_imported"])
         self.assertEqual(after["items"],[])
 
