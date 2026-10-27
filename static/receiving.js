@@ -266,13 +266,8 @@ Object.assign(App,{
   },
   receivingFloatingAdd(){
     if(!this.canOpenForm())return;
-    const cid=this.s.detail?.control?.id;
-    const focused=this.s.receivingFocused?.controlId===cid?
-      this.s.receivingData?.items.find(p=>p.id===this.s.receivingFocused.itemId):null;
-    if(focused&&Number(focused.remaining_qty)>0){
-      this.receivingReceiptForm(focused.id);
-      return;
-    }
+    // Cada clique no "+" inicia uma seleção NOVA. A linha que ficou marcada
+    // no controle não pode obrigar os lançamentos seguintes ao mesmo pedido.
     this.receivingChooseReceiptProduct();
   },
   receivingChooseReceiptProduct(){
@@ -655,7 +650,9 @@ Object.assign(App,{
       '<div class="modal-header"><div><h2 id="modalTitle">'+(old?"Editar recebimento":"Registrar recebimento")+'</h2>'+
       '<p>Registre a quantidade recebida e a nota fiscal.</p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
-      '<div class="modal-body"><div class="receiving-item-context"><strong>'+E(item.product)+'</strong>'+
+      '<div class="modal-body"><div class="receiving-item-context"><div class="receiving-receipt-switch"><strong>'+E(item.product)+'</strong>'+
+      (!old?'<button type="button" class="btn btn-sm" onclick="App.receivingChangeReceiptProduct()">'+
+      icon("search")+' Trocar produto / pedido</button>':'')+'</div>'+
       '<span>Pedido '+E(item.order_number)+' · '+E(item.supplier)+'</span>'+
       '<span>Disponível: <b>'+rxNum(max)+' '+E(item.unit)+'</b></span></div>'+
       '<form id="receivingReceiptForm" onsubmit="event.preventDefault();App.receivingSaveReceipt()">'+
@@ -670,6 +667,14 @@ Object.assign(App,{
       '</div></form><div class="receiving-hint">Esta quantidade será descontada automaticamente do saldo pendente.</div></div>'+
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.receivingSaveReceipt()">'+icon("check")+' Salvar entrega</button></div></div></div>';
+  },
+  receivingChangeReceiptProduct(){
+    // Só permite trocar o vínculo antes de gravar um NOVO recebimento.
+    if(this.s.modal!=="receiving-receipt"||this.s.modalContext?.receipt)return;
+    this.closeModal();
+    this.s.receivingFocused={controlId:this.s.detail?.control?.id,itemId:null};
+    this.receivingHighlightFocused();
+    this.receivingChooseReceiptProduct();
   },
   async receivingSaveReceipt(){
     const form=document.getElementById("receivingReceiptForm"),ctx=this.s.modalContext;
