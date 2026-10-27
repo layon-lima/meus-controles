@@ -67,8 +67,18 @@ def unit_name(raw):
     if n in ("PACOTE","PACOTES","PCT"):return "pct"
     return "un"
 
-def clean_product(text):
+def split_product_code(text):
     value=clean_line(text)
+    value=re.sub(r"^(?:ITEM\s*)?\d{1,3}\s*[-.)]\s*","",value,flags=re.I)
+    value=re.sub(r"^\d{1,3}\s+(?=\d{4,}|[A-Z]{1,4}\d{3,})","",value)
+    match=re.match(r"^([A-Z0-9][A-Z0-9._/-]{3,24})\s*[-|:]?\s+(.+)$",value,re.I)
+    if match and any(c.isdigit() for c in match[1]) and sum(c.isalpha() for c in match[2])>=3:
+        return match[1],match[2]
+    return "",value
+
+
+def clean_product(text):
+    value=split_product_code(text)[1]
     value=re.sub(r"^\s*(?:ITEM\s*)?\d{1,3}\s*[-.)]\s*","",value,flags=re.I)
     value=re.sub(r"^\s*\d{1,3}\s+(?=[A-Za-zÀ-ÿ])","",value)
     value=re.sub(r"^\s*\d{5,14}\s+(?=[A-Za-zÀ-ÿ])","",value)
@@ -82,7 +92,33 @@ def plausible_product(raw):
     return bool(3<=len(product)<=160 and alpha>=3 and not SKIP_LINE.match(normalize_text(product)) and
         not re.search(r"\b(?:CNPJ|CPF|CEP|BANCO|CHAVE|VENCIMENTO|VALOR TOTAL)\b",normalize_text(product)))
 
+def order_candidate(raw):
+    code=normalize_text(raw).strip(" .,:;#-")
+    if code in ("DE","DO","COMPRA","MESTRE","COMERCIAL","NUMERO","N","NO","NF","NOTA"):
+        return ""
+    if re.fullmatch(r"\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}",code):
+        return ""
+    return code if len(code)>=3 and any(c.isdigit() for c in code) else ""
+
+
 def find_order(lines):
+    # Dá preferência ao número próximo do título do pedido, não aos códigos da tabela.
+    explicit=re.compile(r"(?:NUMERO\s+(?:DO|DE)\s+PEDIDO|PEDIDO(?:\s+(?:DE COMPRA|MESTRE|COMERCIAL))?(?:\s+N[O°º.]*)?)\s*[:#-]?\s*([A-Z0-9][A-Z0-9./_-]{2,45})",re.I)
+    for i,line in enumerate(lines[:130]):
+        line=normalize_text(line)
+        if re.search(r"\b(?:CNPJ|CPF|NOTA FISCAL|NF-E|NFE)\b",line):continue
+        match=explicit.search(line)
+        if match:
+            code=order_candidate(match[1])
+            if code:return code[:100]
+        if re.fullmatch(r"(?:NUMERO\s+(?:DO|DE)\s+PEDIDO|PEDIDO(?:\s+(?:DE COMPRA|MESTRE|COMERCIAL))?)\s*[:#-]?",line):
+            if i+1<len(lines):
+                code=order_candidate(lines[i+1])
+                if code and re.fullmatch(r"[A-Z0-9./_-]+",code):return code[:100]
+    return ""
+
+
+def _old_find_order(lines):
     for line in lines[:130]:
         line=normalize_text(line)
         for pattern in ORDER_PATTERNS:
@@ -94,6 +130,22 @@ def find_order(lines):
     return ""
 
 def find_supplier(lines):
+    # O campo do fornecedor pode vir na mesma linha ou logo abaixo do rótulo.
+    label=re.compile(r"^\s*(?:FORNECEDOR|VENDEDOR|EMPRESA FORNECEDORA|RAZAO SOCIAL DO FORNECEDOR|EMITENTE)\s*[:\-|]?\s*(.*)$",re.I)
+    for i,line in enumerate(lines[:120]):
+        cleaned=clean_line(line)
+        match=label.match(normalize_text(cleaned))
+        if not match:continue
+        start=cleaned[match.start(1):].strip()
+        candidates=[start]+lines[i+1:i+2] if not start else [start]
+        for candidate in candidates:
+            candidate=re.split(r"\s+(?:CNPJ|CPF|INSCRICAO|ENDERECO|FONE|TEL)\b",clean_line(candidate),flags=re.I)[0].strip(" :-|")
+            if 2<len(candidate)<=160 and not re.match(r"^\d",candidate) and not re.match(r"^(?:CNPJ|CPF|COMPRADOR|CLIENTE|PEDIDO|DATA)\b",normalize_text(candidate)):
+                return candidate
+    return ""
+
+
+def _old_find_supplier(lines):
     for line in lines[:120]:
         cleaned=clean_line(line)
         m=SUPPLIER_PATTERN.match(normalize_text(cleaned))
@@ -163,13 +215,16 @@ def parse_rows(text):
                     candidate.append((0,line,m["qty"],m["unit"]))
         if not candidate:continue
         _,prod,qty,unit=sorted(candidate,key=lambda x:x[0])[0]
+        product_code,_=split_product_code(prod)
         product=clean_product(prod)
         if not plausible_product(product):continue
         try:
             amount=number(qty)
         except ValueError:
             continue
-        items.append({"product":product,"ordered_qty":amount,"unit":unit_name(unit)})
+        item={"product":product,"ordered_qty":amount,"unit":unit_name(unit)}
+        if product_code:item["product_code"]=product_code
+        items.append(item)
     # Nenhum item é inventado quando OCR não consegue identificar a tabela.
     return items[:MAX_ITEMS]
 
