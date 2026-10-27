@@ -214,7 +214,15 @@ def assign_pending(con,cid,pid,payload):
     amount=converted(row["quantity"],row["unit"],item["unit"])
     if amount is None:raise ValueError("Unidade incompatível.")
     receiving.ensure_capacity(con,iid,receiving.display(amount))
-    receiving.ensure_invoice_unique_in_order(con,cid,item["order_number"],row["invoice_number"])
+    existing=list(con.execute("""SELECT r.access_key,r.notes FROM purchase_receipts r
+      JOIN purchase_items i ON i.id=r.item_id
+      WHERE i.control_id=? AND i.order_number=? AND r.invoice_number=?""",
+      (cid,item["order_number"],row["invoice_number"])))
+    if existing and not (row["access_key"] and all(
+      r["access_key"]==row["access_key"] and
+      (r["notes"].startswith("Lançamento por XML") or r["notes"].startswith("Vinculado de Sem pedido"))
+      for r in existing)):
+        raise ValueError("NF-e já registrada neste pedido; confira antes de vincular.")
     con.execute("""INSERT INTO purchase_receipts
       (item_id,received_date,invoice_number,received_qty,access_key,notes)
       VALUES(?,?,?,?,?,?)""",(iid,row["issued_date"],row["invoice_number"],
