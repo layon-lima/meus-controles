@@ -1,0 +1,37 @@
+/* PDF -> prévia editável; tabelas internas sem rolagem horizontal da página. */
+.rpdf-modal{width:min(1180px,calc(100vw - 24px))!important;max-width:1180px!important;max-height:min(92dvh,1100px);display:flex;flex-direction:column}
+.rpdf-modal .modal-header{flex:0 0 auto}
+.rpdf-modal .modal-body{min-height:0;overflow:auto;overscroll-behavior:contain;padding:13px}
+.rpdf-modal .modal-footer{flex:0 0 auto}
+.rpdf-progress{display:flex;align-items:center;gap:7px;font-size:12px;color:#15715e}
+.rpdf-errors{padding:9px 12px;background:#fff0ef;border:1px solid #ecc9c5;border-radius:7px;margin-bottom:10px}
+.rpdf-errors p{font-size:12px;margin:3px 0;color:#a03232}
+.rpdf-document{border:1px solid #d2dee5;border-radius:7px;margin-bottom:12px;overflow:hidden;min-width:0}
+.rpdf-doc-title{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;padding:9px 10px;background:#f2f7fa}
+.rpdf-doc-title strong{font-size:12px;overflow-wrap:anywhere}
+.rpdf-doc-title span{font-size:10px;color:#557083}
+.rpdf-warning{font-size:11px;color:#825500;background:#fff6df;padding:8px 10px;margin:0}
+.rpdf-table-wrap{width:100%;max-width:100%;overflow-x:auto}
+.rpdf-table{width:100%;min-width:790px;border-collapse:collapse;table-layout:fixed}
+.rpdf-table th,.rpdf-table td{border:1px solid #d6e0e6;padding:5px 6px;vertical-align:middle}
+.rpdf-table th{background:#eaf0f4;color:#496373;text-align:left;font-size:10px}
+.rpdf-table th:nth-child(1){width:5%}
+.rpdf-table th:nth-child(2){width:18%}
+.rpdf-table th:nth-child(3){width:18%}
+.rpdf-table th:nth-child(4){width:30%}
+.rpdf-table th:nth-child(5){width:16%}
+.rpdf-table th:nth-child(6){width:13%}
+.rpdf-table td>input:not([type=checkbox]),.rpdf-table td>select{display:block;width:100%;min-width:0;height:32px;border:1px solid #d9e4e7;border-radius:5px;padding:5px 6px;background:#fff;font-size:11px}
+.rpdf-table td>input:focus,.rpdf-table td>select:focus{outline:2px solid #8bcbb7;border-color:#13866b}
+.rpdf-table td:first-child{text-align:center}
+.rpdf-disabled{opacity:.48;background:#f3f5f6}
+.rpdf-hint{font-size:11px;color:#5c7180;margin:10px 0}
+.rpdf-validation{font-size:11px;font-weight:650;margin:9px 0;color:#556878}
+.receiving-pdf-button{white-space:nowrap}
+@media(max-width:650px){
+ .rpdf-modal .modal-body{padding:8px}
+ .rpdf-modal{width:calc(100vw - 14px)!important}
+ .rpdf-table{min-width:730px}
+ .rpdf-table th,.rpdf-table td{padding:4px}
+ .rpdf-doc-title{align-items:flex-start}
+}
