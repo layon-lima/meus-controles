@@ -112,13 +112,15 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('receiving-status.closed',CSS)
 
     def test_pwa_precaches_fresh_versions(self):
-        for asset in ("receiving.js","receiving.css"):
-            version="/static/"+asset+"?v=20261027-xml-v15"
+        for asset,release in (("receiving.js","20261027-xml-drop-v17"),("receiving.css","20261027-xml-v15")):
+            version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
         self.assertIn('central-de-controles-shell-v20261027-xml-drop-v17',SW)
         self.assertIn('/static/receiving_xml.js?v=20261027-xml-drop-v16',HTML)
         self.assertIn('/static/receiving_xml.js?v=20261027-xml-drop-v16',SW)
+        self.assertIn('surface.ondrop=event=>',JS)
+        self.assertIn('event.preventDefault();',JS)
 
 
 if __name__=="__main__":
