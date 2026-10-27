@@ -175,10 +175,14 @@ Object.assign(App,{
       '<p>Controle de pedidos, fornecedores e entregas por nota fiscal.</p></div>'+
       '<div class="receiving-header-actions">'+
       (activeTab==="pedidos"&&t.items===0?'<button class="btn btn-sm" onclick="App.receivingChooseImport()">'+icon("download")+' Importar pedidos</button>':'')+
+      (activeTab==="pedidos"?'<button class="btn btn-sm receiving-pdf-button" onclick="App.receivingPdfChoose()">'+
+      icon("file-up")+' Importar PDFs (OCR)</button>':'')+
       '<button class="btn btn-sm" onclick="App.receivingSettings('+c.id+')">'+icon("settings")+' Ajustes</button>'+
       (activeTab==="pedidos"?'<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto do pedido</button>':'')+
       '</div></div>'+
       '<input type="file" accept=".json,application/json" id="receivingImportInput" hidden onchange="App.receivingLoadImportFile(this.files[0])">'+
+      '<input type="file" accept="application/pdf,.pdf" id="receivingPdfFile" multiple hidden '+
+      'onchange="App.receivingPdfLoad(this.files)">'+
       '<div class="receiving-tabs" role="tablist" aria-label="Seções do recebimento de produtos">'+
       '<button type="button" role="tab" aria-selected="'+(activeTab==="pedidos")+'" class="'+(activeTab==="pedidos"?"active":"")+
       '" onclick="App.receivingSwitchTab(&quot;pedidos&quot;)">Pedidos</button>'+
