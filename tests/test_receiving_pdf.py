@@ -61,6 +61,12 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([(p["product"],p["ordered_qty"],p["unit"]) for p in parsed["items"]],
                          [("Assist","2000.000","L"),("Bright","2220.000","kg")])
 
+    def test_supplier_variants_are_same_group_but_distinct_brands_not_merged(self):
+        self.assertEqual(receiving_pdf.supplier_alias_key("Ág Rex LTDA"),
+                         receiving_pdf.supplier_alias_key("AGREX"))
+        self.assertNotEqual(receiving_pdf.supplier_alias_key("AGREX"),
+                            receiving_pdf.supplier_alias_key("AGREX MOSAIC"))
+
     def test_parses_brazilian_quantities_and_doses(self):
         rows=receiving_pdf.parse_rows("Assist 1.234,5 L\nBrady 18.606 DOS\nKCL 300 t")
         self.assertEqual([(p["ordered_qty"],p["unit"]) for p in rows],
@@ -69,7 +75,7 @@ class PdfReceivingTests(unittest.TestCase):
     def test_existing_order_gains_new_rows_and_supplier_merges(self):
         with app.db() as con:
             con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
-                VALUES(?,?,?,?,?,?)""",(self.cid,"PED-2026-004","AG REX","Antigo","kg","100.000"))
+                VALUES(?,?,?,?,?,?)""",(self.cid,"PED-2026-004","AGREX","Antigo","kg","100.000"))
         report=self.pdf_preview()
         rows=[{"index":i,"order_number":report["order_number"],
                "supplier":report["supplier"],**p} for i,p in enumerate(report["items"])]
