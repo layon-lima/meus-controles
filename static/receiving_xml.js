@@ -2,7 +2,7 @@
 /* Importação XML de NF-e: somente prévia e confirmação explícita. */
 (function(){
   const escapeHTML=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const isReceiving=()=>App.s.route==="control"&&App.s.detail?.control?.mode==="recebimento";
+  const isReceiving=()=>typeof App!=="undefined"&&App.s?.detail?.control?.mode==="recebimento"&&!!document.querySelector(".receiving-head");
   const toBase64=file=>new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onerror=()=>reject(new Error("Não foi possível ler o XML."));
@@ -57,7 +57,7 @@
       '<div class="modal-backdrop"><div class="modal receiving-xml-modal" role="dialog" aria-modal="true">'+
       '<div class="modal-header"><div><h2>Conferir NF-e XML</h2>'+
       '<p>NF '+escapeHTML(report.invoice_number)+' · '+escapeHTML(report.supplier)+
-      (report.cnpj?' · '+escapeHTML(report.cnpj):'')+'</p></div>'+
+      (report.cnpj?' · '+escapeHTML(report.cnpj):'')+'</p>'+\n      '<p class="receiving-xml-key">Chave de acesso: <strong>'+escapeHTML(report.access_key||'Não encontrada')+'</strong></p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><p class="receiving-xml-warning">Confira o pedido de cada produto. Conversões compatíveis (kg/t, mL/L) são calculadas automaticamente. Nenhum lançamento ocorre sem confirmar.</p>'+
       lines+'</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
@@ -84,20 +84,32 @@
       finally{this.s.receivingXMLBusy=false;}
     }
   });
-  document.addEventListener("dragover",event=>{
-    if(!isReceiving()||!event.dataTransfer?.types?.includes("Files"))return;
+  // Captura antecipada: o navegador nunca deve navegar para um XML solto.
+  // Nao depende de dataTransfer.types (que varia entre Chrome, Edge e Windows).
+  const hasFiles=event=>!!(event.dataTransfer?.files?.length||
+    Array.from(event.dataTransfer?.types||[]).includes("Files"));
+  window.addEventListener("dragenter",event=>{
+    if(!hasFiles(event))return;
     event.preventDefault();
-    event.dataTransfer.dropEffect="copy";
-    document.body.classList.add("receiving-xml-drag");
-  });
-  document.addEventListener("dragleave",event=>{
+    if(isReceiving())document.body.classList.add("receiving-xml-drag");
+  },true);
+  window.addEventListener("dragover",event=>{
+    if(!hasFiles(event))return;
+    event.preventDefault();
+    if(event.dataTransfer)event.dataTransfer.dropEffect="copy";
+    document.body.classList.toggle("receiving-xml-drag",isReceiving());
+  },true);
+  window.addEventListener("dragleave",event=>{
     if(!event.relatedTarget)document.body.classList.remove("receiving-xml-drag");
-  });
-  document.addEventListener("drop",event=>{
+  },true);
+  window.addEventListener("drop",event=>{
+    if(!hasFiles(event))return;
+    event.preventDefault();
+    event.stopPropagation();
     document.body.classList.remove("receiving-xml-drag");
     if(!isReceiving())return;
-    if(!event.dataTransfer?.files?.length)return;
-    event.preventDefault();
-    loadXML(event.dataTransfer.files[0]);
-  });
+    const files=Array.from(event.dataTransfer?.files||[]);
+    if(files.length!==1){App.toast("Solte um arquivo XML por vez.",true);return;}
+    void loadXML(files[0]);
+  },true);
 })();
