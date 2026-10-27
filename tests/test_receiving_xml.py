@@ -70,6 +70,28 @@ class XMLTests(unittest.TestCase):
         result=receiving_xml.parse(raw.encode())
         self.assertEqual(result["access_key"],"2"*44)
 
+    def test_supplier_alias_and_lot_suffix_match(self):
+        self.assertGreater(receiving_xml.similarity("AGREX DO BRASIL LTDA","AGREX",True),.90)
+        self.assertGreater(receiving_xml.similarity("TORINO 5L - Lote: 0052513600 - Peso:","Torino"),.90)
+
+    def test_mixed_invoice_pending_and_later_assign(self):
+        xml=sample().decode().replace("</infNFe>", """
+<det nItem="2"><prod><cProd>789</cProd><xProd>OUTRO PRODUTO</xProd><uCom>KG</uCom><qCom>500</qCom></prod></det>
+</infNFe>""")
+        raw=base64.b64encode(xml.encode()).decode()
+        with app.db() as con:
+            result=receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid,"pending"]})
+            self.assertEqual(result,{"inserted":1,"pending":1})
+            pending=receiving_xml.pending_list(con,self.cid)
+            self.assertEqual(len(pending),1)
+            another=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"45022014","AGREX BRASIL","OUTRO PRODUTO","kg","1000")).lastrowid
+            con.commit()
+            self.assertTrue(receiving_xml.assign_pending(con,self.cid,pending[0]["id"],{"item_id":another})["ok"])
+            self.assertEqual(receiving_xml.pending_list(con,self.cid),[])
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],2)
+
     def test_external_entities_rejected(self):
         with self.assertRaisesRegex(ValueError,"XML"):
             receiving_xml.parse(b'<!DOCTYPE foo [<!ENTITY x SYSTEM "file:///etc/passwd">]><foo>&x;</foo>')
