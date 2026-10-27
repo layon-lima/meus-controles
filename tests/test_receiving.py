@@ -76,6 +76,20 @@ class ReceivingTests(unittest.TestCase):
             self.assertEqual(view["totals"]["complete"],1)
             self.assertEqual(view["totals"]["pending"],1)
 
+    def test_manual_completion_blocks_receipts_and_keeps_history(self):
+        first=self.item("Adubo","1000")
+        second=self.item("Semente","200")
+        self.deliver(first,"NF-900","400")
+        with app.db() as con:
+            con.execute("UPDATE purchase_items SET closed=1 WHERE control_id=? AND order_number=? AND supplier=?",
+                        (self.cid,"PED-123","Fornecedor A"))
+            summary=receiving.summary(con,self.cid)
+            self.assertTrue(all(x["closed"] for x in summary["items"]))
+            self.assertTrue(all(x["status"]=="complete" for x in summary["items"]))
+            self.assertEqual(summary["totals"]["receipts"],1)
+            with self.assertRaisesRegex(ValueError,"Pedido concluído"):
+                receiving.ensure_capacity(con,second,"10")
+
     def test_exceeding_remaining_quantity_is_rejected(self):
         item=self.item()
         self.deliver(item,"NF-100","900")
