@@ -309,3 +309,13 @@
 .receiving-complete-action{background:#e0f5e7;color:#136b3f;border:1px solid #a0d5b6}
 .receiving-complete-action:hover{background:#c9ecd8}
 .receiving-completed-note{color:#14683e;font-weight:650;font-size:12px}
+
+/* Conferência de XML da NF-e. */
+.receiving-xml-modal{max-width:800px;width:min(800px,96vw)}
+.receiving-xml-modal .modal-body{max-height:68vh;overflow:auto}
+.receiving-xml-warning{font-size:12px;color:#526a64;background:#eef8f2;padding:10px 12px;border-radius:7px}
+.receiving-xml-line{padding:12px 0;border-bottom:1px solid #dbe7e1;display:flex;flex-direction:column;gap:5px}
+.receiving-xml-line>small{color:#587064;font-size:11px}
+.receiving-xml-line label{font-size:11px;font-weight:700}
+.receiving-xml-line select{width:100%;font-size:12px;min-height:36px}
+body.receiving-xml-drag:after{content:"SOLTE O XML DA NF-e PARA CONFERIR";position:fixed;inset:14px;border:3px dashed #14856b;background:rgba(234,249,241,.96);z-index:9999;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:750;color:#126547;font-size:20px;pointer-events:none}
