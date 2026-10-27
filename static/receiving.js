@@ -274,6 +274,8 @@ Object.assign(App,{
     if(!this.canOpenForm())return;
     const available=rxPickMatches(this.s.receivingData?.items,"");
     if(!available.length)return this.toast("Todos os produtos já foram recebidos ou não existem pedidos.",true);
+    this.s.receivingFocused={controlId:this.s.detail?.control?.id,itemId:null};
+    this.receivingHighlightFocused();
     this.s.receivingPick={
       controlId:this.s.detail?.control?.id,
       query:"",selectedId:null,highlight:0,expanded:true
@@ -686,7 +688,11 @@ Object.assign(App,{
     try{
       await this.api(ctx.receipt?"/api/receiving-receipts/"+ctx.receipt.id:
         "/api/receiving-items/"+ctx.itemId+"/receipts",ctx.receipt?"PUT":"POST",payload);
-      this.closeModal();await this.load();this.toast("Recebimento salvo. Saldo atualizado.");
+      this.closeModal();
+      // Nunca deixar o último pedido travado como seleção do próximo vale/recebimento.
+      this.s.receivingPick=null;
+      this.s.receivingFocused={controlId:this.s.detail?.control?.id,itemId:null};
+      await this.load();this.toast("Recebimento salvo. Saldo atualizado.");
     }catch(e){this.toast(e.message,true)}
   },
   async receivingDeleteItem(id){
