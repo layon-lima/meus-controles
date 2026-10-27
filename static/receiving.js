@@ -655,6 +655,7 @@ Object.assign(App,{
     const item=data?.items.find(x=>x.id===itemId);
     const old=receiptId?data?.receipts.find(x=>x.id===receiptId):null;
     if(!item||(receiptId&&!old))return this.toast("Pedido ou entrega não encontrado.",true);
+    if(item.closed)return this.toast("Recebimento concluído. Novos lançamentos estão bloqueados.",true);
     const max=Number(item.remaining_qty)+Number(old?.received_qty||0);
     if(max<=0)return this.toast("Este pedido já foi totalmente recebido.",true);
     this.s.modal="receiving-receipt";
