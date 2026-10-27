@@ -72,7 +72,7 @@ function rxPickLabel(p){
 function rxPickMatches(items,query){
   const terms=rxPickNormalize(query).split(" ").filter(Boolean);
   return (items||[]).filter(p=>{
-    if(!(Number(p.remaining_qty)>0))return false;
+    if(p.closed||!(Number(p.remaining_qty)>0))return false;
     const search=rxPickNormalize([p.supplier,p.order_number,p.product].join(" "));
     return terms.every(term=>search.includes(term));
   }).sort((a,b)=>String(a.supplier).localeCompare(String(b.supplier),"pt-BR")||
@@ -137,11 +137,11 @@ Object.assign(App,{
     const supplierCatalog=rxSupplierCatalog(r.items);
     const supplierGroups=rxSupplierGroups(r.items,supplierCatalog);
     const renderRow=p=>{
-      const status=p.status==="complete"?"Recebido":p.status==="partial"?"Parcial":"Pendente";
+      const status=p.closed?"Concluído":p.status==="complete"?"Recebido":p.status==="partial"?"Parcial":"Pendente";
       const canDelete=!p.receipts_count;
-      return '<tr data-receiving-id="'+p.id+'" data-receiving-selectable="'+(canDelete?"1":"0")+
+      return '<tr class="'+(p.closed?'receiving-closed':'')+'" data-receiving-id="'+p.id+'" data-receiving-selectable="'+(canDelete?"1":"0")+
         '" data-receiving-search="'+E([p.order_number,p.supplier,p.product].join(" ").toLowerCase())+
-        '" tabindex="0" title="Clique para selecionar; duplo clique para editar ou excluir" '+
+        '" tabindex="0" title="Clique para selecionar; duplo clique para gerenciar" '+
         'onclick="App.receivingFocusItem('+p.id+')" ondblclick="App.receivingManageItem('+p.id+')" '+
         'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingManageItem('+p.id+')}">'+
         '<td class="receiving-select-cell"><input type="checkbox" data-receiving-checkbox="'+p.id+'" aria-label="Selecionar '+E(p.product)+'" '+
@@ -151,7 +151,7 @@ Object.assign(App,{
         '<td class="numeric">'+rxNum(p.ordered_qty)+' '+E(p.unit)+'</td>'+
         '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td>'+
         '<td class="numeric receiving-remaining">'+rxNum(p.remaining_qty)+' '+E(p.unit)+'</td>'+
-        '<td><span class="receiving-status '+E(p.status)+'">'+status+'</span></td></tr>';
+        '<td><span class="receiving-status '+(p.closed?'closed':E(p.status))+'">'+status+'</span></td></tr>';
     };
     const rows=supplierGroups.map(group=>{
       const orders=new Set(group.items.map(p=>p.order_number)).size;
@@ -396,7 +396,7 @@ Object.assign(App,{
     const picker=this.s.receivingPick;
     const id=picker?.selectedId;
     if(!picker||picker.controlId!==this.s.detail?.control?.id||
-       !this.s.receivingData?.items.some(p=>p.id===id&&Number(p.remaining_qty)>0)){
+       !this.s.receivingData?.items.some(p=>p.id===id&&!p.closed&&Number(p.remaining_qty)>0)){
       this.toast("Selecione um produto da lista antes de continuar.",true);return;
     }
     this.closeModal();
@@ -419,6 +419,7 @@ Object.assign(App,{
       '<div class="receiving-manage-actions">'+
       '<button class="btn btn-primary" onclick="App.receivingManageAction(&quot;edit&quot;)">'+icon("edit")+' Editar pedido</button>'+
       '<button class="btn receiving-danger" onclick="App.receivingManageAction(&quot;delete&quot;)">'+icon("trash")+' Excluir pedido</button>'+
+      (!item.closed?'<button class="btn receiving-complete-action" onclick="App.receivingManageAction(&quot;complete&quot;)">'+icon("check-circle")+' Concluir recebimento</button>':'<span class="receiving-completed-note">Recebimento concluído</span>')+
       '</div></div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button></div></div></div>';
   },
   receivingManageAction(action){
@@ -427,6 +428,17 @@ Object.assign(App,{
     this.closeModal();
     if(action==="edit")this.receivingItemForm(id);
     if(action==="delete")this.receivingDeleteItem(id);
+    if(action==="complete")this.receivingCompleteOrder(id);
+  },
+  async receivingCompleteOrder(id){
+    const item=this.s.receivingData?.items.find(p=>p.id===id);
+    if(!item||item.closed)return;
+    if(!window.confirm("Concluir o recebimento do pedido "+item.order_number+"? Todos os produtos desse pedido e fornecedor serão bloqueados para novos lançamentos."))return;
+    try{
+      await this.api("/api/receiving-items/"+id+"/complete",{method:"POST",body:JSON.stringify({})});
+      this.toast("Recebimento concluído.");
+      await this.renderReceiving();
+    }catch(err){this.toast(err.message,true);}
   },
   receivingManageReceipt(id){
     if(!this.canOpenForm())return;
