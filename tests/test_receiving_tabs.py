@@ -116,9 +116,9 @@ class ReceivingSubtabsTests(unittest.TestCase):
             version="/static/"+asset+"?v=20261027-xml-v15"
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261027-xml-v15',SW)
-        self.assertIn('/static/receiving_xml.js?v=20261027-xml-v15',HTML)
-        self.assertIn('/static/receiving_xml.js?v=20261027-xml-v15',SW)
+        self.assertIn('central-de-controles-shell-v20261027-xml-drop-v16',SW)
+        self.assertIn('/static/receiving_xml.js?v=20261027-xml-drop-v16',HTML)
+        self.assertIn('/static/receiving_xml.js?v=20261027-xml-drop-v16',SW)
 
 
 if __name__=="__main__":
