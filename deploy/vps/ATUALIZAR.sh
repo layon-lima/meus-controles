@@ -36,7 +36,7 @@ if ! "${COMPOSE[@]}" up -d --build --no-deps --wait app; then
   exit 1
 fi
 echo "Verificando que o contêiner executa os MESMOS arquivos publicados..."
-for file in app.py receiving.py static/receiving.js static/receiving.css; do
+for file in app.py receiving.py receiving_pdf.py static/receiving.js static/receiving.css static/receiving_pdf.js static/receiving_pdf.css; do
   expected="$(sha256sum "$ROOT/$file" | awk '{print $1}')"
   running="$("${COMPOSE[@]}" exec -T app sha256sum "/srv/app/$file" | awk '{print $1}')"
   if [[ "$expected" != "$running" ]]; then
