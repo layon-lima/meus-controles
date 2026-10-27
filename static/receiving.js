@@ -177,10 +177,12 @@ Object.assign(App,{
       (activeTab==="pedidos"&&t.items===0?'<button class="btn btn-sm" onclick="App.receivingChooseImport()">'+icon("download")+' Importar pedidos</button>':'')+
       (activeTab==="pedidos"?'<button class="btn btn-sm receiving-pdf-button" onclick="App.receivingPdfChoose()">'+
       icon("download")+' Importar PDFs (OCR)</button>':'')+
+      (activeTab==="pedidos"?'<button class="btn btn-sm" onclick="App.receivingXMLChoose()">'+icon("file-code")+' Importar XML NF-e</button>':'')+
       '<button class="btn btn-sm" onclick="App.receivingSettings('+c.id+')">'+icon("settings")+' Ajustes</button>'+
       (activeTab==="pedidos"?'<button class="btn btn-primary" onclick="App.receivingItemForm()">'+icon("plus")+' Cadastrar produto do pedido</button>':'')+
       '</div></div>'+
       '<input type="file" accept=".json,application/json" id="receivingImportInput" hidden onchange="App.receivingLoadImportFile(this.files[0])">'+
+      '<input id="receivingXMLFile" type="file" accept=".xml,application/xml,text/xml" hidden onchange="App.receivingXMLLoad(this.files)">'+
       '<input type="file" accept="application/pdf,.pdf" id="receivingPdfFile" multiple hidden '+
       'onchange="App.receivingPdfLoad(this.files)">'+
       '<div class="receiving-tabs" role="tablist" aria-label="Seções do recebimento de produtos">'+
