@@ -23,6 +23,50 @@ def build_pdf(rows,scanned=False):
     pdf.close()
     return data
 
+class PdfSchemaMigrationTests(unittest.TestCase):
+    def test_sqlite_auto_number_for_preview_batch(self):
+        import sqlite3
+        con=sqlite3.connect(":memory:")
+        con.row_factory=sqlite3.Row
+        try:
+            receiving_pdf.initialize(con)
+            con.execute("""INSERT INTO receiving_pdf_batches
+                (control_id,fingerprint,filename,extracted_json)
+                VALUES(1,'hash1','um.pdf','{}')""")
+            con.execute("""INSERT INTO receiving_pdf_batches
+                (control_id,fingerprint,filename,extracted_json)
+                VALUES(1,'hash2','dois.pdf','{}')""")
+            self.assertEqual([r["id"] for r in
+                con.execute("SELECT id FROM receiving_pdf_batches ORDER BY id")],[1,2])
+        finally:
+            con.close()
+
+    def test_postgres_legacy_column_without_default_is_repaired(self):
+        class FakeCursor:
+            def __init__(self,value=None):self.value=value
+            def fetchone(self):return {"value":self.value}
+        class FakePg:
+            native=object()
+            def __init__(self,value):
+                self.default=value
+                self.statements=[]
+            def executescript(self,script):
+                self.statements.append(("schema",script))
+            def execute(self,statement):
+                self.statements.append(("sql",statement))
+                return FakeCursor(self.default)
+        legacy=FakePg(None)
+        receiving_pdf.initialize(legacy)
+        sql=" ".join(v for typ,v in legacy.statements if typ=="sql")
+        self.assertIn("CREATE SEQUENCE IF NOT EXISTS receiving_pdf_batches_id_seq",sql)
+        self.assertIn("SET DEFAULT nextval('receiving_pdf_batches_id_seq')",sql)
+        self.assertIn("ALTER SEQUENCE receiving_pdf_batches_id_seq",sql)
+        self.assertIn("SELECT setval('receiving_pdf_batches_id_seq'",sql)
+        modern=FakePg("nextval('receiving_pdf_batches_id_seq'::regclass)")
+        receiving_pdf.initialize(modern)
+        self.assertFalse(any("ALTER TABLE" in statement
+            for typ,statement in modern.statements if typ=="sql"))
+
 @unittest.skipIf(fitz is None,"PyMuPDF necessário no contêiner VPS")
 class PdfReceivingTests(unittest.TestCase):
     def setUp(self):
