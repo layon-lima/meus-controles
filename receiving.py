@@ -45,6 +45,9 @@ def initialize(con):
     columns={row["name"] for row in con.execute("PRAGMA table_info(purchase_receipts)")}
     if "access_key" not in columns:
         con.execute("ALTER TABLE purchase_receipts ADD COLUMN access_key TEXT NOT NULL DEFAULT ''")
+    item_columns={row["name"] for row in con.execute("PRAGMA table_info(purchase_items)")}
+    if "closed" not in item_columns:
+        con.execute("ALTER TABLE purchase_items ADD COLUMN closed INTEGER NOT NULL DEFAULT 0")
 
 def text(value, description, max_length=150, required=True):
     if not isinstance(value,str):
@@ -152,6 +155,8 @@ def received_total(con,item_id,exclude_id=None):
 
 def ensure_capacity(con,item_id,amount,exclude_id=None):
     item=get_item(con,item_id)
+    if item["closed"]:
+        raise ValueError("Pedido concluído. Não é permitido lançar novos recebimentos.")
     paid=received_total(con,item_id,exclude_id)
     if paid+Decimal(amount)>Decimal(item["ordered_qty"]):
         remaining=Decimal(item["ordered_qty"])-paid
@@ -202,8 +207,9 @@ def summary(con,cid):
         item["received_qty"]=display(got)
         item["remaining_qty"]=display(rest)
         item["receipts_count"]=len(receipts)
-        item["status"]="complete" if rest==0 else ("partial" if got>0 else "pending")
-        if rest==0:complete+=1
+        item["status"]="complete" if item["closed"] or rest==0 else ("partial" if got>0 else "pending")
+        item["closed"]=bool(item["closed"])
+        if item["status"]=="complete":complete+=1
         elif got>0:partial+=1
         else:pending+=1
         for receipt in receipts:
@@ -252,7 +258,7 @@ def delete_items(con,cid,payload):
 
 def handle(handler,con,method,path):
     root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items|bulk-delete))?",path)
-    itemroute=re.fullmatch(r"/api/receiving-items/(\d+)(?:/(receipts))?",path)
+    itemroute=re.fullmatch(r"/api/receiving-items/(\d+)(?:/(receipts|complete))?",path)
     receiptroute=re.fullmatch(r"/api/receiving-receipts/(\d+)",path)
     if root:
         cid=int(root[1]);ensure_control(con,cid)
@@ -270,6 +276,13 @@ def handle(handler,con,method,path):
             return handler.send({"id":cur.lastrowid},201)
     if itemroute:
         iid=int(itemroute[1]);item=get_item(con,iid)
+        if method=="POST" and itemroute[2]=="complete":
+            con.execute("BEGIN IMMEDIATE")
+            con.execute("""UPDATE purchase_items SET closed=1, updated_at=CURRENT_TIMESTAMP
+              WHERE control_id=? AND order_number=? AND supplier=?""",
+              (item["control_id"],item["order_number"],item["supplier"]))
+            con.commit()
+            return handler.send({"ok":True})
         if method=="POST" and itemroute[2]=="receipts":
             row=validate_receipt(handler.input())
             con.execute("BEGIN IMMEDIATE")
@@ -288,6 +301,7 @@ def handle(handler,con,method,path):
                     raise ValueError("Este produto possui recebimentos. Exclua as entregas antes de excluir o item.")
                 con.execute("DELETE FROM purchase_items WHERE id=?",(iid,))
             else:
+                if item["closed"]:raise ValueError("Pedido concluído. Não é permitido editar.")
                 row=validate_item(handler.input())
                 row["supplier"]=canonical_supplier(con,item["control_id"],row["supplier"])
                 if Decimal(row["ordered_qty"])<received_total(con,iid):
