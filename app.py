@@ -25,6 +25,7 @@ import control_types
 import vales
 import receiving_import
 import receiving_pdf
+import receiving_xml
 import debt_import
 import truck_workflow
 import threading
@@ -666,6 +667,9 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if re.fullmatch(r"/api/controls/\d+/pair(?:/(?:entries|settings|preview|closures))?",url) or re.fullmatch(r"/api/pair-entries/\d+",url) or re.fullmatch(r"/api/pair-closures/\d+(?:/export\.csv)?",url):
                     pair.handle(self,con,method,url)
+                    return
+                if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm)",url):
+                    receiving_xml.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:preview|confirm)",url):
                     receiving_pdf.handle(self,con,method,url)
