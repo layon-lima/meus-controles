@@ -56,8 +56,10 @@ class PWATests(unittest.TestCase):
                     ("/static/desktop_compact.css?v=20261022-conferencia-1", b"/* CENTRAL"),
                     ("/static/vales.js?v=20261026-vales-v5", b'"use strict"'),
                     ("/static/vales.css?v=20261026-vales-v6", b"/* Controle de Vales"),
-                    ("/static/receiving.js?v=20261026-recebimento-busca-v9", b'"use strict"'),
-                    ("/static/receiving.css?v=20261026-recebimento-busca-v9", b"/* Recebimento de Produtos"),
+                    ("/static/receiving.js?v=20261027-pedidos-pdf-ocr-v10", b'"use strict"'),
+                    ("/static/receiving.css?v=20261027-pedidos-pdf-ocr-v10", b"/* Recebimento de Produtos"),
+                    ("/static/receiving_pdf.js?v=20261027-pedidos-pdf-ocr-v10", b'"use strict"'),
+                    ("/static/receiving_pdf.css?v=20261027-pedidos-pdf-ocr-v10", b"/* PDF"),
                 ):
                     with self.subTest(route=route):
                         with urlopen(f"http://127.0.0.1:{app.PORT}{route}", timeout=10) as response:
