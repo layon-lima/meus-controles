@@ -52,7 +52,7 @@ class XMLTests(unittest.TestCase):
             result=receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
             self.assertEqual(result["inserted"],1)
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"5.000")
-            with self.assertRaisesRegex(ValueError,"já foi lançada"):
+            with self.assertRaisesRegex(ValueError,"duplicada"):
                 receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
     def test_closed_orders_are_not_available(self):
