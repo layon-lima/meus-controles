@@ -435,7 +435,7 @@ Object.assign(App,{
     if(!item||item.closed)return;
     if(!window.confirm("Concluir o recebimento do pedido "+item.order_number+"? Todos os produtos desse pedido e fornecedor serão bloqueados para novos lançamentos."))return;
     try{
-      await this.api("/api/receiving-items/"+id+"/complete",{method:"POST",body:JSON.stringify({})});
+      await this.api("/api/receiving-items/"+id+"/complete","POST",{});
       this.toast("Recebimento concluído.");
       await this.renderReceiving();
     }catch(err){this.toast(err.message,true);}
