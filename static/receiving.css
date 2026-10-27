@@ -297,3 +297,7 @@
   .receiving-pick-results{max-height:min(260px,38dvh)}
   .receiving-pick-option{padding:10px 9px}
 }
+
+/* Em cada recebimento é possível corrigir o pedido/produto escolhido. */
+.receiving-receipt-switch{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.receiving-receipt-switch .btn{font-size:11px;white-space:normal}
