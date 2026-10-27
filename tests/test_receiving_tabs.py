@@ -106,10 +106,10 @@ class ReceivingSubtabsTests(unittest.TestCase):
 
     def test_pwa_precaches_fresh_versions(self):
         for asset in ("receiving.js","receiving.css"):
-            version="/static/"+asset+"?v=20261027-pedidos-pdf-ocr-selecao-v11"
+            version="/static/"+asset+"?v=20261027-conclusao-v14"
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261027-pedidos-pdf-ocr-selecao-v11',SW)
+        self.assertIn('central-de-controles-shell-v20261027-conclusao-v14',SW)
 
 
 if __name__=="__main__":
