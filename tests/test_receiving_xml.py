@@ -92,6 +92,30 @@ class XMLTests(unittest.TestCase):
             self.assertEqual(receiving_xml.pending_list(con,self.cid),[])
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],2)
 
+    def test_same_access_key_cannot_be_imported_into_different_order(self):
+        raw=base64.b64encode(sample()).decode()
+        with app.db() as con:
+            second=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"OUTRO-999","AGREX BRASIL","UREIA AGRICOLA","t","30")).lastrowid
+            con.commit()
+            receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
+            with self.assertRaisesRegex(ValueError,"duplicada"):
+                receiving_xml.preview(con,self.cid,{"xml":raw})
+            with self.assertRaisesRegex(ValueError,"duplicada"):
+                receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[second]})
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_pending_access_key_blocks_reimport_even_if_order_differs(self):
+        raw=base64.b64encode(sample()).decode()
+        with app.db() as con:
+            result=receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":["pending"]})
+            self.assertEqual(result["pending"],1)
+            with self.assertRaisesRegex(ValueError,"duplicada"):
+                receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],0)
+            self.assertEqual(len(receiving_xml.pending_list(con,self.cid)),1)
+
     def test_external_entities_rejected(self):
         with self.assertRaisesRegex(ValueError,"XML"):
             receiving_xml.parse(b'<!DOCTYPE foo [<!ENTITY x SYSTEM "file:///etc/passwd">]><foo>&x;</foo>')
