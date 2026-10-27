@@ -57,7 +57,8 @@
       '<div class="modal-backdrop"><div class="modal receiving-xml-modal" role="dialog" aria-modal="true">'+
       '<div class="modal-header"><div><h2>Conferir NF-e XML</h2>'+
       '<p>NF '+escapeHTML(report.invoice_number)+' · '+escapeHTML(report.supplier)+
-      (report.cnpj?' · '+escapeHTML(report.cnpj):'')+'</p>'+\n      '<p class="receiving-xml-key">Chave de acesso: <strong>'+escapeHTML(report.access_key||'Não encontrada')+'</strong></p></div>'+
+      (report.cnpj?' · '+escapeHTML(report.cnpj):'')+'</p>'+
+      '<p class="receiving-xml-key">Chave de acesso: <strong>'+escapeHTML(report.access_key||'Não encontrada')+'</strong></p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><p class="receiving-xml-warning">Confira o pedido de cada produto. Conversões compatíveis (kg/t, mL/L) são calculadas automaticamente. Nenhum lançamento ocorre sem confirmar.</p>'+
       lines+'</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
