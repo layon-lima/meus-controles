@@ -105,6 +105,21 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([(p["product"],p["ordered_qty"],p["unit"]) for p in parsed["items"]],
                          [("Assist","2000.000","L"),("Bright","2220.000","kg")])
 
+    def test_order_master_and_supplier_on_next_line(self):
+        lines=["PEDIDO MESTRE-0045022014","FORNECEDOR:","AGREX DO BRASIL LTDA","CNPJ: 00.000.000/0001-00"]
+        self.assertEqual(receiving_pdf.find_order(lines),"0045022014")
+        self.assertEqual(receiving_pdf.find_supplier(lines),"AGREX DO BRASIL LTDA")
+
+    def test_product_code_is_separate_from_description(self):
+        rows=receiving_pdf.parse_rows("1 123456 SEMENTE DE SOJA 150 KG")
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]["product"],"SEMENTE DE SOJA")
+        self.assertEqual(rows[0]["product_code"],"123456")
+
+    def test_order_must_not_be_invoice_or_date(self):
+        self.assertEqual(receiving_pdf.find_order(["NOTA FISCAL PEDIDO: 12345","CNPJ: 12.345.678/0001-90"]),"")
+        self.assertEqual(receiving_pdf.find_order(["PEDIDO: 27/10/2026"] ),"")
+
     def test_supplier_variants_are_same_group_but_distinct_brands_not_merged(self):
         self.assertEqual(receiving_pdf.supplier_alias_key("Ág Rex LTDA"),
                          receiving_pdf.supplier_alias_key("AGREX"))
