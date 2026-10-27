@@ -104,7 +104,9 @@ Object.assign(App,{
       return '<section class="rpdf-document">'+
         '<div class="rpdf-doc-title"><strong>'+E(doc.filename)+'</strong>'+
         '<span>'+doc.items.length+' produto(s) · '+doc.pages+' página(s) · '+
-        (doc.ocr_pages?'OCR em '+doc.ocr_pages+' página(s)':'texto selecionável')+'</span></div>'+
+        (doc.ocr_pages?'OCR em '+doc.ocr_pages+' página(s)':'texto selecionável')+'</span>'+
+        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
+        icon("plus")+' Adicionar produto</button></div>'+
         (doc.needs_manual_review?'<p class="rpdf-warning">Alguns campos não foram reconhecidos com segurança. Revise e complete as informações.</p>':'')+
         '<div class="rpdf-table-wrap"><table class="rpdf-table"><thead><tr><th>Usar</th><th>Nº pedido</th>'+
         '<th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Unidade</th></tr></thead>'+
@@ -130,6 +132,18 @@ Object.assign(App,{
       '<button class="btn btn-primary" id="receivingPdfConfirm" onclick="App.receivingPdfConfirm()" '+
       ((ctx.working||!count||invalid)?'disabled':'')+'>'+
       icon("check")+' Importar '+count+' produto(s)</button></div></div></div>';
+  },
+  receivingPdfAddRow(fileIndex){
+    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
+    if(!doc||ctx.working||doc.items.length>=150){
+      this.toast("Limite de 150 produtos por PDF.",true);return;
+    }
+    const first=doc.items[0]||{};
+    doc.items.push({index:doc.items.length,enabled:true,
+      order_number:first.order_number||doc.order_number||"",
+      supplier:first.supplier||doc.supplier||"",
+      product:"",unit:"un",ordered_qty:""});
+    this.receivingPdfRender();
   },
   receivingPdfEdit(fileIndex,rowIndex,key,value){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex],row=doc?.items[rowIndex];
