@@ -130,8 +130,7 @@ Object.assign(App,{
     const selected=this.s.receivingSelection.ids;
     if(this.s.receivingFocused?.controlId!==c.id)this.s.receivingFocused={controlId:c.id,itemId:null};
     if(!r.items.some(p=>p.id===this.s.receivingFocused.itemId))this.s.receivingFocused.itemId=null;
-    const activeTab=this.s.receivingTab?.controlId===c.id&&this.s.receivingTab.value==="notas"?
-      "notas":"pedidos";
+    const activeTab=this.s.receivingTab?.controlId===c.id?this.s.receivingTab.value:"pedidos";
     const savedSearch=this.s.receivingSearch?.controlId===c.id?
       (this.s.receivingSearch.queries?.[activeTab]||""):"";
     const supplierCatalog=rxSupplierCatalog(r.items);
@@ -189,19 +188,23 @@ Object.assign(App,{
       '<button type="button" role="tab" aria-selected="'+(activeTab==="pedidos")+'" class="'+(activeTab==="pedidos"?"active":"")+
       '" onclick="App.receivingSwitchTab(&quot;pedidos&quot;)">Pedidos</button>'+
       '<button type="button" role="tab" aria-selected="'+(activeTab==="notas")+'" class="'+(activeTab==="notas"?"active":"")+
-      '" onclick="App.receivingSwitchTab(&quot;notas&quot;)">Notas fiscais</button></div>'+
+      '" onclick="App.receivingSwitchTab(&quot;notas&quot;)">Notas fiscais</button>'+
+      '<button type="button" role="tab" aria-selected="'+(activeTab==="sem-pedido")+'" class="'+(activeTab==="sem-pedido"?"active":"")+
+      '" onclick="App.receivingSwitchTab(&quot;sem-pedido&quot;)">Sem pedido</button></div>'+
       '<div class="receiving-search-band"><label class="receiving-search">'+icon("search")+
       '<input id="receivingSearch" type="search" value="'+E(savedSearch)+'" placeholder="'+
       (activeTab==="pedidos"?"Pesquisar pedido, fornecedor ou produto...":"Pesquisar número, chave da NF-e, pedido ou produto...")+
       '" aria-label="Pesquisar '+(activeTab==="pedidos"?"pedidos":"notas fiscais")+
       '" oninput="App.receivingFilter(this.value)"></label></div>'+
-      '<div class="receiving-section-heading"><h3>'+(activeTab==="pedidos"?"Pedidos e produtos":"Histórico de notas fiscais")+'</h3>'+
+      '<div class="receiving-section-heading"><h3>'+(activeTab==="pedidos"?"Pedidos e produtos":activeTab==="sem-pedido"?"Recebimentos aguardando pedido":"Histórico de notas fiscais")+'</h3>'+
       '<div class="receiving-toolbar">'+
       (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
       '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+
       icon("trash")+' Excluir selecionados</button>':'')+'</div></div>'+
 
-      (activeTab==="pedidos"?
+      (activeTab==="sem-pedido"?
+        '<section class="panel receiving-table"><div id="receivingPendingList">Carregando lançamentos sem pedido...</div></section>':
+      activeTab==="pedidos"?
         '<section class="panel receiving-table">'+
         (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
         '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
@@ -234,9 +237,10 @@ Object.assign(App,{
     }
     this.receivingApplyFilter(savedSearch);
     this.receivingHighlightFocused();
+    if(activeTab==="sem-pedido"&&typeof this.receivingXMLPendingLoad==="function")this.receivingXMLPendingLoad();
   },
   receivingSwitchTab(tab){
-    if(tab!=="pedidos"&&tab!=="notas")return;
+    if(!["pedidos","notas","sem-pedido"].includes(tab))return;
     const controlId=this.s.detail?.control?.id;
     if(controlId==null||this.s.detail?.control?.mode!=="recebimento")return;
     this.s.receivingTab={controlId,value:tab};
@@ -245,7 +249,7 @@ Object.assign(App,{
   receivingFilter(query){
     const controlId=this.s.detail?.control?.id;
     if(controlId==null)return;
-    const tab=this.s.receivingTab?.controlId===controlId&&this.s.receivingTab.value==="notas"?"notas":"pedidos";
+    const tab=this.s.receivingTab?.controlId===controlId?this.s.receivingTab.value:"pedidos";
     const queries={...(this.s.receivingSearch?.controlId===controlId?this.s.receivingSearch.queries:{}),
       [tab]:String(query??"")};
     this.s.receivingSearch={controlId,queries};
