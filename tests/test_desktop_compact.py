@@ -22,6 +22,11 @@ class DesktopCompactTests(unittest.TestCase):
         self.assertIn('/static/desktop_compact.css?v=20261022-conferencia-1', worker)
         self.assertIn('central-de-controles-shell-v20261030-sem-quitado-v24', worker)
 
+    def test_control_cards_show_zero_instead_of_quitado(self):
+        js=(ROOT/"static"/"app.js").read_text(encoding="utf-8")
+        self.assertNotIn('"Quitado"',js)
+        self.assertIn('c.summary.settlement.amount):currency(0)',js)
+
     def test_desktop_rules_stay_inside_media_queries(self):
         css = re.sub(r"/\*.*?\*/", "", CSS.read_text(encoding="utf-8"), flags=re.S)
         # Nenhuma regra global fora dos breakpoints desktop: mobile intacto.
