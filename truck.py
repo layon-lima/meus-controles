@@ -353,9 +353,9 @@ def summary(con,cid,month="",scope=None):
             by_expense[r["category"]]=by_expense.get(r["category"],Decimal("0"))+value
             expense_counts[r["category"]]=expense_counts.get(r["category"],0)+1
         else:
+            # Adiantamentos/acertos liquidam a comissão e afetam o caixa;
+            # não são despesas operacionais e não devem aparecer em GASTOS.
             advances+=value
-            by_expense[r["category"]]=by_expense.get(r["category"],Decimal("0"))+value
-            expense_counts[r["category"]]=expense_counts.get(r["category"],0)+1
     lifetime_earned=sum((Decimal(r["commission_amount"]) for r in all_rows if r["kind"]=="freight"),Decimal("0"))
     lifetime_paid=sum((Decimal(r["amount"]) for r in all_rows if r["kind"]=="advance"),Decimal("0"))
     # O vale reduz o caixa, porém não entra nas despesas do resultado novamente.
