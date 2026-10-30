@@ -408,7 +408,7 @@ const App = {
     }
   },
   async duplicateControl(id){
-    try{const r=await this.api("/api/controls/"+id+"/duplicate","POST",{});this.navigate("control",r.id);this.toast("Controle duplicado sem copiar lançamentos.")}catch(e){this.toast(e.message,true)}
+    try{await this.api("/api/controls/"+id+"/duplicate","POST",{});await this.load();this.toast("Cópia criada na mesma pasta, sem copiar lançamentos.")}catch(e){this.toast(e.message,true)}
   },
   async deleteControl(id){
     if(!confirm("Excluir o controle e TODOS os lançamentos dele? Esta ação não pode ser desfeita."))return;
