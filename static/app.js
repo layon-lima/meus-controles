@@ -407,6 +407,20 @@ const App = {
       this.toast(e.message,true);
     }
   },
+  async renameControlQuick(id){
+    const source=this.s.state?.controls?.find(c=>Number(c.id)===Number(id));
+    if(!source)return this.toast("Controle não encontrado. Atualize a página.",true);
+    const name=window.prompt("Novo nome do controle:",source.name);
+    if(name===null)return;
+    const next=name.trim();
+    if(!next||next===source.name)return;
+    if(next.length>150)return this.toast("Nome muito longo.",true);
+    try{
+      await this.api("/api/controls/"+id+"/rename","PATCH",{name:next});
+      await this.load();
+      this.toast("Controle renomeado.");
+    }catch(e){this.toast(e.message,true);}
+  },
   async duplicateControl(id){
     try{await this.api("/api/controls/"+id+"/duplicate","POST",{});await this.load();this.toast("Cópia criada na mesma pasta, sem copiar lançamentos.")}catch(e){this.toast(e.message,true)}
   },
@@ -436,8 +450,8 @@ const App = {
   },
   editControl(id){
     if(!this.canOpenForm())return;
-    const source=this.s.state?.controls?.find(c=>c.id===id);
-    if(!source){this.toast("Controle não encontrado.",true);return}
+    const source=this.s.state?.controls?.find(c=>Number(c.id)===Number(id)) || (this.s.detail?.control?.id==id?this.s.detail.control:null);
+    if(!source){this.toast("Controle não encontrado. Atualize a página.",true);return}
     if(source.mode==="caminhao")return this.truckSettings(id);
     if(source.mode==="divida")return this.debtSettings(id);
     if(source.mode==="divida_sem_valor")return this.openDebtSettings(id);
@@ -467,6 +481,7 @@ const App = {
     event.stopPropagation();
     this.closeControlMenus();
     if(action==="configure")return this.editControl(id);
+    if(action==="rename")return this.renameControlQuick(id);
     if(action==="type")return this.changeControlTypeForm(id);
     if(action==="move")return this.moveControlForm(id);
     if(action==="duplicate")return this.duplicateControl(id);
@@ -715,6 +730,7 @@ function controlCard(c){
   const mode={"saldo":"Saldo devedor","financeiro":"Financeiro","calculo":"Calculado","caminhao":"Caminhão","divida":"Dívidas","divida_sem_valor":"Pagamentos acumulados","recebimento":"Recebimentos","acerto_ab":"A × B","vale_funcionarios":"Vales de Funcionários"}[c.mode];
   const controlIcon=["calculo","caminhao"].includes(c.mode)?"truck":["financeiro","divida","divida_sem_valor","vale_funcionarios"].includes(c.mode)?"wallet":"clipboard";
   const menu='<div class="card-action-menu" id="controlMenu-'+c.id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+
+   '<button type="button" onclick="App.controlMenuAction(event,\'rename\','+c.id+')">'+icon("pencil")+' Renomear</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'configure\','+c.id+')">'+icon("settings")+' Configurar / editar</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'type\','+c.id+')">'+icon("settings")+' Alterar tipo de controle</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'move\','+c.id+')">'+icon("folder")+' Mover para pasta</button>'+
