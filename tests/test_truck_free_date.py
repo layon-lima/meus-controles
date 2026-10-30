@@ -49,7 +49,7 @@ class TruckFreeDateTests(unittest.TestCase):
         self.assertIn('.truck-entry-form .truck-free-date',CSS)
 
     def test_pwa_loads_new_asset_versions(self):
-        for asset,version_id in (('truck.js','20261022-comissao-v7'),('truck.css','20261022-data-livre-v4')):
+        for asset,version_id in (('truck.js','20261030-vale-comissao-v9'),('truck.css','20261022-data-livre-v4')):
             version='/static/'+asset+'?v='+version_id
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
