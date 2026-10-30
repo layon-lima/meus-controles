@@ -175,7 +175,7 @@ Object.assign(App,{
   },
   truckForm(kind,id){
     if(!this.canOpenForm())return;
-    const record=id?this.s.truckReport?.entries.find(x=>x.id===id):null;
+    const record=id?this.s.truckReport?.entries.find(x=>Number(x.id)===Number(id)):null;
     if(id&&!record){this.toast("Lançamento não encontrado.",true);return}
     this.s.modal="truck-record";
     this.s.modalContext={
