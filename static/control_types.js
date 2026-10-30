@@ -3,11 +3,11 @@
 Object.assign(App,{
   async changeControlTypeForm(id){
     if(!this.canOpenForm())return;
-    const c=this.s.state?.controls?.find(c=>c.id===id);
-    if(!c)return this.toast("Controle não encontrado.",true);
+    const c=this.s.state?.controls?.find(c=>Number(c.id)===Number(id));
+    if(!c)return this.toast("Controle não encontrado. Atualize a página.",true);
     try{
       const report=await this.api("/api/controls/"+id+"/type");
-      if(!this.s.state?.controls?.some(x=>x.id===id))return;
+      if(!this.s.state?.controls?.some(x=>Number(x.id)===Number(id)))return;
       this.s.modal="change-control-type";
       this.s.modalContext={controlId:id,report,mode:report.current_mode};
       this.changeControlTypeRender();
