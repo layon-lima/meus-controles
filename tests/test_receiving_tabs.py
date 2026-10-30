@@ -122,7 +122,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261030-menu-correcoes-v23',SW)
+        self.assertIn('central-de-controles-shell-v20261030-sem-quitado-v24',SW)
         self.assertIn('/static/receiving_xml.js?v=20261027-xml-pending-v18',HTML)
         self.assertIn('/static/receiving_xml.js?v=20261027-xml-pending-v18',SW)
         self.assertIn('surface.ondrop=event=>',JS)
