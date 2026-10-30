@@ -613,7 +613,7 @@ Object.assign(App,{
     if(!this.canOpenForm())return;
     const data=this.s.receivingData,ctrl=this.s.detail?.control;
     if(!data||!ctrl)return;
-    const item=id?data.items.find(x=>x.id===id):null;
+    const item=id?data.items.find(x=>Number(x.id)===Number(id)):null;
     if(id&&!item)return this.toast("Produto não encontrado.",true);
     this.s.modal="receiving-item";
     this.s.modalContext={controlId:ctrl.id,item:item?deep(item):null};
@@ -742,7 +742,7 @@ Object.assign(App,{
   },
   receivingSettings(id){
     if(!this.canOpenForm())return;
-    const control=this.s.state?.controls?.find(x=>x.id===id);
+    const control=this.s.state?.controls?.find(x=>Number(x.id)===Number(id));
     if(!control)return this.toast("Controle não encontrado.",true);
     this.s.modal="receiving-settings";
     this.s.modalContext={controlId:id};
