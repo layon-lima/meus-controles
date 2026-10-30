@@ -194,7 +194,7 @@ Object.assign(App,{
   },
   async debtSettings(id){
     if(!this.canOpenForm())return;
-    const control=this.s.state?.controls?.find(c=>c.id===id);
+    const control=this.s.state?.controls?.find(c=>Number(c.id)===Number(id));
     if(!control){this.toast("Controle não encontrado.",true);return}
     try{
       const data=await this.api("/api/controls/"+id+"/debt");
