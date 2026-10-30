@@ -383,7 +383,7 @@ Object.assign(App,{
   },
   valesDebtTitleForm(id){
     if(!this.canOpenForm())return;
-    const d=this.s.valesData?.employees.flatMap(e=>e.debts).find(x=>x.id===id);
+    const d=this.s.valesData?.employees.flatMap(e=>e.debts).find(x=>Number(x.id)===Number(id));
     if(!d)return;
     this.s.valesDetailsId=id;
     this.valesOpenModal("Editar título da dívida","A alteração não modifica valores nem parcelas.",
