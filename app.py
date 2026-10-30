@@ -736,7 +736,7 @@ class Handler(BaseHTTPRequestHandler):
                         pair.save_settings(con,cur.lastrowid,p.get("pair_settings",{}))
                     con.commit()
                     return self.send({"id":cur.lastrowid},201)
-                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|move|type|export.csv))?",url)
+                m=re.fullmatch(r"/api/controls/(\d+)(?:/(entries|duplicate|move|rename|type|export.csv))?",url)
                 if m:
                     cid=int(m[1]); action=m[2]
                     if method=="GET" and action is None:
@@ -746,6 +746,12 @@ class Handler(BaseHTTPRequestHandler):
                             return self.send(control_types.preview(con,cid))
                         if method=="PATCH":
                             return self.send(control_types.change(con,cid,self.input()))
+                    if method=="PATCH" and action=="rename":
+                        p=self.input()
+                        name=require(p.get("name"),"o nome")
+                        con.execute("UPDATE controls SET name=? WHERE id=?",(name,cid))
+                        con.commit()
+                        return self.send({"ok":True})
                     if method=="PATCH" and action=="move":
                         current=get_control(con,cid)
                         payload=self.input()
