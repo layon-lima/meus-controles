@@ -291,7 +291,7 @@ Object.assign(App,{
   pairExportClose(id){window.location.href="/api/pair-closures/"+id+"/export.csv"},
   pairSettings(id){
     if(!this.canOpenForm())return;
-    const c=this.s.state?.controls?.find(x=>x.id===id),d=this.s.pairData;
+    const c=this.s.state?.controls?.find(x=>Number(x.id)===Number(id)),d=this.s.pairData;
     if(!c||!d)return this.toast("Controle não encontrado.",true);
     this.s.modal="pair-settings";this.s.modalContext={controlId:id};
     document.getElementById("modalRoot").innerHTML=
