@@ -149,7 +149,8 @@ Object.assign(App,{
         '<div class="panel-body">'+overview(r.by_freight,"Nenhum frete neste período.")+'</div></section>'+
         '<section class="panel truck-detail-card truck-detail-expenses"><div class="panel-header truck-detail-header">'+
         '<span class="truck-detail-symbol">'+icon("circle-minus")+'</span><h3>GASTOS</h3></div>'+
-        '<div class="panel-body">'+overview(r.by_expense,"Nenhuma despesa operacional neste período.")+'</div></section>'+
+        '<div class="panel-body">'+overview(r.by_expense,"Nenhuma outra despesa operacional neste período.")+
+        '<div class="info-row truck-commission-expense"><span>Comissão gerada no período</span><strong>'+truckMoney(t.commission_earned)+'</strong></div></div></section>'+
         '<section class="panel truck-detail-card truck-detail-commission"><div class="panel-header truck-detail-header">'+
         '<span class="truck-detail-symbol">'+icon("coin")+'</span><h3>COMISSÃO MOTORISTA</h3></div><div class="panel-body">'+
         '<div class="info-row"><span>Comissão gerada</span><strong>'+truckMoney(t.driver_earned_all)+'</strong></div>'+
