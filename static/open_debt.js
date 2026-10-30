@@ -101,7 +101,7 @@ Object.assign(App,{
   openDebtExport(id){window.location.href="/api/controls/"+id+"/open-debt/export.csv"},
   openDebtSettings(id){
     if(!this.canOpenForm())return;
-    const c=this.s.state?.controls?.find(c=>c.id===id);
+    const c=this.s.state?.controls?.find(c=>Number(c.id)===Number(id));
     if(!c)return this.toast("Controle não encontrado.",true);
     this.s.modal="open-debt-settings";this.s.modalContext={controlId:id};
     document.getElementById("modalRoot").innerHTML=
