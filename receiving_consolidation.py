@@ -58,6 +58,20 @@ def _links(con):
             for fk in con.execute(f"PRAGMA foreign_key_list({table})"):
                 if fk["table"]=="controls" and fk["to"]=="id":
                     result.add((table,fk["from"]))
+    # Também cobre colunas control_id sem FK (esquemas legados):
+    # não apagar controle quando houver qualquer referência remanescente.
+    if hasattr(con,"native"):
+        fields=con.execute("""SELECT table_name,column_name
+            FROM information_schema.columns
+            WHERE table_schema=current_schema() AND column_name='control_id'""")
+        result.update((r["table_name"],r["column_name"]) for r in fields)
+    else:
+        for table in names:
+            if not ID_RE.fullmatch(table):
+                continue
+            for col in con.execute(f"PRAGMA table_info({table})"):
+                if col["name"]=="control_id":
+                    result.add((table,"control_id"))
     if any(not ID_RE.fullmatch(t) or not ID_RE.fullmatch(c) for t,c in result):
         raise ValueError("Nome de referência inesperado: consolidação cancelada.")
     return sorted(result)
