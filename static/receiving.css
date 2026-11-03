@@ -324,6 +324,8 @@
 .receiving-xml-results[hidden]{display:none}
 .receiving-xml-result{width:100%;display:flex;gap:10px;align-items:center;justify-content:space-between;text-align:left;padding:9px 11px;border:0;border-bottom:1px solid #edf2f0;background:#fff;color:#1b3638;cursor:pointer;font-size:12px}
 .receiving-xml-result:last-child{border-bottom:0}
+.receiving-xml-result:disabled{opacity:.65;cursor:not-allowed;background:#f6f7f7}
+.receiving-xml-result:disabled:hover{background:#f6f7f7}
 .receiving-xml-result:hover,.receiving-xml-result.active{background:#ebf6f1}
 .receiving-xml-result>span:first-child{min-width:0;display:flex;flex-direction:column;gap:3px}
 .receiving-xml-result strong{font-weight:680}
