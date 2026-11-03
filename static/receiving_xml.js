@@ -282,17 +282,51 @@
         '<div class="modal-backdrop"><div class="modal receiving-manage" role="dialog" aria-modal="true">'+
         '<div class="modal-header"><h2>Vincular pedido</h2><button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
         '<div class="modal-body"><strong>'+escapeHTML(pending.product)+'</strong><p>NF '+escapeHTML(pending.invoice_number)+' · '+escapeHTML(pending.quantity+' '+pending.unit)+'</p>'+
-        '<label>Pedido cadastrado</label><select id="receivingXMLPendingOrder"><option value="">Selecione o pedido</option>'+options+'</select>'+
+        '<label>Pedido cadastrado</label><select id="receivingXMLPendingOrder" onchange="App.receivingXMLPendingUnitChanged()"><option value="">Selecione o pedido</option>'+options+'</select>'+
+        '<div id="receivingXMLPendingConversion" class="receiving-xml-manual" hidden></div>'+
         '<p class="receiving-xml-warning">Confira produto, fornecedor, unidade e saldo antes de confirmar.</p></div>'+
         '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button><button class="btn btn-primary" onclick="App.receivingXMLPendingSave()">Vincular e registrar</button></div></div></div>';
+    },
+    receivingXMLPendingUnitChanged(){
+      const id=this.s.modalContext?.pendingId;
+      const pending=this.s.receivingXMLPending?.find(x=>x.id===id);
+      const iid=Number(document.getElementById("receivingXMLPendingOrder")?.value);
+      const item=this.s.receivingData?.items.find(x=>Number(x.id)===iid);
+      const container=document.getElementById("receivingXMLPendingConversion");
+      if(!container)return;
+      container.innerHTML="";
+      container.hidden=true;
+      if(!pending||!item||unitFamily(pending.unit)===unitFamily(item.unit))return;
+      container.hidden=false;
+      container.innerHTML='<strong>Informar equivalência das unidades</strong>'+
+        '<p>Na NF-e: <b>'+escapeHTML(pending.quantity+" "+pending.unit)+'</b> · '+
+        'Unidade do pedido: <b>'+escapeHTML(item.unit)+'</b> · '+
+        'Saldo disponível: <b>'+escapeHTML(item.remaining_qty+" "+item.unit)+'</b></p>'+
+        '<label for="receivingXMLPendingManualQty">A quantidade da NF-e equivale a quantos '+escapeHTML(item.unit)+'?</label>'+
+        '<input type="text" inputmode="decimal" autocomplete="off" id="receivingXMLPendingManualQty" '+
+        'placeholder="Quantidade equivalente em '+escapeHTML(item.unit)+'">'+
+        '<small>Informe o total convertido na unidade do pedido, sem separador de milhar (até 3 casas decimais).</small>';
+      document.getElementById("receivingXMLPendingManualQty")?.focus();
     },
     async receivingXMLPendingSave(){
       const id=this.s.modalContext?.pendingId;
       const iid=Number(document.getElementById("receivingXMLPendingOrder")?.value);
       if(!id||!iid)return this.toast("Selecione um pedido.",true);
+      const pending=this.s.receivingXMLPending?.find(x=>x.id===id);
+      const item=this.s.receivingData?.items.find(x=>Number(x.id)===iid);
+      if(!pending||!item)return this.toast("Pedido não encontrado. Atualize a lista.",true);
+      const requiresManual=unitFamily(pending.unit)!==unitFamily(item.unit);
+      const manual=requiresManual?
+        document.getElementById("receivingXMLPendingManualQty")?.value?.trim():null;
+      if(requiresManual){
+        const amount=typedQuantity(manual);
+        if(amount===null||amount>Number(item.remaining_qty))
+          return this.toast("Informe a equivalência na unidade do pedido, sem ultrapassar o saldo disponível.",true);
+      }
       if(!window.confirm("Registrar este produto no pedido selecionado?"))return;
       try{
-        await this.api("/api/controls/"+this.s.detail.control.id+"/receiving/xml/pending/"+id+"/assign","POST",{item_id:iid});
+        await this.api("/api/controls/"+this.s.detail.control.id+"/receiving/xml/pending/"+id+"/assign",
+          "POST",{item_id:iid,manual_quantity:manual});
         this.closeModal();
         await this.renderReceiving();
         this.toast("Recebimento vinculado ao pedido.");
