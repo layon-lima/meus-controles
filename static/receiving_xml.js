@@ -27,6 +27,26 @@
   const normalized=value=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\bkcl\b/g,"cloreto potassio")
     .replace(/\b(?:de|do|da)\b/g," ").replace(/\s+/g," ").trim();
+  const unitFamily=unit=>{
+    const code=normalized(unit).replace(/\s+/g,"").toUpperCase();
+    if(["KG","KGM","T","TO","TON","TONELADA","G","GR"].includes(code))return "mass";
+    if(["L","LT","LITRO","ML"].includes(code))return "volume";
+    if(["UN","UND","UNID"].includes(code))return "count";
+    return code?"other:"+code:"";
+  };
+  const needsManualConversion=(index,item)=>{
+    const line=App.s.receivingXML?.report?.lines?.[index];
+    if(!line||!item)return false;
+    if(item.reason==="Unidade incompatível")return true;
+    const a=unitFamily(line.unit),b=unitFamily(item.unit);
+    return !a||!b||a!==b;
+  };
+  const typedQuantity=value=>{
+    const raw=String(value??"").trim();
+    if(!/^\d+(?:[.,]\d{1,3})?$/.test(raw))return null;
+    const number=Number(raw.replace(",","."));
+    return Number.isFinite(number)&&number>0?number:null;
+  };
   const orderNumber=item=>String(item.order_number??item.order??"Pedido sem número");
   const optionLabel=item=>orderNumber(item)+" · "+item.supplier+" · "+item.product;
   function pickerOptions(index){
@@ -78,14 +98,16 @@
       const supplierWarning=x.fromPreview&&Number(x.supplier_score)<.72
         ? " · Fornecedor diferente: conferir" : "";
       const remain=String(x.remaining_qty??x.remaining??"")+" "+String(x.unit??"");
-      const blocked=x.selectable===false;
+      const manual=needsManualConversion(index,x);
+      const blocked=x.selectable===false&&!manual;
+      const status=manual?"Informar equivalência manual":
+        blocked?(x.reason||"Pedido indisponível"):description+supplierWarning;
       return '<button type="button" class="receiving-xml-result" role="option"'+
         (blocked?' disabled aria-disabled="true"':' data-xml-pick="'+id+
           '" onclick="App.receivingXMLPick('+index+','+id+')"')+'>'+
         '<span><strong>'+escapeHTML(x.product)+'</strong><small>'+escapeHTML(
           orderNumber(x)+' · '+x.supplier)+'</small></span>'+
-        '<span class="receiving-xml-result-side"><small>'+escapeHTML(
-          blocked?(x.reason||"Pedido indisponível"):description+supplierWarning)+
+        '<span class="receiving-xml-result-side"><small>'+escapeHTML(status)+
         '</small><small>Disponível: '+escapeHTML(remain)+'</small></span></button>';
     }).join("");
     const empty=!filtered.length?'<p class="receiving-xml-empty">'+
@@ -99,12 +121,38 @@
     list.hidden=false;input.setAttribute("aria-expanded","true");
     list.dataset.active="-1";
   }
+  function renderManualConversion(index,item){
+    const ctx=App.s.receivingXML;
+    const box=document.getElementById("receivingXMLManual-"+index);
+    if(!ctx||!box)return;
+    const manual=item&&needsManualConversion(index,item);
+    ctx.manualRequired[index]=!!manual;
+    if(!manual){
+      ctx.manualQuantities[index]=null;
+      box.innerHTML="";box.hidden=true;return;
+    }
+    const line=ctx.report.lines[index];
+    ctx.manualQuantities[index]=null;
+    box.hidden=false;
+    box.innerHTML='<strong>Informar equivalência das unidades</strong>'+
+      '<p>Na NF-e: <b>'+escapeHTML(line.quantity+" "+line.unit)+'</b> · '+
+      'No pedido: <b>'+escapeHTML(item.unit)+'</b> · '+
+      'Saldo disponível: <b>'+escapeHTML((item.remaining_qty??item.remaining)+" "+item.unit)+'</b></p>'+
+      '<label for="receivingXMLManualQty-'+index+'">A quantidade da nota equivale a quantos '+escapeHTML(item.unit)+'?</label>'+
+      '<input type="text" inputmode="decimal" autocomplete="off" id="receivingXMLManualQty-'+index+'" '+
+      'placeholder="Quantidade equivalente em '+escapeHTML(item.unit)+'" '+
+      'oninput="App.receivingXMLManualInput('+index+',this.value)">'+
+      '<small id="receivingXMLManualHint-'+index+'">Informe o total na unidade do pedido, sem separador de milhar (até 3 casas decimais).</small>';
+    document.getElementById("receivingXMLManualQty-"+index)?.focus();
+  }
   function render(){
     const ctx=App.s.receivingXML;
     if(!ctx)return;
     const report=ctx.report;
     if(!Array.isArray(ctx.selections)||ctx.selections.length!==report.lines.length)
       ctx.selections=Array(report.lines.length).fill(null);
+    ctx.manualQuantities=Array(report.lines.length).fill(null);
+    ctx.manualRequired=Array(report.lines.length).fill(false);
     App.s.modal="receiving-xml";
     const lines=report.lines.map((line,index)=>
       '<div class="receiving-xml-line"><strong>'+escapeHTML(line.name)+'</strong>'+
@@ -120,7 +168,7 @@
       '<div id="receivingXMLResults-'+index+'" class="receiving-xml-results" role="listbox"></div>'+
       '<small id="receivingXMLStatus-'+index+'" class="receiving-xml-hint">'+
       'Escolha uma sugestão ou pesquise manualmente. Nenhum pedido será vinculado sem sua seleção.'+
-      '</small></div>').join("");
+      '</small><div id="receivingXMLManual-'+index+'" class="receiving-xml-manual" hidden></div></div>').join("");
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal receiving-xml-modal" role="dialog" aria-modal="true">'+
       '<div class="modal-header"><div><h2>Conferir NF-e XML</h2>'+
@@ -139,9 +187,29 @@
       const ctx=this.s.receivingXML;
       if(!ctx)return;
       ctx.selections[index]=null;
+      ctx.manualRequired[index]=false;
+      ctx.manualQuantities[index]=null;
+      const box=document.getElementById("receivingXMLManual-"+index);
+      if(box){box.hidden=true;box.innerHTML="";}
       const status=document.getElementById("receivingXMLStatus-"+index);
       if(status)status.textContent="Selecione um resultado da busca antes de confirmar.";
       updatePicker(index);
+    },
+    receivingXMLManualInput(index,value){
+      const ctx=this.s.receivingXML;
+      if(!ctx||!ctx.manualRequired[index])return;
+      ctx.manualQuantities[index]=String(value).trim();
+      const hint=document.getElementById("receivingXMLManualHint-"+index);
+      if(!hint)return;
+      const amount=typedQuantity(value);
+      const item=pickerOptions(index).find(x=>Number(x.id)===ctx.selections[index]);
+      const remaining=Number(item?.remaining_qty??item?.remaining);
+      hint.textContent=amount===null?
+        "Informe quantidade positiva, sem separador de milhar, com até 3 casas decimais.":
+        amount>remaining?
+          "Quantidade superior ao saldo disponível no pedido.":
+          "Equivalência: "+ctx.report.lines[index].quantity+" "+ctx.report.lines[index].unit+
+          " = "+value+" "+item.unit+". Confira antes de confirmar.";
     },
     receivingXMLPick(index,value){
       const ctx=this.s.receivingXML;
@@ -150,15 +218,20 @@
       const status=document.getElementById("receivingXMLStatus-"+index);
       if(value==="pending"){
         ctx.selections[index]="pending";
+        renderManualConversion(index,null);
         if(input)input.value="Sem pedido — guardar para vincular depois";
         if(status)status.textContent="Item ficará na aba Sem pedido para vinculação posterior.";
       }else{
         const item=pickerOptions(index).find(x=>Number(x.id)===Number(value));
         if(!item)return this.toast("Pedido não encontrado. Pesquise novamente.",true);
-        if(item.selectable===false)return this.toast(item.reason||"Pedido indisponível.",true);
+        if(item.selectable===false&&!needsManualConversion(index,item))
+          return this.toast(item.reason||"Pedido indisponível.",true);
         ctx.selections[index]=Number(item.id);
         if(input)input.value=optionLabel(item);
-        if(status)status.textContent="Pedido selecionado. Confira o produto, a unidade e o saldo antes de confirmar.";
+        if(status)status.textContent=needsManualConversion(index,item)?
+          "Informe a equivalência da quantidade da NF-e na unidade do pedido.":
+          "Pedido selecionado. Confira o produto, a unidade e o saldo antes de confirmar.";
+        renderManualConversion(index,item);
       }
       updatePicker(index);
     },
@@ -232,11 +305,21 @@
       if(!ctx||this.s.receivingXMLBusy)return;
       const selections=[...ctx.selections];
       if(selections.some(x=>x===null)){this.toast("Selecione o pedido de todos os produtos antes de confirmar.",true);return;}
+      for(let index=0;index<selections.length;index++){
+        if(!ctx.manualRequired[index])continue;
+        const amount=typedQuantity(ctx.manualQuantities[index]);
+        const item=pickerOptions(index).find(x=>Number(x.id)===selections[index]);
+        if(amount===null||!item||amount>Number(item.remaining_qty??item.remaining)){
+          this.toast("Informe uma equivalência válida, dentro do saldo do pedido, para "+ctx.report.lines[index].name+".",true);
+          document.getElementById("receivingXMLManualQty-"+index)?.focus();
+          return;
+        }
+      }
       if(!window.confirm("Confirmar "+selections.length+" item(ns) da NF-e "+ctx.report.invoice_number+"? Verifique as quantidades e os pedidos selecionados."))return;
       this.s.receivingXMLBusy=true;
       try{
         const result=await this.api("/api/controls/"+ctx.cid+"/receiving/xml/confirm","POST",
-          {xml:ctx.xml,selections});
+          {xml:ctx.xml,selections,manual_quantities:[...ctx.manualQuantities]});
         this.closeModal();
         this.s.receivingXML=null;
         await this.renderReceiving();
