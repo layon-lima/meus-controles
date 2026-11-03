@@ -261,8 +261,8 @@ def assign_pending(con,cid,pid,payload):
 
 def handle(handler,con,method,path):
     m=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/(preview|confirm)",path)
-    listing=re.fullmatch(r"/api/controls/(\\d+)/receiving/xml/pending",path)
-    assigning=re.fullmatch(r"/api/controls/(\\d+)/receiving/xml/pending/(\\d+)/assign",path)
+    listing=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/pending",path)
+    assigning=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/pending/(\d+)/assign",path)
     if listing and method=="GET":
         return handler.send({"items":pending_list(con,int(listing[1]))})
     if assigning and method=="POST":
