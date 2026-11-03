@@ -117,8 +117,25 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('(ROOT/"static"/"receiving_xml.js").read_bytes()',app_source)
         self.assertIn('receivingXMLLoad', (ROOT/"static"/"receiving_xml.js").read_text(encoding="utf-8"))
 
+    def test_xml_picker_supports_live_search_and_explicit_fuzzy_selection(self):
+        script=(ROOT/"static"/"receiving_xml.js").read_text(encoding="utf-8")
+        self.assertIn('id="receivingXMLSearch-',script)
+        self.assertIn('type="search"',script)
+        self.assertIn('role="combobox"',script)
+        self.assertIn('role="listbox"',script)
+        self.assertIn('oninput="App.receivingXMLSearch(',script)
+        self.assertIn('receivingXMLKeydown(event,index)',script)
+        self.assertIn('receivingXMLPick(index,value)',script)
+        self.assertIn('ctx.selections[index]=Number(item.id)',script)
+        self.assertIn('item.order_number??item.order??"Pedido sem número"',script)
+        self.assertIn('if(item.selectable===false)',script)
+        self.assertNotIn('class="receiving-xml-choice"',script)
+        self.assertNotIn("x.order+' · '+x.supplier",script)
+        self.assertIn('.receiving-xml-results',CSS)
+        self.assertIn('.receiving-xml-search',CSS)
+
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261027-xml-pending-v18"),("receiving.css","20261027-xml-v15")):
+        for asset,release in (("receiving.js","20261027-xml-pending-v18"),("receiving.css","20261103-xml-busca-v16")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
