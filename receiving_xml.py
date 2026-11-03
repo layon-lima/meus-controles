@@ -44,8 +44,12 @@ IGNORE={"LTDA","EIRELI","SA","S","A","COMERCIO","INDUSTRIA","INDUSTRIAL","BRASIL
         "DISTRIBUIDORA","DE","DA","DO","DOS","DAS","E","PRODUTOS","AGRICOLAS","AGRO"}
 def product_name(value):
     value=norm(value)
-    value=re.sub(r"\\b(?:LOTE|PESO|VALIDADE|FABRICACAO)\\b.*$", "", value).strip()
-    return value
+    value=re.sub(r"\b(?:LOTE|PESO|VALIDADE|FABRICACAO)\b.*$", "", value).strip()
+    # KCL é a abreviação comercial de cloreto de potássio.
+    # Normalizar o sinônimo ajuda a propor pedidos sem equivaler produtos distintos.
+    value=re.sub(r"\bKCL\b", "CLORETO POTASSIO", value)
+    value=re.sub(r"\b(?:DE|DO|DA)\b", " ", value)
+    return " ".join(value.split())
 
 def similarity(a,b,supplier=False):
     a,b=(norm(a),norm(b)) if supplier else (product_name(a),product_name(b))
@@ -120,9 +124,11 @@ def candidates(orders,xml,line):
         rows.append({"id":item["id"],"order":item["order_number"],"supplier":item["supplier"],
                      "product":item["product"],"unit":item["unit"],"quantity":receiving.display(q),
                      "remaining":item["remaining_qty"],"supplier_score":supp,"product_score":prod,
-                     "eligible":eligible,"score":round(supp*.43+prod*.57,3)})
-    rows.sort(key=lambda r:(not r["eligible"],-r["score"],r["order"]))
-    return rows[:30]
+                     "eligible":eligible,"score":round(supp*.15+prod*.85,3)})
+    # Prioridade para o PRODUTO do XML; um fornecedor diferente não deve esconder
+    # um KCL correspondente abaixo de dezenas de pedidos de outros produtos.
+    rows.sort(key=lambda r:(-r["product_score"],-r["supplier_score"],r["order"],r["id"]))
+    return rows[:120]
 
 def ensure_new_access_key(con,cid,key):
     """A mesma chave nao pode ser importada duas vezes, nem em outro pedido."""
