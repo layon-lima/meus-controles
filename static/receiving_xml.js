@@ -77,11 +77,14 @@
       const supplierWarning=x.fromPreview&&Number(x.supplier_score)<.72
         ? " · Fornecedor diferente: conferir" : "";
       const remain=String(x.remaining_qty??x.remaining??"")+" "+String(x.unit??"");
-      return '<button type="button" class="receiving-xml-result" role="option" data-xml-pick="'+id+
-        '" onclick="App.receivingXMLPick('+index+','+id+')">'+
+      const blocked=x.selectable===false;
+      return '<button type="button" class="receiving-xml-result" role="option"'+
+        (blocked?' disabled aria-disabled="true"':' data-xml-pick="'+id+
+          '" onclick="App.receivingXMLPick('+index+','+id+')"')+'>'+
         '<span><strong>'+escapeHTML(x.product)+'</strong><small>'+escapeHTML(
           orderNumber(x)+' · '+x.supplier)+'</small></span>'+
-        '<span class="receiving-xml-result-side"><small>'+escapeHTML(description+supplierWarning)+
+        '<span class="receiving-xml-result-side"><small>'+escapeHTML(
+          blocked?(x.reason||"Pedido indisponível"):description+supplierWarning)+
         '</small><small>Disponível: '+escapeHTML(remain)+'</small></span></button>';
     }).join("");
     const empty=!filtered.length?'<p class="receiving-xml-empty">'+
@@ -151,6 +154,7 @@
       }else{
         const item=pickerOptions(index).find(x=>Number(x.id)===Number(value));
         if(!item)return this.toast("Pedido não encontrado. Pesquise novamente.",true);
+        if(item.selectable===false)return this.toast(item.reason||"Pedido indisponível.",true);
         ctx.selections[index]=Number(item.id);
         if(input)input.value=optionLabel(item);
         if(status)status.textContent="Pedido selecionado. Confira o produto, a unidade e o saldo antes de confirmar.";
