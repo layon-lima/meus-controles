@@ -34,6 +34,8 @@ class XMLTests(unittest.TestCase):
         self.assertEqual(xml["invoice_number"],"34567")
         self.assertEqual(xml["lines"][0]["quantity"],"20000.000")
         self.assertEqual(receiving_xml.converted("20000","KG","t"),20)
+        self.assertEqual(receiving_xml.converted("48","TO","t"),48)
+        self.assertEqual(receiving_xml.converted("48","TO","kg"),48000)
         self.assertIsNone(receiving_xml.converted("20","sc","t"))
     def test_strict_supplier_product_and_open_capacity(self):
         with app.db() as con:
@@ -75,6 +77,19 @@ class XMLTests(unittest.TestCase):
     def test_supplier_alias_and_lot_suffix_match(self):
         self.assertGreater(receiving_xml.similarity("AGREX DO BRASIL LTDA","AGREX",True),.90)
         self.assertGreater(receiving_xml.similarity("TORINO 5L - Lote: 0052513600 - Peso:","Torino"),.90)
+
+    def test_xml_kcl_tonelada_to_finds_similar_registered_product(self):
+        with app.db() as con:
+            matched=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"PED-488","AGRO INDUSTRIAL",
+                "CLORETO DE POTASSIO 60 GR","t","100")).lastrowid
+            report=receiving_xml.preview(con,self.cid,{
+                "xml":base64.b64encode(sample(q="48",u="TO",name="KCL 60 GR")).decode()})
+            self.assertEqual(report["lines"][0]["options"][0]["id"],matched)
+            self.assertEqual(report["lines"][0]["options"][0]["quantity"],"48.000")
+            self.assertTrue(report["lines"][0]["options"][0]["selectable"])
+            self.assertIsNone(report["lines"][0]["suggested_id"])
 
     def test_xml_kcl_suggested_above_unrelated_supplier_orders(self):
         with app.db() as con:
