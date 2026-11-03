@@ -135,7 +135,7 @@ class XMLTests(unittest.TestCase):
         # O sistema não deve adivinhar equivalência de sacas com kg.
         for conversion,error in [
             (None,"equivalem"),("0","quantidade positiva"),("5001","saldo disponível"),
-            ("1.1234","três casas"),("texto","quantidade")
+            ("1.1234","três casas"),("texto","Quantidade")
         ]:
             payload={"xml":raw,"selections":[target]}
             if conversion is not None:payload["manual_quantities"]=[conversion]
