@@ -81,6 +81,23 @@ def receive_date(value):
     except ValueError:raise ValueError("Data da entrega inválida.") from None
     return value
 
+def ensure_singleton_in_recebimentos(con,board_id,exclude_id=None):
+    """Uma única central de pedidos por pasta RECEBIMENTOS.
+
+    A criação de novos produtos/pedidos continua livre dentro dessa central.
+    """
+    board=con.execute("SELECT name FROM boards WHERE id=?",(board_id,)).fetchone()
+    if not board or " ".join(board["name"].casefold().split())!="recebimentos":
+        return
+    existing=con.execute("""SELECT id FROM controls
+         WHERE board_id=? AND mode='recebimento' ORDER BY id""",(board_id,)).fetchall()
+    if any(r["id"]!=exclude_id for r in existing):
+        raise ValueError(
+            "A pasta RECEBIMENTOS já possui a central RECEBIMENTO DE PRODUTOS. "
+            "Abra esse controle e cadastre todos os pedidos dentro dele; "
+            "não é necessário criar outro controle.")
+
+
 def ensure_control(con,cid):
     row=con.execute("SELECT id,name,mode FROM controls WHERE id=?",(cid,)).fetchone()
     if row is None:
