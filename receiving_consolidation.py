@@ -8,6 +8,7 @@ Snapshots completos dos controles removidos ficam no próprio PostgreSQL.
 """
 import argparse
 import json
+import os
 import re
 
 import app
@@ -224,7 +225,7 @@ def main():
     parser.add_argument("--apply",action="store_true",
                         help="Aplicar unificação com transação atômica (exige backup anterior).")
     args=parser.parse_args()
-    if args.apply and not hasattr(app.db(),"native"):
+    if args.apply and not os.getenv("CONTROLES_PGHOST"):
         raise SystemExit("Aplicação permitida somente no PostgreSQL da VPS.")
     with app.db() as con:
         result=consolidate(con,args.apply)
