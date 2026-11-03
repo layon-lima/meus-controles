@@ -334,5 +334,14 @@
 .receiving-xml-pending{color:#1a6e5e;background:#f3faf7}
 .receiving-xml-empty{margin:0;padding:11px;color:#677b74;font-size:12px}
 .receiving-xml-hint{color:#526b63}
+.receiving-xml-manual{margin-top:8px;padding:12px;background:#f4f8fc;border:1px solid #c5d6e8;border-radius:8px;display:flex;flex-direction:column;gap:7px}
+.receiving-xml-manual[hidden]{display:none}
+.receiving-xml-manual>strong{font-size:12px;color:#203e63}
+.receiving-xml-manual p{margin:0;font-size:12px;line-height:1.5;color:#354961}
+.receiving-xml-manual label{font-size:12px;font-weight:650}
+.receiving-xml-manual input{box-sizing:border-box;width:100%;min-height:38px;border:1px solid #a5b8ce;border-radius:6px;padding:8px 10px;background:#fff;font-size:13px}
+.receiving-xml-manual input:focus{outline:2px solid rgba(28,104,155,.22);border-color:#317ba9}
+.receiving-xml-manual small{font-size:11px;color:#536e84;line-height:1.4}
+
 @media(max-width:600px){.receiving-xml-result{align-items:flex-start;flex-direction:column;gap:3px}.receiving-xml-result-side{align-items:flex-start;text-align:left}}
 body.receiving-xml-drag:after{content:"SOLTE O XML DA NF-e PARA CONFERIR";position:fixed;inset:14px;border:3px dashed #14856b;background:rgba(234,249,241,.96);z-index:9999;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:750;color:#126547;font-size:20px;pointer-events:none}
