@@ -726,6 +726,8 @@ class Handler(BaseHTTPRequestHandler):
                     name,bid,mode,fields,rules,types=validate_config(p)
                     if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
                         raise ValueError("Escolha uma pasta existente.")
+                    if mode=="recebimento":
+                        receiving.ensure_singleton_in_recebimentos(con,bid)
                     cur=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json)
                        VALUES(?,?,?,?,?,?)""",(bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types)))
                     if mode=="caminhao":
@@ -760,6 +762,8 @@ class Handler(BaseHTTPRequestHandler):
                             raise ValueError("Selecione uma pasta de destino válida.")
                         if not con.execute("SELECT 1 FROM boards WHERE id=?",(destination,)).fetchone():
                             raise ValueError("A pasta de destino não existe.")
+                        if current["mode"]=="recebimento":
+                            receiving.ensure_singleton_in_recebimentos(con,destination,exclude_id=cid)
                         # Modificar apenas board_id: mantém o mesmo ID, modelo, configurações
                         # e todas as tabelas de lançamentos vinculadas ao controle.
                         con.execute("UPDATE controls SET board_id=? WHERE id=?",(destination,cid))
@@ -786,6 +790,8 @@ class Handler(BaseHTTPRequestHandler):
                             raise ValueError("Use a opção Alterar tipo para trocar o modelo sem perder dados.")
                         if not con.execute("SELECT 1 FROM boards WHERE id=?",(bid,)).fetchone():
                             raise ValueError("Pasta inexistente.")
+                        if mode=="recebimento":
+                            receiving.ensure_singleton_in_recebimentos(con,bid,exclude_id=cid)
                         con.execute("""UPDATE controls SET board_id=?,name=?,mode=?,fields_json=?,rules_json=?,types_json=? WHERE id=?""",
                                     (bid,name,mode,json.dumps(fields),json.dumps(rules),json.dumps(types),cid))
                         con.commit()
@@ -797,6 +803,8 @@ class Handler(BaseHTTPRequestHandler):
                         return self.send({"ok":True})
                     if method=="POST" and action=="duplicate":
                         c=get_control(con,cid)
+                        if c["mode"]=="recebimento":
+                            receiving.ensure_singleton_in_recebimentos(con,c["board_id"])
                         cur=con.execute("""INSERT INTO controls(board_id,name,mode,fields_json,rules_json,types_json) VALUES(?,?,?,?,?,?)""",
                                         (c["board_id"],c["name"]+" (copia)",c["mode"],
                                          json.dumps(c["fields"]),json.dumps(c["rules"]),json.dumps(c["types"])))
