@@ -117,13 +117,20 @@ def candidates(orders,xml,line):
     for item in orders:
         if item["closed"] or Decimal(item["remaining_qty"])<=0:continue
         q=converted(line["quantity"],line["unit"],item["unit"])
-        if q is None or q<=0 or q>Decimal(item["remaining_qty"]):continue
         supp=similarity(xml["supplier"],item["supplier"],True)
         prod=similarity(line["name"],item["product"])
-        eligible=supp>=.72 and prod>=.67
+        selectable=q is not None and q>0 and q<=Decimal(item["remaining_qty"])
+        # Produtos realmente semelhantes aparecem mesmo com saldo/unidade
+        # incompatíveis, com a razão do bloqueio, em vez de sumirem da busca.
+        if not selectable and prod<.52:continue
+        reason="" if selectable else (
+            "Unidade incompatível" if q is None else "Saldo insuficiente")
+        eligible=selectable and supp>=.72 and prod>=.67
         rows.append({"id":item["id"],"order":item["order_number"],"supplier":item["supplier"],
-                     "product":item["product"],"unit":item["unit"],"quantity":receiving.display(q),
+                     "product":item["product"],"unit":item["unit"],
+                     "quantity":receiving.display(q) if q is not None else None,
                      "remaining":item["remaining_qty"],"supplier_score":supp,"product_score":prod,
+                     "selectable":selectable,"reason":reason,
                      "eligible":eligible,"score":round(supp*.15+prod*.85,3)})
     # Prioridade para o PRODUTO do XML; um fornecedor diferente não deve esconder
     # um KCL correspondente abaixo de dezenas de pedidos de outros produtos.
