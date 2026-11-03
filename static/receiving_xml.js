@@ -25,7 +25,8 @@
     }catch(err){App.toast(err.message,true);}
   }
   const normalized=value=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+    .toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\bkcl\b/g,"cloreto potassio")
+    .replace(/\b(?:de|do|da)\b/g," ").replace(/\s+/g," ").trim();
   const orderNumber=item=>String(item.order_number??item.order??"Pedido sem número");
   const optionLabel=item=>orderNumber(item)+" · "+item.supplier+" · "+item.product;
   function pickerOptions(index){
