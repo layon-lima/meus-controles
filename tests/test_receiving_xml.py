@@ -43,7 +43,9 @@ class XMLTests(unittest.TestCase):
             self.assertTrue(candidate["eligible"])
             self.assertEqual(report["lines"][0]["suggested_id"],self.iid)
             over=receiving_xml.preview(con,self.cid,{"xml":base64.b64encode(sample(q="30000")).decode()})
-            self.assertFalse(over["lines"][0]["options"])
+            self.assertEqual(over["lines"][0]["options"][0]["id"],self.iid)
+            self.assertFalse(over["lines"][0]["options"][0]["selectable"])
+            self.assertEqual(over["lines"][0]["options"][0]["reason"],"Saldo insuficiente")
             bad=receiving_xml.preview(con,self.cid,{"xml":base64.b64encode(sample(name="OLEO MOTOR")).decode()})
             self.assertFalse(bad["lines"][0]["options"][0]["eligible"])
     def test_confirm_is_atomic_and_invoice_is_not_double_imported(self):
@@ -73,6 +75,39 @@ class XMLTests(unittest.TestCase):
     def test_supplier_alias_and_lot_suffix_match(self):
         self.assertGreater(receiving_xml.similarity("AGREX DO BRASIL LTDA","AGREX",True),.90)
         self.assertGreater(receiving_xml.similarity("TORINO 5L - Lote: 0052513600 - Peso:","Torino"),.90)
+
+    def test_xml_kcl_suggested_above_unrelated_supplier_orders(self):
+        with app.db() as con:
+            for i in range(45):
+                con.execute("""INSERT INTO purchase_items
+                  (control_id,order_number,supplier,product,unit,ordered_qty)
+                  VALUES(?,?,?,?,?,?)""",(self.cid,f"AG-{i}","AGREX BRASIL",
+                    "Assist" if i%2 else "Bright","t","100"))
+            match=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"KCL-2026","FORNECEDOR DIFERENTE",
+                "Cloreto de Potássio 60 GR","t","100")).lastrowid
+            report=receiving_xml.preview(con,self.cid,{
+                "xml":base64.b64encode(sample(q="48",u="TON",name="KCL 60 GR")).decode()})
+            self.assertEqual(report["lines"][0]["options"][0]["id"],match)
+            self.assertGreater(report["lines"][0]["options"][0]["product_score"],.8)
+            self.assertTrue(report["lines"][0]["options"][0]["selectable"])
+            self.assertFalse(report["lines"][0]["options"][0]["eligible"])
+            # Fornecedor diferente: aparece como sugestão, sem lançar sozinho.
+            self.assertIsNone(report["lines"][0]["suggested_id"])
+
+    def test_similar_xml_product_with_incompatible_unit_is_visible_but_blocked(self):
+        with app.db() as con:
+            mismatch=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"KCL-UN","AGREX BRASIL",
+                "KCL 60 GR","L","500")).lastrowid
+            report=receiving_xml.preview(con,self.cid,{
+                "xml":base64.b64encode(sample(q="48",u="TON",name="KCL 60 GR")).decode()})
+            option=next(x for x in report["lines"][0]["options"] if x["id"]==mismatch)
+            self.assertFalse(option["selectable"])
+            self.assertEqual(option["reason"],"Unidade incompatível")
+            self.assertFalse(option["eligible"])
 
     def test_mixed_invoice_pending_and_later_assign(self):
         xml=sample().decode().replace("</infNFe>", """
