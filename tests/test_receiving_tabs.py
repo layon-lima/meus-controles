@@ -134,6 +134,19 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('.receiving-xml-results',CSS)
         self.assertIn('.receiving-xml-search',CSS)
 
+    def test_manual_conversion_form_for_xml_and_sem_pedido(self):
+        script=(ROOT/"static"/"receiving_xml.js").read_text(encoding="utf-8")
+        self.assertIn('id="receivingXMLManual-',script)
+        self.assertIn('id="receivingXMLManualQty-',script)
+        self.assertIn('renderManualConversion(index,item)',script)
+        self.assertIn('ctx.manualQuantities[index]',script)
+        self.assertIn('manual_quantities:[...ctx.manualQuantities]',script)
+        self.assertIn('receivingXMLPendingUnitChanged()',script)
+        self.assertIn('id="receivingXMLPendingManualQty"',script)
+        self.assertIn('manual_quantity:manual',script)
+        self.assertIn('if(item.selectable===false&&!needsManualConversion(index,item))',script)
+        self.assertIn(".receiving-xml-manual[hidden]",CSS)
+
     def test_pwa_precaches_fresh_versions(self):
         for asset,release in (("receiving.js","20261027-xml-pending-v18"),("receiving.css","20261103-xml-busca-v16")):
             version="/static/"+asset+"?v="+release
