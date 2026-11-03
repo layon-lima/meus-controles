@@ -75,6 +75,21 @@ def converted(quantity,from_unit,to_unit):
     if norm(from_unit)==norm(to_unit):return Decimal(str(quantity))
     return None
 
+def quantity_in_order_unit(xml_quantity,xml_unit,order_unit,manual_quantity=None):
+    """Conversão conhecida é automática; unidades incompatíveis exigem equivalência informada.
+    O valor manual representa o TOTAL da linha da NF-e na unidade cadastrada, não um fator.
+    """
+    amount=converted(xml_quantity,xml_unit,order_unit)
+    if amount is not None:
+        if manual_quantity is not None:
+            raise ValueError("Esta unidade já possui conversão automática. Retire a equivalência manual.")
+        return amount,False
+    if manual_quantity is None or str(manual_quantity).strip()=="":
+        raise ValueError(
+            "Unidades incompatíveis: informe quanto "+str(xml_quantity)+" "+str(xml_unit)+
+            " equivalem na unidade cadastrada ("+str(order_unit)+").")
+    return receiving.qty(manual_quantity,"a quantidade equivalente na unidade cadastrada"),True
+
 def parse(raw):
     if not isinstance(raw,bytes) or len(raw)>2_000_000 or b"<!DOCTYPE" in raw.upper() or b"<!ENTITY" in raw.upper():
         raise ValueError("XML de NF-e inválido ou maior que 2 MB.")
@@ -171,6 +186,11 @@ def confirm(con,cid,payload):
     if not isinstance(selections,list) or len(selections)!=len(xml["lines"]):
         raise ValueError("Revise todos os itens antes de confirmar.")
     if not any(x is not None for x in selections):raise ValueError("Nenhum produto selecionado.")
+    manual_quantities=payload.get("manual_quantities")
+    if manual_quantities is None:
+        manual_quantities=[None]*len(xml["lines"])
+    if not isinstance(manual_quantities,list) or len(manual_quantities)!=len(xml["lines"]):
+        raise ValueError("Equivalências das unidades inválidas. Confira cada produto.")
     con.execute("BEGIN IMMEDIATE")
     ensure_new_access_key(con,cid,xml["access_key"])
     orders={x["id"]:x for x in receiving.summary(con,cid)["items"]}
@@ -185,7 +205,7 @@ def confirm(con,cid,payload):
             selected_orders.add((item["order_number"],item["supplier"]))
     for order,supplier in selected_orders:
         receiving.ensure_invoice_unique_in_order(con,cid,order,xml["invoice_number"])
-    for line,selected in zip(xml["lines"],selections):
+    for line,selected,manual in zip(xml["lines"],selections,manual_quantities):
         if selected=="pending":
             pending.append(line)
             continue
@@ -193,13 +213,17 @@ def confirm(con,cid,payload):
         if type(selected) is not int or selected not in orders:raise ValueError("Pedido não encontrado.")
         item=orders[selected]
         if item["closed"]:raise ValueError("Pedido concluído: "+item["order_number"])
-        quantity=converted(line["quantity"],line["unit"],item["unit"])
-        if quantity is None:raise ValueError("Unidade incompatível: "+line["name"])
+        quantity,is_manual=quantity_in_order_unit(
+            line["quantity"],line["unit"],item["unit"],manual)
         key=selected
-        already=sum(q for iid,q in chosen if iid==key)
-        if quantity+Decimal(already)>Decimal(item["remaining_qty"]):
+        already=sum(q for iid,q,_ in chosen if iid==key)
+        if quantity+already>Decimal(item["remaining_qty"]):
             raise ValueError("Quantidade superior ao saldo disponível: "+item["product"])
-        chosen.append((selected,quantity))
+        note="Lançamento por XML NF-e"
+        if is_manual:
+            note+=". Conversão manual: "+line["quantity"]+" "+line["unit"]+(
+                " = "+receiving.display(quantity)+" "+item["unit"])
+        chosen.append((selected,quantity,note))
         seen.add((item["order_number"],item["supplier"]))
     # Uma mesma NF-e pode ter vários itens no mesmo pedido: conferir duplicidade contra histórico,
     # sem proibir itens diferentes na própria importação.
@@ -211,12 +235,12 @@ def confirm(con,cid,payload):
         if con.execute("SELECT id FROM receiving_xml_pending WHERE control_id=? AND access_key=? AND line_index=?",
           (cid,xml["access_key"],line["index"])).fetchone():
             raise ValueError("Este item já está em Sem pedido.")
-    for iid,quantity in chosen:
+    for iid,quantity,note in chosen:
         con.execute("""INSERT INTO purchase_receipts
             (item_id,received_date,invoice_number,received_qty,access_key,notes)
             VALUES(?,?,?,?,?,?)""",
             (iid,xml["date"],xml["invoice_number"],receiving.display(quantity),xml["access_key"],
-             "Lançamento por XML NF-e"))
+             note))
     for line in pending:
         con.execute("""INSERT INTO receiving_xml_pending
          (control_id,access_key,invoice_number,issued_date,supplier,cnpj,line_index,
@@ -239,8 +263,8 @@ def assign_pending(con,cid,pid,payload):
     if not row:raise LookupError("Lançamento pendente não encontrado.")
     item=receiving.get_item(con,iid)
     if item["control_id"]!=cid:raise ValueError("Pedido de outro controle.")
-    amount=converted(row["quantity"],row["unit"],item["unit"])
-    if amount is None:raise ValueError("Unidade incompatível.")
+    amount,is_manual=quantity_in_order_unit(
+        row["quantity"],row["unit"],item["unit"],payload.get("manual_quantity"))
     receiving.ensure_capacity(con,iid,receiving.display(amount))
     existing=list(con.execute("""SELECT r.access_key,r.notes FROM purchase_receipts r
       JOIN purchase_items i ON i.id=r.item_id
@@ -251,10 +275,14 @@ def assign_pending(con,cid,pid,payload):
       (r["notes"].startswith("Lançamento por XML") or r["notes"].startswith("Vinculado de Sem pedido"))
       for r in existing)):
         raise ValueError("NF-e já registrada neste pedido; confira antes de vincular.")
+    note="Vinculado de Sem pedido (XML)"
+    if is_manual:
+        note+=". Conversão manual: "+row["quantity"]+" "+row["unit"]+(
+            " = "+receiving.display(amount)+" "+item["unit"])
     con.execute("""INSERT INTO purchase_receipts
       (item_id,received_date,invoice_number,received_qty,access_key,notes)
       VALUES(?,?,?,?,?,?)""",(iid,row["issued_date"],row["invoice_number"],
-      receiving.display(amount),row["access_key"],"Vinculado de Sem pedido (XML)"))
+      receiving.display(amount),row["access_key"],note))
     con.execute("DELETE FROM receiving_xml_pending WHERE id=?",(pid,))
     con.commit()
     return {"ok":True}
