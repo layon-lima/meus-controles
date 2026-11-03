@@ -64,7 +64,7 @@ def similarity(a,b,supplier=False):
     return round(max(overlap,SequenceMatcher(None,a,b).ratio()*.93),3)
 
 UNITS={"KG":("mass",Decimal("1")),"KGM":("mass",Decimal("1")),
-       "T":("mass",Decimal("1000")),"TON":("mass",Decimal("1000")),"TONELADA":("mass",Decimal("1000")),
+       "T":("mass",Decimal("1000")),"TO":("mass",Decimal("1000")),"TON":("mass",Decimal("1000")),"TONELADA":("mass",Decimal("1000")),
        "G":("mass",Decimal(".001")),"GR":("mass",Decimal(".001")),
        "L":("volume",Decimal("1")),"LT":("volume",Decimal("1")),"LITRO":("volume",Decimal("1")),
        "ML":("volume",Decimal(".001")),
