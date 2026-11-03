@@ -7,6 +7,7 @@ from decimal import Decimal
 import debt
 import pair
 import truck
+import receiving
 
 MODELS = {
     "calculo": "Cálculos personalizados",
@@ -93,6 +94,10 @@ def change(con,cid,payload):
     truck_settings=con.execute(
         "SELECT 1 FROM truck_settings WHERE control_id=?",(cid,)).fetchone()
 
+    # Não transformar um controle secundário em outra central de recebimentos.
+    if target=="recebimento":
+        board=con.execute("SELECT board_id FROM controls WHERE id=?",(cid,)).fetchone()
+        receiving.ensure_singleton_in_recebimentos(con,board["board_id"],exclude_id=cid)
     # Adiciona a mecânica do novo modelo primeiro, sem apagar tabelas antigas.
     con.execute("UPDATE controls SET mode=? WHERE id=?",(target,cid))
     if target=="divida":
