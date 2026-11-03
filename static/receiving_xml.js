@@ -20,39 +20,103 @@
       const cid=App.s.detail.control.id;
       App.toast("Analisando XML e buscando pedidos...");
       const report=await App.api("/api/controls/"+cid+"/receiving/xml/preview","POST",{xml});
-      App.s.receivingXML={xml,report,cid};
+      App.s.receivingXML={xml,report,cid,selections:Array(report.lines.length).fill(null)};
       render();
     }catch(err){App.toast(err.message,true);}
+  }
+  const normalized=value=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const orderNumber=item=>String(item.order_number??item.order??"Pedido sem número");
+  const optionLabel=item=>orderNumber(item)+" · "+item.supplier+" · "+item.product;
+  function pickerOptions(index){
+    const ctx=App.s.receivingXML, line=ctx.report.lines[index];
+    const map=new Map();
+    for(const x of line.options||[]){
+      map.set(Number(x.id),{...x,order_number:orderNumber(x),remaining_qty:x.remaining,
+        product_score:Number(x.product_score||0),supplier_score:Number(x.supplier_score||0),
+        fromPreview:true});
+    }
+    for(const x of App.s.receivingData?.items||[]){
+      if(x.closed||Number(x.remaining_qty)<=0||map.has(Number(x.id)))continue;
+      map.set(Number(x.id),{...x,order_number:orderNumber(x),product_score:0,
+        supplier_score:0,fromPreview:false});
+    }
+    return [...map.values()].sort((a,b)=>
+      b.product_score-a.product_score||b.supplier_score-a.supplier_score||
+      optionLabel(a).localeCompare(optionLabel(b),"pt-BR"));
+  }
+  function updatePicker(index){
+    const ctx=App.s.receivingXML;
+    const input=document.getElementById("receivingXMLSearch-"+index);
+    const list=document.getElementById("receivingXMLResults-"+index);
+    if(!ctx||!input||!list)return;
+    const selected=ctx.selections[index];
+    if(selected!==null&&selected!==undefined){
+      list.hidden=true;input.setAttribute("aria-expanded","false");return;
+    }
+    const words=normalized(input.value).split(" ").filter(Boolean);
+    const all=pickerOptions(index);
+    let filtered;
+    if(words.length){
+      filtered=all.filter(x=>{
+        const hay=normalized(optionLabel(x));
+        return words.every(word=>hay.includes(word));
+      }).slice(0,12);
+    }else{
+      // Não inundar o usuário com 100 pedidos irrelevantes: só sugerir
+      // produtos com alguma semelhança até que ele comece a digitar.
+      filtered=all.filter(x=>x.product_score>=.48).slice(0,7);
+    }
+    const line=ctx.report.lines[index];
+    const optionHTML=filtered.map(x=>{
+      const id=Number(x.id);
+      const score=Number(x.product_score||0);
+      const description=x.fromPreview
+        ? (score>=.7?"Produto semelhante":"Possível pedido")
+        : "Pedido aberto";
+      const supplierWarning=x.fromPreview&&Number(x.supplier_score)<.72
+        ? " · Fornecedor diferente: conferir" : "";
+      const remain=String(x.remaining_qty??x.remaining??"")+" "+String(x.unit??"");
+      return '<button type="button" class="receiving-xml-result" role="option" data-xml-pick="'+id+
+        '" onclick="App.receivingXMLPick('+index+','+id+')">'+
+        '<span><strong>'+escapeHTML(x.product)+'</strong><small>'+escapeHTML(
+          orderNumber(x)+' · '+x.supplier)+'</small></span>'+
+        '<span class="receiving-xml-result-side"><small>'+escapeHTML(description+supplierWarning)+
+        '</small><small>Disponível: '+escapeHTML(remain)+'</small></span></button>';
+    }).join("");
+    const empty=!filtered.length?'<p class="receiving-xml-empty">'+
+      (words.length?"Nenhum pedido encontrado. Experimente outro nome, fornecedor ou número.":
+      "Nenhuma correspondência forte. Digite para pesquisar todos os pedidos abertos.")+
+      '</p>':"";
+    list.innerHTML=optionHTML+empty+
+      '<button type="button" class="receiving-xml-result receiving-xml-pending" role="option" '+
+      'data-xml-pick="pending" onclick="App.receivingXMLPick('+index+',&quot;pending&quot;)">'+
+      '<strong>Sem pedido — guardar para vincular depois</strong></button>';
+    list.hidden=false;input.setAttribute("aria-expanded","true");
+    list.dataset.active="-1";
   }
   function render(){
     const ctx=App.s.receivingXML;
     if(!ctx)return;
     const report=ctx.report;
+    if(!Array.isArray(ctx.selections)||ctx.selections.length!==report.lines.length)
+      ctx.selections=Array(report.lines.length).fill(null);
     App.s.modal="receiving-xml";
-    const lines=report.lines.map((line,index)=>{
-      const open=App.s.receivingData?.items||[];
-      const allowed=new Map(line.options.map(x=>[x.id,x]));
-      const choices=line.options.filter(x=>x.eligible).map(x=>
-        '<option value="'+x.id+'"'+(line.suggested_id===x.id?' selected':'')+'>'+
-        escapeHTML(x.order+' · '+x.supplier+' · '+x.product+' · '+x.quantity+' '+x.unit+
-          ' (disponível '+x.remaining+' '+x.unit+')')+'</option>').join("");
-      const manual=open.filter(x=>!x.closed&&Number(x.remaining_qty)>0&&!allowed.has(x.id))
-        .map(x=>'<option value="'+x.id+'">'+escapeHTML(x.order+' · '+x.supplier+' · '+x.product+
-          ' ('+x.remaining_qty+' '+x.unit+' disponíveis)')+'</option>').join("");
-      const alternatives=line.options.filter(x=>!x.eligible).map(x=>
-        '<option value="'+x.id+'">'+escapeHTML(x.order+' · '+x.product+' · '+x.quantity+' '+x.unit+
-          ' (conferir correspondência)')+'</option>').join("");
-      const selected=line.suggested_id;
-      return '<div class="receiving-xml-line"><strong>'+escapeHTML(line.name)+'</strong>'+
-        '<small>NF-e: '+escapeHTML(line.quantity+' '+line.unit)+(line.code?' · Código '+escapeHTML(line.code):'')+'</small>'+
-        '<label>Vincular ao pedido</label><select class="receiving-xml-choice" data-index="'+index+'">'+
-        '<option value="">Selecione o pedido para lançar</option><option value="pending">Sem pedido — guardar para vincular depois</option>'+
-        (choices?'<optgroup label="Correspondências verificadas">'+choices+'</optgroup>':'')+
-        (alternatives?'<optgroup label="Opções para conferência manual">'+alternatives+'</optgroup>':'')+
-        (manual?'<optgroup label="Outros pedidos abertos">'+manual+'</optgroup>':'')+
-        '</select><small class="receiving-xml-hint">'+(selected?'Sugestão encontrada. Confirme os dados antes de gravar.':
-          'Nenhuma correspondência segura automática. Indique o pedido após conferir fornecedor, produto e quantidade.')+'</small></div>';
-    }).join("");
+    const lines=report.lines.map((line,index)=>
+      '<div class="receiving-xml-line"><strong>'+escapeHTML(line.name)+'</strong>'+
+      '<small>NF-e: '+escapeHTML(line.quantity+' '+line.unit)+
+      (line.code?' · Código '+escapeHTML(line.code):'')+'</small>'+
+      '<label for="receivingXMLSearch-'+index+'">Pesquisar produto, fornecedor ou nº do pedido</label>'+
+      '<input id="receivingXMLSearch-'+index+'" class="receiving-xml-search" type="search" '+
+      'autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="true" '+
+      'aria-controls="receivingXMLResults-'+index+'" placeholder="Digite para buscar entre os pedidos..." '+
+      'onfocus="App.receivingXMLFocus('+index+')" '+
+      'oninput="App.receivingXMLSearch('+index+',this.value)" '+
+      'onkeydown="App.receivingXMLKeydown(event,'+index+')">'+
+      '<div id="receivingXMLResults-'+index+'" class="receiving-xml-results" role="listbox"></div>'+
+      '<small id="receivingXMLStatus-'+index+'" class="receiving-xml-hint">'+
+      'Escolha uma sugestão ou pesquise manualmente. Nenhum pedido será vinculado sem sua seleção.'+
+      '</small></div>').join("");
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal receiving-xml-modal" role="dialog" aria-modal="true">'+
       '<div class="modal-header"><div><h2>Conferir NF-e XML</h2>'+
@@ -60,11 +124,63 @@
       (report.cnpj?' · '+escapeHTML(report.cnpj):'')+'</p>'+
       '<p class="receiving-xml-key">Chave de acesso: <strong>'+escapeHTML(report.access_key||'Não encontrada')+'</strong></p></div>'+
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
-      '<div class="modal-body"><p class="receiving-xml-warning">Confira o pedido de cada produto. Conversões compatíveis (kg/t, mL/L) são calculadas automaticamente. Nenhum lançamento ocorre sem confirmar.</p>'+
+      '<div class="modal-body"><p class="receiving-xml-warning">Pesquise o pedido pelo produto, fornecedor ou número. As sugestões são aproximadas; confira as informações e o saldo. Nenhum lançamento ocorre sem confirmar.</p>'+
       lines+'</div><div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.receivingXMLConfirm()">'+icon("check")+' Confirmar lançamentos</button></div></div></div>';
+    report.lines.forEach((_,index)=>updatePicker(index));
   }
   Object.assign(App,{
+    receivingXMLFocus(index){updatePicker(index);},
+    receivingXMLSearch(index){
+      const ctx=this.s.receivingXML;
+      if(!ctx)return;
+      ctx.selections[index]=null;
+      const status=document.getElementById("receivingXMLStatus-"+index);
+      if(status)status.textContent="Selecione um resultado da busca antes de confirmar.";
+      updatePicker(index);
+    },
+    receivingXMLPick(index,value){
+      const ctx=this.s.receivingXML;
+      if(!ctx)return;
+      const input=document.getElementById("receivingXMLSearch-"+index);
+      const status=document.getElementById("receivingXMLStatus-"+index);
+      if(value==="pending"){
+        ctx.selections[index]="pending";
+        if(input)input.value="Sem pedido — guardar para vincular depois";
+        if(status)status.textContent="Item ficará na aba Sem pedido para vinculação posterior.";
+      }else{
+        const item=pickerOptions(index).find(x=>Number(x.id)===Number(value));
+        if(!item)return this.toast("Pedido não encontrado. Pesquise novamente.",true);
+        ctx.selections[index]=Number(item.id);
+        if(input)input.value=optionLabel(item);
+        if(status)status.textContent="Pedido selecionado. Confira o produto, a unidade e o saldo antes de confirmar.";
+      }
+      updatePicker(index);
+    },
+    receivingXMLKeydown(event,index){
+      const list=document.getElementById("receivingXMLResults-"+index);
+      if(!list)return;
+      const buttons=[...list.querySelectorAll("[data-xml-pick]")];
+      if(event.key==="Escape"){
+        list.hidden=true;event.currentTarget.setAttribute("aria-expanded","false");return;
+      }
+      if(!buttons.length)return;
+      if(event.key==="ArrowDown"||event.key==="ArrowUp"){
+        event.preventDefault();
+        const current=Number(list.dataset.active??-1);
+        const next=event.key==="ArrowDown"
+          ? (current+1)%buttons.length
+          : (current<=0?buttons.length-1:current-1);
+        list.dataset.active=String(next);
+        buttons.forEach((btn,i)=>btn.classList.toggle("active",i===next));
+        buttons[next].scrollIntoView({block:"nearest"});
+      }else if(event.key==="Enter"&&!list.hidden){
+        event.preventDefault();
+        const current=Math.max(0,Number(list.dataset.active??-1));
+        const value=buttons[current].dataset.xmlPick;
+        this.receivingXMLPick(index,value==="pending"?"pending":Number(value));
+      }
+    },
     async receivingXMLPendingLoad(){
       const cid=this.s.detail?.control?.id;
       const root=document.getElementById("receivingPendingList");
@@ -109,7 +225,7 @@
     async receivingXMLConfirm(){
       const ctx=this.s.receivingXML;
       if(!ctx||this.s.receivingXMLBusy)return;
-      const selections=[...document.querySelectorAll(".receiving-xml-choice")].map(el=>el.value==="pending"?"pending":el.value?Number(el.value):null);
+      const selections=[...ctx.selections];
       if(selections.some(x=>x===null)){this.toast("Selecione o pedido de todos os produtos antes de confirmar.",true);return;}
       if(!window.confirm("Confirmar "+selections.length+" item(ns) da NF-e "+ctx.report.invoice_number+"? Verifique as quantidades e os pedidos selecionados."))return;
       this.s.receivingXMLBusy=true;
