@@ -128,7 +128,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('receivingXMLPick(index,value)',script)
         self.assertIn('ctx.selections[index]=Number(item.id)',script)
         self.assertIn('item.order_number??item.order??"Pedido sem número"',script)
-        self.assertIn('if(item.selectable===false)',script)
+        self.assertIn('if(item.selectable===false&&!needsManualConversion(index,item))',script)
         self.assertNotIn('class="receiving-xml-choice"',script)
         self.assertNotIn("x.order+' · '+x.supplier",script)
         self.assertIn('.receiving-xml-results',CSS)
@@ -148,13 +148,13 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn(".receiving-xml-manual[hidden]",CSS)
 
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261027-xml-pending-v18"),("receiving.css","20261103-xml-busca-v16")):
+        for asset,release in (("receiving.js","20261027-xml-pending-v18"),("receiving.css","20261103-unidade-manual-v17")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261103-xml-busca-v25',SW)
-        self.assertIn('/static/receiving_xml.js?v=20261103-xml-busca-v19',HTML)
-        self.assertIn('/static/receiving_xml.js?v=20261103-xml-busca-v19',SW)
+        self.assertIn('central-de-controles-shell-v20261103-unidade-manual-v26',SW)
+        self.assertIn('/static/receiving_xml.js?v=20261103-unidade-manual-v20',HTML)
+        self.assertIn('/static/receiving_xml.js?v=20261103-unidade-manual-v20',SW)
         self.assertIn('surface.ondrop=event=>',JS)
         self.assertIn('event.preventDefault();',JS)
 
