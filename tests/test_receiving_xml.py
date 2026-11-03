@@ -156,6 +156,41 @@ class XMLTests(unittest.TestCase):
                 receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[second]})
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
 
+    def test_pending_invoice_routes_list_and_assign_saved_note(self):
+        """A API real deve listar a NF-e sem pedido e permitir vinculá-la."""
+        class DummyHandler:
+            def __init__(self,payload=None):
+                self.payload=payload or {}
+            def input(self,**kwargs):
+                return self.payload
+            def send(self,data,*args,**kwargs):
+                return data
+
+        raw=base64.b64encode(sample()).decode()
+        with app.db() as con:
+            confirmed=receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":["pending"]})
+            self.assertEqual(confirmed,{"inserted":0,"pending":1})
+            listing=receiving_xml.handle(
+                DummyHandler(),con,"GET",
+                f"/api/controls/{self.cid}/receiving/xml/pending")
+            self.assertEqual(len(listing["items"]),1)
+            note=listing["items"][0]
+            self.assertEqual(note["invoice_number"],"34567")
+            self.assertEqual(note["product"],"UREIA AGRICOLA")
+            self.assertEqual(note["access_key"],"1"*44)
+            result=receiving_xml.handle(
+                DummyHandler({"item_id":self.iid}),con,"POST",
+                f"/api/controls/{self.cid}/receiving/xml/pending/{note['id']}/assign")
+            self.assertEqual(result,{"ok":True})
+            after=receiving_xml.handle(
+                DummyHandler(),con,"GET",
+                f"/api/controls/{self.cid}/receiving/xml/pending")
+            self.assertEqual(after["items"],[])
+            order=receiving.summary(con,self.cid)
+            self.assertEqual(order["totals"]["receipts"],1)
+            self.assertEqual(order["receipts"][0]["access_key"],"1"*44)
+            self.assertEqual(order["receipts"][0]["invoice_number"],"34567")
+
     def test_pending_access_key_blocks_reimport_even_if_order_differs(self):
         raw=base64.b64encode(sample()).decode()
         with app.db() as con:
