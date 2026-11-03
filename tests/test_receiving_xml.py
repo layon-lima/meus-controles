@@ -124,6 +124,67 @@ class XMLTests(unittest.TestCase):
             self.assertEqual(option["reason"],"Unidade incompatível")
             self.assertFalse(option["eligible"])
 
+    def test_manual_quantity_equivalence_is_required_and_audited(self):
+        raw=base64.b64encode(sample(q="200",u="SC")).decode()
+        with app.db() as con:
+            target=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"SC-200","AGREX BRASIL",
+                "UREIA AGRICOLA","kg","5000")).lastrowid
+
+        # O sistema não deve adivinhar equivalência de sacas com kg.
+        for conversion,error in [
+            (None,"equivalem"),("0","quantidade positiva"),("5001","saldo disponível"),
+            ("1.1234","três casas"),("texto","quantidade")
+        ]:
+            payload={"xml":raw,"selections":[target]}
+            if conversion is not None:payload["manual_quantities"]=[conversion]
+            with self.assertRaisesRegex(ValueError,error):
+                with app.db() as con:
+                    receiving_xml.confirm(con,self.cid,payload)
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],0)
+
+        with app.db() as con:
+            result=receiving_xml.confirm(con,self.cid,{
+                "xml":raw,"selections":[target],"manual_quantities":["400,500"]})
+            self.assertEqual(result,{"inserted":1,"pending":0})
+            note=receiving.summary(con,self.cid)["receipts"][0]
+            self.assertEqual(note["received_qty"],"400.500")
+            self.assertIn("Conversão manual: 200.000 SC = 400.500 kg",note["notes"])
+            self.assertEqual(note["access_key"],"1"*44)
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_manual_conversion_does_not_override_known_units(self):
+        raw=base64.b64encode(sample()).decode()
+        with self.assertRaisesRegex(ValueError,"conversão automática"):
+            with app.db() as con:
+                receiving_xml.confirm(con,self.cid,{
+                    "xml":raw,"selections":[self.iid],"manual_quantities":["1"]})
+
+    def test_pending_manual_equivalence_and_capacity(self):
+        raw=base64.b64encode(sample(q="200",u="SC")).decode()
+        with app.db() as con:
+            receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":["pending"]})
+            pending=receiving_xml.pending_list(con,self.cid)[0]
+            target=con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty)
+              VALUES(?,?,?,?,?,?)""",(self.cid,"SC-201","AGREX BRASIL",
+                "UREIA AGRICOLA","kg","500")).lastrowid
+        for manual,expected in [(None,"equivalem"),("600","saldo"),("0","quantidade positiva")]:
+            with self.assertRaisesRegex(ValueError,expected):
+                with app.db() as con:
+                    receiving_xml.assign_pending(con,self.cid,pending["id"],{
+                        "item_id":target,"manual_quantity":manual})
+        with app.db() as con:
+            self.assertEqual(len(receiving_xml.pending_list(con,self.cid)),1)
+            receiving_xml.assign_pending(con,self.cid,pending["id"],{
+                "item_id":target,"manual_quantity":"350,500"})
+            self.assertEqual(len(receiving_xml.pending_list(con,self.cid)),0)
+            receipt=receiving.summary(con,self.cid)["receipts"][0]
+            self.assertEqual(receipt["received_qty"],"350.500")
+            self.assertIn("Conversão manual: 200.000 SC = 350.500 kg",receipt["notes"])
+
     def test_mixed_invoice_pending_and_later_assign(self):
         xml=sample().decode().replace("</infNFe>", """
 <det nItem="2"><prod><cProd>789</cProd><xProd>OUTRO PRODUTO</xProd><uCom>KG</uCom><qCom>500</qCom></prod></det>
