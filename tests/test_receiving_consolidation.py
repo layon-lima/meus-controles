@@ -81,7 +81,8 @@ class ReceivingConsolidationTests(unittest.TestCase):
             con.execute("""INSERT INTO entries
                 (control_id,type_key,type_label,direction,data_json,calculated_json,amount)
                 VALUES(?,'t','Tipo',1,'{}','{}','100.00')""",(11,))
-            with self.assertRaisesRegex(ValueError,"dados inesperados"):
+        with self.assertRaisesRegex(ValueError,"dados inesperados"):
+            with app.db() as con:
                 migration.consolidate(con,apply=True)
         with app.db() as con:
             self.assertEqual(con.execute("SELECT COUNT(*) FROM controls WHERE name='PEDIDOS'").fetchone()[0],32)
@@ -90,7 +91,8 @@ class ReceivingConsolidationTests(unittest.TestCase):
     def test_conflicting_pending_xml_aborts_entire_merge(self):
         with app.db() as con:
             con.execute("UPDATE receiving_xml_pending SET product='Produto diferente' WHERE control_id=12")
-            with self.assertRaisesRegex(ValueError,"Conflito em receiving_xml_pending"):
+        with self.assertRaisesRegex(ValueError,"Conflito em receiving_xml_pending"):
+            with app.db() as con:
                 migration.consolidate(con,apply=True)
         with app.db() as con:
             self.assertEqual(con.execute("SELECT COUNT(*) FROM controls WHERE name='PEDIDOS'").fetchone()[0],32)
@@ -100,7 +102,6 @@ class ReceivingConsolidationTests(unittest.TestCase):
         with app.db() as con:
             with self.assertRaisesRegex(ValueError,"já possui a central"):
                 receiving.ensure_singleton_in_recebimentos(con,self.bid)
-            receiving.ensure_singleton_in_recebimentos(con,self.bid,exclude_id=11) if False else None
             receiving.ensure_singleton_in_recebimentos(con,1)
 
 
