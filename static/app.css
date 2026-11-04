@@ -249,3 +249,24 @@ html,body,body *:not(svg):not(svg *){
 .connection-status{background:#fff5da;border-bottom:1px solid #e6c46a;color:#584313;padding:9px clamp(18px,3.2vw,46px);font-size:12px;font-weight:700}
 .connection-status[hidden]{display:none}
 @media(max-width:600px){.connection-status{padding:9px 14px}}
+
+
+/* Relatórios em Excel: seleção múltipla por pasta e por controle. */
+.report-excel-modal{width:min(760px,95vw);max-width:760px}
+.report-excel-modal .modal-body{display:flex;flex-direction:column;gap:10px;min-height:0}
+.report-excel-search{width:100%;box-sizing:border-box;min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.report-excel-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.report-excel-tools span{font-size:12px;color:#466177;margin-left:auto}
+.report-excel-list{max-height:min(50vh,480px);overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:8px;background:#fff}
+.report-excel-group{padding:9px 12px 12px;border-bottom:1px solid var(--line)}
+.report-excel-group:last-child{border-bottom:0}
+.report-excel-group h3{font-size:12px;margin:4px 0 8px;color:#204953}
+.report-excel-group h3 small{font-weight:400;color:#67818a}
+.report-excel-choice{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;cursor:pointer}
+.report-excel-choice:hover{background:#eef7f3}
+.report-excel-choice input{accent-color:#087c69;flex:none;width:16px;height:16px}
+.report-excel-choice span{font-size:12px;font-weight:650;min-width:0;overflow-wrap:anywhere}
+.report-excel-choice small{font-size:11px;color:#6b7e85;margin-left:auto;white-space:nowrap}
+.report-excel-choice[hidden],.report-excel-group[hidden]{display:none!important}
+.report-excel-note{margin:0;font-size:11px;color:#5e7380;line-height:1.45}
+@media(max-width:580px){.report-excel-choice small{white-space:normal}.report-excel-list{max-height:40vh}}
