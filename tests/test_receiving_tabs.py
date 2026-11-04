@@ -34,6 +34,18 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn("t.receipts?",JS)
         self.assertIn('Ainda não existem recebimentos lançados.',JS)
 
+    def test_invoice_list_displays_xml_issuer_and_offers_legacy_restore(self):
+        xml=(ROOT/"static"/"receiving_xml.js").read_text(encoding="utf-8")
+        app=(ROOT/"app.py").read_text(encoding="utf-8")
+        self.assertIn('E(p.invoice_issuer||"Emitente não registrado")',JS)
+        self.assertIn('p.invoice_issuer_document||"Emitente não salvo na nota"',JS)
+        self.assertIn("App.receivingXMLRestoreIssuers()",JS)
+        self.assertIn('id="receivingXMLIssuerFiles"',JS)
+        self.assertIn('onchange="App.receivingXMLRestoreFiles(this.files)"',JS)
+        self.assertIn("receivingXMLRestoreFiles(files)",xml)
+        self.assertIn('"/api/controls/"+cid+"/receiving/xml/issuer"',xml)
+        self.assertIn("receiving/xml/(?:preview|confirm|issuer|pending",app)
+
     def test_top_summary_cards_are_removed_from_rendered_module(self):
         self.assertNotIn('receiving-kpis',JS)
         self.assertNotIn('Produtos cadastrados',JS)
