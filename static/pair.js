@@ -151,6 +151,7 @@ Object.assign(App,{
       '<select id="abKind" name="kind" onchange="App.pairKindChanged()" required>'+
       '<option value="debt" '+(kind==="debt"?"selected":"")+' >Dívida / compensação (alguém passa a dever)</option>'+
       '<option value="payment" '+(kind==="payment"?"selected":"")+' >Pagamento real (dinheiro entregue)</option>'+
+      (old?'<option value="record">Registro · não altera saldo</option>':'')+
       '</select></div>'+
       abField("Data",abInput("date",old?.entry_date||abToday(),'type="date" required'))+
       abField("Valor (R$)",abInput("amount",old?.amount||"",'required inputmode="decimal" placeholder="Ex.: 100,00"'))+
@@ -175,13 +176,16 @@ Object.assign(App,{
     const party=document.getElementById("abParty");
     const names=this.s.pairData?.settings;
     if(!party||!names)return;
-    document.getElementById("abPartyLabel").textContent=kind==="payment"?"Quem pagou para quem?":"Quem deve para quem?";
+    document.getElementById("abPartyLabel").textContent=kind==="record"?
+      "Origem → Destino do registro":kind==="payment"?"Quem pagou para quem?":"Quem deve para quem?";
     const sides=[[names.party_a,names.party_b],[names.party_b,names.party_a]];
     [...party.options].forEach((opt,i)=>{
-      opt.textContent=sides[i][0]+(kind==="payment"?" pagou a ":" deve a ")+sides[i][1];
+      opt.textContent=sides[i][0]+(kind==="record"?" → ":kind==="payment"?" pagou a ":" deve a ")+sides[i][1];
     });
     const hint=document.getElementById("abKindHint");
-    if(hint)hint.textContent=kind==="payment"?
+    if(hint)hint.textContent=kind==="record"?
+      "O lançamento passará a ser apenas informativo, sem afetar o saldo. A conversão exige confirmação.":
+      kind==="payment"?
       "Pagamento real diminui o que o pagador deve ao recebedor. Não confundir com dívida no sentido inverso.":
       "Dívidas em sentidos opostos se compensam automaticamente. Nenhum lançamento antigo é apagado.";
   },
@@ -192,11 +196,14 @@ Object.assign(App,{
     const p={date:f.get("date"),kind,amount:f.get("amount"),
       description:f.get("description"),notes:f.get("notes")};
     p[kind==="payment"?"payer":"debtor"]=f.get("debtor");
+    if(kind==="record"&&ctx.old&&!window.confirm(
+      "Este lançamento deixará de afetar o saldo e será apenas informativo. Confirmar alteração do tipo?"))return;
     try{
       await this.api(ctx.old?"/api/pair-entries/"+ctx.old.id:
         "/api/controls/"+ctx.controlId+"/pair/entries",ctx.old?"PUT":"POST",p);
       this.closeModal();await this.renderPair();await this.load();
-      this.toast(kind==="payment"?"Pagamento real registrado. Saldo atualizado.":"Dívida registrada. Saldo atualizado.");
+      this.toast(kind==="record"?"Tipo alterado para registro sem efeito no saldo.":
+        kind==="payment"?"Pagamento real registrado. Saldo atualizado.":"Dívida registrada. Saldo atualizado.");
     }catch(e){this.toast(e.message,true)}
   },
   async pairDeleteEntry(id){
