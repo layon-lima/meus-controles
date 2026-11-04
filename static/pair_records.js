@@ -35,8 +35,20 @@ Object.assign(App,{
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="pairRecordForm" onsubmit="event.preventDefault();App.pairRecordSave()">'+
       '<div class="form-grid">'+
-      '<div class="field"><label>Data'+(old?" (opcional na correção)":"")+'</label>'+
-      '<input name="date" type="date" value="'+E(date)+'" '+(old?"":"required")+'></div>'+
+      (old?'<div class="field full"><label for="pairRecordKind">Tipo de transação</label>'+
+      '<select name="kind" id="pairRecordKind" onchange="App.pairRecordKindChanged()">'+
+      '<option value="record" selected>Registro · não altera saldo</option>'+
+      '<option value="debt">Dívida / compensação</option>'+
+      '<option value="payment">Pagamento real</option></select></div>':'')+
+      (old?'<div id="pairRecordFinancialDirection" class="field full" hidden>'+
+      '<label id="pairRecordDirectionLabel" for="pairRecordParty">Quem deve ou pagou?</label>'+
+      '<select name="debtor" id="pairRecordParty" disabled>'+
+      '<option value="">Selecione a direção da transação</option>'+
+      '<option value="A">'+E(data.settings.party_a)+' → '+E(data.settings.party_b)+'</option>'+
+      '<option value="B">'+E(data.settings.party_b)+' → '+E(data.settings.party_a)+'</option>'+
+      '</select><small>A direção precisa ser conferida; o sistema não presume quem deve.</small></div>':'')+
+      '<div class="field"><label>Data'+(old?" (obrigatória para dívida ou pagamento)":"")+'</label>'+
+      '<input id="pairRecordDate" name="date" type="date" value="'+E(date)+'" '+(old?"":"required")+'></div>'+
       '<div class="field"><label>Valor (R$)</label>'+
       '<input name="amount" required inputmode="decimal" value="'+E(old?.amount||"")+'"></div>'+
       '<div class="field"><label>De quem saiu (origem)</label>'+
@@ -52,22 +64,43 @@ Object.assign(App,{
       '<button class="btn btn-primary" onclick="App.pairRecordSave()">'+icon("check")+' Salvar registro</button>'+
       '</div></div></div>';
   },
+  pairRecordKindChanged(){
+    const kind=document.getElementById("pairRecordKind")?.value||"record";
+    const group=document.getElementById("pairRecordFinancialDirection");
+    const party=document.getElementById("pairRecordParty");
+    const date=document.getElementById("pairRecordDate");
+    const label=document.getElementById("pairRecordDirectionLabel");
+    if(group)group.hidden=kind==="record";
+    if(party)party.disabled=kind==="record";
+    if(party)party.required=kind!=="record";
+    if(date)date.required=kind!=="record"||!this.s.modalContext?.old;
+    if(label)label.textContent=kind==="payment"?"Quem pagou para quem?":"Quem deve para quem?";
+  },
   async pairRecordSave(){
     const form=document.getElementById("pairRecordForm"),ctx=this.s.modalContext;
     if(!form||!ctx||!form.reportValidity())return;
     const f=new FormData(form);
+    const kind=ctx.old?f.get("kind")||"record":"record";
     const p={date:f.get("date")||null,amount:f.get("amount"),
       from_name:f.get("from_name"),to_name:f.get("to_name"),
-      description:f.get("description"),notes:f.get("notes")};
+      description:f.get("description"),notes:f.get("notes"),kind};
     if(ctx.old){
       p.date_raw=ctx.old.original_date||"";
       p.original_type=ctx.old.original_type||"";
       p.original_balance=ctx.old.original_balance||"";
     }
+    if(kind!=="record"){
+      if(!p.date)return this.toast("Informe a data do lançamento financeiro.",true);
+      const actor=f.get("debtor");
+      if(!["A","B"].includes(actor))return this.toast("Selecione quem deve ou quem pagou.",true);
+      p[kind==="payment"?"payer":"debtor"]=actor;
+      if(!window.confirm("Este registro passará a afetar o saldo do controle. Confirmar alteração do tipo?"))return;
+    }
     try{
       await this.api(ctx.old?"/api/pair-records/"+ctx.old.id:
         "/api/controls/"+ctx.controlId+"/pair/records",ctx.old?"PUT":"POST",p);
-      this.closeModal();await this.renderPair();this.toast("Registro salvo sem alterar o saldo.");
+      this.closeModal();await this.renderPair();await this.load();
+      this.toast(kind==="record"?"Registro salvo sem alterar o saldo.":"Tipo alterado. Saldo recalculado.");
     }catch(err){this.toast(err.message,true)}
   },
   async pairRecordDelete(id){
