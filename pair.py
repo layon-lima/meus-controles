@@ -285,7 +285,11 @@ def handle(handler,con,method,url):
         control(con,old["control_id"])
         check_editable(con,old["control_id"],old["entry_date"])
         if method=="PUT":
-            p=validate(handler.input())
+            req=handler.input()
+            if isinstance(req,dict) and req.get("kind")=="record":
+                import pair_records
+                return handler.send(pair_records.convert_financial_to_record(con,dict(old),req))
+            p=validate(req)
             check_editable(con,old["control_id"],p["entry_date"])
             con.execute("""UPDATE pair_entries SET entry_date=?,debtor=?,amount=?,description=?,notes=?,
                 entry_kind=?,updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*p.values(),id))
