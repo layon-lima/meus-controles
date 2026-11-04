@@ -133,8 +133,10 @@ def convert_financial_to_record(con,old,payload):
     if payload.get("kind")!="record":
         raise ValueError("Tipo de lançamento inválido.")
     names=pair.settings(con,old["control_id"])
-    actor=names["party_a"] if old["debtor"]=="A" else names["party_b"]
-    counterpart=names["party_b"] if old["debtor"]=="A" else names["party_a"]
+    direction=payload.get("debtor",old["debtor"])
+    if direction not in ("A","B"):raise ValueError("Selecione a direção do registro.")
+    actor=names["party_a"] if direction=="A" else names["party_b"]
+    counterpart=names["party_b"] if direction=="A" else names["party_a"]
     record=valid_record({
       "date":payload.get("date"),"amount":payload.get("amount"),
       "from_name":actor,"to_name":counterpart,
