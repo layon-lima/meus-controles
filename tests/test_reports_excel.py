@@ -111,19 +111,68 @@ class ReportExcelTests(unittest.TestCase):
                 self.assertIsNotNone(c,address)
                 texts=[x.text or "" for x in c.findall(".//x:t",namespace)]
                 return "".join(texts) if texts else c.find("x:v",namespace).text
+            # Modelo A × B do arquivo arualizada.xlsx: somente A:E.
             self.assertEqual(value("A2"),"JOÃO PEDRO EMPREITA PLANTIO")
-            self.assertEqual(value("B2"),"Data")
-            self.assertEqual(value("G2"),"Valor (R$)")
-            self.assertEqual(value("A8"),"RECEBIMENTO DE PRODUTOS")
-            self.assertEqual(value("G8"),"Quantidade")
-            self.assertEqual(value("B5"),"TOTAIS · 2 lançamento(s)")
-            self.assertEqual(float(value("G5")),-8000)
-            self.assertEqual(float(value("G12")),48)
-            self.assertNotEqual(cell("B3").get("t"),"inlineStr")  # data real Excel
-            self.assertNotEqual(cell("G3").get("t"),"inlineStr")  # moeda numérica
-            self.assertIn("dd/mm/yyyy",workbook.read("xl/styles.xml").decode())
+            self.assertEqual([value(letter+"3") for letter in "ABCDE"],[
+                "Data","Tipo","Descrição","Origem / destino","Valor (R$)"])
+            self.assertEqual(value("B4"),"Registro informativo (não altera saldo)")
+            self.assertEqual(value("B5"),"Dívida / compensação")
+            self.assertEqual(value("D6"),"Total Em aberto")
+            self.assertEqual(float(value("E6")),-8000)
+            # Linhas 7 e 8 vazias, antes do próximo controle.
+            self.assertIsNone(cell("A7"))
+            self.assertIsNone(cell("A8"))
+            self.assertEqual(value("A9"),"RECEBIMENTO DE PRODUTOS")
+            self.assertEqual(value("G9"),"Quantidade")
+            self.assertEqual(float(value("G13")),48)
+            self.assertNotEqual(cell("A4").get("t"),"inlineStr")  # data real Excel
+            self.assertNotEqual(cell("E4").get("t"),"inlineStr")  # moeda numérica
+            self.assertIn("dd/mm/yy",workbook.read("xl/styles.xml").decode())
             self.assertIn("R$",workbook.read("xl/styles.xml").decode())
-            self.assertIn("00AD64",workbook.read("xl/styles.xml").decode())  # cabeçalho verde
+            self.assertIn("00AD64",workbook.read("xl/styles.xml").decode())
+            self.assertIn("92D050",workbook.read("xl/styles.xml").decode())
+
+    def test_two_ab_controls_follow_exact_a_to_e_template(self):
+        with app.db() as con:
+            second=con.execute("""INSERT INTO controls
+                (board_id,name,mode,fields_json,rules_json,types_json)
+                VALUES(?,?,'acerto_ab','[]','[]','[]')""",
+                (self.folder,"KENNEDY EMPREITA PLANTIO")).lastrowid
+            con.execute("INSERT INTO pair_settings(control_id,party_a,party_b) VALUES(?,?,?)",
+                        (second,"JONAS","KENNEDY"))
+            con.execute("""INSERT INTO pair_entries
+                (control_id,entry_date,debtor,amount,description,notes,entry_kind)
+                VALUES(?,?,?,'6500','EMPREITA PLANTIO','','debt')""",
+                (second,"2026-10-01","A"))
+            con.execute("""INSERT INTO pair_entries
+                (control_id,entry_date,debtor,amount,description,notes,entry_kind)
+                VALUES(?,?,?,'240','VALE PEGO COM JONAS','','payment')""",
+                (second,"2026-10-30","A"))
+            blob=reports_excel.generate(con,[self.pair,second])
+        with zipfile.ZipFile(io.BytesIO(blob)) as workbook:
+            xml=ET.fromstring(workbook.read("xl/worksheets/sheet1.xml"))
+            ns={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+            def value(where):
+                c=xml.find(".//s:c[@r='"+where+"']",ns)
+                if c is None:return None
+                t=c.find(".//s:t",ns)
+                if t is not None:return t.text
+                v=c.find("s:v",ns)
+                return v.text if v is not None else None
+            self.assertEqual(value("A2"),"JOÃO PEDRO EMPREITA PLANTIO")
+            self.assertEqual(value("A3"),"Data")
+            self.assertEqual(value("E3"),"Valor (R$)")
+            self.assertEqual(value("D6"),"Total Em aberto")
+            self.assertEqual(float(value("E6")),-8000)
+            self.assertIsNone(value("A7"))
+            self.assertIsNone(value("A8"))
+            self.assertEqual(value("A9"),"KENNEDY EMPREITA PLANTIO")
+            self.assertEqual(value("A10"),"Data")
+            self.assertEqual(value("D13"),"Total Em aberto")
+            self.assertEqual(float(value("E13")),-6260)
+            self.assertIsNone(value("F3"))
+            self.assertIsNone(value("F10"))
+            self.assertIn("92D050",workbook.read("xl/styles.xml").decode())
 
     def test_totals_dont_double_count_money_or_units(self):
         with app.db() as con:
