@@ -54,8 +54,8 @@ def initialize(con):
     # Se outro item da mesma NF-e ainda está em Sem pedido, seu XML já
     # preservou o emitente. Usamos a chave exata para recuperar o histórico.
     # Não inferimos o emitente a partir do fornecedor do pedido.
-    pending_table=con.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='receiving_xml_pending'").fetchone()
+    # PRAGMA table_info é compatível com SQLite e com a camada PostgreSQL.
+    pending_table=bool(list(con.execute("PRAGMA table_info(receiving_xml_pending)")))
     if pending_table:
         con.execute("""UPDATE purchase_receipts
             SET invoice_issuer=(
