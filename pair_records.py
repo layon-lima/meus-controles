@@ -33,6 +33,20 @@ def initialize(con):
     );
     CREATE INDEX IF NOT EXISTS idx_pair_records_control_date
        ON pair_records(control_id,record_date,id);
+    CREATE TABLE IF NOT EXISTS pair_transaction_changes (
+       id INTEGER PRIMARY KEY,
+       control_id INTEGER NOT NULL REFERENCES controls(id) ON DELETE CASCADE,
+       from_kind TEXT NOT NULL,
+       from_id INTEGER NOT NULL,
+       to_kind TEXT NOT NULL,
+       to_id INTEGER NOT NULL,
+       previous_json TEXT NOT NULL,
+       source_batch_id TEXT,
+       source_row INTEGER,
+       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_pair_transaction_changes_import
+       ON pair_transaction_changes(control_id,source_batch_id,source_row);
     """)
 
 def normalized(value):
@@ -85,6 +99,59 @@ def record_by_id(con,rid):
     pair.control(con,row["control_id"])
     return dict(row)
 
+def audit_type_change(con,old,from_kind,to_kind,new_id):
+    """Guarda o registro original antes da transferência entre tabelas."""
+    con.execute("""INSERT INTO pair_transaction_changes
+      (control_id,from_kind,from_id,to_kind,to_id,previous_json,source_batch_id,source_row)
+      VALUES(?,?,?,?,?,?,?,?)""",(
+      old["control_id"],from_kind,old["id"],to_kind,new_id,
+      json.dumps(old,ensure_ascii=False,default=str),
+      old.get("batch_id"),old.get("source_row")))
+
+def convert_record_to_financial(con,old,payload):
+    """Registro neutro -> dívida ou pagamento; operação atômica sem lançamento duplo."""
+    kind=payload.get("kind")
+    if kind not in ("debt","payment"):
+        raise ValueError("Selecione dívida ou pagamento real.")
+    # A origem dos registros antigos pode ser terceiro: exigir direção A/B
+    # explícita em vez de inferir a partir do nome cadastrado.
+    entry=pair.validate(payload)
+    con.execute("BEGIN IMMEDIATE")
+    pair.check_editable(con,old["control_id"],entry["entry_date"],
+                        *([old["record_date"]] if old["record_date"] else []))
+    cur=con.execute("""INSERT INTO pair_entries
+      (control_id,entry_date,debtor,amount,description,notes,entry_kind)
+      VALUES(?,?,?,?,?,?,?)""",(old["control_id"],*entry.values()))
+    audit_type_change(con,old,"record",kind,cur.lastrowid)
+    con.execute("DELETE FROM pair_records WHERE id=?",(old["id"],))
+    con.commit()
+    return {"ok":True,"control_id":old["control_id"],"type_changed":True,
+            "new_id":cur.lastrowid,"new_kind":kind}
+
+def convert_financial_to_record(con,old,payload):
+    """Dívida/pagamento -> registro informativo, retirando o impacto no saldo."""
+    if payload.get("kind")!="record":
+        raise ValueError("Tipo de lançamento inválido.")
+    names=pair.settings(con,old["control_id"])
+    actor=names["party_a"] if old["debtor"]=="A" else names["party_b"]
+    counterpart=names["party_b"] if old["debtor"]=="A" else names["party_a"]
+    record=valid_record({
+      "date":payload.get("date"),"amount":payload.get("amount"),
+      "from_name":actor,"to_name":counterpart,
+      "description":payload.get("description"),"notes":payload.get("notes",""),
+    })
+    con.execute("BEGIN IMMEDIATE")
+    pair.check_editable(con,old["control_id"],old["entry_date"],record["record_date"])
+    cur=con.execute("""INSERT INTO pair_records
+        (control_id,record_date,original_date,amount,from_name,to_name,description,notes,
+         original_type,original_balance)
+        VALUES(?,?,?,?,?,?,?,?,?,?)""",(old["control_id"],*record.values()))
+    audit_type_change(con,old,old.get("entry_kind","debt"),"record",cur.lastrowid)
+    con.execute("DELETE FROM pair_entries WHERE id=?",(old["id"],))
+    con.commit()
+    return {"ok":True,"control_id":old["control_id"],"type_changed":True,
+            "new_id":cur.lastrowid,"new_kind":"record"}
+
 def batch(con,cid,payload):
     pair.control(con,cid)
     if isinstance(payload,dict) and payload.get("format")=="central-pair-mixed-v1":
@@ -130,6 +197,12 @@ def batch(con,cid,payload):
     batch_id=hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     duplicates={r["source_row"] for r in con.execute(
         "SELECT source_row FROM pair_records WHERE control_id=? AND batch_id=?",(cid,batch_id))}
+    # Registros importados convertidos para dívidas/pagamentos continuam
+    # reconhecidos como importados e nunca são duplicados por reimportação.
+    duplicates.update(r["source_row"] for r in con.execute(
+        """SELECT source_row FROM pair_transaction_changes
+           WHERE control_id=? AND source_batch_id=? AND source_row IS NOT NULL""",
+        (cid,batch_id)))
     total=sum((Decimal(r["amount"]) for r in parsed),Decimal("0"))
     return {"source_name":source,"batch_id":batch_id,"records":parsed,
             "count":len(parsed),"already_imported":len(duplicates),
@@ -165,7 +238,16 @@ def handle(handler,con,method,url):
             if req.get("batch_id")!=p["batch_id"]:
                 raise ValueError("O arquivo foi alterado após a prévia. Confira novamente.")
             inserted=0
+            duplicates={r["source_row"] for r in con.execute(
+                "SELECT source_row FROM pair_records WHERE control_id=? AND batch_id=?",
+                (cid,p["batch_id"]))}
+            duplicates.update(r["source_row"] for r in con.execute(
+                """SELECT source_row FROM pair_transaction_changes
+                   WHERE control_id=? AND source_batch_id=? AND source_row IS NOT NULL""",
+                (cid,p["batch_id"])))
             for r in p["records"]:
+                if r["source_row"] in duplicates:
+                    continue
                 fields={k:v for k,v in r.items() if k!="source_row"}
                 cur=con.execute("""INSERT OR IGNORE INTO pair_records
                   (control_id,record_date,original_date,amount,from_name,to_name,description,notes,
@@ -181,7 +263,12 @@ def handle(handler,con,method,url):
         con.execute("BEGIN IMMEDIATE")
         existing=record_by_id(con,rid)
         if method=="PUT":
-            r=valid_record(handler.input(),allow_undated=True)
+            payload=handler.input()
+            if payload.get("kind","record") in ("debt","payment"):
+                return handler.send(convert_record_to_financial(con,existing,payload))
+            if payload.get("kind","record")!="record":
+                raise ValueError("Tipo de lançamento inválido.")
+            r=valid_record(payload,allow_undated=True)
             # Uma correção mantém o ID; não destrói o recibo original do lote.
             con.execute("""UPDATE pair_records SET record_date=?,original_date=?,amount=?,
                 from_name=?,to_name=?,description=?,notes=?,original_type=?,original_balance=?,
