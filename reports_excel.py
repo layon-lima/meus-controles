@@ -273,71 +273,118 @@ def unique_sheet_name(name,used):
 
 
 def build_xlsx(summaries,rows,grouped):
+    """Arquivo Excel real, escrito por XlsxWriter (sem montar OOXML à mão).
+
+    A biblioteca valida internamente as partes do pacote XLSX. Células que
+    começam com '=' continuam sendo TEXTO, nunca fórmula importada.
+    """
+    import xlsxwriter
+
+    output=io.BytesIO()
+    # constant_memory mantém a geração estável mesmo em planilhas longas.
+    workbook=xlsxwriter.Workbook(output,{
+        "constant_memory":True,
+        "strings_to_formulas":False,
+        "strings_to_urls":False,
+        "default_date_format":"dd/mm/yyyy",
+    })
+    workbook.set_properties({
+        "title":"Relatório de lançamentos dos controles",
+        "subject":"Exportação de controles selecionados",
+        "author":"Central de Controles",
+        "comments":"Gerado pela Central de Controles; não altera dados.",
+    })
+    title_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":15,"bold":True,
+        "font_color":"#073C45","bg_color":"#EAF4F1",
+        "valign":"vcenter",
+    })
+    subtitle_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"font_color":"#536D75",
+    })
+    header_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"bold":True,
+        "font_color":"#FFFFFF","bg_color":"#116D66",
+        "valign":"vcenter","text_wrap":True,
+    })
+    regular_fmt=workbook.add_format({"font_name":"Aptos","font_size":10})
+    money_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,
+        "num_format":'"R$" #,##0.00;[Red]("R$" #,##0.00)',
+    })
+    qty_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"num_format":"#,##0.000",
+    })
+    date_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"num_format":"dd/mm/yyyy",
+    })
+    int_fmt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"num_format":"0",
+    })
     summary_headers=("Pasta","Controle","Modelo","Lançamentos","NF-e pendentes")
     summary_widths=(22,38,28,17,19)
     widths=(22,34,22,15,30,24,43,34,35,17,20,17,12,45,52,25)
-    created=datetime.now().strftime("%d/%m/%Y %H:%M")
-    subtitle="Exportado em "+created+" · Valores monetários e quantidades em colunas separadas"
-    sheets=[("Resumo",worksheet(summaries,summary_headers,
-                                "RELATÓRIO DE CONTROLES",subtitle,summary_widths)),
-            ("Lançamentos",worksheet(rows,HEADERS,"TODOS OS LANÇAMENTOS",
-                                  subtitle,widths))]
-    names={"resumo","lançamentos"}
-    for control,group in grouped:
-        name=unique_sheet_name(control["name"],names)
-        sheets.append((name,worksheet(group,HEADERS,control["name"],
-                         "Pasta: "+control["folder"]+" · "+subtitle,widths)))
-    styles="""<?xml version="1.0" encoding="utf-8"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="3"><font><sz val="10"/><name val="Aptos"/></font>
-<font><b/><color rgb="FFFFFFFF"/><sz val="10"/></font>
-<font><b/><color rgb="FF073C45"/><sz val="15"/></font></fonts>
-<fills count="4"><fill><patternFill patternType="none"/></fill>
-<fill><patternFill patternType="gray125"/></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FF116D66"/><bgColor indexed="64"/></patternFill></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FFEAF4F1"/><bgColor indexed="64"/></patternFill></fill></fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="7"><xf fontId="0" fillId="0" borderId="0" xfId="0"/>
-<xf fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
-<xf fontId="0" fillId="0" borderId="0" xfId="0" numFmtId="164" applyNumberFormat="1"/>
-<xf fontId="0" fillId="0" borderId="0" xfId="0" numFmtId="165" applyNumberFormat="1"/>
-<xf fontId="0" fillId="0" borderId="0" xfId="0" numFmtId="166" applyNumberFormat="1"/>
-<xf fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
-<xf fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/></cellXfs>
-<numFmts count="3"><numFmt numFmtId="164" formatCode="&quot;R$&quot; #,##0.00;[Red](&quot;R$&quot; #,##0.00)"/>
-<numFmt numFmtId="165" formatCode="#,##0.000"/>
-<numFmt numFmtId="166" formatCode="dd/mm/yyyy"/></numFmts>
-<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
-</styleSheet>"""
-    # numFmts deve preceder fonts/fills na ordem do esquema de estilos XLSX.
-    before,separator,after=styles.partition('<numFmts count="3">')
-    nums='<numFmts count="3">'+after.split('</numFmts>')[0]+'</numFmts>'
-    styles=before.replace('<fonts count="3">',nums+'<fonts count="3">')+after.split('</numFmts>',1)[1]
-    def rel(target):
-        return '<Relationship Id="rId'+str(target[0])+'" Type="'+target[1]+'" Target="'+target[2]+'"/>'
-    relbase="http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
-    workbook='<?xml version="1.0" encoding="utf-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="'+relbase+'"><sheets>'+''.join(
-        '<sheet name="'+escape(name,quote=True)+'" sheetId="'+str(i)+'" r:id="rId'+str(i)+'"/>' for i,(name,_) in enumerate(sheets,1))+'</sheets></workbook>'
-    wb_rels='<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+''.join(
-        rel((i,relbase+"worksheet","worksheets/sheet"+str(i)+".xml")) for i in range(1,len(sheets)+1))+rel((len(sheets)+1,relbase+"styles","styles.xml"))+'</Relationships>'
-    types='<?xml version="1.0" encoding="utf-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+(
-        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
-        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>')+''.join(
-        '<Override PartName="/xl/worksheets/sheet'+str(i)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-        for i in range(1,len(sheets)+1))+'</Types>'
-    buffer=io.BytesIO()
-    with zipfile.ZipFile(buffer,"w",zipfile.ZIP_DEFLATED,compresslevel=6) as z:
-        z.writestr("[Content_Types].xml",types)
-        z.writestr("_rels/.rels",'<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+relbase+'officeDocument" Target="xl/workbook.xml"/></Relationships>')
-        z.writestr("xl/workbook.xml",workbook)
-        z.writestr("xl/_rels/workbook.xml.rels",wb_rels)
-        z.writestr("xl/styles.xml",styles)
-        for i,(_,data) in enumerate(sheets,1):
-            z.writestr("xl/worksheets/sheet"+str(i)+".xml",data)
-    return buffer.getvalue()
+    now=datetime.now().strftime("%d/%m/%Y %H:%M")
+    subtitle="Exportado em "+now+" · Valores monetários e quantidades em colunas separadas"
 
+    def write_sheet(sheet_name,items,headers,title,sub,widths,is_summary=False):
+        ws=workbook.add_worksheet(sheet_name)
+        ws.hide_gridlines(2)
+        ws.set_zoom(90)
+        ws.set_default_row(19)
+        ws.set_row(0,31)
+        ws.set_row(1,24)
+        ws.set_row(3,34)
+        for col_number,width in enumerate(widths):
+            ws.set_column(col_number,col_number,width)
+        last=len(headers)-1
+        ws.merge_range(0,0,0,last,title,title_fmt)
+        ws.merge_range(1,0,1,last,sub,subtitle_fmt)
+        ws.write_row(3,0,headers,header_fmt)
+        ws.freeze_panes(4,0)
+        ws.autofilter(3,0,max(3,len(items)+3),last)
+
+        for idx,values in enumerate(items,4):
+            for col_number,value in enumerate(values):
+                if value is None or value=="":
+                    continue
+                if isinstance(value,(float,int,Decimal)) and not isinstance(value,bool):
+                    n=money(value)
+                    if n is not None:
+                        fmt=(int_fmt if is_summary else
+                             money_fmt if col_number in (9,10) else
+                             qty_fmt if col_number==11 else regular_fmt)
+                        ws.write_number(idx,col_number,n,fmt)
+                        continue
+                if not is_summary and col_number==3 and isinstance(value,str):
+                    if re.fullmatch(r"\d{4}-\d{2}-\d{2}",value):
+                        try:
+                            parsed=datetime.strptime(value,"%Y-%m-%d")
+                            ws.write_datetime(idx,col_number,parsed,date_fmt)
+                            continue
+                        except ValueError:
+                            pass
+                # write_string é deliberado: impedir formula injection em
+                # descrição, observações e nomes de fornecedores.
+                ws.write_string(idx,col_number,as_text(value)[:32767],regular_fmt)
+        return ws
+
+    used={"resumo","lançamentos"}
+    try:
+        write_sheet("Resumo",summaries,summary_headers,
+                    "RELATÓRIO DE CONTROLES",subtitle,summary_widths,True)
+        write_sheet("Lançamentos",rows,HEADERS,
+                    "TODOS OS LANÇAMENTOS",subtitle,widths)
+        for control,group in grouped:
+            name=unique_sheet_name(control["name"],used)
+            write_sheet(name,group,HEADERS,control["name"],
+                        "Pasta: "+control["folder"]+" · "+subtitle,widths)
+        workbook.close()
+    except Exception:
+        try:workbook.close()
+        except Exception:pass
+        raise
+    return output.getvalue()
 
 def generate(con,ids):
     return build_xlsx(*report_data(con,ids))
