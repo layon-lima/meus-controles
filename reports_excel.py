@@ -149,15 +149,17 @@ def collect(con,control):
                 e["order_number"],None,None,e["ordered_qty"],e["unit"],
                 extra="Status: "+("Concluído" if e.get("closed") else "Aberto"),
                 ident="purchase_items:"+str(e["id"]))
-        for row in con.execute("""SELECT r.*,i.product,i.supplier,i.order_number,i.unit
+        for row in con.execute("""SELECT r.*,i.product,i.supplier AS order_supplier,i.order_number,i.unit
                 FROM purchase_receipts r
                 JOIN purchase_items i ON i.id=r.item_id
                 WHERE i.control_id=? ORDER BY r.id""",(cid,)):
             e=dict(row)
-            add(e["received_date"],"Recebimento NF-e","",e["product"],e["supplier"],
+            add(e["received_date"],"Recebimento NF-e","",e["product"],
+                e["invoice_issuer"] or "Emitente não registrado",
                 "Pedido "+e["order_number"]+" · NF "+e["invoice_number"],
                 None,None,e["received_qty"],e["unit"],notes=e["notes"],
-                extra="Chave NF-e: "+as_text(e["access_key"]),
+                extra="Chave NF-e: "+as_text(e["access_key"])+
+                      " | CNPJ/CPF emitente: "+as_text(e["invoice_issuer_document"]),
                 ident="purchase_receipts:"+str(e["id"]))
         for row in con.execute("SELECT * FROM receiving_xml_pending WHERE control_id=? ORDER BY id",(cid,)):
             e=dict(row)
