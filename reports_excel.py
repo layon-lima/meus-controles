@@ -272,118 +272,230 @@ def unique_sheet_name(name,used):
     return attempt
 
 
-def build_xlsx(summaries,rows,grouped):
-    """Arquivo Excel real, escrito por XlsxWriter (sem montar OOXML à mão).
+def block_headers(mode):
+    """Sete colunas B:H; A identifica o controle, como no modelo aprovado."""
+    if mode=="recebimento":
+        return ("Data","Tipo","Produto","Fornecedor","Pedido / NF","Quantidade","Unidade / observações")
+    return ("Data","Tipo","Descrição","Origem / destino","Referência","Valor (R$)","Observações")
 
-    A biblioteca valida internamente as partes do pacote XLSX. Células que
-    começam com '=' continuam sendo TEXTO, nunca fórmula importada.
+
+def block_line(record,mode):
+    """Da linha consolidada original para as sete colunas visíveis do bloco."""
+    day,kind,category,description,who,ref=record[3:9]
+    amount,impact,quantity,unit,notes,extra,ident=record[9:16]
+    notes_all=" | ".join(x for x in (as_text(notes),as_text(extra)) if x)
+    if ident:
+        notes_all+=((" | " if notes_all else "")+"Origem: "+ident)
+    if mode=="recebimento":
+        unit_notes=" | ".join(x for x in (as_text(unit),notes_all) if x)
+        return (day,kind,description,who,ref,quantity,unit_notes)
+    # Categoria, quando existir, permanece junto do tipo, sem perder informação.
+    if category:
+        kind=kind+" · "+category
+    return (day,kind,description,who,ref,amount,notes_all)
+
+
+def block_totals(rows,mode):
+    """Totais separados por natureza, para não apresentar somas enganosas.
+
+    O primeiro item é sempre TOTAIS. Subtotais adicionais distinguem, por
+    exemplo, adiantamentos de despesas, pedidos de entregas e unidades.
+    Retorna (descrição, valor numérico ou None, explicação).
     """
-    import xlsxwriter
+    def sum_amount(predicate):
+        return round(sum((r[9] or 0) for r in rows if predicate(r)),2)
 
+    n=len(rows)
+    count_note=str(n)+" lançamento(s)"
+    if mode=="recebimento":
+        # Pedido cadastrado e NF-e pendente NÃO são mercadoria recebida.
+        received=[r for r in rows if r[4]=="Recebimento NF-e"]
+        by_unit={}
+        for r in received:
+            unit=as_text(r[12]).strip() or "sem unidade"
+            by_unit[unit]=round(by_unit.get(unit,0)+(r[11] or 0),3)
+        if len(by_unit)==1:
+            unit,amount=next(iter(by_unit.items()))
+            return [("TOTAIS · "+count_note,amount,"Total recebido em "+unit+
+                     "; pedidos e NF-e pendentes não somados")]
+        result=[("TOTAIS · "+count_note,None,
+                 "Recebimentos de unidades diferentes não são somados" if by_unit
+                 else "Nenhum recebimento lançado")]
+        for unit,amount in sorted(by_unit.items()):
+            result.append(("Recebido · "+unit,amount,"Subtotal somente de recebimentos"))
+        return result
+
+    if mode=="acerto_ab":
+        impact=round(sum((r[10] or 0) for r in rows),2)
+        return [("TOTAIS · "+count_note,impact,
+                 "Impacto líquido dos lançamentos; registros informativos não alteram saldo")]
+
+    if mode in ("saldo","financeiro","calculo"):
+        impact=round(sum((r[10] or 0) for r in rows),2)
+        return [("TOTAIS · "+count_note,impact,
+                 "Impacto líquido dos lançamentos (direções positivas e negativas)")]
+
+    if mode=="caminhao":
+        freight=sum_amount(lambda r:r[4]=="Frete")
+        expenses=sum_amount(lambda r:r[4]=="Gasto operacional")
+        advances=sum_amount(lambda r:r[4].startswith("Vale motorista"))
+        commission=round(sum((money(re.search(
+            r"(?:^| \| )comissão_gerada: ([^|]+)",r[14] or ""
+        ).group(1)) or 0) if re.search(
+            r"(?:^| \| )comissão_gerada: ([^|]+)",r[14] or ""
+        ) else 0 for r in rows if r[4]=="Frete"),2)
+        return [
+            ("TOTAIS · "+count_note,freight,"Total dos fretes realizados"),
+            ("Comissão gerada (despesa)",commission,"Comissão operacional; não descontar os vales novamente"),
+            ("Outros gastos operacionais",expenses,"Despesas sem os vales de motorista"),
+            ("Vales do motorista",advances,"Apenas abatimento da comissão, não nova despesa"),
+        ]
+
+    if mode=="vale_funcionarios":
+        granted=sum_amount(lambda r:r[4]=="Vale concedido")
+        deducted=sum_amount(lambda r:r[4]=="Desconto de vale")
+        return [
+            ("TOTAIS · "+count_note,granted,"Valor dos vales concedidos"),
+            ("Descontos registrados",deducted,"Abatimentos dos vales; não representam nova concessão"),
+        ]
+
+    return [("TOTAIS · "+count_note,round(sum((r[9] or 0) for r in rows),2),
+             "Soma dos pagamentos registrados")]
+
+
+def build_xlsx(summaries,rows,grouped):
+    """Uma única aba; blocos verdes por controle, linhas e totais, como na imagem."""
+    import xlsxwriter
     output=io.BytesIO()
-    # constant_memory mantém a geração estável mesmo em planilhas longas.
     workbook=xlsxwriter.Workbook(output,{
-        "constant_memory":True,
-        "strings_to_formulas":False,
-        "strings_to_urls":False,
-        "default_date_format":"dd/mm/yyyy",
+        "constant_memory":True,"strings_to_formulas":False,
+        "strings_to_urls":False,"default_date_format":"dd/mm/yyyy",
     })
     workbook.set_properties({
-        "title":"Relatório de lançamentos dos controles",
-        "subject":"Exportação de controles selecionados",
+        "title":"Relatório de lançamentos por controle",
+        "subject":"Controles em blocos verticais",
         "author":"Central de Controles",
-        "comments":"Gerado pela Central de Controles; não altera dados.",
+        "comments":"Relatório de consulta. Não altera o banco de dados.",
     })
-    title_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":15,"bold":True,
-        "font_color":"#073C45","bg_color":"#EAF4F1",
-        "valign":"vcenter",
-    })
-    subtitle_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":10,"font_color":"#536D75",
-    })
-    header_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":10,"bold":True,
-        "font_color":"#FFFFFF","bg_color":"#116D66",
-        "valign":"vcenter","text_wrap":True,
-    })
-    regular_fmt=workbook.add_format({"font_name":"Aptos","font_size":10})
-    money_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":10,
-        "num_format":'"R$" #,##0.00;[Red]("R$" #,##0.00)',
-    })
-    qty_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":10,"num_format":"#,##0.000",
-    })
-    date_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":10,"num_format":"dd/mm/yyyy",
-    })
-    int_fmt=workbook.add_format({
-        "font_name":"Aptos","font_size":10,"num_format":"0",
-    })
-    summary_headers=("Pasta","Controle","Modelo","Lançamentos","NF-e pendentes")
-    summary_widths=(22,38,28,17,19)
-    widths=(22,34,22,15,30,24,43,34,35,17,20,17,12,45,52,25)
-    now=datetime.now().strftime("%d/%m/%Y %H:%M")
-    subtitle="Exportado em "+now+" · Valores monetários e quantidades em colunas separadas"
+    ws=workbook.add_worksheet("Relatório")
+    ws.hide_gridlines(2)
+    ws.set_zoom(85)
+    ws.set_landscape()
+    ws.fit_to_pages(1,0)
+    ws.set_margins(0.3,0.3,0.4,0.4)
+    ws.set_header("&CCentral de Controles — Relatório de lançamentos")
+    ws.set_footer("&CPágina &P de &N")
+    widths=(34,15,33,42,34,37,19,59)
+    for c,width in enumerate(widths):
+        ws.set_column(c,c,width)
 
-    def write_sheet(sheet_name,items,headers,title,sub,widths,is_summary=False):
-        ws=workbook.add_worksheet(sheet_name)
-        ws.hide_gridlines(2)
-        ws.set_zoom(90)
-        ws.set_default_row(19)
-        ws.set_row(0,31)
-        ws.set_row(1,24)
-        ws.set_row(3,34)
-        for col_number,width in enumerate(widths):
-            ws.set_column(col_number,col_number,width)
-        last=len(headers)-1
-        ws.merge_range(0,0,0,last,title,title_fmt)
-        ws.merge_range(1,0,1,last,sub,subtitle_fmt)
-        ws.write_row(3,0,headers,header_fmt)
-        ws.freeze_panes(4,0)
-        ws.autofilter(3,0,max(3,len(items)+3),last)
-
-        for idx,values in enumerate(items,4):
-            for col_number,value in enumerate(values):
+    band=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"bold":True,"font_color":"#FFFFFF",
+        "bg_color":"#00AD64","valign":"vcenter","text_wrap":True,
+        "bottom":1,"bottom_color":"#008B50",
+    })
+    row_plain=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"valign":"vcenter",
+        "bottom":1,"bottom_color":"#ECF0EE",
+    })
+    row_alt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"bg_color":"#F4F9F6",
+        "valign":"vcenter","bottom":1,"bottom_color":"#ECF0EE",
+    })
+    money_fmt=workbook.add_format({"num_format":'"R$" #,##0.00;[Red]("R$" #,##0.00)',
+                                   "font_name":"Aptos","font_size":10})
+    money_alt=workbook.add_format({"num_format":'"R$" #,##0.00;[Red]("R$" #,##0.00)',
+                                   "font_name":"Aptos","font_size":10,
+                                   "bg_color":"#F4F9F6"})
+    qty_fmt=workbook.add_format({"num_format":"#,##0.000",
+                                 "font_name":"Aptos","font_size":10})
+    qty_alt=workbook.add_format({"num_format":"#,##0.000",
+                                 "font_name":"Aptos","font_size":10,
+                                 "bg_color":"#F4F9F6"})
+    date_fmt=workbook.add_format({"num_format":"dd/mm/yyyy",
+                                  "font_name":"Aptos","font_size":10})
+    date_alt=workbook.add_format({"num_format":"dd/mm/yyyy",
+                                  "font_name":"Aptos","font_size":10,
+                                  "bg_color":"#F4F9F6"})
+    total=workbook.add_format({"font_name":"Aptos","font_size":10,
+                               "bold":True,"bg_color":"#E1EFE9",
+                               "top":1,"top_color":"#A1C9B8"})
+    total_money=workbook.add_format({"font_name":"Aptos","font_size":10,
+                                     "bold":True,"bg_color":"#E1EFE9",
+                                     "num_format":'"R$" #,##0.00;[Red]("R$" #,##0.00)',
+                                     "top":1,"top_color":"#A1C9B8"})
+    total_qty=workbook.add_format({"font_name":"Aptos","font_size":10,
+                                   "bold":True,"bg_color":"#E1EFE9",
+                                   "num_format":"#,##0.000",
+                                   "top":1,"top_color":"#A1C9B8"})
+    empty_fmt=workbook.add_format({"font_name":"Aptos","italic":True,
+                                   "font_color":"#687F74","font_size":10})
+    subtitle_fmt=workbook.add_format({"font_name":"Aptos","font_size":9,
+                                      "font_color":"#637C70"})
+    current=1  # A primeira faixa verde fica na linha 2 do Excel.
+    for control,group in grouped:
+        mode=control["mode"]
+        headers=block_headers(mode)
+        ws.set_row(current,30)
+        ws.write_string(current,0,as_text(control["name"])[:32767],band)
+        for c,heading in enumerate(headers,1):
+            ws.write_string(current,c,heading,band)
+        current+=1
+        # Inclui as linhas com data mais recente primeiro.
+        ordered=sorted(group,key=lambda r:r[3] or "",reverse=True)
+        for i,record in enumerate(ordered):
+            vals=block_line(record,mode)
+            ordinary=row_alt if i%2 else row_plain
+            ws.set_row(current,20)
+            for colnum,value in enumerate(vals,1):
                 if value is None or value=="":
-                    continue
-                if isinstance(value,(float,int,Decimal)) and not isinstance(value,bool):
-                    n=money(value)
-                    if n is not None:
-                        fmt=(int_fmt if is_summary else
-                             money_fmt if col_number in (9,10) else
-                             qty_fmt if col_number==11 else regular_fmt)
-                        ws.write_number(idx,col_number,n,fmt)
-                        continue
-                if not is_summary and col_number==3 and isinstance(value,str):
-                    if re.fullmatch(r"\d{4}-\d{2}-\d{2}",value):
-                        try:
-                            parsed=datetime.strptime(value,"%Y-%m-%d")
-                            ws.write_datetime(idx,col_number,parsed,date_fmt)
-                            continue
-                        except ValueError:
-                            pass
-                # write_string é deliberado: impedir formula injection em
-                # descrição, observações e nomes de fornecedores.
-                ws.write_string(idx,col_number,as_text(value)[:32767],regular_fmt)
-        return ws
+                    ws.write_blank(current,colnum,None,ordinary)
+                elif colnum==1 and isinstance(value,str) and re.fullmatch(
+                        r"\d{4}-\d{2}-\d{2}",value):
+                    try:
+                        ws.write_datetime(current,colnum,
+                                          datetime.strptime(value,"%Y-%m-%d"),
+                                          date_alt if i%2 else date_fmt)
+                    except ValueError:
+                        ws.write_string(current,colnum,value,ordinary)
+                elif colnum==6 and isinstance(value,(int,float,Decimal)):
+                    numeric=money(value)
+                    if numeric is not None:
+                        ws.write_number(current,colnum,numeric,
+                                        (qty_alt if i%2 else qty_fmt)
+                                        if mode=="recebimento"
+                                        else (money_alt if i%2 else money_fmt))
+                    else:
+                        ws.write_string(current,colnum,as_text(value),ordinary)
+                else:
+                    # Nunca permitir que observações virem fórmulas.
+                    ws.write_string(current,colnum,as_text(value)[:32767],ordinary)
+            current+=1
+        if not ordered:
+            ws.write_string(current,1,"Nenhum lançamento neste controle",empty_fmt)
+            current+=1
 
-    used={"resumo","lançamentos"}
-    try:
-        write_sheet("Resumo",summaries,summary_headers,
-                    "RELATÓRIO DE CONTROLES",subtitle,summary_widths,True)
-        write_sheet("Lançamentos",rows,HEADERS,
-                    "TODOS OS LANÇAMENTOS",subtitle,widths)
-        for control,group in grouped:
-            name=unique_sheet_name(control["name"],used)
-            write_sheet(name,group,HEADERS,control["name"],
-                        "Pasta: "+control["folder"]+" · "+subtitle,widths)
-        workbook.close()
-    except Exception:
-        try:workbook.close()
-        except Exception:pass
-        raise
+        for description,amount,note in block_totals(group,mode):
+            ws.set_row(current,22)
+            # Uma faixa discreta para totais, sem misturar espécies distintas.
+            for colnum in range(8):
+                ws.write_blank(current,colnum,None,total)
+            ws.write_string(current,1,description[:32767],total)
+            if amount is not None:
+                ws.write_number(current,6,amount,
+                                total_qty if mode=="recebimento" else total_money)
+            ws.write_string(current,7,note[:32767],total)
+            current+=1
+
+        # Uma linha com identificação da pasta e outra em branco.
+        ws.write_string(current,1,
+                        "Pasta: "+as_text(control["folder"])+" · "+MODE.get(mode,mode),
+                        subtitle_fmt)
+        current+=2
+
+    if not grouped:
+        ws.write_string(current,1,"Nenhum controle selecionado",empty_fmt)
+    workbook.close()
     return output.getvalue()
 
 def generate(con,ids):
