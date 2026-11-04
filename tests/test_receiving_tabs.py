@@ -160,7 +160,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn(".receiving-xml-manual[hidden]",CSS)
 
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261027-xml-pending-v18"),("receiving.css","20261103-unidade-manual-v17")):
+        for asset,release in (("receiving.js","20261104-xml-emitente-v19"),("receiving.css","20261103-unidade-manual-v17")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
