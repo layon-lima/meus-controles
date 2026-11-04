@@ -97,8 +97,16 @@ class ReportExcelTests(unittest.TestCase):
             self.assertIn("=HYPERLINK",sheet)
             self.assertNotIn("<f>",sheet)
             self.assertIn('autoFilter ref="A4:P11"',sheet)
-            self.assertIn('s="4"',sheet)  # datas numéricas Excel para filtrar e ordenar
-            self.assertIn('s="2"',sheet)  # valores em reais com tipo numérico
+            # Conferir os tipos das células, sem depender do ID interno do estilo.
+            namespace={"x":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+            xml_sheet=ET.fromstring(workbook.read("xl/worksheets/sheet2.xml"))
+            for address in ("D5","J5"):
+                cell=xml_sheet.find(".//x:c[@r='"+address+"']",namespace)
+                self.assertIsNotNone(cell,address)
+                self.assertNotEqual(cell.get("t"),"inlineStr",address)
+                self.assertIsNotNone(cell.find("x:v",namespace),address)
+            self.assertIn("dd/mm/yyyy",workbook.read("xl/styles.xml").decode())
+            self.assertIn("R$",workbook.read("xl/styles.xml").decode())
 
     def test_no_mixing_of_currency_and_quantity(self):
         with app.db() as con:
