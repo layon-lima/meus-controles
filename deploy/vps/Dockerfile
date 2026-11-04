@@ -4,7 +4,7 @@ WORKDIR /srv/app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir "psycopg[binary]>=3.2,<4" "PyMuPDF>=1.25,<2" \
+    && pip install --no-cache-dir "psycopg[binary]>=3.2,<4" "PyMuPDF>=1.25,<2" "XlsxWriter>=3.2,<4" \
     && useradd --system --uid 10001 --home-dir /nonexistent --shell /usr/sbin/nologin controles
 COPY . /srv/app
 RUN python -m compileall -q /srv/app \
