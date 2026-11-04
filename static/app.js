@@ -338,7 +338,7 @@ const App = {
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal report-excel-modal" role="dialog" aria-modal="true" aria-labelledby="reportExcelTitle">'+
       '<div class="modal-header"><div><h2 id="reportExcelTitle">Relatório de lançamentos em Excel</h2>'+
-      '<p>Selecione controles de uma ou várias pastas. O arquivo terá resumo, consolidado e uma aba por controle.</p></div>'+
+      '<p>Selecione controles de uma ou várias pastas. O Excel terá uma única aba, com os lançamentos agrupados por controle, cabeçalhos verdes e totais.</p></div>'+
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><input type="search" id="reportExcelSearch" class="report-excel-search" '+
       'placeholder="Pesquisar controle ou pasta..." oninput="App.reportExcelFilter(this.value)" '+
@@ -347,7 +347,7 @@ const App = {
       'Marcar visíveis</button><button class="btn btn-sm" type="button" onclick="App.reportExcelClear()">Limpar seleção</button>'+
       '<span id="reportExcelCount">0 selecionados</span></div>'+
       '<div class="report-excel-list">'+groups+'</div>'+
-      '<p class="report-excel-note">Valores em R$ e quantidades ficam em colunas separadas. '+
+      '<p class="report-excel-note">Cada controle terá seu bloco próprio. Quantidades e valores só são totalizados quando compatíveis. '+
       'Registros sem efeito no saldo e notas pendentes são identificados.</p></div>'+
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button id="reportExcelDownload" class="btn btn-primary" type="button" disabled '+
