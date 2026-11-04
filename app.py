@@ -686,7 +686,7 @@ class Handler(BaseHTTPRequestHandler):
                 if re.fullmatch(r"/api/controls/\d+/pair(?:/(?:entries|settings|preview|closures))?",url) or re.fullmatch(r"/api/pair-entries/\d+",url) or re.fullmatch(r"/api/pair-closures/\d+(?:/export\.csv)?",url):
                     pair.handle(self,con,method,url)
                     return
-                if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm|pending(?:/\d+/assign)?)",url):
+                if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm|issuer|pending(?:/\d+/assign)?)",url):
                     receiving_xml.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:preview|confirm)",url):
