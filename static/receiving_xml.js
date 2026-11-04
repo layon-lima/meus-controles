@@ -332,6 +332,38 @@
         this.toast("Recebimento vinculado ao pedido.");
       }catch(err){this.toast(err.message,true);}
     },
+    receivingXMLRestoreIssuers(){
+      document.getElementById("receivingXMLIssuerFiles")?.click();
+    },
+    async receivingXMLRestoreFiles(files){
+      const chosen=[...(files||[])];
+      const field=document.getElementById("receivingXMLIssuerFiles");
+      if(field)field.value="";
+      if(!chosen.length||this.s.receivingXMLRestoreBusy)return;
+      const cid=this.s.detail?.control?.id;
+      if(!cid)return;
+      this.s.receivingXMLRestoreBusy=true;
+      let updated=0,matched=0,failed=0;
+      try{
+        for(const file of chosen){
+          if(!/\\.xml$/i.test(file.name)&&!String(file.type).includes("xml")){
+            failed++;continue;
+          }
+          if(file.size>2000000){failed++;continue;}
+          try{
+            const xml=await toBase64(file);
+            const result=await this.api(
+              "/api/controls/"+cid+"/receiving/xml/issuer","POST",{xml});
+            updated+=Number(result.updated||0);
+            matched+=Number(result.matched||0);
+          }catch(err){failed++;this.toast(file.name+": "+err.message,true);}
+        }
+        await this.renderReceiving();
+        this.toast("Emitentes recuperados: "+updated+" registro(s)."+
+          (matched-updated>0?" Já preenchidos: "+(matched-updated)+".":"")+
+          (failed?" Arquivos sem correspondência ou inválidos: "+failed+".":""));
+      }finally{this.s.receivingXMLRestoreBusy=false;}
+    },
     receivingXMLChoose(){document.getElementById("receivingXMLFile")?.click();},
     async receivingXMLLoad(files){await loadXML(files?.[0]);const input=document.getElementById("receivingXMLFile");if(input)input.value="";},
     async receivingXMLConfirm(){
