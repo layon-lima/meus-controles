@@ -271,6 +271,7 @@ const App = {
     if(this.s.route==="home"){
       main.innerHTML='<div class="section-heading boards-home-heading"><h2>Suas pastas</h2>'+
         '<div class="boards-home-actions"><span class="secondary-text">'+boards.length+' pasta(s)</span>'+
+        '<button type="button" class="btn btn-sm" onclick="App.reportExcelOpen()">'+icon("file-spreadsheet")+' Relatório Excel</button>'+
         '<button type="button" class="btn btn-primary btn-sm" onclick="App.newBoard()">'+icon("plus")+' Nova pasta</button></div></div>'+
       (boards.length?'<div class="board-grid">'+boards.map(b=>boardCard(b,controls.filter(c=>c.board_id===b.id).length)).join("")+'</div>':empty("Nenhuma pasta","Crie uma pasta para organizar seus controles.","App.newBoard()","Criar pasta"));
     } else if(this.s.route==="board"){
@@ -278,6 +279,7 @@ const App = {
       const found=controls.filter(c=>c.board_id===b.id);
       main.innerHTML='<div class="section-heading board-controls-heading"><h2>Controles</h2>'+
        '<div class="board-controls-actions"><span class="secondary-text">'+found.length+' controle(s)</span>'+
+       '<button type="button" class="btn btn-quiet btn-sm" onclick="App.reportExcelOpen()">'+icon("file-spreadsheet")+' Relatório Excel</button>'+
        '<button type="button" class="btn btn-quiet btn-sm" onclick="App.renameBoard('+b.id+')">'+icon("edit")+' Renomear pasta</button>'+
        '<button type="button" class="btn btn-quiet btn-sm" onclick="App.deleteBoard('+b.id+')">'+icon("trash")+' Excluir pasta</button></div></div>'+
        (found.length?'<div class="control-grid">'+found.map(controlCard).join("")+'</div>':
@@ -314,6 +316,109 @@ const App = {
     const b=this.s.state.boards.find(x=>x.id===id),name=prompt("Nome da pasta:",b.name);
     if(name===null)return;
     try{await this.api("/api/boards/"+id,"PATCH",{name});this.toast("Pasta atualizada.");await this.load()}catch(e){this.toast(e.message,true)}
+  },
+  reportExcelOpen(){
+    const state=this.s.state;
+    if(!state?.controls?.length)return this.toast("Nenhum controle disponível para exportar.",true);
+    this.s.reportExcelIds=new Set();
+    const groups=(state.boards||[]).map(board=>{
+      const controls=state.controls.filter(c=>c.board_id===board.id);
+      if(!controls.length)return "";
+      return '<section class="report-excel-group"><h3>'+E(board.name)+' <small>('+controls.length+')</small></h3>'+
+        controls.map(c=>'<label class="report-excel-choice" data-report-search="'+E(
+          (board.name+" "+c.name+" "+c.mode).toLocaleLowerCase("pt-BR"))+'">'+
+          '<input type="checkbox" value="'+c.id+'" onchange="App.reportExcelToggle('+c.id+',this.checked)">'+
+          '<span>'+E(c.name)+'</span><small>'+E(
+            {"acerto_ab":"Acerto A × B","recebimento":"Recebimentos","caminhao":"Transportadora",
+             "vale_funcionarios":"Vales","divida":"Dívidas","divida_sem_valor":"Pagamentos",
+             "financeiro":"Financeiro","calculo":"Calculado","saldo":"Saldo"}[c.mode]||c.mode)+
+          '</small></label>').join("")+'</section>';
+    }).join("");
+    this.s.modal="report-excel";
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop"><div class="modal report-excel-modal" role="dialog" aria-modal="true" aria-labelledby="reportExcelTitle">'+
+      '<div class="modal-header"><div><h2 id="reportExcelTitle">Relatório de lançamentos em Excel</h2>'+
+      '<p>Selecione controles de uma ou várias pastas. O arquivo terá resumo, consolidado e uma aba por controle.</p></div>'+
+      '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><input type="search" id="reportExcelSearch" class="report-excel-search" '+
+      'placeholder="Pesquisar controle ou pasta..." oninput="App.reportExcelFilter(this.value)" '+
+      'aria-label="Pesquisar controles">'+
+      '<div class="report-excel-tools"><button class="btn btn-sm" type="button" onclick="App.reportExcelSelectVisible()">'+
+      'Marcar visíveis</button><button class="btn btn-sm" type="button" onclick="App.reportExcelClear()">Limpar seleção</button>'+
+      '<span id="reportExcelCount">0 selecionados</span></div>'+
+      '<div class="report-excel-list">'+groups+'</div>'+
+      '<p class="report-excel-note">Valores em R$ e quantidades ficam em colunas separadas. '+
+      'Registros sem efeito no saldo e notas pendentes são identificados.</p></div>'+
+      '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button id="reportExcelDownload" class="btn btn-primary" type="button" disabled '+
+      'onclick="App.reportExcelDownload()">'+icon("download")+' Gerar Excel</button></div></div></div>';
+  },
+  reportExcelToggle(id,checked){
+    if(!(this.s.reportExcelIds instanceof Set))return;
+    if(checked)this.s.reportExcelIds.add(Number(id));
+    else this.s.reportExcelIds.delete(Number(id));
+    this.reportExcelCount();
+  },
+  reportExcelCount(){
+    const count=this.s.reportExcelIds?.size||0;
+    const label=document.getElementById("reportExcelCount");
+    if(label)label.textContent=count+" controle(s) selecionado(s)";
+    const btn=document.getElementById("reportExcelDownload");
+    if(btn)btn.disabled=count===0||count>80||!!this.s.reportExcelBusy;
+    if(label&&count>80)label.textContent="Selecione no máximo 80 controles.";
+  },
+  reportExcelFilter(value){
+    const search=String(value??"").toLocaleLowerCase("pt-BR").trim();
+    document.querySelectorAll(".report-excel-choice").forEach(el=>{
+      el.hidden=!String(el.getAttribute("data-report-search")||"").includes(search);
+    });
+    document.querySelectorAll(".report-excel-group").forEach(group=>{
+      group.hidden=![...group.querySelectorAll(".report-excel-choice")].some(x=>!x.hidden);
+    });
+  },
+  reportExcelSelectVisible(){
+    document.querySelectorAll(".report-excel-choice").forEach(el=>{
+      if(el.hidden||el.closest(".report-excel-group")?.hidden)return;
+      const checkbox=el.querySelector('input[type="checkbox"]');
+      if(checkbox){checkbox.checked=true;this.s.reportExcelIds.add(Number(checkbox.value));}
+    });
+    this.reportExcelCount();
+  },
+  reportExcelClear(){
+    this.s.reportExcelIds=new Set();
+    document.querySelectorAll(".report-excel-choice input[type=checkbox]").forEach(x=>{x.checked=false});
+    this.reportExcelCount();
+  },
+  async reportExcelDownload(){
+    const ids=[...(this.s.reportExcelIds||[])];
+    if(!ids.length||ids.length>80||this.s.reportExcelBusy)return;
+    this.s.reportExcelBusy=true;
+    this.reportExcelCount();
+    try{
+      const response=await fetch("/api/reports/controls.xlsx",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({control_ids:ids})
+      });
+      if(!response.ok){
+        let explanation="Não foi possível gerar o relatório.";
+        try{const error=await response.json();explanation=error.error||explanation;}catch{}
+        throw new Error(explanation);
+      }
+      const blob=await response.blob();
+      if(!blob.size)throw new Error("O servidor retornou um arquivo vazio.");
+      const url=URL.createObjectURL(blob);
+      try{
+        const link=document.createElement("a");
+        link.href=url;link.download="relatorio_controles.xlsx";
+        document.body.appendChild(link);link.click();link.remove();
+      }finally{setTimeout(()=>URL.revokeObjectURL(url),2000)}
+      this.closeModal();
+      this.toast("Excel gerado com "+ids.length+" controle(s).");
+    }catch(error){this.toast(error.message,true)}
+    finally{
+      this.s.reportExcelBusy=false;
+      this.reportExcelCount();
+    }
   },
   newBoard(){
     if(!this.canOpenForm())return;
