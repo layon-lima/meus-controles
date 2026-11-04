@@ -394,6 +394,22 @@ def build_xlsx(summaries,rows,grouped):
         "bg_color":"#00AD64","valign":"vcenter","text_wrap":True,
         "bottom":1,"bottom_color":"#008B50",
     })
+    # Referência arualizada.xlsx fornecida pelo usuário: a faixa do nome
+    # é verde-escura e o cabeçalho A:E é verde-claro (#92D050).
+    pair_header=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"bold":True,
+        "font_color":"#FFFFFF","bg_color":"#92D050",
+        "valign":"vcenter","text_wrap":True,
+        "bottom":1,"bottom_color":"#008B50",
+    })
+    pair_date=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"valign":"vcenter",
+        "num_format":"dd/mm/yy",
+    })
+    pair_date_alt=workbook.add_format({
+        "font_name":"Aptos","font_size":10,"bg_color":"#F4F9F6",
+        "valign":"vcenter","num_format":"dd/mm/yy",
+    })
     row_plain=workbook.add_format({
         "font_name":"Aptos","font_size":10,"valign":"vcenter",
         "bottom":1,"bottom_color":"#ECF0EE",
@@ -435,6 +451,56 @@ def build_xlsx(summaries,rows,grouped):
     current=1  # A primeira faixa verde fica na linha 2 do Excel.
     for control,group in grouped:
         mode=control["mode"]
+        if mode=="acerto_ab":
+            # MODELO A × B: seguir exatamente A:E do arquivo de referência.
+            # Título (A:E), cabeçalho (A:E), dados, Total Em aberto (D:E)
+            # e DUAS linhas em branco antes do próximo controle.
+            ws.set_row(current,21)
+            ws.write_string(current,0,as_text(control["name"])[:32767],band)
+            for c in range(1,5):
+                ws.write_blank(current,c,None,band)
+            current+=1
+            for c,heading in enumerate((
+                "Data","Tipo","Descrição","Origem / destino","Valor (R$)")):
+                ws.write_string(current,c,heading,pair_header)
+            current+=1
+            ordered=sorted(group,key=lambda r:r[3] or "",reverse=True)
+            for i,record in enumerate(ordered):
+                ws.set_row(current,20.25)
+                # Valores ficam POSITIVOS no lançamento, conforme a planilha
+                # modelo. O sinal só participa do Total Em aberto.
+                date_value,kind,description,who=record[3],record[4],record[6],record[7]
+                amount=record[9]
+                ordinary=row_alt if i%2 else row_plain
+                if re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}",as_text(date_value)):
+                    try:
+                        ws.write_datetime(current,0,datetime.strptime(date_value,"%Y-%m-%d"),
+                                          pair_date_alt if i%2 else pair_date)
+                    except ValueError:
+                        ws.write_string(current,0,as_text(date_value),ordinary)
+                else:
+                    ws.write_string(current,0,as_text(date_value),ordinary)
+                for col,value in enumerate((kind,description,who),1):
+                    ws.write_string(current,col,as_text(value)[:32767],ordinary)
+                if amount is not None:
+                    ws.write_number(current,4,float(amount),
+                                    money_alt if i%2 else money_fmt)
+                else:
+                    ws.write_blank(current,4,None,ordinary)
+                current+=1
+            if not ordered:
+                ws.write_string(current,1,"Nenhum lançamento neste controle",empty_fmt)
+                current+=1
+            ws.set_row(current,21.75)
+            for c in range(5):
+                ws.write_blank(current,c,None,total)
+            ws.write_string(current,3,"Total Em aberto",total)
+            # Usar a mesma regra de impacto do acerto A × B, não a soma bruta
+            # dos valores: dívida e pagamento têm sinais opostos.
+            balance=round(sum((r[10] or 0) for r in group),2)
+            ws.write_number(current,4,balance,total_money)
+            current+=3
+            continue
         headers=block_headers(mode)
         ws.set_row(current,30)
         ws.write_string(current,0,as_text(control["name"])[:32767],band)
