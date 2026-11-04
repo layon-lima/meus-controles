@@ -152,7 +152,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261104-relatorio-multicontrole-v29',SW)
+        self.assertIn('central-de-controles-shell-v20261104-excel-blocos-v30',SW)
         self.assertIn('/static/receiving_xml.js?v=20261103-unidade-manual-v20',HTML)
         self.assertIn('/static/receiving_xml.js?v=20261103-unidade-manual-v20',SW)
         self.assertIn('surface.ondrop=event=>',JS)
