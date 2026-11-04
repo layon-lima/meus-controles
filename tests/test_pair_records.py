@@ -116,6 +116,108 @@ class PairRecordTests(unittest.TestCase):
             self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-500.00")
             self.assertEqual(pair_records.get(con,self.cid),[])
 
+    def test_edit_neutral_to_debt_and_back_preserves_audit_and_balance(self):
+        with app.db() as con:
+            record=pair_records.handle(Handler({
+                "date":"2026-02-07","amount":"1500","from_name":"JONAS",
+                "to_name":"MARCOS","description":"Vale", "notes":"Verificado"
+            }),con,"POST",f"/api/controls/{self.cid}/pair/records")["data"]["id"]
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-500.00")
+            output=pair_records.handle(Handler({
+                "date":"2026-02-07","amount":"1500","description":"Vale",
+                "notes":"Verificado","kind":"debt","debtor":"A"
+            }),con,"PUT",f"/api/pair-records/{record}")["data"]
+            self.assertEqual(output["new_kind"],"debt")
+            new_id=output["new_id"]
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-2000.00")
+            self.assertEqual(pair_records.get(con,self.cid),[])
+            self.assertEqual(con.execute(
+                "SELECT COUNT(*) FROM pair_transaction_changes").fetchone()[0],1)
+            converted=pair.handle(Handler({
+                "date":"2026-02-07","amount":"1500","description":"Vale",
+                "notes":"Verificado","kind":"record","debtor":"B"
+            }),con,"PUT",f"/api/pair-entries/{new_id}")["data"]
+            self.assertEqual(converted["new_kind"],"record")
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-500.00")
+            neutral=pair_records.get(con,self.cid)
+            self.assertEqual(len(neutral),1)
+            self.assertEqual(neutral[0]["from_name"],"MARCOS")
+            self.assertEqual(neutral[0]["to_name"],"JONAS")
+            self.assertEqual(neutral[0]["notes"],"Verificado")
+            self.assertEqual(con.execute(
+                "SELECT COUNT(*) FROM pair_transaction_changes").fetchone()[0],2)
+
+    def test_neutral_to_payment_changes_balance_in_opposite_direction(self):
+        with app.db() as con:
+            rec=pair_records.handle(Handler({
+                "date":"2026-02-06","amount":"200",
+                "from_name":"MARCOS","to_name":"JONAS","description":"PIX"
+            }),con,"POST",f"/api/controls/{self.cid}/pair/records")["data"]["id"]
+        with app.db() as con:
+            result=pair_records.handle(Handler({
+                "date":"2026-02-06","amount":"200","kind":"payment",
+                "payer":"B","description":"PIX","notes":"Comprovado"
+            }),con,"PUT",f"/api/pair-records/{rec}")["data"]
+            self.assertEqual(result["new_kind"],"payment")
+        with app.db() as con:
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-700.00")
+            saved=con.execute("SELECT * FROM pair_entries WHERE id=?",
+                              (result["new_id"],)).fetchone()
+            self.assertEqual(saved["entry_kind"],"payment")
+            self.assertEqual(saved["debtor"],"B")
+
+    def test_conversion_rejects_closed_period_and_invalid_direction_without_data_loss(self):
+        with app.db() as con:
+            rec=pair_records.handle(Handler({
+                "date":"2026-02-05","amount":"100",
+                "from_name":"JONAS","to_name":"MARCOS","description":"Anterior"
+            }),con,"POST",f"/api/controls/{self.cid}/pair/records")["data"]["id"]
+            with self.assertRaisesRegex(ValueError,"quem deve"):
+                pair_records.handle(Handler({
+                    "date":"2026-02-05","amount":"100",
+                    "description":"Anterior","kind":"debt","debtor":"C"
+                }),con,"PUT",f"/api/pair-records/{rec}")
+        with app.db() as con:
+            report=pair.preview(con,self.cid,"2026-02-01","2026-02-28")
+            pair.close(con,self.cid,{"start":"2026-02-01","end":"2026-02-28",
+                "fingerprint":report["fingerprint"]})
+        with self.assertRaisesRegex(ValueError,"fechado"):
+            with app.db() as con:
+                pair_records.handle(Handler({
+                    "date":"2026-03-02","amount":"100",
+                    "description":"Anterior","kind":"debt","debtor":"A"
+                }),con,"PUT",f"/api/pair-records/{rec}")
+        with app.db() as con:
+            self.assertEqual(len(pair_records.get(con,self.cid)),1)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM pair_transaction_changes").fetchone()[0],0)
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-500.00")
+
+    def test_imported_neutral_converted_to_financial_is_not_reimported(self):
+        data=self.file()
+        with app.db() as con:
+            preview=pair_records.batch(con,self.cid,data)
+            pair_records.handle(Handler({"payload":data,"batch_id":preview["batch_id"]}),
+                con,"POST",f"/api/controls/{self.cid}/pair/import/confirm")
+        with app.db() as con:
+            first=next(r for r in pair_records.get(con,self.cid) if r["source_row"]==1)
+            pair_records.handle(Handler({
+                "date":"2026-02-06","amount":"114000","kind":"debt",
+                "debtor":"A","description":"Bonificação conferida"
+            }),con,"PUT",f"/api/pair-records/{first['id']}")
+        with app.db() as con:
+            preview=pair_records.batch(con,self.cid,data)
+            self.assertEqual(preview["already_imported"],3)
+            self.assertEqual(preview["new_count"],0)
+            confirmation=pair_records.handle(Handler({
+                "payload":data,"batch_id":preview["batch_id"]}),
+                con,"POST",f"/api/controls/{self.cid}/pair/import/confirm")["data"]
+            self.assertEqual(confirmation["inserted"],0)
+            self.assertEqual(len(pair_records.get(con,self.cid)),2)
+            self.assertEqual(pair.summary(con,self.cid)["totals"]["balance"],"-114500.00")
+
     def test_bad_format_or_modified_confirmation_rejected(self):
         with app.db() as con:
             p=self.file()
