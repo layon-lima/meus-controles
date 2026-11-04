@@ -33,6 +33,8 @@ def initialize(con):
         received_date TEXT NOT NULL,
         invoice_number TEXT NOT NULL,
         access_key TEXT NOT NULL DEFAULT '',
+        invoice_issuer TEXT NOT NULL DEFAULT '',
+        invoice_issuer_document TEXT NOT NULL DEFAULT '',
         received_qty TEXT NOT NULL,
         notes TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -45,6 +47,46 @@ def initialize(con):
     columns={row["name"] for row in con.execute("PRAGMA table_info(purchase_receipts)")}
     if "access_key" not in columns:
         con.execute("ALTER TABLE purchase_receipts ADD COLUMN access_key TEXT NOT NULL DEFAULT ''")
+    if "invoice_issuer" not in columns:
+        con.execute("ALTER TABLE purchase_receipts ADD COLUMN invoice_issuer TEXT NOT NULL DEFAULT ''")
+    if "invoice_issuer_document" not in columns:
+        con.execute("ALTER TABLE purchase_receipts ADD COLUMN invoice_issuer_document TEXT NOT NULL DEFAULT ''")
+    # Se outro item da mesma NF-e ainda está em Sem pedido, seu XML já
+    # preservou o emitente. Usamos a chave exata para recuperar o histórico.
+    # Não inferimos o emitente a partir do fornecedor do pedido.
+    pending_table=con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='receiving_xml_pending'").fetchone()
+    if pending_table:
+        con.execute("""UPDATE purchase_receipts
+            SET invoice_issuer=(
+              SELECT p.supplier FROM receiving_xml_pending p
+              JOIN purchase_items i ON i.control_id=p.control_id
+              WHERE i.id=purchase_receipts.item_id
+                AND p.access_key=purchase_receipts.access_key
+                AND p.invoice_number=purchase_receipts.invoice_number
+              ORDER BY p.id LIMIT 1)
+            WHERE invoice_issuer='' AND access_key!=''
+              AND EXISTS(
+                SELECT 1 FROM receiving_xml_pending p
+                JOIN purchase_items i ON i.control_id=p.control_id
+                WHERE i.id=purchase_receipts.item_id
+                  AND p.access_key=purchase_receipts.access_key
+                  AND p.invoice_number=purchase_receipts.invoice_number)""")
+        con.execute("""UPDATE purchase_receipts
+            SET invoice_issuer_document=(
+              SELECT p.cnpj FROM receiving_xml_pending p
+              JOIN purchase_items i ON i.control_id=p.control_id
+              WHERE i.id=purchase_receipts.item_id
+                AND p.access_key=purchase_receipts.access_key
+                AND p.invoice_number=purchase_receipts.invoice_number
+              ORDER BY p.id LIMIT 1)
+            WHERE invoice_issuer_document='' AND access_key!=''
+              AND EXISTS(
+                SELECT 1 FROM receiving_xml_pending p
+                JOIN purchase_items i ON i.control_id=p.control_id
+                WHERE i.id=purchase_receipts.item_id
+                  AND p.access_key=purchase_receipts.access_key
+                  AND p.invoice_number=purchase_receipts.invoice_number)""")
     item_columns={row["name"] for row in con.execute("PRAGMA table_info(purchase_items)")}
     if "closed" not in item_columns:
         con.execute("ALTER TABLE purchase_items ADD COLUMN closed INTEGER NOT NULL DEFAULT 0")
@@ -231,7 +273,8 @@ def summary(con,cid):
         else:pending+=1
         for receipt in receipts:
             history.append({**receipt,
-                "order_number":item["order_number"],"supplier":item["supplier"],
+                "order_number":item["order_number"],"order_supplier":item["supplier"],
+                "supplier":receipt["invoice_issuer"],
                 "product":item["product"],"unit":item["unit"]})
     history.sort(key=lambda row:(row["received_date"],row["id"]),reverse=True)
     return {
