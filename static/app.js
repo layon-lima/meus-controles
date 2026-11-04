@@ -352,6 +352,7 @@ const App = {
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button id="reportExcelDownload" class="btn btn-primary" type="button" disabled '+
       'onclick="App.reportExcelDownload()">'+icon("download")+' Gerar Excel</button></div></div></div>';
+    this.reportExcelCount();
   },
   reportExcelToggle(id,checked){
     if(!(this.s.reportExcelIds instanceof Set))return;
