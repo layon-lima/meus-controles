@@ -22,7 +22,8 @@ class FormDataMock{
 }
 const browser={location:{hash:"",pathname:"/",search:"",href:""},
   history:{state:{index:0,maxIndex:0,centralNav:1},
-    pushState(){},replaceState(){},back(){},forward(){}},addEventListener(){}};
+    pushState(){},replaceState(){},back(){},forward(){}},
+    confirm(){return true},addEventListener(){}};
 const context={document,window:browser,FormData:FormDataMock,setTimeout(){},console,confirm(){return true}};
 vm.runInNewContext(base+"\n"+pair+"\n"+records+"\nglobalThis.testApp=App;",context);
 const App=context.testApp;
@@ -52,6 +53,7 @@ App.api=async(url,method="GET",body)=>{
   if(url==="/api/controls/7/pair/records"&&method==="GET")return {records:neutral};
   if(url==="/api/controls/7/pair/records"&&method==="POST")return {id:13};
   if(url==="/api/pair-records/12"&&(method==="PUT"||method==="DELETE"))return {ok:true};
+  if(url==="/api/pair-entries/1"&&method==="PUT")return {ok:true};
   if(url==="/api/controls/7/pair/import/preview")return {
     count:56,new_count:56,already_imported:0,total_recorded:"259699.89",
     source_name:"PLANILHA JONAS X MARCOS",batch_id:"digest",
@@ -76,6 +78,25 @@ async function run(){
     to_name:"FUNCIONARIO",description:"SALÁRIO",notes:"Sem efeito no saldo"};
   await App.pairRecordSave();
   assert.ok(calls.some(x=>x.method==="POST"&&x.url.endsWith("/pair/records")&&x.body.description==="SALÁRIO"));
+  App.pairRecordForm(12);
+  assert.match(node("modalRoot").innerHTML,/Tipo de transação/);
+  assert.match(node("modalRoot").innerHTML,/option value="debt"/);
+  assert.match(node("modalRoot").innerHTML,/option value="payment"/);
+  node("pairRecordForm").mockFields={
+    date:"2026-02-05",amount:"1700.00",from_name:"JONAS",to_name:"MARCOS",
+    description:"PENSÃO EDUARDO",notes:"",kind:"debt",debtor:"A"};
+  await App.pairRecordSave();
+  assert.ok(calls.some(x=>x.method==="PUT"&&x.url==="/api/pair-records/12"&&
+    x.body.kind==="debt"&&x.body.debtor==="A"));
+
+  App.pairEntryForm(1);
+  assert.match(node("modalRoot").innerHTML,/option value="record"/);
+  node("abEntryForm").mockFields={
+    date:"2026-02-01",amount:"500.00",description:"Dívida",
+    kind:"record",debtor:"A",notes:""};
+  await App.pairSaveEntry();
+  assert.ok(calls.some(x=>x.method==="PUT"&&x.url==="/api/pair-entries/1"&&
+    x.body.kind==="record"&&x.body.debtor==="A"));
   App.pairImportRecords();
   assert.match(node("modalRoot").innerHTML,/Arquivo de registros/);
   node("pairImportFile").files=[{size:500,text:async()=>JSON.stringify({
