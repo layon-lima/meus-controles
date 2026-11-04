@@ -1,6 +1,6 @@
 /* PWA Central de Controles. APENAS o shell é armazenado; nunca API/dados financeiros. */
 "use strict";
-const CACHE = "central-de-controles-shell-v20261104-excel-blocos-v30";
+const CACHE = "central-de-controles-shell-v20261104-xml-emitente-v31";
 const SHELL = [
   "/", "/manifest.webmanifest", "/static/icons.svg", "/favicon.ico",
   "/pwa-icon-192.png", "/pwa-icon-512.png",
@@ -8,7 +8,7 @@ const SHELL = [
   "/static/debt.css?v=20261022-conferencia-1", "/static/open_debt.css?v=20261022-conferencia-1", "/static/receiving.css?v=20261103-unidade-manual-v17",
   "/static/pair.css?v=20261104-tipo-transacao-v2", "/static/vales.css?v=20261026-vales-v6", "/static/control_types.css", "/static/receiving_import.css", "/static/receiving_pdf.css?v=20261027-pedidos-pdf-ocr-selecao-v11",
   "/static/app.js?v=20261104-excel-blocos-v6", "/static/truck.js?v=20261030-vale-comissao-v9", "/static/truck_workflow.js?v=20261022-conferencia-1",
-  "/static/debt.js?v=20261022-conferencia-1", "/static/open_debt.js?v=20261022-conferencia-1", "/static/receiving.js?v=20261027-xml-pending-v18", "/static/receiving_xml.js?v=20261103-unidade-manual-v20",
+  "/static/debt.js?v=20261022-conferencia-1", "/static/open_debt.js?v=20261022-conferencia-1", "/static/receiving.js?v=20261104-xml-emitente-v19", "/static/receiving_xml.js?v=20261104-xml-emitente-v21",
   "/static/pair.js?v=20261104-tipo-transacao-v2", "/static/pair_records.js?v=20261104-tipo-transacao-v2",
   "/static/pair_financial_import.js?v=acerto-misto-formulario-20261014",
   "/static/vales.js?v=20261026-vales-v5", "/static/control_types.js?v=20261030-menu-correcoes-v3", "/static/receiving_import.js", "/static/receiving_pdf.js?v=20261027-pedidos-pdf-ocr-selecao-v11", "/static/pwa.js"
