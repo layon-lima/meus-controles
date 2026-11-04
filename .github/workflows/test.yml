@@ -12,8 +12,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Instalar biblioteca de exportacao Excel
+        run: python -m pip install "XlsxWriter>=3.2,<4"
       - name: Validar sintaxe Python
-        run: python -m compileall -q app.py truck.py truck_workflow.py debt.py open_debt.py debt_import.py receiving.py receiving_import.py pair.py pair_records.py pair_financial_import.py pair_mixed_import.py control_types.py controller/server.py tests
+        run: python -m compileall -q reports_excel.py app.py truck.py truck_workflow.py debt.py open_debt.py debt_import.py receiving.py receiving_import.py pair.py pair_records.py pair_financial_import.py pair_mixed_import.py control_types.py controller/server.py tests
       - name: Testar agrupamento e sugestoes de fornecedores
         run: node tests/test_receiving_suppliers.js
       - name: Executar testes de servidor, calculos e painel web
