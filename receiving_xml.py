@@ -305,7 +305,7 @@ def restore_invoice_issuer(con,cid,payload):
     key=xml["access_key"]
     if not key:
         raise ValueError("O XML deve possuir chave de acesso válida para identificar a nota.")
-    con.execute("BEGIN IMMEDIATE")
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     rows=list(con.execute("""SELECT r.id,r.invoice_issuer,r.invoice_issuer_document
         FROM purchase_receipts r JOIN purchase_items i ON i.id=r.item_id
         WHERE i.control_id=? AND r.access_key=? AND r.invoice_number=?""",
