@@ -116,7 +116,7 @@ def convert_record_to_financial(con,old,payload):
     # A origem dos registros antigos pode ser terceiro: exigir direção A/B
     # explícita em vez de inferir a partir do nome cadastrado.
     entry=pair.validate(payload)
-    con.execute("BEGIN IMMEDIATE")
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     pair.check_editable(con,old["control_id"],entry["entry_date"],
                         *([old["record_date"]] if old["record_date"] else []))
     cur=con.execute("""INSERT INTO pair_entries
@@ -140,7 +140,7 @@ def convert_financial_to_record(con,old,payload):
       "from_name":actor,"to_name":counterpart,
       "description":payload.get("description"),"notes":payload.get("notes",""),
     })
-    con.execute("BEGIN IMMEDIATE")
+    if not con.in_transaction:con.execute("BEGIN IMMEDIATE")
     pair.check_editable(con,old["control_id"],old["entry_date"],record["record_date"])
     cur=con.execute("""INSERT INTO pair_records
         (control_id,record_date,original_date,amount,from_name,to_name,description,notes,
