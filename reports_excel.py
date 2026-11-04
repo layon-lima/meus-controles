@@ -385,7 +385,7 @@ def build_xlsx(summaries,rows,grouped):
     ws.set_margins(0.3,0.3,0.4,0.4)
     ws.set_header("&CCentral de Controles — Relatório de lançamentos")
     ws.set_footer("&CPágina &P de &N")
-    widths=(34,15,33,42,34,37,19,59)
+    widths=(32,15.664,33.664,42.664,34.664,37,19,59)
     for c,width in enumerate(widths):
         ws.set_column(c,c,width)
 
@@ -472,7 +472,7 @@ def build_xlsx(summaries,rows,grouped):
                 date_value,kind,description,who=record[3],record[4],record[6],record[7]
                 amount=record[9]
                 ordinary=row_alt if i%2 else row_plain
-                if re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}",as_text(date_value)):
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}",as_text(date_value)):
                     try:
                         ws.write_datetime(current,0,datetime.strptime(date_value,"%Y-%m-%d"),
                                           pair_date_alt if i%2 else pair_date)
