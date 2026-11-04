@@ -1,7 +1,8 @@
-"""Exportação multi-controle em Excel, sem dependências externas.
+"""Relatórios Excel com XlsxWriter.
 
-O relatório conserva o tipo, o ID e o contexto dos lançamentos. Valores de
-produtos são quantidades, não reais; registros informativos não são somados.
+Os controles A × B usam o layout A:E fornecido pelo usuário no arquivo
+arualizada.xlsx. Os demais tipos mantêm o formato anterior até definição
+posterior. Valores e quantidades de naturezas diferentes não são somados.
 """
 import io
 import json
