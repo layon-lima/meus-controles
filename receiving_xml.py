@@ -237,10 +237,11 @@ def confirm(con,cid,payload):
             raise ValueError("Este item já está em Sem pedido.")
     for iid,quantity,note in chosen:
         con.execute("""INSERT INTO purchase_receipts
-            (item_id,received_date,invoice_number,received_qty,access_key,notes)
-            VALUES(?,?,?,?,?,?)""",
+            (item_id,received_date,invoice_number,received_qty,access_key,notes,
+             invoice_issuer,invoice_issuer_document)
+            VALUES(?,?,?,?,?,?,?,?)""",
             (iid,xml["date"],xml["invoice_number"],receiving.display(quantity),xml["access_key"],
-             note))
+             note,xml["supplier"],xml["cnpj"]))
     for line in pending:
         con.execute("""INSERT INTO receiving_xml_pending
          (control_id,access_key,invoice_number,issued_date,supplier,cnpj,line_index,
@@ -280,14 +281,57 @@ def assign_pending(con,cid,pid,payload):
         note+=". Conversão manual: "+row["quantity"]+" "+row["unit"]+(
             " = "+receiving.display(amount)+" "+item["unit"])
     con.execute("""INSERT INTO purchase_receipts
-      (item_id,received_date,invoice_number,received_qty,access_key,notes)
-      VALUES(?,?,?,?,?,?)""",(iid,row["issued_date"],row["invoice_number"],
-      receiving.display(amount),row["access_key"],note))
+      (item_id,received_date,invoice_number,received_qty,access_key,notes,
+       invoice_issuer,invoice_issuer_document)
+      VALUES(?,?,?,?,?,?,?,?)""",(iid,row["issued_date"],row["invoice_number"],
+      receiving.display(amount),row["access_key"],note,row["supplier"],row["cnpj"]))
     con.execute("DELETE FROM receiving_xml_pending WHERE id=?",(pid,))
     con.commit()
     return {"ok":True}
 
+def restore_invoice_issuer(con,cid,payload):
+    """Recupera o emitente de notas antigas pelo XML ORIGINAL, sem recriar recebimentos.
+
+    Só altera linhas do mesmo controle com a MESMA chave de 44 dígitos
+    e número da nota. Nunca usa o fornecedor do pedido como emitente.
+    """
+    receiving.ensure_control(con,cid)
+    if not isinstance(payload,dict) or not isinstance(payload.get("xml"),str):
+        raise ValueError("Envie o XML original da NF-e.")
+    try:
+        xml=parse(base64.b64decode(payload["xml"],validate=True))
+    except (ValueError,TypeError):
+        raise ValueError("XML inválido para recuperar o emitente.") from None
+    key=xml["access_key"]
+    if not key:
+        raise ValueError("O XML deve possuir chave de acesso válida para identificar a nota.")
+    con.execute("BEGIN IMMEDIATE")
+    rows=list(con.execute("""SELECT r.id,r.invoice_issuer,r.invoice_issuer_document
+        FROM purchase_receipts r JOIN purchase_items i ON i.id=r.item_id
+        WHERE i.control_id=? AND r.access_key=? AND r.invoice_number=?""",
+        (cid,key,xml["invoice_number"])))
+    if not rows:
+        raise ValueError("Não existe nota registrada com esta chave e número neste controle.")
+    updated=0
+    for row in rows:
+        if row["invoice_issuer"] and row["invoice_issuer_document"]:
+            continue
+        con.execute("""UPDATE purchase_receipts
+            SET invoice_issuer=?,invoice_issuer_document=?,updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND (invoice_issuer='' OR invoice_issuer_document='')""",
+            (row["invoice_issuer"] or xml["supplier"],
+             row["invoice_issuer_document"] or xml["cnpj"],row["id"]))
+        updated+=1
+    con.commit()
+    return {"matched":len(rows),"updated":updated,"issuer":xml["supplier"],
+            "invoice_number":xml["invoice_number"]}
+
+
 def handle(handler,con,method,path):
+    issuer_route=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/issuer",path)
+    if issuer_route and method=="POST":
+        return handler.send(restore_invoice_issuer(
+            con,int(issuer_route[1]),handler.input(max_bytes=3_000_000)))
     m=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/(preview|confirm)",path)
     listing=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/pending",path)
     assigning=re.fullmatch(r"/api/controls/(\d+)/receiving/xml/pending/(\d+)/assign",path)
