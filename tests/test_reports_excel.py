@@ -75,7 +75,7 @@ class ReportExcelTests(unittest.TestCase):
         app.DATA,app.DB=self.original
         self.tmp.cleanup()
 
-    def test_multi_control_excel_valid_and_separated(self):
+    def test_multi_control_excel_in_one_sheet_with_green_blocks_and_totals(self):
         with app.db() as con:
             summaries,rows,grouped=reports_excel.report_data(con,[
                 self.pair,self.receiving,self.truck,self.generic])
@@ -86,27 +86,66 @@ class ReportExcelTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(content)) as workbook:
             self.assertEqual(workbook.testzip(),None)
             names=workbook.namelist()
-            self.assertEqual(len([x for x in names if x.startswith("xl/worksheets/sheet")]),6)
+            self.assertEqual(len([x for x in names if x.startswith("xl/worksheets/sheet")]),1)
             for path in names:
                 if path.endswith(".xml") or path.endswith(".rels"):
                     ET.fromstring(workbook.read(path))
-            sheet=workbook.read("xl/worksheets/sheet2.xml").decode()
-            self.assertIn("Registro informativo (não altera saldo)",sheet)
-            self.assertIn("NF-e sem pedido (pendente)",sheet)
-            self.assertIn("Vale motorista (abatimento da comissão)",sheet)
+            sheet=workbook.read("xl/worksheets/sheet1.xml").decode()
+            for value in ("JOÃO PEDRO EMPREITA PLANTIO","RECEBIMENTO DE PRODUTOS",
+                          "TRANSPORTADORA","FINANCEIRO",
+                          "Registro informativo (não altera saldo)",
+                          "NF-e sem pedido (pendente)",
+                          "Vale motorista (abatimento da comissão)",
+                          "TOTAIS","Saldo"):
+                if value=="Saldo":continue
+                self.assertIn(value,sheet)
             self.assertIn("=HYPERLINK",sheet)
             self.assertNotIn("<f>",sheet)
-            self.assertIn('autoFilter ref="A4:P11"',sheet)
-            # Conferir os tipos das células, sem depender do ID interno do estilo.
+            self.assertNotIn("<autoFilter",sheet)
             namespace={"x":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-            xml_sheet=ET.fromstring(workbook.read("xl/worksheets/sheet2.xml"))
-            for address in ("D5","J5"):
-                cell=xml_sheet.find(".//x:c[@r='"+address+"']",namespace)
-                self.assertIsNotNone(cell,address)
-                self.assertNotEqual(cell.get("t"),"inlineStr",address)
-                self.assertIsNotNone(cell.find("x:v",namespace),address)
+            xml_sheet=ET.fromstring(workbook.read("xl/worksheets/sheet1.xml"))
+            def cell(address):
+                return xml_sheet.find(".//x:c[@r='"+address+"']",namespace)
+            def value(address):
+                c=cell(address)
+                self.assertIsNotNone(c,address)
+                texts=[x.text or "" for x in c.findall(".//x:t",namespace)]
+                return "".join(texts) if texts else c.find("x:v",namespace).text
+            self.assertEqual(value("A2"),"JOÃO PEDRO EMPREITA PLANTIO")
+            self.assertEqual(value("B2"),"Data")
+            self.assertEqual(value("G2"),"Valor (R$)")
+            self.assertEqual(value("A8"),"RECEBIMENTO DE PRODUTOS")
+            self.assertEqual(value("G8"),"Quantidade")
+            self.assertEqual(value("B5"),"TOTAIS · 2 lançamento(s)")
+            self.assertEqual(float(value("G5")),-8000)
+            self.assertEqual(float(value("G12")),48)
+            self.assertNotEqual(cell("B3").get("t"),"inlineStr")  # data real Excel
+            self.assertNotEqual(cell("G3").get("t"),"inlineStr")  # moeda numérica
             self.assertIn("dd/mm/yyyy",workbook.read("xl/styles.xml").decode())
             self.assertIn("R$",workbook.read("xl/styles.xml").decode())
+            self.assertIn("00AD64",workbook.read("xl/styles.xml").decode())  # cabeçalho verde
+
+    def test_totals_dont_double_count_money_or_units(self):
+        with app.db() as con:
+            _,_,grouped=reports_excel.report_data(con,[self.pair,self.receiving,self.truck])
+        totals={c["mode"]:reports_excel.block_totals(rows,c["mode"]) for c,rows in grouped}
+        self.assertEqual(totals["acerto_ab"][0][1],-8000)
+        self.assertEqual(totals["recebimento"][0][1],48)
+        self.assertIn("não somados",totals["recebimento"][0][2])
+        self.assertEqual(totals["caminhao"][0][1],0)
+        self.assertEqual(totals["caminhao"][3][1],1000)
+        with app.db() as con:
+            item=con.execute("""INSERT INTO purchase_items
+                (control_id,order_number,supplier,product,unit,ordered_qty)
+                VALUES(?,?,?,?,?,?)""",(self.receiving,"B-4","Fornecedor","URÉIA","KG","100")).lastrowid
+            con.execute("""INSERT INTO purchase_receipts
+                (item_id,received_date,invoice_number,received_qty)
+                VALUES(?,?,?,?)""",(item,"2026-11-03","40552","30"))
+            _,_,groups=reports_excel.report_data(con,[self.receiving])
+        mixed=reports_excel.block_totals(groups[0][1],"recebimento")
+        self.assertIsNone(mixed[0][1])
+        self.assertEqual({x[0]:x[1] for x in mixed[1:]},
+                         {"Recebido · KG":30,"Recebido · TO":48})
 
     def test_no_mixing_of_currency_and_quantity(self):
         with app.db() as con:
