@@ -26,6 +26,7 @@ import vales
 import receiving_import
 import receiving_pdf
 import receiving_xml
+import reports_excel
 import debt_import
 import truck_workflow
 import threading
@@ -527,6 +528,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy","no-referrer")
         self.end_headers()
         self.wfile.write(body)
+    def send_excel(self,data):
+        """Entrega arquivo XLSX no navegador, sem cache de documentos financeiros."""
+        self.send_response(200)
+        self.send_header("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.send_header("Content-Disposition",'attachment; filename="relatorio_controles.xlsx"')
+        self.send_header("Content-Length",str(len(data)))
+        self.send_header("Cache-Control","no-store")
+        self.send_header("X-Content-Type-Options","nosniff")
+        self.send_header("X-Frame-Options","DENY")
+        self.end_headers()
+        self.wfile.write(data)
     def input(self,max_bytes=1024*512):
         size = int(self.headers.get("Content-Length","0"))
         if not 0 <= size <= max_bytes:
@@ -644,6 +656,9 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261027-pedidos-pdf-ocr-dbfix-v12","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
+                if method=="POST" and url=="/api/reports/controls.xlsx":
+                    ids=self.input(max_bytes=10000).get("control_ids")
+                    return self.send_excel(reports_excel.generate(con,ids))
                 if re.fullmatch(r"/api/controls/\d+/vales(?:/(?:employees|payments))?",url) or re.fullmatch(r"/api/vales-(?:employees|debts|installments|payments)/\d+(?:/(?:debts|plan|pay|payments))?",url):
                     vales.handle(self,con,method,url)
                     return
