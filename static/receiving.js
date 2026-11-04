@@ -167,7 +167,8 @@ Object.assign(App,{
       'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingManageReceipt('+p.id+')}">'+
       '<td>'+rxDate(p.received_date)+'</td><td><b>'+E(p.invoice_number)+'</b></td>'+
       '<td class="receiving-key">'+E(p.access_key||"—")+'</td><td>'+E(p.order_number)+'</td>'+
-      '<td>'+E(p.product)+'</td><td class="receiving-supplier">'+E(p.supplier)+'</td>'+
+      '<td>'+E(p.product)+'</td><td class="receiving-supplier" title="'+E(p.invoice_issuer_document||"Emitente não salvo na nota")+'">'+
+      E(p.invoice_issuer||"Emitente não registrado")+'</td>'+
       '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td></tr>').join("");
     document.getElementById("main").innerHTML=
       '<div class="receiving-head"><div><div class="eyebrow">RECEBIMENTO DE PRODUTOS</div>'+
@@ -182,6 +183,8 @@ Object.assign(App,{
       '</div></div>'+
       '<input type="file" accept=".json,application/json" id="receivingImportInput" hidden onchange="App.receivingLoadImportFile(this.files[0])">'+
       '<input id="receivingXMLFile" type="file" accept=".xml,application/xml,text/xml" hidden onchange="App.receivingXMLLoad(this.files)">'+
+      '<input id="receivingXMLIssuerFiles" type="file" accept=".xml,application/xml,text/xml" multiple hidden '+
+      'onchange="App.receivingXMLRestoreFiles(this.files)">'+
       '<input type="file" accept="application/pdf,.pdf" id="receivingPdfFile" multiple hidden '+
       'onchange="App.receivingPdfLoad(this.files)">'+
       '<div class="receiving-tabs" role="tablist" aria-label="Seções do recebimento de produtos">'+
@@ -198,6 +201,8 @@ Object.assign(App,{
       '" oninput="App.receivingFilter(this.value)"></label></div>'+
       '<div class="receiving-section-heading"><h3>'+(activeTab==="pedidos"?"Pedidos e produtos":activeTab==="sem-pedido"?"Recebimentos aguardando pedido":"Histórico de notas fiscais")+'</h3>'+
       '<div class="receiving-toolbar">'+
+      (activeTab==="notas"?'<button class="btn btn-sm" type="button" onclick="App.receivingXMLRestoreIssuers()">'+
+        icon("file-up")+' Recuperar emitentes de XMLs antigos</button>':'')+
       (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
       '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+
       icon("trash")+' Excluir selecionados</button>':'')+'</div></div>'+
