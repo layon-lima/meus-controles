@@ -59,6 +59,58 @@ class XMLTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"duplicada"):
                 receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+    def test_nfe_history_uses_xml_issuer_not_supplier_from_purchase_order(self):
+        raw=base64.b64encode(sample()).decode()
+        with app.db() as con:
+            receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
+            result=receiving.summary(con,self.cid)
+            self.assertEqual(result["items"][0]["supplier"],"AGREX BRASIL")
+            r=result["receipts"][0]
+            self.assertEqual(r["supplier"],"AGREX DO BRASIL LTDA")
+            self.assertEqual(r["invoice_issuer"],"AGREX DO BRASIL LTDA")
+            self.assertEqual(r["invoice_issuer_document"],"12345678000190")
+            self.assertEqual(r["order_supplier"],"AGREX BRASIL")
+
+    def test_existing_receipt_issuer_recovers_only_from_same_original_xml(self):
+        raw=base64.b64encode(sample()).decode()
+        with app.db() as con:
+            rid=con.execute("""INSERT INTO purchase_receipts
+              (item_id,received_date,invoice_number,received_qty,access_key,notes)
+              VALUES(?,?,?,?,?,?)""",(self.iid,"2026-10-27","34567","10.000","1"*44,
+              "Lançamento por XML NF-e")).lastrowid
+            before=receiving.summary(con,self.cid)["receipts"][0]
+            self.assertEqual(before["supplier"],"")
+            self.assertEqual(before["order_supplier"],"AGREX BRASIL")
+            self.assertEqual(before["invoice_issuer"],"")
+            ret=receiving_xml.restore_invoice_issuer(con,self.cid,{"xml":raw})
+            self.assertEqual(ret["updated"],1)
+            self.assertEqual(ret["matched"],1)
+            self.assertEqual(ret["issuer"],"AGREX DO BRASIL LTDA")
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+            row=con.execute("SELECT * FROM purchase_receipts WHERE id=?",(rid,)).fetchone()
+            self.assertEqual(row["invoice_issuer"],"AGREX DO BRASIL LTDA")
+            self.assertEqual(row["invoice_issuer_document"],"12345678000190")
+            self.assertEqual(row["received_qty"],"10.000")
+            second=receiving_xml.restore_invoice_issuer(con,self.cid,{"xml":raw})
+            self.assertEqual(second["updated"],0)
+            self.assertEqual(second["matched"],1)
+            with self.assertRaisesRegex(ValueError,"Não existe nota"):
+                receiving_xml.restore_invoice_issuer(
+                    con,self.cid,{"xml":base64.b64encode(sample().replace(
+                        b"<nNF>34567</nNF>",b"<nNF>12345</nNF>")).decode()})
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_assign_pending_preserves_original_xml_issuer(self):
+        raw=base64.b64encode(sample()).decode()
+        with app.db() as con:
+            receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":["pending"]})
+            pending=receiving_xml.pending_list(con,self.cid)
+            receiving_xml.assign_pending(con,self.cid,pending[0]["id"],{"item_id":self.iid})
+            receipt=receiving.summary(con,self.cid)["receipts"][0]
+            self.assertEqual(receipt["supplier"],"AGREX DO BRASIL LTDA")
+            self.assertEqual(receipt["invoice_issuer_document"],"12345678000190")
+            self.assertEqual(receipt["order_supplier"],"AGREX BRASIL")
+
     def test_closed_orders_are_not_available(self):
         with app.db() as con:
             con.execute("UPDATE purchase_items SET closed=1 WHERE id=?",(self.iid,))
