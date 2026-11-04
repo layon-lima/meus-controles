@@ -346,7 +346,7 @@
       let updated=0,matched=0,failed=0;
       try{
         for(const file of chosen){
-          if(!/\\.xml$/i.test(file.name)&&!String(file.type).includes("xml")){
+          if(!/\.xml$/i.test(file.name)&&!String(file.type).includes("xml")){
             failed++;continue;
           }
           if(file.size>2000000){failed++;continue;}
