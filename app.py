@@ -27,6 +27,7 @@ import receiving_import
 import receiving_pdf
 import receiving_xml
 import reports_excel
+import receiving_invoices_excel
 import debt_import
 import truck_workflow
 import threading
@@ -528,11 +529,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy","no-referrer")
         self.end_headers()
         self.wfile.write(body)
-    def send_excel(self,data):
+    def send_excel(self,data,filename="relatorio_controles.xlsx"):
         """Entrega arquivo XLSX no navegador, sem cache de documentos financeiros."""
         self.send_response(200)
         self.send_header("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        self.send_header("Content-Disposition",'attachment; filename="relatorio_controles.xlsx"')
+        self.send_header("Content-Disposition",'attachment; filename="'+filename+'"')
         self.send_header("Content-Length",str(len(data)))
         self.send_header("Cache-Control","no-store")
         self.send_header("X-Content-Type-Options","nosniff")
@@ -656,6 +657,13 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261027-pedidos-pdf-ocr-dbfix-v12","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
+                invoice_route=re.fullmatch(
+                    r"/api/controls/(\\d+)/receiving/invoices\\.xlsx",url)
+                if method=="POST" and invoice_route:
+                    query=self.input(max_bytes=5000).get("query","")
+                    result=receiving_invoices_excel.generate(
+                        con,int(invoice_route[1]),query)
+                    return self.send_excel(result,"notas_fiscais_recebimentos.xlsx")
                 if method=="POST" and url=="/api/reports/controls.xlsx":
                     ids=self.input(max_bytes=10000).get("control_ids")
                     return self.send_excel(reports_excel.generate(con,ids))
