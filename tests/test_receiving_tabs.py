@@ -160,11 +160,11 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn(".receiving-xml-manual[hidden]",CSS)
 
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261105-resumo-pedido-v21"),("receiving.css","20261105-resumo-pedido-v18")):
+        for asset,release in (("receiving.js","20261105-resumo-pedido-v22"),("receiving.css","20261105-resumo-pedido-v19")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261105-resumo-pedido-v33',SW)
+        self.assertIn('central-de-controles-shell-v20261105-resumo-pedido-v34',SW)
         self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',HTML)
         self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',SW)
         self.assertIn('surface.ondrop=event=>',JS)
