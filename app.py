@@ -658,7 +658,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261027-pedidos-pdf-ocr-dbfix-v12","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
                 invoice_route=re.fullmatch(
-                    r"/api/controls/(\\d+)/receiving/invoices\\.xlsx",url)
+                    r"/api/controls/(\d+)/receiving/invoices\.xlsx",url)
                 if method=="POST" and invoice_route:
                     query=self.input(max_bytes=5000).get("query","")
                     result=receiving_invoices_excel.generate(
