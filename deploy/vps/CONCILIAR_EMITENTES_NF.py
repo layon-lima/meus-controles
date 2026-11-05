@@ -39,26 +39,54 @@ def normalized_note(value):
 
 
 def load_source(path=SOURCE):
+    """Aceita lista original e tabelas complementares com chave NF-e completa.
+
+    Quando duas fontes descrevem a mesma NF-e, a linha com chave completa
+    prevalece. Divergências de nomes ou chaves nunca são resolvidas no chute.
+    """
     items={}
     with path.open(encoding="utf-8-sig",newline="") as file:
         reader=csv.DictReader(file,delimiter=";")
         needed={"numero","emissao","cnpj","emitente"}
         if not needed.issubset(reader.fieldnames or []):
             raise ValueError("Arquivo de emitentes inválido: cabeçalhos ausentes.")
-        for row in reader:
+        for row_index,row in enumerate(reader,2):
             note=normalized_note(row["numero"])
             cnpj=digits(row["cnpj"])
+            if len(cnpj)==11:
+                cnpj=cnpj.zfill(14)  # NF-e de pessoa física: CPF à esquerda com zeros
             day=str(row["emissao"] or "").strip()
             issuer=str(row["emitente"] or "").strip()
-            if not note or len(cnpj)!=14 or not re.fullmatch(r"20\d{2}-\d{2}-\d{2}",day) or not issuer:
-                raise ValueError("Fonte inválida: "+str(row))
-            key=(note,cnpj,day[:7].replace("-","")[2:])
-            old=items.get(key)
-            if old and old["issuer"]!=issuer:
-                raise ValueError("Conflito de emitentes no arquivo: "+str(key))
-            items[key]={"number":note,"cnpj":cnpj,"date":day,"issuer":issuer}
+            access_key=digits(row.get("chave") or "")
+            if not note or len(cnpj)!=14 or not re.fullmatch(
+                    r"20\\d{2}-\\d{2}-\\d{2}",day) or not issuer:
+                raise ValueError("Fonte inválida na linha "+str(row_index)+": "+str(row))
+            ym=day[2:4]+day[5:7]
+            if access_key and (len(access_key)!=44 or
+                    access_key[2:6]!=ym or access_key[6:20]!=cnpj or
+                    str(int(access_key[25:34]))!=note):
+                raise ValueError("Chave NF-e incompatível com número, CNPJ/CPF ou mês na linha "+
+                                 str(row_index))
+            k=(note,cnpj,ym)
+            previous=items.get(k)
+            if previous:
+                def canon(value):
+                    import unicodedata
+                    norm=unicodedata.normalize("NFKD",value.casefold())
+                    return re.sub(r"\\s+","",re.sub(r"[^a-z0-9 ]","",
+                        "".join(c for c in norm if not unicodedata.combining(c))))
+                if canon(previous["issuer"])!=canon(issuer):
+                    raise ValueError("Nomes de emitentes conflitantes para NF-e "+
+                                     note+" ("+cnpj+")")
+                if previous["key"] and access_key and previous["key"]!=access_key:
+                    raise ValueError("Chaves diferentes para a mesma NF-e "+
+                                     note+" ("+cnpj+")")
+                if access_key and not previous["key"]:
+                    previous["key"]=access_key
+                continue
+            items[k]={"number":note,"cnpj":cnpj,"date":day,
+                      "issuer":issuer,"key":access_key}
     return items
-
 
 def build_plan(con,source):
     receipts=[dict(r) for r in con.execute("""
@@ -75,6 +103,7 @@ def build_plan(con,source):
     report={"fonte_nf":len(source),"recibos_verificados":len(receipts),
             "candidatos":0,"ja_preenchidos":0,"sem_correspondencia":0,
             "chave_invalida":0,"chave_divergente":0,"conflitos":0,
+            "chave_exata_divergente":0,
             "alteracoes":[],"avisos":[]}
     numbers={x[0] for x in source}
     for r in receipts:
@@ -100,6 +129,11 @@ def build_plan(con,source):
             report["sem_correspondencia"]+=1
             report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
                                      "motivo":"CNPJ/mês da chave não está na fonte"})
+            continue
+        if match["key"] and match["key"]!=key:
+            report["chave_exata_divergente"]+=1
+            report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
+                                     "motivo":"Chave NF-e completa difere da tabela original"})
             continue
         # O dado do XML original tem precedência sobre a tabela fornecida.
         old_name=str(r["invoice_issuer"] or "").strip()
@@ -177,7 +211,15 @@ def main():
     with app.db() as con:
         result=reconcile(con,source,apply=args.apply)
     print(json.dumps(result,ensure_ascii=False,indent=2))
-    print("APLICADO COM AUDITORIA" if args.apply else "DIAGNÓSTICO: NENHUM DADO ALTERADO")
+    if args.apply:
+        if result.get("aplicadas",0)>0:
+            print("CONCLUÍDO: "+str(result["aplicadas"])+
+                  " registro(s) alterado(s), com auditoria.")
+        else:
+            print("ATENÇÃO: ZERO registros alterados. Veja candidatos, avisos e chaves acima.")
+    else:
+        print("DIAGNÓSTICO SOMENTE LEITURA: "+
+              str(result["candidatos"])+" registro(s) apto(s) à correção.")
 
 
 if __name__=="__main__":
