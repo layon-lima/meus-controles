@@ -16,6 +16,7 @@ RUN python -m compileall -q /srv/app \
     && python -m unittest discover -s tests -p test_vales.py -v \
     && python -m unittest discover -s tests -p test_vales_ui.py -v \
     && python -m unittest discover -s tests -p test_receiving_tabs.py -v \
+    && python -m unittest discover -s tests -p test_receiving_quick_summary.py -v \
     && python -m unittest discover -s tests -p test_receiving.py -v \
     && python -m unittest discover -s tests -p test_receiving_pdf.py -v \
     && python -m unittest discover -s tests -p test_receiving_xml.py -v \
