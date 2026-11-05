@@ -89,7 +89,7 @@ def build_plan(con,source):
             continue
         embedded=str(int(key[25:34]))
         key_cnpj=key[6:20]
-        month="20"+key[2:4]+key[4:6]
+        month=key[2:6]
         if embedded!=number:
             report["chave_divergente"]+=1
             report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
