@@ -59,7 +59,7 @@ def load_source(path=SOURCE):
             issuer=str(row["emitente"] or "").strip()
             access_key=digits(row.get("chave") or "")
             if not note or len(cnpj)!=14 or not re.fullmatch(
-                    r"20\\d{2}-\\d{2}-\\d{2}",day) or not issuer:
+                    r"20\d{2}-\d{2}-\d{2}",day) or not issuer:
                 raise ValueError("Fonte inválida na linha "+str(row_index)+": "+str(row))
             ym=day[2:4]+day[5:7]
             if access_key and (len(access_key)!=44 or
@@ -73,7 +73,7 @@ def load_source(path=SOURCE):
                 def canon(value):
                     import unicodedata
                     norm=unicodedata.normalize("NFKD",value.casefold())
-                    return re.sub(r"\\s+","",re.sub(r"[^a-z0-9 ]","",
+                    return re.sub(r"\s+","",re.sub(r"[^a-z0-9 ]","",
                         "".join(c for c in norm if not unicodedata.combining(c))))
                 if canon(previous["issuer"])!=canon(issuer):
                     raise ValueError("Nomes de emitentes conflitantes para NF-e "+
