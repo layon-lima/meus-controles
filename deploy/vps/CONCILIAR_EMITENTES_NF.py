@@ -191,11 +191,14 @@ def reconcile(con,source,apply=False):
                 row["invoice_issuer_document"])!=change["cnpj"]:
             raise ValueError("Falha na validação final da nota "+change["numero"]+
                              ". Todas as alterações foram revertidas.")
+        # No PostgreSQL, INTEGER PRIMARY KEY não gera IDs automaticamente
+        # (ao contrário de SQLite). O ID do recibo é único e estável, então
+        # também identifica o registro de auditoria sem depender de SERIAL.
         con.execute("""INSERT INTO nf_issuer_reconciliation_audit (
-            receipt_id,invoice_number,access_key,
+            id,receipt_id,invoice_number,access_key,
             old_issuer,old_document,new_issuer,new_document,source_name)
-            VALUES(?,?,?,?,?,?,?,?)""",(
-                change["id"],change["numero"],change["chave"],
+            VALUES(?,?,?,?,?,?,?,?,?)""",(
+                change["id"],change["id"],change["numero"],change["chave"],
                 str(change["anterior_nome"] or ""),str(change["anterior_cnpj"] or ""),
                 change["emitente"],change["cnpj"],SOURCE.name))
     con.commit()
