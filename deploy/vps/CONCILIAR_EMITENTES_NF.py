@@ -115,18 +115,18 @@ def build_plan(con,source):
         old_doc=digits(r["invoice_issuer_document"])
         if old_name:
             report["ja_preenchidos"]+=1
-            if old_doc and old_doc!=match["cnpj"]:
+            if old_doc and old_doc!=key_cnpj:
                 report["conflitos"]+=1
                 report["avisos"].append({"id":r["id"],"nf":number,
                                          "motivo":"CNPJ já cadastrado diverge da chave"})
             continue
-        if old_doc and old_doc!=match["cnpj"]:
+        if old_doc and old_doc!=key_cnpj:
             report["conflitos"]+=1
             report["avisos"].append({"id":r["id"],"nf":number,
                                      "motivo":"CNPJ existente difere do CNPJ da fonte"})
             continue
         entry={"id":r["id"],"numero":number,"control_id":r["control_id"],
-               "emitente":match["issuer"],"cnpj":match["cnpj"],
+               "emitente":match["issuer"],"cnpj":key_cnpj,
                "chave":key,"anterior_nome":r["invoice_issuer"],
                "anterior_cnpj":r["invoice_issuer_document"]}
         changes.append(entry)
