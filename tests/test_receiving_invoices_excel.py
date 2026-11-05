@@ -88,7 +88,7 @@ class ReceiptInvoiceExcelTests(unittest.TestCase):
             self.assertEqual(xml_cell(sheet,"D5")[0],"AGREX S9")
             self.assertEqual(xml_cell(sheet,"F5")[0],"MOSAIC FERTILIZANTES DO BRASIL LTDA")
             self.assertEqual(xml_cell(sheet,"F6")[0],"Emitente não registrado")
-            self.assertEqual(xml_cell(sheet,"G5")[0],"38.0")
+            self.assertEqual(float(xml_cell(sheet,"G5")[0]),38.0)
             self.assertNotEqual(xml_cell(sheet,"A5")[1],"inlineStr")
             self.assertNotEqual(xml_cell(sheet,"G5")[1],"inlineStr")
             self.assertNotIn("SEGREDO",z.read("xl/worksheets/sheet1.xml").decode())
