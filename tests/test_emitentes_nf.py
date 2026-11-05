@@ -51,12 +51,18 @@ class IssuerReconciliationTests(unittest.TestCase):
         app.DATA,app.DB=self.original
         self.tmp.cleanup()
 
-    def test_source_mapping_covers_fifty_real_notes(self):
-        self.assertEqual(len(self.source),50)
+    def test_source_mapping_covers_full_user_tables(self):
+        self.assertEqual(len(self.source),241)
         self.assertEqual(self.source[("48477","61156501010038","2610")]["issuer"],
                          "MOSAIC FERTILIZANTES DO BRASIL LTDA")
         self.assertEqual(self.source[("40704","95865572003246","2610")]["issuer"],
                          "Agro Industrial São Luiz LTDA")
+        self.assertEqual(self.source[("48458","61156501010038","2610")]["key"],
+                         "21261061156501010038550060000484581739124342")
+        self.assertEqual(self.source[("82840","09645031000174","2609")]["issuer"],
+                         "SALU PECAS LTDA")
+        self.assertEqual(self.source[("78","00024194255968","2609")]["issuer"],
+                         "IZIDRO DALSOTTO")
 
     def test_preview_is_read_only_and_validates_cnpj_from_original_access_key(self):
         with app.db() as con:
@@ -87,6 +93,27 @@ class IssuerReconciliationTests(unittest.TestCase):
             self.assertEqual(rerun["aplicadas"],0)
             self.assertEqual(con.execute("""SELECT COUNT(*) AS n FROM
                 nf_issuer_reconciliation_audit""").fetchone()["n"],2)
+
+    def test_full_key_must_match_exact_original_nf(self):
+        with app.db() as con:
+            # A chave tem mesmo número, CNPJ e mês, mas é de outra série/nota.
+            other=con.execute("""INSERT INTO purchase_receipts
+                (item_id,received_date,invoice_number,access_key,received_qty,
+                 notes,invoice_issuer,invoice_issuer_document)
+                VALUES(?,?,?,?,?,'Sem alteração','','')""",
+                (self.item,"2026-10-29","48458",
+                 key(48458,"61156501010038"),"20.000")).lastrowid
+            preview=reconcile_module.reconcile(con,self.source)
+            self.assertEqual(preview["chave_exata_divergente"],1)
+            self.assertNotIn(other,[x["id"] for x in preview["alteracoes"]])
+
+    def test_apply_same_source_twice_does_not_duplicate_audit(self):
+        with app.db() as con:
+            first=reconcile_module.reconcile(con,self.source,apply=True)
+            second=reconcile_module.reconcile(con,self.source,apply=True)
+            self.assertEqual(first["aplicadas"],2)
+            self.assertEqual(second["aplicadas"],0)
+            self.assertEqual(second["candidatos"],0)
 
     def test_invalid_short_key_is_never_matched_by_invoice_number_alone(self):
         with app.db() as con:
