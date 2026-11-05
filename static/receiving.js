@@ -582,7 +582,7 @@ Object.assign(App,{
     const products=groups.reduce((sum,g)=>sum+g.items.length,0);
     const card=group=>'<section class="receiving-quick-order">'+
       '<div class="receiving-quick-order-head"><div>'+
-      '<span class="receiving-quick-overline">PEDIDO</span>'+
+      '<span class="receiving-quick-overline">PEDIDO / FORNECEDOR</span>'+
       '<h3>'+E(group.order)+'</h3>'+
       '<p>'+E(group.supplier)+'</p></div>'+
       '<span class="receiving-quick-lines">'+group.items.length+
@@ -614,15 +614,17 @@ Object.assign(App,{
       icon("x")+' Fechar</button></div>'+
       '<div class="receiving-quick-sheet">'+
       '<header class="receiving-quick-heading">'+
-      '<div><span class="receiving-quick-eyebrow">RECEBIMENTO DE PRODUTOS</span>'+
-      '<h2 id="receivingQuickTitle">Resumo rápido</h2>'+
+      '<div class="receiving-quick-heading-main">'+
+      '<span class="receiving-quick-eyebrow">'+
+      '<span class="receiving-quick-brand-mark">MC</span> MEUS CONTROLES / RECEBIMENTOS</span>'+
+      '<h2 id="receivingQuickTitle">Resumo de pedidos</h2>'+
       '<p>'+groups.length+' pedido'+(groups.length===1?'':'s')+
       ' selecionado'+(groups.length===1?'':'s')+' · '+products+
       ' produto'+(products===1?'':'s')+'</p></div>'+
       '<span class="receiving-quick-date">'+E(new Date().toLocaleDateString("pt-BR"))+'</span>'+
       '</header>'+
       '<div class="receiving-quick-orders">'+groups.map(card).join('')+'</div>'+
-      '<footer class="receiving-quick-foot">Fazenda Novo Horizonte · Resumo individual por pedido</footer>'+
+      '<footer class="receiving-quick-foot">MEUS CONTROLES <span>·</span> Resumo individual de recebimentos</footer>'+
       '</div></div></div>';
   },
   receivingSelectItem(id,checked){
