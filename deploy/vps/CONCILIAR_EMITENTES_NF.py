@@ -14,6 +14,7 @@ Uma nota é alterada APENAS se:
 Todas as alterações são auditadas e atômicas.
 """
 import argparse
+import hashlib
 import csv
 import json
 import re
@@ -38,54 +39,28 @@ def normalized_note(value):
     return str(int(value))
 
 
-def load_source(path=SOURCE):
-    """Aceita lista original e tabelas complementares com chave NF-e completa.
+def match_digest(kind,value):
+    return hashlib.sha256((kind+"|"+value).encode("ascii")).hexdigest()
 
-    Quando duas fontes descrevem a mesma NF-e, a linha com chave completa
-    prevalece. Divergências de nomes ou chaves nunca são resolvidas no chute.
-    """
+
+def load_source(path=SOURCE):
+    """Lê tokens SHA-256. O arquivo público não contém números ou chaves fiscais."""
     items={}
     with path.open(encoding="utf-8-sig",newline="") as file:
         reader=csv.DictReader(file,delimiter=";")
-        needed={"numero","emissao","cnpj","emitente"}
-        if not needed.issubset(reader.fieldnames or []):
+        if not {"tipo","hash_sha256","emitente"}.issubset(reader.fieldnames or []):
             raise ValueError("Arquivo de emitentes inválido: cabeçalhos ausentes.")
         for row_index,row in enumerate(reader,2):
-            note=normalized_note(row["numero"])
-            cnpj=digits(row["cnpj"])
-            if len(cnpj)==11:
-                cnpj=cnpj.zfill(14)  # NF-e de pessoa física: CPF à esquerda com zeros
-            day=str(row["emissao"] or "").strip()
+            kind=str(row["tipo"] or "").strip()
+            digest=str(row["hash_sha256"] or "").strip().lower()
             issuer=str(row["emitente"] or "").strip()
-            access_key=digits(row.get("chave") or "")
-            if not note or len(cnpj)!=14 or not re.fullmatch(
-                    r"20\d{2}-\d{2}-\d{2}",day) or not issuer:
-                raise ValueError("Fonte inválida na linha "+str(row_index)+": "+str(row))
-            ym=day[2:4]+day[5:7]
-            if access_key and (len(access_key)!=44 or
-                    access_key[2:6]!=ym or access_key[6:20]!=cnpj or
-                    str(int(access_key[25:34]))!=note):
-                raise ValueError("Chave NF-e incompatível com número, CNPJ/CPF ou mês na linha "+
+            if kind not in ("K","T") or not re.fullmatch(r"[0-9a-f]{64}",digest) or not issuer:
+                raise ValueError("Identificador de emitente inválido na linha "+str(row_index))
+            old=items.get(digest)
+            if old and old["issuer"]!=issuer:
+                raise ValueError("Emitentes conflitantes para o mesmo identificador na linha "+
                                  str(row_index))
-            k=(note,cnpj,ym)
-            previous=items.get(k)
-            if previous:
-                def canon(value):
-                    import unicodedata
-                    norm=unicodedata.normalize("NFKD",value.casefold())
-                    return re.sub(r"\s+","",re.sub(r"[^a-z0-9 ]","",
-                        "".join(c for c in norm if not unicodedata.combining(c))))
-                if canon(previous["issuer"])!=canon(issuer):
-                    raise ValueError("Nomes de emitentes conflitantes para NF-e "+
-                                     note+" ("+cnpj+")")
-                if previous["key"] and access_key and previous["key"]!=access_key:
-                    raise ValueError("Chaves diferentes para a mesma NF-e "+
-                                     note+" ("+cnpj+")")
-                if access_key and not previous["key"]:
-                    previous["key"]=access_key
-                continue
-            items[k]={"number":note,"cnpj":cnpj,"date":day,
-                      "issuer":issuer,"key":access_key}
+            items[digest]={"issuer":issuer,"kind":kind}
     return items
 
 def build_plan(con,source):
@@ -105,10 +80,9 @@ def build_plan(con,source):
             "chave_invalida":0,"chave_divergente":0,"conflitos":0,
             "chave_exata_divergente":0,
             "alteracoes":[],"avisos":[]}
-    numbers={x[0] for x in source}
     for r in receipts:
         number=normalized_note(r["invoice_number"])
-        if not number or number not in numbers:
+        if not number:
             continue
         key=str(r["access_key"] or "").strip()
         if not re.fullmatch(r"\d{44}",key):
@@ -124,16 +98,17 @@ def build_plan(con,source):
             report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
                                      "motivo":"Número da NF não coincide com a chave"})
             continue
-        match=source.get((number,key_cnpj,month))
+        # Sempre priorizar correspondência pela chave completa exata.
+        # Para 30 notas da primeira tabela sem chave legível, comparar
+        # número + CNPJ/CPF + ano/mês EXTRAÍDOS DA CHAVE ORIGINAL DO BANCO.
+        key_hash=match_digest("K",key)
+        tuple_hash=match_digest("T",number+"|"+key_cnpj+"|"+month)
+        match=source.get(key_hash) or source.get(tuple_hash)
         if not match:
             report["sem_correspondencia"]+=1
-            report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
-                                     "motivo":"CNPJ/mês da chave não está na fonte"})
-            continue
-        if match["key"] and match["key"]!=key:
-            report["chave_exata_divergente"]+=1
-            report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
-                                     "motivo":"Chave NF-e completa difere da tabela original"})
+            if len(report["avisos"])<30:
+                report["avisos"].append({"id":r["id"],"nf":r["invoice_number"],
+                                         "motivo":"Chave ou combinação número/CNPJ/mês não está na fonte"})
             continue
         # O dado do XML original tem precedência sobre a tabela fornecida.
         old_name=str(r["invoice_issuer"] or "").strip()
