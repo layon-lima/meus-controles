@@ -18,7 +18,9 @@ import csv
 import json
 import re
 from pathlib import Path
+import sys
 
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import app
 
 SOURCE=Path(__file__).with_name("emitentes_nf_20261105.csv")
