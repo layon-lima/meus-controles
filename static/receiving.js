@@ -96,6 +96,38 @@ function rxSupplierGroups(items,catalog){
   });
 }
 
+// Resumo visual: nao juntar pedidos ou unidades diferentes na mesma soma.
+function rxFullUnit(unit){
+  const key=String(unit??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .trim().toLocaleLowerCase("pt-BR").replace(/\s+/g," ");
+  const names={
+    "t":"Toneladas","ton":"Toneladas","ton.":"Toneladas","tonelada":"Toneladas",
+    "toneladas":"Toneladas","l":"Litros","lt":"Litros","lts":"Litros","litro":"Litros",
+    "litros":"Litros","kg":"Quilogramas","kgs":"Quilogramas","quilo":"Quilogramas",
+    "quilos":"Quilogramas","un":"Unidades","und":"Unidades","unid":"Unidades",
+    "unidade":"Unidades","unidades":"Unidades","sc":"Sacas","saca":"Sacas",
+    "sacas":"Sacas","cx":"Caixas","caixa":"Caixas","caixas":"Caixas",
+    "pct":"Pacotes","pacote":"Pacotes","pacotes":"Pacotes",
+    "m":"Metros","m2":"Metros quadrados","m²":"Metros quadrados",
+    "m3":"Metros cúbicos","m³":"Metros cúbicos"
+  };
+  return names[key]||String(unit||"Unidades").trim();
+}
+// Cada pedido recebe seu proprio card. Se um pedido tiver varios produtos,
+// cada linha ganha sua propria trinca de valores, sem total artificial.
+function rxQuickSummaryOrders(items,selectedIds){
+  const ids=new Set(selectedIds||[]),groups=new Map();
+  (items||[]).forEach(item=>{
+    if(!ids.has(item.id))return;
+    const order=String(item.order_number||"Pedido sem número").trim();
+    const supplier=String(item.supplier||"Fornecedor não informado").trim();
+    const key=rxSupplierKey(supplier)+"|"+order;
+    if(!groups.has(key))groups.set(key,{order,supplier,items:[]});
+    groups.get(key).items.push(item);
+  });
+  return [...groups.values()];
+}
+
 Object.assign(App,{
   async renderReceiving(){
     const ctrl=this.s.detail?.control;
@@ -122,7 +154,7 @@ Object.assign(App,{
     const r=this.s.receivingData,c=this.s.detail?.control;
     if(!r||!c)return;
     const t=r.totals;
-    const available=new Set(r.items.filter(p=>!p.receipts_count).map(p=>p.id));
+    const available=new Set(r.items.map(p=>p.id));
     if(this.s.receivingSelection?.controlId!==c.id){
       this.s.receivingSelection={controlId:c.id,ids:[]};
     }
@@ -144,7 +176,7 @@ Object.assign(App,{
         'onclick="App.receivingFocusItem('+p.id+')" ondblclick="App.receivingManageItem('+p.id+')" '+
         'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingManageItem('+p.id+')}">'+
         '<td class="receiving-select-cell"><input type="checkbox" data-receiving-checkbox="'+p.id+'" aria-label="Selecionar '+E(p.product)+'" '+
-        (canDelete?'':'disabled title="Exclua as entregas antes de excluir este produto" ')+(selected.includes(p.id)?'checked ':'')+
+        (selected.includes(p.id)?'checked ':'')+
         'onclick="event.stopPropagation()" onchange="App.receivingSelectItem('+p.id+',this.checked)"></td>'+
         '<td><strong>'+E(p.order_number)+'</strong></td><td>'+E(p.supplier)+'</td><td><strong>'+E(p.product)+'</strong></td>'+
         '<td class="numeric">'+rxNum(p.ordered_qty)+' '+E(p.unit)+'</td>'+
@@ -206,6 +238,9 @@ Object.assign(App,{
       (activeTab==="notas"?'<button class="btn btn-sm" type="button" onclick="App.receivingXMLRestoreIssuers()">'+
         icon("file-up")+' Recuperar emitentes de XMLs antigos</button>':'')+
       (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
+      '<button id="receivingQuickSummaryBtn" class="btn btn-sm btn-primary receiving-summary-button" '+
+      'type="button" onclick="App.receivingQuickSummary()" hidden>'+
+      icon("layout-dashboard")+' Resumo rápido</button>'+
       '<button id="receivingBulkDeleteBtn" class="btn btn-sm receiving-delete-selected" onclick="App.receivingBulkDelete()" hidden>'+
       icon("trash")+' Excluir selecionados</button>':'')+'</div></div>'+
 
@@ -213,7 +248,7 @@ Object.assign(App,{
         '<section class="panel receiving-table"><div id="receivingPendingList">Carregando lançamentos sem pedido...</div></section>':
       activeTab==="pedidos"?
         '<section class="panel receiving-table">'+
-        (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos que não possuem entregas" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
+        (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
         '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
         '<th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
         '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
@@ -534,9 +569,65 @@ Object.assign(App,{
     if(action==="edit")this.receivingReceiptForm(receipt.item_id,id);
     if(action==="delete")this.receivingDeleteReceipt(id);
   },
+  receivingQuickSummary(){
+    const controlId=this.s.detail?.control?.id;
+    if(!controlId||this.s.detail?.control?.mode!=="recebimento")return;
+    const selected=this.s.receivingSelection?.controlId===controlId?
+      this.s.receivingSelection.ids:[];
+    const groups=rxQuickSummaryOrders(this.s.receivingData?.items,selected);
+    if(!groups.length){
+      this.toast("Marque ao menos um pedido para gerar o resumo.",true);
+      return;
+    }
+    const products=groups.reduce((sum,g)=>sum+g.items.length,0);
+    const card=group=>'<section class="receiving-quick-order">'+
+      '<div class="receiving-quick-order-head"><div>'+
+      '<span class="receiving-quick-overline">PEDIDO</span>'+
+      '<h3>'+E(group.order)+'</h3>'+
+      '<p>'+E(group.supplier)+'</p></div>'+
+      '<span class="receiving-quick-lines">'+group.items.length+
+      ' produto'+(group.items.length===1?'':'s')+'</span></div>'+
+      group.items.map(p=>{
+        const unit=rxFullUnit(p.unit);
+        const metric=(label,qty,kind)=>
+          '<div class="receiving-quick-metric receiving-quick-'+kind+'">'+
+          '<span>'+label+'</span><strong>'+rxNum(qty)+'</strong>'+
+          '<small>'+E(unit)+'</small></div>';
+        return '<div class="receiving-quick-product">'+
+          '<div class="receiving-quick-product-name">'+E(p.product)+
+          (p.closed?'<span>Concluído</span>':'')+'</div>'+
+          '<div class="receiving-quick-metrics">'+
+          metric('Total pedido',p.ordered_qty,'total')+
+          metric('Recebido',p.received_qty,'received')+
+          metric('Falta receber',p.remaining_qty,'remaining')+
+          '</div></div>';
+      }).join('')+'</section>';
+    this.s.modal="receiving-quick-summary";
+    document.getElementById("modalRoot").innerHTML=
+      '<div class="modal-backdrop receiving-quick-backdrop" '+
+      'onclick="if(event.target===this)App.closeModal()">'+
+      '<div class="modal receiving-quick-modal" role="dialog" aria-modal="true" '+
+      'aria-labelledby="receivingQuickTitle">'+
+      '<div class="receiving-quick-tools">'+
+      '<span>Pré-visualização pronta para print</span>'+
+      '<button class="btn btn-sm" type="button" onclick="App.closeModal()">'+
+      icon("x")+' Fechar</button></div>'+
+      '<div class="receiving-quick-sheet">'+
+      '<header class="receiving-quick-heading">'+
+      '<div><span class="receiving-quick-eyebrow">RECEBIMENTO DE PRODUTOS</span>'+
+      '<h2 id="receivingQuickTitle">Resumo rápido</h2>'+
+      '<p>'+groups.length+' pedido'+(groups.length===1?'':'s')+
+      ' selecionado'+(groups.length===1?'':'s')+' · '+products+
+      ' produto'+(products===1?'':'s')+'</p></div>'+
+      '<span class="receiving-quick-date">'+E(new Date().toLocaleDateString("pt-BR"))+'</span>'+
+      '</header>'+
+      '<div class="receiving-quick-orders">'+groups.map(card).join('')+'</div>'+
+      '<footer class="receiving-quick-foot">Fazenda Novo Horizonte · Resumo individual por pedido</footer>'+
+      '</div></div></div>';
+  },
   receivingSelectItem(id,checked){
     const item=this.s.receivingData?.items.find(p=>p.id===id);
-    if(!item||item.receipts_count)return;
+    if(!item)return;
     const ids=new Set(this.s.receivingSelection?.ids||[]);
     if(checked)ids.add(id);
     else ids.delete(id);
@@ -545,7 +636,7 @@ Object.assign(App,{
   },
   receivingToggleAll(checked){
     const ids=new Set(this.s.receivingSelection?.ids||[]);
-    document.querySelectorAll(".receiving-orders tbody tr[data-receiving-selectable='1']").forEach(row=>{
+    document.querySelectorAll(".receiving-orders tbody tr[data-receiving-id]").forEach(row=>{
       if(row.hidden)return;
       const id=Number(row.dataset.receivingId);
       if(checked)ids.add(id);
@@ -559,36 +650,51 @@ Object.assign(App,{
   receivingUpdateSelectionToolbar(){
     const selected=new Set(this.s.receivingSelection?.ids||[]);
     const rows=[...document.querySelectorAll(".receiving-orders tbody tr[data-receiving-id]")];
-    const eligible=rows.filter(row=>!row.hidden&&row.dataset.receivingSelectable==="1");
+    const visible=rows.filter(row=>!row.hidden);
     let visibleSelected=0;
     rows.forEach(row=>{
       const checked=selected.has(Number(row.dataset.receivingId));
       row.classList.toggle("receiving-selected",checked);
       const checkbox=row.querySelector("input[type=checkbox]");
       if(checkbox)checkbox.checked=checked;
-      if(!row.hidden&&row.dataset.receivingSelectable==="1"&&checked)visibleSelected++;
+      if(!row.hidden&&checked)visibleSelected++;
     });
     const all=document.getElementById("receivingSelectAll");
     if(all){
-      all.disabled=!eligible.length;
-      all.checked=eligible.length>0&&visibleSelected===eligible.length;
-      all.indeterminate=visibleSelected>0&&visibleSelected<eligible.length;
+      all.disabled=!visible.length;
+      all.checked=visible.length>0&&visibleSelected===visible.length;
+      all.indeterminate=visibleSelected>0&&visibleSelected<visible.length;
     }
     const count=document.getElementById("receivingSelectedCount");
     if(count){
       count.hidden=!selected.size;
       count.textContent=selected.size+" selecionado"+(selected.size===1?"":"s");
     }
+    const summary=document.getElementById("receivingQuickSummaryBtn");
+    if(summary)summary.hidden=!selected.size;
+    // Excluir continua permitido APENAS para produtos sem entregas. A
+    // selecao para resumo inclui tambem pedidos parciais e concluidos.
+    const canDelete=selected.size>0&&[...selected].every(id=>{
+      const item=this.s.receivingData?.items.find(p=>p.id===id);
+      return !!item&&!item.receipts_count;
+    });
     const button=document.getElementById("receivingBulkDeleteBtn");
     if(button){
-      button.hidden=!selected.size;
-      button.disabled=!selected.size||!!this.s.receivingDeleteBusy;
+      button.hidden=!canDelete;
+      button.disabled=!canDelete||!!this.s.receivingDeleteBusy;
     }
   },
   async receivingBulkDelete(){
     const controlId=this.s.detail?.control?.id;
     const ids=[...(this.s.receivingSelection?.ids||[])];
     if(!controlId||!ids.length||this.s.receivingDeleteBusy)return;
+    if(ids.some(id=>{
+      const item=this.s.receivingData?.items.find(p=>p.id===id);
+      return !item||item.receipts_count;
+    })){
+      this.toast("Excluir selecionados permite apenas produtos sem recebimentos.",true);
+      return;
+    }
     if(!confirm("Excluir definitivamente "+ids.length+" produto"+(ids.length===1?"":"s")+" selecionado"+(ids.length===1?"":"s")+"? Esta ação não poderá ser desfeita."))return;
     this.s.receivingDeleteBusy=true;
     this.receivingUpdateSelectionToolbar();
