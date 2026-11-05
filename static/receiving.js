@@ -201,6 +201,8 @@ Object.assign(App,{
       '" oninput="App.receivingFilter(this.value)"></label></div>'+
       '<div class="receiving-section-heading"><h3>'+(activeTab==="pedidos"?"Pedidos e produtos":activeTab==="sem-pedido"?"Recebimentos aguardando pedido":"Histórico de notas fiscais")+'</h3>'+
       '<div class="receiving-toolbar">'+
+      (activeTab==="notas"?'<button id="receivingExportInvoicesBtn" class="btn btn-sm" type="button" onclick="App.receivingExportInvoices()">'+
+        icon("file-spreadsheet")+' Exportar Excel</button>':'')+
       (activeTab==="notas"?'<button class="btn btn-sm" type="button" onclick="App.receivingXMLRestoreIssuers()">'+
         icon("file-up")+' Recuperar emitentes de XMLs antigos</button>':'')+
       (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
@@ -250,6 +252,47 @@ Object.assign(App,{
     if(controlId==null||this.s.detail?.control?.mode!=="recebimento")return;
     this.s.receivingTab={controlId,value:tab};
     this.renderReceivingView();
+  },
+  async receivingExportInvoices(){
+    const cid=this.s.detail?.control?.id;
+    if(!cid||this.s.detail?.control?.mode!=="recebimento"||this.s.receivingExportBusy)return;
+    if(!this.s.receivingData?.receipts?.length){
+      this.toast("Não há notas fiscais cadastradas para exportar.",true);return;
+    }
+    const query=this.s.receivingSearch?.controlId===cid?
+      (this.s.receivingSearch.queries?.notas||""):"";
+    this.s.receivingExportBusy=true;
+    const button=document.getElementById("receivingExportInvoicesBtn");
+    if(button)button.disabled=true;
+    try{
+      const response=await fetch("/api/controls/"+cid+"/receiving/invoices.xlsx",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({query}),
+      });
+      if(!response.ok){
+        let message="Não foi possível gerar o Excel das notas fiscais.";
+        try{
+          const error=await response.json();
+          message=error.error||message;
+        }catch{}
+        throw new Error(message);
+      }
+      const blob=await response.blob();
+      if(!blob.size)throw new Error("O servidor retornou um arquivo vazio.");
+      const url=URL.createObjectURL(blob);
+      try{
+        const link=document.createElement("a");
+        link.href=url;link.download="notas_fiscais_recebimentos.xlsx";
+        document.body.appendChild(link);link.click();link.remove();
+      }finally{setTimeout(()=>URL.revokeObjectURL(url),2000);}
+      this.toast("Relatório de notas fiscais exportado.");
+    }catch(err){this.toast(err.message,true);}
+    finally{
+      this.s.receivingExportBusy=false;
+      const current=document.getElementById("receivingExportInvoicesBtn");
+      if(current)current.disabled=false;
+    }
   },
   receivingFilter(query){
     const controlId=this.s.detail?.control?.id;
