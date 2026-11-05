@@ -89,10 +89,20 @@ class IssuerReconciliationTests(unittest.TestCase):
             self.assertTrue(all(r["notes"]=="Lançamento original" for r in rows.values()))
             self.assertEqual(con.execute("""SELECT COUNT(*) AS n FROM
                 nf_issuer_reconciliation_audit""").fetchone()["n"],2)
+            audit=list(con.execute(
+                "SELECT id,receipt_id FROM nf_issuer_reconciliation_audit ORDER BY id"))
+            self.assertEqual([(row["id"],row["receipt_id"]) for row in audit],
+                             [(self.mosaic,self.mosaic),(self.agro,self.agro)])
             rerun=reconcile_module.reconcile(con,self.source,apply=True)
             self.assertEqual(rerun["aplicadas"],0)
             self.assertEqual(con.execute("""SELECT COUNT(*) AS n FROM
                 nf_issuer_reconciliation_audit""").fetchone()["n"],2)
+
+    def test_audit_insert_is_safe_on_postgresql_without_autoincrement(self):
+        sql=SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("id,receipt_id,invoice_number,access_key",sql)
+        self.assertIn("VALUES(?,?,?,?,?,?,?,?,?)",sql)
+        self.assertIn('change["id"],change["id"],change["numero"]',sql)
 
     def test_full_key_must_match_exact_original_nf(self):
         with app.db() as con:
