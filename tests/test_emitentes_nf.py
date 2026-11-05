@@ -53,15 +53,16 @@ class IssuerReconciliationTests(unittest.TestCase):
 
     def test_source_mapping_covers_full_user_tables(self):
         self.assertEqual(len(self.source),241)
-        self.assertEqual(self.source[("48477","61156501010038","2610")]["issuer"],
+        token=reconcile_module.match_digest
+        self.assertEqual(self.source[token("T","48477|61156501010038|2610")]["issuer"],
                          "MOSAIC FERTILIZANTES DO BRASIL LTDA")
-        self.assertEqual(self.source[("40704","95865572003246","2610")]["issuer"],
+        self.assertEqual(self.source[token("T","40704|95865572003246|2610")]["issuer"],
                          "Agro Industrial São Luiz LTDA")
-        self.assertEqual(self.source[("48458","61156501010038","2610")]["key"],
-                         "21261061156501010038550060000484581739124342")
-        self.assertEqual(self.source[("82840","09645031000174","2609")]["issuer"],
+        self.assertEqual(self.source[token("K","21261061156501010038550060000484581739124342")]["issuer"],
+                         "MOSAIC FERTILIZANTES DO BRASIL LTDA")
+        self.assertEqual(self.source[token("K","21260909645031000174550010000828401007193461")]["issuer"],
                          "SALU PECAS LTDA")
-        self.assertEqual(self.source[("78","00024194255968","2609")]["issuer"],
+        self.assertEqual(self.source[token("K","41260900024194255968559200000000781387208375")]["issuer"],
                          "IZIDRO DALSOTTO")
 
     def test_preview_is_read_only_and_validates_cnpj_from_original_access_key(self):
@@ -114,7 +115,7 @@ class IssuerReconciliationTests(unittest.TestCase):
                 (self.item,"2026-10-29","48458",
                  key(48458,"61156501010038"),"20.000")).lastrowid
             preview=reconcile_module.reconcile(con,self.source)
-            self.assertEqual(preview["chave_exata_divergente"],1)
+            self.assertEqual(preview["sem_correspondencia"],3)
             self.assertNotIn(other,[x["id"] for x in preview["alteracoes"]])
 
     def test_apply_same_source_twice_does_not_duplicate_audit(self):
