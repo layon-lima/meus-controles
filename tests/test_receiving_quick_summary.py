@@ -51,6 +51,13 @@ class QuickSummaryTests(unittest.TestCase):
                      '.receiving-quick-orders',
                      '.receiving-quick-modal']:
             self.assertIn(term,CSS)
+        self.assertIn('grid-template-columns:minmax(0,1fr);gap:11px',CSS)
+        self.assertIn('grid-template-columns:minmax(150px,.5fr) minmax(0,1.8fr)',CSS)
+        self.assertIn('border-left:4px solid #15866f',CSS)
+        self.assertIn('font-family:inherit',CSS)
+        self.assertIn('MEUS CONTROLES / RECEBIMENTOS',JS)
+        self.assertIn('Resumo de pedidos',JS)
+        self.assertNotIn('Fazenda Novo Horizonte · Resumo individual por pedido',JS)
         self.assertIn('this.s.modal="receiving-quick-summary"',JS)
         self.assertIn('App.closeModal()',JS)
 
