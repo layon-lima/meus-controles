@@ -191,19 +191,25 @@ Object.assign(App,{
         collapsed:savedSearch.trim()?[]:supplierGroups.map(group=>group.key)};
     }
     const folded=new Set(this.s.receivingSupplierFold.collapsed);
-    const rows=supplierGroups.map((group,index)=>{
+    const cards=supplierGroups.map((group,index)=>{
       const orders=new Set(group.items.map(p=>p.order_number)).size;
       const collapsed=folded.has(group.key);
-      return '<tr class="receiving-supplier-group'+(collapsed?' is-collapsed':'')+
-        '" data-receiving-supplier="'+E(group.key)+'"><td colspan="8">'+
+      return '<section class="receiving-supplier-card'+(collapsed?' is-collapsed':'')+
+        '" data-receiving-supplier="'+E(group.key)+'">'+
         '<button type="button" class="receiving-supplier-toggle" aria-expanded="'+(!collapsed)+
-        '" aria-label="'+(collapsed?'Expandir':'Recolher')+' pedidos de '+E(group.name)+
+        '" aria-controls="receivingSupplierBody'+index+'" '+
+        'aria-label="'+(collapsed?'Expandir':'Recolher')+' pedidos de '+E(group.name)+
         '" onclick="App.receivingToggleSupplier('+index+')">'+
         '<span class="receiving-supplier-chevron" aria-hidden="true">▾</span>'+
-        '<strong>'+E(group.name)+'</strong>'+
+        '<span class="receiving-supplier-heading"><strong>'+E(group.name)+'</strong>'+
         '<span class="receiving-group-count">'+orders+' pedido'+(orders===1?"":"s")+' · '+group.items.length+
-        ' produto'+(group.items.length===1?"":"s")+'</span></button></td></tr>'+
-        group.items.map(renderRow).join("");
+        ' produto'+(group.items.length===1?"":"s")+'</span></span></button>'+
+        '<div class="receiving-supplier-body" id="receivingSupplierBody'+index+'"'+(collapsed?' hidden':'')+'>'+
+        '<div class="table-wrap"><table class="receiving-grid receiving-orders">'+
+        '<thead><tr><th class="receiving-select-cell"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
+        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th>'+
+        '<th class="numeric">Falta receber</th><th>Status</th></tr></thead>'+
+        '<tbody>'+group.items.map(renderRow).join("")+'</tbody></table></div></div></section>';
     }).join("");
     const receipts=r.receipts.map(p=>
       '<tr data-receiving-search="'+E([p.invoice_number,p.access_key||"",p.order_number,p.product,p.supplier].join(" ").toLowerCase())+
@@ -250,7 +256,10 @@ Object.assign(App,{
         icon("file-spreadsheet")+' Exportar Excel</button>':'')+
       (activeTab==="notas"?'<button class="btn btn-sm" type="button" onclick="App.receivingXMLRestoreIssuers()">'+
         icon("file-up")+' Recuperar emitentes de XMLs antigos</button>':'')+
-      (activeTab==="pedidos"?'<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
+      (activeTab==="pedidos"?'<label class="receiving-select-all-label"><input type="checkbox" id="receivingSelectAll" '+
+      'aria-label="Selecionar todos os produtos exibidos" onchange="App.receivingToggleAll(this.checked)">'+
+      '<span>Selecionar todos</span></label>'+
+      '<span id="receivingSelectedCount" class="receiving-selected-count" hidden></span>'+
       '<button id="receivingQuickSummaryBtn" class="btn btn-sm btn-primary receiving-summary-button" '+
       'type="button" onclick="App.receivingQuickSummary()" hidden>'+
       icon("layout-dashboard")+' Resumo rápido</button>'+
@@ -260,12 +269,8 @@ Object.assign(App,{
       (activeTab==="sem-pedido"?
         '<section class="panel receiving-table"><div id="receivingPendingList">Carregando lançamentos sem pedido...</div></section>':
       activeTab==="pedidos"?
-        '<section class="panel receiving-table">'+
-        (t.items?'<div class="table-wrap"><table class="receiving-grid receiving-orders"><thead><tr><th class="receiving-select-cell"><input type="checkbox" id="receivingSelectAll" aria-label="Selecionar todos os produtos exibidos" onchange="App.receivingToggleAll(this.checked)"></th><th>Pedido</th><th>Fornecedor</th><th>Produto</th>'+
-        '<th class="numeric">Quantidade pedida</th><th class="numeric">Recebido</th><th class="numeric">Falta receber</th>'+
-        '<th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
-        '<div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p>'+
-        '</div>')+'</section>'
+        (t.items?'<div class="receiving-table receiving-supplier-cards">'+cards+'</div>':
+        '<section class="panel receiving-table"><div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p></div></section>')
       :
         '<section class="panel receiving-table">'+
         (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Chave da NF-e</th><th>Pedido</th>'+
@@ -349,23 +354,17 @@ Object.assign(App,{
     const queries={...(this.s.receivingSearch?.controlId===controlId?this.s.receivingSearch.queries:{}),
       [tab]:String(query??"")};
     this.s.receivingSearch={controlId,queries};
-    // Ao pesquisar pedidos, abrir grupos para mostrar os resultados encontrados.
-    if(tab==="pedidos"&&String(query??"").trim()&&
-       this.s.receivingSupplierFold?.controlId===controlId){
-      this.s.receivingSupplierFold.collapsed=[];
-    }
     this.receivingApplyFilter(queries[tab]);
   },
   receivingToggleSupplier(index){
     const controlId=this.s.detail?.control?.id;
-    const groups=[...document.querySelectorAll(".receiving-orders .receiving-supplier-group")];
-    const group=groups[index];
-    if(controlId==null||!group)return;
+    const card=document.querySelectorAll(".receiving-supplier-card")[index];
+    if(controlId==null||!card)return;
     if(this.s.receivingSupplierFold?.controlId!==controlId){
       this.s.receivingSupplierFold={controlId,collapsed:[]};
     }
-    const key=group.dataset.receivingSupplier;
     const collapsed=new Set(this.s.receivingSupplierFold.collapsed);
+    const key=card.dataset.receivingSupplier;
     if(collapsed.has(key))collapsed.delete(key);
     else collapsed.add(key);
     this.s.receivingSupplierFold.collapsed=[...collapsed];
@@ -381,31 +380,30 @@ Object.assign(App,{
     document.querySelectorAll(".receiving-invoices [data-receiving-search]").forEach(el=>{
       el.hidden=!rxSupplierKey(el.getAttribute("data-receiving-search")).includes(value);
     });
-    document.querySelectorAll(".receiving-orders .receiving-supplier-group").forEach(group=>{
-      const key=group.dataset.receivingSupplier;
-      const matchingSupplier=!!value&&rxSupplierKey(group.textContent).includes(value);
-      const rows=[];
-      let row=group.nextElementSibling;
-      while(row&&!row.classList.contains("receiving-supplier-group")){
-        rows.push(row);
-        row=row.nextElementSibling;
-      }
-      const matches=rows.filter(item=>!value||matchingSupplier||
-        rxSupplierKey(item.getAttribute("data-receiving-search")).includes(value));
-      const isCollapsed=collapsed.has(key);
-      const orders=new Set(matches.map(item=>item.children[1]?.textContent||""));
-      group.hidden=matches.length===0;
-      group.classList.toggle("is-collapsed",isCollapsed);
-      const button=group.querySelector(".receiving-supplier-toggle");
+    document.querySelectorAll(".receiving-supplier-card").forEach(card=>{
+      const key=card.dataset.receivingSupplier;
+      const supplierName=card.querySelector(".receiving-supplier-heading strong")?.textContent||"";
+      const matchesSupplier=!!value&&rxSupplierKey(supplierName).includes(value);
+      const rows=[...card.querySelectorAll(".receiving-orders tbody tr[data-receiving-id]")];
+      const matching=rows.filter(row=>!value||matchesSupplier||
+        rxSupplierKey(row.getAttribute("data-receiving-search")).includes(value));
+      const matchedIds=new Set(matching.map(row=>row.dataset.receivingId));
+      // Busca revela resultados sem apagar a preferencia por grupos recolhidos.
+      const isCollapsed=collapsed.has(key)&&!value;
+      card.hidden=matching.length===0;
+      card.classList.toggle("is-collapsed",isCollapsed);
+      const body=card.querySelector(".receiving-supplier-body");
+      if(body)body.hidden=isCollapsed;
+      const button=card.querySelector(".receiving-supplier-toggle");
       if(button){
         button.setAttribute("aria-expanded",String(!isCollapsed));
-        button.setAttribute("aria-label",(isCollapsed?"Expandir":"Recolher")+
-          " pedidos de "+(group.querySelector("strong")?.textContent||"fornecedor"));
+        button.setAttribute("aria-label",(isCollapsed?"Expandir":"Recolher")+" pedidos de "+supplierName);
       }
-      const summary=group.querySelector(".receiving-group-count");
-      if(summary)summary.textContent=orders.size+" pedido"+(orders.size===1?"":"s")+" · "+
-        matches.length+" produto"+(matches.length===1?"":"s");
-      rows.forEach(item=>{item.hidden=isCollapsed||!matches.includes(item);});
+      const orders=new Set(matching.map(row=>row.children[1]?.textContent||""));
+      const summary=card.querySelector(".receiving-group-count");
+      if(summary)summary.textContent=orders.size+" pedido"+(orders.size===1?"":"s")+
+        " · "+matching.length+" produto"+(matching.length===1?"":"s");
+      rows.forEach(row=>{row.hidden=!matchedIds.has(row.dataset.receivingId);});
     });
     this.receivingUpdateSelectionToolbar();
   },
