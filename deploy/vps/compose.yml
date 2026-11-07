@@ -36,7 +36,6 @@ services:
       CONTROLES_PORT: "18765"
       CONTROLES_PUBLIC_ORIGIN: "https://${CONTROLES_DOMAIN:?Defina CONTROLES_DOMAIN}"
       CONTROLES_DISABLE_LOCAL_SHUTDOWN: "1"
-      CONTROLES_OPENAI_API_KEY: ${CONTROLES_OPENAI_API_KEY:-}
     networks:
       banco_privado:
       interface_web:
