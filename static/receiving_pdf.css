@@ -37,42 +37,41 @@
 }
 
 
-/* Conferencia opcional com GPT: apenas sugestoes, nunca salvamento automatico. */
-.rpdf-gpt-connect{display:flex;gap:12px;align-items:center;justify-content:space-between;
- padding:12px 14px;margin-bottom:13px;background:#f3f7ff;border:1px solid #dbe6f8;
- border-radius:12px;flex-wrap:wrap}
-.rpdf-gpt-connect strong{font-size:12px;color:#2a4e81}
-.rpdf-gpt-connect p{font-size:11px;color:#637b9d;margin:4px 0 0}
-.rpdf-gpt-connect input{flex:0 1 330px;min-width:190px;min-height:35px;border-radius:9px;
- border:1px solid #cbd9ee;background:#fff;padding:7px 10px;font-size:11px}
-.rpdf-gpt-connect input:focus{outline:2px solid #8cb8ee;outline-offset:1px}
-.rpdf-doc-title .rpdf-gpt-button{border-color:#bad4f5;background:#edf4ff;color:#2b6ac2}
-.rpdf-gpt-suggestion{padding:12px 14px;background:#f6f9ff;border-bottom:1px solid #d8e6f8}
-.rpdf-gpt-suggestion-title{display:flex;justify-content:space-between;align-items:center;gap:10px;
- flex-wrap:wrap;margin-bottom:8px}
-.rpdf-gpt-suggestion-title strong{font-size:12px;color:#2c547e}
-.rpdf-gpt-suggestion p{font-size:11px;color:#506a83;margin-bottom:10px}
-.rpdf-gpt-items{display:flex;flex-direction:column;gap:4px;max-height:230px;overflow:auto}
-.rpdf-gpt-items span{padding:6px 9px;border:1px solid #dde8f8;border-radius:7px;
- background:#fff;font-size:11px;line-height:1.45}
-.rpdf-gpt-applied{padding:9px 12px;background:#eaf7ec;color:#2c6949;font-size:11px}
-.rpdf-gpt-alert{padding:8px 10px;background:#fff4e0;border-radius:6px;margin:6px 0!important}
-.rpdf-table tr.rpdf-gpt-changed td{background:#eef6ff}
-@media(max-width:650px){
- .rpdf-gpt-connect{align-items:stretch}
- .rpdf-gpt-connect input{flex:1 1 100%;min-width:0;width:100%}
- .rpdf-doc-title{align-items:center}
-}
 
-
-/* Campo da chave e botao de analise visiveis lado a lado. */
-.rpdf-gpt-connect{align-items:flex-start}
-.rpdf-gpt-actions{display:flex;flex:1 1 100%;align-items:center;gap:9px;flex-wrap:wrap}
-.rpdf-gpt-actions input[type="password"]{flex:1 1 250px;max-width:470px;min-width:180px}
-.rpdf-gpt-start{white-space:nowrap;min-height:35px}
-.rpdf-gpt-start:disabled{opacity:.6;cursor:not-allowed}
-.rpdf-gpt-key-status{display:block;flex-basis:100%;font-size:11px;color:#637b9d}
-@media(max-width:650px){
- .rpdf-gpt-actions input[type="password"]{min-width:0;max-width:none;flex:1 1 100%}
- .rpdf-gpt-start{width:100%;justify-content:center}
+/* Visualização de PDF e seleção de regiões, sem qualquer IA externa. */
+.rpdf-reader-intro{padding:10px 13px;border:1px solid #d7e8f8;background:#f2f8ff;
+ border-radius:9px;font-size:12px;color:#4a617d;margin:0 0 12px}
+.rpdf-mark-open{border-color:#b9d2f4;background:#edf4ff;color:#2b6ac2}
+.rpdf-viewer{padding:12px;border-top:1px solid #d8e4f1;border-bottom:1px solid #d8e4f1;
+ background:#f4f7fb;display:flex;flex-direction:column;gap:9px}
+.rpdf-viewer-tools,.rpdf-page-nav,.rpdf-region-actions{display:flex;align-items:center;
+ justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rpdf-viewer-tools strong{font-size:12px;color:#334c69}
+.rpdf-page-nav{justify-content:flex-end}
+.rpdf-page-nav span{font-size:11px;color:#4b607c}
+.rpdf-mark-instructions{font-size:12px;line-height:1.45;color:#3e5f86;margin:0}
+.rpdf-page-scroll{width:100%;max-height:62vh;overflow:auto;overscroll-behavior:contain;
+ border:1px solid #d0dce9;border-radius:9px;background:#e4eaf2;text-align:center}
+.rpdf-page-stage{position:relative;display:inline-block;line-height:0;
+ width:auto;max-width:none;margin:10px;box-shadow:0 5px 20px #273c571a}
+.rpdf-page-stage img{display:block;width:auto;max-width:min(100%,850px);
+ height:auto;pointer-events:none;user-select:none}
+.rpdf-page-mark{position:absolute;inset:0;cursor:crosshair;touch-action:none;user-select:none}
+.rpdf-selection{position:absolute;border:2px solid #1f7ee2;background:#3686df36;
+ pointer-events:none;box-shadow:0 0 0 1px #fff8}
+.rpdf-region-actions{justify-content:flex-start}
+.rpdf-region-result{background:#fff;border:1px solid #cbdbe9;border-radius:8px;padding:11px}
+.rpdf-region-result>strong{display:block;font-size:12px;color:#2d4866;margin-bottom:8px}
+.rpdf-region-result p{font-size:12px;color:#75561f;margin:7px 0}
+.rpdf-region-items{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.rpdf-region-items span{display:inline-block;padding:6px 9px;font-size:11px;color:#2c4a6b;
+ background:#ebf4ff;border:1px solid #d8e6f8;border-radius:7px}
+.rpdf-region-result details{margin-top:10px;font-size:11px;color:#4b6888}
+.rpdf-region-result pre{max-height:130px;overflow:auto;padding:8px;white-space:pre-wrap;
+ background:#f2f5f9;border-radius:6px;color:#435770}
+@media(max-width:700px){
+ .rpdf-viewer{padding:8px}
+ .rpdf-page-scroll{max-height:52vh}
+ .rpdf-page-stage{margin:5px}
+ .rpdf-page-stage img{max-width:100%}
 }
