@@ -258,6 +258,8 @@ def _tesseract_page(page,fitz,mode=3):
 def _choose_items(page,raw,aligned):
     # A tabela nativa identifica as colunas separadas e evita confundir preco e quantidade.
     sources=[("texto",parse_rows(raw)),("linhas",parse_rows(aligned))]
+    coordinate_rows=receiving_pdf_layout.parse_words(page.get_text("words",sort=True),__import__(__name__))
+    if coordinate_rows:sources.append(("colunas",coordinate_rows))
     tabular=receiving_pdf_layout.parse_table(page, __import__(__name__))
     if tabular:sources.append(("tabela",tabular))
     # Maior numero de linhas validas primeiro; tabela estruturada desempata.
@@ -290,17 +292,22 @@ def extract_pdf(pdf_bytes):
             # impede que uma segunda leitura invente itens quando o PDF nao tem tabela.
             try: has_image=bool(page.get_images(full=True))
             except Exception:has_image=False
-            if not items and (not raw.strip() or (has_image and len(raw.strip())<550)):
-                ocr=_tesseract_page(page,fitz,3)
-                if len(ocr.strip())>len(raw.strip()):raw=ocr
-                aligned=layout_text(page) if page.get_text("words") else ""
-                items,source=_choose_items(page,raw,aligned)
+            if has_image and (len(raw.strip())<550 or not items):
+                # Páginas digitalizadas podem conter muito mais produtos do que
+                # os encontrados pelo primeiro layout. Usar dois modos OCR e
+                # escolher o que identifica MAIS linhas completas, sem juntar lotes.
+                best_items=list(items)
+                best_raw=raw
+                for mode in (3,6):
+                    candidate_text=_tesseract_page(page,fitz,mode)
+                    candidate_items=parse_rows(candidate_text)
+                    if len(candidate_items)>len(best_items):
+                        best_items=candidate_items
+                        best_raw=candidate_text
+                if len(best_items)>len(items):
+                    items=best_items
+                    raw=best_raw
                 ocr_pages+=1
-                if not items:
-                    alternate=_tesseract_page(page,fitz,6)
-                    alternate_items=parse_rows(alternate)
-                    if alternate_items:
-                        raw=alternate;items=alternate_items;source="ocr-tabela"
             pages.append(raw)
             # Um pedido pode ocupar varias paginas. Se o cabecalho mudar,
             # mantemos os dados por item para revisao individual.
