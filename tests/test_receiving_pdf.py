@@ -131,6 +131,45 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([(p["ordered_qty"],p["unit"]) for p in rows],
                          [("1234.500","L"),("18606.000","DOS"),("300.000","t")])
 
+    def test_quantity_before_description_is_recognized(self):
+        rows=receiving_pdf.parse_rows("2.000 L Assist\n1.500 kg CALCARIO DOLOMITICO")
+        self.assertEqual([(x["product"],x["ordered_qty"],x["unit"]) for x in rows],
+            [("Assist","2000.000","L"),("CALCARIO DOLOMITICO","1500.000","kg")])
+
+    def test_tabular_columns_recover_products_without_inline_units(self):
+        import receiving_pdf_layout
+        class Table:
+            def extract(self):
+                return [
+                    ["CODIGO","DESCRIÇÃO DO PRODUTO","QUANTIDADE","UNID","VALOR"],
+                    ["110","ASSIST","2.000","L","30.000,00"],
+                    ["220","BRIGHT","2.220","kg","12.000,00"],
+                    ["","","","","TOTAL"]
+                ]
+        class Page:
+            def find_tables(self):
+                return type("Result",(),{"tables":[Table()]})()
+        items=receiving_pdf_layout.parse_table(Page(),receiving_pdf)
+        self.assertEqual([(i["product"],i["ordered_qty"],i["unit"]) for i in items],
+             [("ASSIST","2000.000","L"),("BRIGHT","2220.000","kg")])
+
+    def test_gpt_parse_response_keeps_only_safe_items(self):
+        import receiving_pdf_gpt
+        import json
+        payload={"output":[{"content":[{"type":"output_text","text":json.dumps({
+          "order_number":"PED-2026-004","supplier":"AGREX",
+          "items":[
+            {"order_number":"PED-2026-004","supplier":"AGREX",
+             "product":"Assist","ordered_qty":"2000","unit":"L"},
+            {"order_number":"PED-2026-004","supplier":"AGREX",
+             "product":"Bright","ordered_qty":"2.220","unit":"kg"},
+            {"order_number":"PED-2026-004","supplier":"AGREX",
+             "product":"","ordered_qty":"xx","unit":"kg"}],
+          "warnings":[]})}]}]}
+        parsed=receiving_pdf_gpt.parse_response(payload)
+        self.assertEqual(len(parsed["items"]),2)
+        self.assertEqual(parsed["items"][1]["ordered_qty"],"2220.000")
+
     def test_existing_order_gains_new_rows_and_supplier_merges(self):
         with app.db() as con:
             con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
