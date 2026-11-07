@@ -141,7 +141,7 @@ Object.assign(App,{
             '<details><summary>Texto encontrado na área</summary><pre>'+E(doc.regionResult.raw_text)+'</pre></details>':'')+
           '</div>':'')+
         '</div>':'';
-      return '<section class="rpdf-document">'+
+      return '<section class="rpdf-document" data-rpdf-doc="'+fi+'">'+
         '<div class="rpdf-doc-title"><strong>'+E(doc.filename)+'</strong>'+
         '<span>'+doc.items.length+' produto(s) · '+doc.pages+' página(s) · '+
         (doc.ocr_pages?'OCR em '+doc.ocr_pages+' página(s)':'texto selecionável')+'</span>'+
@@ -219,7 +219,7 @@ Object.assign(App,{
       y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
   },
   receivingPdfDrawSelection(fileIndex,rect){
-    const el=document.querySelector(".rpdf-document:nth-child("+(fileIndex+1)+") .rpdf-selection");
+    const el=document.querySelector('[data-rpdf-doc="'+fileIndex+'"] .rpdf-selection');
     if(!el||!rect)return;
     el.style.display="block";
     el.style.left=(rect.x0*100)+"%";
