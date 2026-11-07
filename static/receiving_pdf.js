@@ -14,25 +14,6 @@ const rpdfBase64=async file=>{
     binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
   return btoa(binary);
 };
-// Aproximacao conservadora para conciliar produtos OCR e GPT; codigos numericos diferentes nunca se fundem.
-const rpdfSimilarity=(a,b)=>{
-  a=rpdfNormalize(a);b=rpdfNormalize(b);
-  if(a===b)return 1;
-  const nums=x=>x.match(/\d+/g)||[];
-  if(nums(a).join("|")!==nums(b).join("|"))return 0;
-  if(!a||!b)return 0;
-  const dp=Array.from({length:b.length+1},(_,j)=>j);
-  for(let i=1;i<=a.length;i++){
-    let prev=dp[0];dp[0]=i;
-    for(let j=1;j<=b.length;j++){
-      const old=dp[j];
-      dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
-      prev=old;
-    }
-  }
-  return 1-dp[b.length]/Math.max(a.length,b.length);
-};
-
 Object.assign(App,{
   receivingPdfChoose(){
     if(!this.canOpenForm())return;
@@ -56,7 +37,7 @@ Object.assign(App,{
     if(wrong){
       this.toast("Arquivo inválido ou maior que 7 MB: "+wrong.name,true);return;
     }
-    this.s.receivingPdf={controlId:control.id,docs:[],errors:[],working:true,gptKey:"",
+    this.s.receivingPdf={controlId:control.id,docs:[],errors:[],working:true,
       progress:"Preparando leitura dos PDFs..."};
     this.s.modal="receiving-pdf";
     this.receivingPdfRender();
@@ -104,9 +85,7 @@ Object.assign(App,{
       const rows=doc.items.map((item,ri)=>{
         const options=(rpdfUnits.includes(item.unit)?rpdfUnits:[...rpdfUnits,item.unit]).map(u=>
           '<option value="'+E(u)+'"'+(u===item.unit?' selected':'')+'>'+E(u)+'</option>').join("");
-        return '<tr class="'+(!item.enabled?'rpdf-disabled':'')+
-          (doc.gptChanged?.includes(item.index)?' rpdf-gpt-changed':'')+
-          '" data-rpdf-row="'+fi+'-'+ri+'">'+
+        return '<tr class="'+(!item.enabled?'rpdf-disabled':'')+'" data-rpdf-row="'+fi+'-'+ri+'">'+
           '<td><input type="checkbox" '+(item.enabled?'checked':'')+
           ' aria-label="Importar produto '+(ri+1)+'" onchange="App.receivingPdfEdit('+fi+','+ri+
           ',&quot;enabled&quot;,this.checked)"></td>'+
@@ -121,18 +100,46 @@ Object.assign(App,{
           '<td><select aria-label="Unidade de medida" onchange="App.receivingPdfEdit('+fi+','+ri+
           ',&quot;unit&quot;,this.value)">'+options+'</select></td></tr>';
       }).join("");
-      const suggestion=doc.gptResult;
-      const suggested=suggestion?'<div class="rpdf-gpt-suggestion">'+
-        '<div class="rpdf-gpt-suggestion-title"><strong>Conferência GPT · '+suggestion.items.length+
-        ' produto(s) identificados</strong>'+
-        '<button type="button" class="btn btn-sm btn-primary" onclick="App.receivingPdfApplyGPT('+fi+')">'+
-        icon("check")+' Aplicar sugestões</button></div>'+
-        '<p>Compare os resultados. Nada é alterado até clicar em Aplicar sugestões.</p>'+
-        '<div class="rpdf-gpt-items">'+suggestion.items.map(item=>
-          '<span>'+E(item.product)+' · '+E(item.ordered_qty)+' '+E(item.unit)+
-          ' · '+E(item.supplier||suggestion.supplier||"Fornecedor não identificado")+
-          ' · '+E(item.order_number||suggestion.order_number||"Pedido não identificado")+'</span>').join("")+'</div>'+
-        (suggestion.warnings||[]).map(w=>'<p class="rpdf-gpt-alert">'+E(w)+'</p>').join("")+
+      const region=doc.regionSelection;
+      const selectionStyle=region?
+        'left:'+(region.x0*100)+'%;top:'+(region.y0*100)+'%;width:'+((region.x1-region.x0)*100)+'%;height:'+((region.y1-region.y0)*100)+'%;':
+        'display:none;';
+      const pdfViewer=doc.showViewer?
+        '<div class="rpdf-viewer">'+
+        '<div class="rpdf-viewer-tools"><strong>Marque a tabela ou cada linha no PDF</strong>'+
+        '<div class="rpdf-page-nav">'+
+        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfSetPage('+fi+','+(doc.viewerPage-1)+')" '+
+        (doc.viewerPage===0?'disabled':'')+'>Anterior</button>'+
+        '<span>Página '+(doc.viewerPage+1)+' de '+doc.pages+'</span>'+
+        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfSetPage('+fi+','+(doc.viewerPage+1)+')" '+
+        (doc.viewerPage>=doc.pages-1?'disabled':'')+'>Próxima</button></div></div>'+
+        '<p class="rpdf-mark-instructions">Arraste o mouse sobre a tabela inteira ou sobre uma linha de produto. Depois clique em <b>Ler área marcada</b>. Você pode repetir em outras páginas.</p>'+
+        (doc.pageImages?.[doc.viewerPage]?
+          '<div class="rpdf-page-scroll"><div class="rpdf-page-stage">'+
+          '<img draggable="false" alt="Página '+(doc.viewerPage+1)+' do pedido '+E(doc.filename)+'" '+
+          'src="'+doc.pageImages[doc.viewerPage]+'">'+
+          '<div class="rpdf-page-mark" onpointerdown="App.receivingPdfMarkStart(event,'+fi+')" '+
+          'onpointermove="App.receivingPdfMarkMove(event,'+fi+')" '+
+          'onpointerup="App.receivingPdfMarkEnd(event,'+fi+')" '+
+          'onpointercancel="App.receivingPdfMarkEnd(event,'+fi+')">'+
+          '<div class="rpdf-selection" style="'+selectionStyle+'"></div></div></div></div>':
+          '<p class="rpdf-progress">Carregando página do PDF...</p>')+
+        '<div class="rpdf-region-actions">'+
+        '<button type="button" class="btn btn-primary btn-sm" onclick="App.receivingPdfReadMark('+fi+')" '+
+        (!region||ctx.working?'disabled':'')+'>Ler área marcada</button>'+
+        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
+        icon("plus")+' Inserir produto manualmente</button></div>'+
+        (doc.regionResult?
+          '<div class="rpdf-region-result"><strong>'+doc.regionResult.items.length+
+          ' produto(s) reconhecido(s) na área selecionada</strong>'+
+          (doc.regionResult.items.length?
+            '<div class="rpdf-region-items">'+doc.regionResult.items.map(p=>
+            '<span>'+E(p.product)+' · '+E(p.ordered_qty)+' '+E(p.unit)+'</span>').join("")+'</div>'+
+            '<button type="button" class="btn btn-primary btn-sm" onclick="App.receivingPdfApplyRegion('+fi+')">Adicionar produtos à prévia</button>':
+            '<p>Não consegui separar os itens. Tente selecionar uma linha de cada vez ou use Inserir produto manualmente.</p>')+
+          (doc.regionResult.raw_text?
+            '<details><summary>Texto encontrado na área</summary><pre>'+E(doc.regionResult.raw_text)+'</pre></details>':'')+
+          '</div>':'')+
         '</div>':'';
       return '<section class="rpdf-document">'+
         '<div class="rpdf-doc-title"><strong>'+E(doc.filename)+'</strong>'+
@@ -140,11 +147,12 @@ Object.assign(App,{
         (doc.ocr_pages?'OCR em '+doc.ocr_pages+' página(s)':'texto selecionável')+'</span>'+
         '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
         icon("plus")+' Adicionar produto</button>'+
-        '<button type="button" class="btn btn-sm rpdf-gpt-button" onclick="App.receivingPdfCheckGPT('+fi+')" '+
-        (ctx.working?'disabled':'')+'>'+icon("search")+' Corrigir com GPT</button></div>'+
+        '<button type="button" class="btn btn-sm rpdf-mark-open" onclick="App.receivingPdfToggleViewer('+fi+')">'+
+        icon("search")+' '+(doc.showViewer?'Fechar visualização':'Marcar produtos no PDF')+'</button></div>'+
+        (doc.items.length<=1?'<p class="rpdf-warning">O OCR reconheceu somente '+doc.items.length+
+         ' produto. Se o PDF tiver mais, clique em <b>Marcar produtos no PDF</b> e selecione a tabela.</p>':'')+
         (doc.warnings||[]).map(w=>'<p class="rpdf-warning">'+E(w)+'</p>').join("")+
-        (doc.gptApplied?'<p class="rpdf-gpt-applied">Sugestões aplicadas à prévia. Revise e clique em Importar quando estiver certo.</p>':'')+
-        suggested+
+        pdfViewer+
         (doc.needs_manual_review?'<p class="rpdf-warning">Alguns campos não foram reconhecidos com segurança. Revise e complete as informações.</p>':'')+
         '<div class="rpdf-table-wrap"><table class="rpdf-table"><thead><tr><th>Usar</th><th>Nº pedido</th>'+
         '<th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Unidade</th></tr></thead>'+
@@ -160,19 +168,7 @@ Object.assign(App,{
       '<p>Confira cada produto antes de lançar no controle. Um pedido pode ter várias linhas.</p></div>'+
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body">'+
-      '<div class="rpdf-gpt-connect"><div><strong>Assistente GPT para conferir o PDF</strong>'+
-      '<p>Opcional e manual. OCR local primeiro. Ao clicar em Corrigir com GPT, o PDF é enviado à API OpenAI para análise. Use a chave da VPS ou informe uma somente nesta sessão. Confira antes de importar.</p></div>'+
-      '<div class="rpdf-gpt-actions">'+
-      '<input type="password" autocomplete="off" spellcheck="false" aria-label="Chave de API OpenAI" '+
-      'placeholder="Chave de API (opcional se VPS configurada)" '+
-      'oninput="App.receivingPdfSetGPTKey(this.value)" '+
-      'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingPdfAnalyzeAllGPT()}">'+
-      '<button type="button" class="btn btn-primary rpdf-gpt-start" '+
-      'onclick="App.receivingPdfAnalyzeAllGPT()" '+((ctx.working||!ctx.docs.length)?'disabled':'')+'>'+
-      icon("search")+' Analisar '+(ctx.docs.length===1?'PDF':'todos os PDFs')+' com GPT</button>'+
-      '<small id="receivingPdfGPTKeyStatus" class="rpdf-gpt-key-status">'+
-      (ctx.gptKey?'Chave informada para esta sessão.':'Também funciona com chave configurada na VPS.')+
-      '</small></div></div>'+
+      '<p class="rpdf-reader-intro">Leitura automática de produtos, quantidades e unidades. Quando faltar algum item, abra o PDF e marque a região com o mouse.</p>'+
       (ctx.working?'<p class="rpdf-progress">'+icon("loader-circle")+' '+E(ctx.progress)+'</p>':'')+
       errors+datalist+summaries+
       (ctx.docs.length?'<p class="rpdf-hint">Pedidos existentes recebem novas linhas. Fornecedores com o mesmo nome serão agrupados. O PDF original não é salvo no servidor.</p>':'')+
@@ -184,105 +180,122 @@ Object.assign(App,{
       ((ctx.working||!count||invalid)?'disabled':'')+'>'+
       icon("check")+' Importar '+count+' produto(s)</button></div></div></div>';
   },
-  receivingPdfSetGPTKey(value){
-    const ctx=this.s.receivingPdf;
-    if(!ctx)return;
-    ctx.gptKey=String(value||"").trim();
-    const status=document.getElementById("receivingPdfGPTKeyStatus");
-    if(status)status.textContent=ctx.gptKey?
-      "Chave informada para esta sessão. Clique em Analisar PDF com GPT.":
-      "Também funciona com chave configurada na VPS.";
-  },
-  receivingPdfRequestGPT(ctx,doc){
-    return this.api("/api/controls/"+ctx.controlId+"/receiving/pdf/gpt",
-      "POST",{filename:doc.filename,fingerprint:doc.fingerprint,
-        base64:doc.pdfBase64,api_key:ctx.gptKey});
-  },
-  async receivingPdfAnalyzeAllGPT(){
-    const ctx=this.s.receivingPdf;
-    if(!ctx||ctx.working||!ctx.docs.length||
-       ctx.controlId!==this.s.detail?.control?.id)return;
-    let success=0,failed=0;
-    ctx.working=true;
-    try{
-      for(let index=0;index<ctx.docs.length;index++){
-        if(this.s.modal!=="receiving-pdf"||this.s.receivingPdf!==ctx)return;
-        const doc=ctx.docs[index];
-        ctx.progress="Analisando PDF "+(index+1)+"/"+ctx.docs.length+": "+doc.filename;
-        this.receivingPdfRender();
-        try{
-          doc.gptResult=await this.receivingPdfRequestGPT(ctx,doc);
-          success++;
-        }catch(err){
-          failed++;
-          ctx.errors.push(doc.filename+": "+err.message);
-        }
-      }
-    }finally{
-      if(this.s.modal==="receiving-pdf"&&this.s.receivingPdf===ctx){
-        ctx.working=false;
-        ctx.progress="";
-        this.receivingPdfRender();
-        if(failed)this.toast(failed+" PDF(s) com erro. Veja os avisos na janela.",true);
-        else if(success)this.toast(success+" PDF(s) analisado(s). Confira e aplique as sugestões.");
-      }
-    }
-  },
-  async receivingPdfCheckGPT(fileIndex){
+  async receivingPdfToggleViewer(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
-    if(!ctx||!doc||ctx.working)return;
-    ctx.working=true;ctx.progress="Conferindo todos os itens do PDF com GPT...";
+    if(!doc||ctx.working)return;
+    doc.showViewer=!doc.showViewer;
+    if(!doc.showViewer){this.receivingPdfRender();return;}
+    if(!Number.isInteger(doc.viewerPage))doc.viewerPage=0;
+    doc.pageImages=doc.pageImages||{};
+    this.receivingPdfRender();
+    if(!doc.pageImages[doc.viewerPage])await this.receivingPdfSetPage(fileIndex,doc.viewerPage);
+  },
+  async receivingPdfSetPage(fileIndex,page){
+    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
+    if(!doc||ctx.working||page<0||page>=doc.pages)return;
+    doc.viewerPage=page;
+    doc.regionSelection=null;
+    doc.regionResult=null;
+    if(doc.pageImages?.[page]){this.receivingPdfRender();return;}
+    ctx.working=true;ctx.progress="Abrindo página "+(page+1)+" do PDF...";
     this.receivingPdfRender();
     try{
-      const result=await this.receivingPdfRequestGPT(ctx,doc);
-      if(this.s.modal!=="receiving-pdf")return;
-      doc.gptResult=result;
-      if(!result.items?.length)this.toast("GPT não encontrou itens seguros. Revise manualmente.",true);
+      const res=await this.api("/api/controls/"+ctx.controlId+"/receiving/pdf/page","POST",{
+        base64:doc.pdfBase64,fingerprint:doc.fingerprint,page});
+      if(this.s.receivingPdf!==ctx)return;
+      doc.pageImages=doc.pageImages||{};
+      doc.pageImages[page]=res.image;
     }catch(err){
-      this.toast("Não foi possível conferir com GPT: "+err.message,true);
+      this.toast("Não consegui abrir esta página: "+err.message,true);
     }finally{
-      if(this.s.modal==="receiving-pdf"){
+      if(this.s.receivingPdf===ctx){
         ctx.working=false;ctx.progress="";this.receivingPdfRender();
       }
     }
   },
-  receivingPdfApplyGPT(fileIndex){
-    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex],suggestion=doc?.gptResult;
-    if(!ctx||!doc||!suggestion||ctx.working)return;
-    const used=new Set(),changed=new Set();
-    for(const proposed of suggestion.items){
-      let found=-1,score=0;
-      for(let i=0;i<doc.items.length;i++){
-        if(used.has(i))continue;
-        const row=doc.items[i];
-        // Para evitar juntar itens diferentes, a unidade precisa ser a mesma.
-        if(row.unit!==proposed.unit)continue;
-        const similarity=rpdfSimilarity(row.product,proposed.product);
-        if(similarity>score){found=i;score=similarity;}
-      }
-      const values={
-        order_number:proposed.order_number||suggestion.order_number||doc.order_number||"",
-        supplier:proposed.supplier||suggestion.supplier||doc.supplier||"",
-        product:proposed.product||"",unit:proposed.unit||"un",
-        ordered_qty:proposed.ordered_qty||""
-      };
-      if(found>=0&&score>=.88){
-        used.add(found);
-        const row=doc.items[found];
-        const before=JSON.stringify(Object.fromEntries(Object.keys(values).map(k=>[k,row[k]])));
-        Object.assign(row,values);
-        if(before!==JSON.stringify(values))changed.add(row.index);
-      }else if(doc.items.length<150){
-        const index=doc.items.length;
-        doc.items.push({index,enabled:true,...values});
-        changed.add(index);
+  receivingPdfCoordinates(event){
+    const box=event.currentTarget.getBoundingClientRect();
+    return {x:Math.max(0,Math.min(1,(event.clientX-box.left)/box.width)),
+      y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
+  },
+  receivingPdfDrawSelection(fileIndex,rect){
+    const el=document.querySelector(".rpdf-document:nth-child("+(fileIndex+1)+") .rpdf-selection");
+    if(!el||!rect)return;
+    el.style.display="block";
+    el.style.left=(rect.x0*100)+"%";
+    el.style.top=(rect.y0*100)+"%";
+    el.style.width=((rect.x1-rect.x0)*100)+"%";
+    el.style.height=((rect.y1-rect.y0)*100)+"%";
+  },
+  receivingPdfMarkStart(event,fileIndex){
+    if(event.button!==0)return;
+    const doc=this.s.receivingPdf?.docs[fileIndex];
+    if(!doc||!doc.showViewer)return;
+    event.preventDefault();
+    const pos=this.receivingPdfCoordinates(event);
+    doc.markDrag=pos;
+    doc.regionSelection=null;doc.regionResult=null;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    this.receivingPdfDrawSelection(fileIndex,{x0:pos.x,y0:pos.y,x1:pos.x,y1:pos.y});
+  },
+  receivingPdfMarkMove(event,fileIndex){
+    const doc=this.s.receivingPdf?.docs[fileIndex];
+    if(!doc?.markDrag)return;
+    event.preventDefault();
+    const pos=this.receivingPdfCoordinates(event),a=doc.markDrag;
+    this.receivingPdfDrawSelection(fileIndex,{
+      x0:Math.min(a.x,pos.x),y0:Math.min(a.y,pos.y),
+      x1:Math.max(a.x,pos.x),y1:Math.max(a.y,pos.y)});
+  },
+  receivingPdfMarkEnd(event,fileIndex){
+    const doc=this.s.receivingPdf?.docs[fileIndex];
+    if(!doc?.markDrag)return;
+    const pos=this.receivingPdfCoordinates(event),a=doc.markDrag;
+    doc.markDrag=null;
+    const rect={x0:Math.min(a.x,pos.x),y0:Math.min(a.y,pos.y),
+                x1:Math.max(a.x,pos.x),y1:Math.max(a.y,pos.y)};
+    doc.regionSelection=(rect.x1-rect.x0>=.012&&rect.y1-rect.y0>=.012)?rect:null;
+    this.receivingPdfRender();
+  },
+  async receivingPdfReadMark(fileIndex){
+    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
+    if(!doc?.regionSelection||ctx.working)return;
+    ctx.working=true;ctx.progress="Lendo os produtos da área marcada...";
+    this.receivingPdfRender();
+    try{
+      const result=await this.api("/api/controls/"+ctx.controlId+"/receiving/pdf/region","POST",{
+        base64:doc.pdfBase64,fingerprint:doc.fingerprint,page:doc.viewerPage,
+        rect:doc.regionSelection});
+      if(this.s.receivingPdf===ctx)doc.regionResult=result;
+    }catch(err){
+      this.toast("Falha ao ler a seleção: "+err.message,true);
+    }finally{
+      if(this.s.receivingPdf===ctx){
+        ctx.working=false;ctx.progress="";this.receivingPdfRender();
       }
     }
-    doc.gptChanged=[...changed];
-    doc.gptApplied=true;
-    doc.gptResult=null;
+  },
+  receivingPdfApplyRegion(fileIndex){
+    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex],result=doc?.regionResult;
+    if(!doc||!result?.items?.length)return;
+    let added=0;
+    for(const item of result.items){
+      const duplicate=doc.items.some(row=>rpdfNormalize(row.product)===rpdfNormalize(item.product)&&
+        String(row.unit).toLowerCase()===String(item.unit).toLowerCase()&&
+        Number(row.ordered_qty)===Number(item.ordered_qty));
+      if(duplicate||doc.items.length>=150)continue;
+      const blank=doc.items.find(row=>!String(row.product||"").trim());
+      const values={order_number:item.order_number||doc.order_number||"",
+        supplier:item.supplier||doc.supplier||"",
+        product:item.product,ordered_qty:item.ordered_qty,unit:item.unit,enabled:true};
+      if(blank)Object.assign(blank,values);
+      else doc.items.push({index:doc.items.length,...values});
+      added++;
+    }
+    doc.regionResult=null;
     this.receivingPdfRender();
-    this.toast("Sugestões colocadas na prévia. Confira antes de importar.");
+    this.toast(added?added+" produto(s) adicionados à prévia. Revise antes de importar.":
+      "Esses produtos já estão na prévia, não foram duplicados.");
   },
   receivingPdfAddRow(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
