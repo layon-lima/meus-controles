@@ -146,6 +146,16 @@ def find_supplier(lines):
             candidate=re.split(r"\s+(?:CNPJ|CPF|INSCRICAO|ENDERECO|FONE|TEL)\b",clean_line(candidate),flags=re.I)[0].strip(" :-|")
             if 2<len(candidate)<=160 and not re.match(r"^\d",candidate) and not re.match(r"^(?:CNPJ|CPF|COMPRADOR|CLIENTE|PEDIDO|DATA)\b",normalize_text(candidate)):
                 return candidate
+    # Em pedidos mestres da FMC, a razão social está na cláusula
+    # VENDEDORA-CREDORA, e não no cabeçalho (que informa apenas o cliente).
+    joined=" ".join(clean_line(v) for v in lines[:300])
+    vendor=re.search(
+        r"\bVENDEDORA[-\s]*CREDORA\s*[,;:]\s*(.{3,150}?)\s*,?\s+inscrita\b",
+        joined,re.I)
+    if vendor:
+        value=clean_line(vendor[1]).strip(" :-,")
+        if 3<=len(value)<=160 and not re.search(r"\b(?:COMPRADOR|CLIENTE)\b",value,re.I):
+            return value
     return ""
 
 
@@ -316,6 +326,7 @@ def extract_pdf(pdf_bytes):
             page_supplier=find_supplier(lines)
             for item in items:
                 copy=dict(item)
+                copy["source_page"]=index-1
                 if page_order:copy["order_number"]=page_order
                 if page_supplier:copy["supplier"]=page_supplier
                 all_items.append(copy)
@@ -454,23 +465,31 @@ def confirm(con,cid,data):
                 "unit":incoming.get("unit"),
                 "ordered_qty":incoming.get("ordered_qty")
             })
+            source_line=incoming.get("source_line","")
+            if not isinstance(source_line,str) or (source_line and not re.fullmatch(r"[\w./-]{1,24}",source_line)):
+                raise ValueError("Identificador de linha do pedido inválido.")
+            row["source_line_code"]=source_line
             if not row["supplier"]:
                 raise ValueError("Preencha o fornecedor antes de confirmar: "+row["product"]+".")
             to_insert.append(row)
     # Validar todas as linhas antes da primeira gravacao: nada e inserido parcialmente.
-    identities=set()
+    identities={}
     for row in to_insert:
         row["supplier"]=canonical_pdf_supplier(con,cid,row["supplier"])
         identity=receiving.item_identity(row)
-        if identity in identities:
-            raise ValueError("Produto repetido no lote: "+row["product"]+
-                             ". Confira se o arquivo contem copias da mesma linha.")
-        identities.add(identity)
+        line=row["source_line_code"]
+        seen=identities.setdefault(identity,set())
+        if seen and (not line or "" in seen or line in seen):
+            raise ValueError("Linha de produto repetida no lote: "+row["product"]+
+                             ". Confira os números dos itens originais.")
+        seen.add(line)
         receiving.ensure_item_unique(con,cid,row)
     for row in to_insert:
         con.execute("""INSERT INTO purchase_items
-            (control_id,order_number,supplier,product,unit,ordered_qty)
-            VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
+            (control_id,order_number,supplier,product,unit,ordered_qty,source_line_code)
+            VALUES(?,?,?,?,?,?,?)""",
+            (cid,row["order_number"],row["supplier"],row["product"],
+             row["unit"],row["ordered_qty"],row["source_line_code"]))
     for fingerprint in fingerprints:
         con.execute("""UPDATE receiving_pdf_batches SET status='imported'
             WHERE control_id=? AND fingerprint=?""",(cid,fingerprint))
