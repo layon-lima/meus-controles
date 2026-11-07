@@ -141,7 +141,7 @@ Object.assign(App,{
         '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
         icon("plus")+' Adicionar produto</button>'+
         '<button type="button" class="btn btn-sm rpdf-gpt-button" onclick="App.receivingPdfCheckGPT('+fi+')" '+
-        (ctx.working?'disabled':'')+'>'+icon("sparkles")+' Corrigir com GPT</button></div>'+
+        (ctx.working?'disabled':'')+'>'+icon("search")+' Corrigir com GPT</button></div>'+
         (doc.warnings||[]).map(w=>'<p class="rpdf-warning">'+E(w)+'</p>').join("")+
         (doc.gptApplied?'<p class="rpdf-gpt-applied">Sugestões aplicadas à prévia. Revise e clique em Importar quando estiver certo.</p>':'')+
         suggested+
@@ -156,12 +156,12 @@ Object.assign(App,{
       '<p>'+E(e)+'</p>').join("")+'</div>':"";
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal rpdf-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
-      '<div class="modal-header"><div><h2 id="modalTitle">Importar pedidos por PDF (OCR)</h2>'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Importar pedido</h2>'+
       '<p>Confira cada produto antes de lançar no controle. Um pedido pode ter várias linhas.</p></div>'+
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body">'+
       '<div class="rpdf-gpt-connect"><div><strong>Assistente GPT para conferir o PDF</strong>'+
-      '<p>Opcional e manual. Use a chave configurada na VPS ou informe uma somente nesta sessão. Confira tudo antes de importar.</p></div>'+
+      '<p>Opcional e manual. OCR local primeiro. Ao clicar em Corrigir com GPT, o PDF é enviado à API OpenAI para análise. Use a chave da VPS ou informe uma somente nesta sessão. Confira antes de importar.</p></div>'+
       '<input type="password" autocomplete="off" spellcheck="false" aria-label="Chave de API OpenAI" '+
       'placeholder="'+(ctx.gptKey?'Chave conectada nesta sessão':'API OpenAI (opcional se VPS configurada)')+
       '" oninput="App.receivingPdfSetGPTKey(this.value)"></div>'+
