@@ -179,6 +179,23 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([r["product"] for r in result],
                          ["VELITREX_5L_BR","PRESENCE FULL_1KG_BR","SEED EVO_1L_BR"])
 
+    def test_two_identical_products_with_distinct_order_line_numbers(self):
+        one={"order_number":"0045022014","supplier":"FMC Química do Brasil Ltda",
+             "product":"PRESENCE FULL_1KG_BR","unit":"un",
+             "ordered_qty":"100.000","source_line_code":"000110"}
+        two={**one,"ordered_qty":"5.000","source_line_code":"000140"}
+        with app.db() as con:
+            receiving.ensure_item_unique(con,self.cid,one)
+            con.execute("""INSERT INTO purchase_items
+              (control_id,order_number,supplier,product,unit,ordered_qty,source_line_code)
+              VALUES(?,?,?,?,?,?,?)""",
+              (self.cid,one["order_number"],one["supplier"],one["product"],
+               one["unit"],one["ordered_qty"],one["source_line_code"]))
+            # Bonificação tem NRO diferente, não é duplicata da venda.
+            receiving.ensure_item_unique(con,self.cid,two)
+            with self.assertRaisesRegex(ValueError,"já está cadastrado"):
+                receiving.ensure_item_unique(con,self.cid,one)
+
     def test_fmc_continuation_same_product_is_another_line(self):
         import receiving_pdf_layout
         class Table:
