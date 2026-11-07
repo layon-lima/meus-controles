@@ -161,9 +161,9 @@ Object.assign(App,{
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body">'+
       '<div class="rpdf-gpt-connect"><div><strong>Assistente GPT para conferir o PDF</strong>'+
-      '<p>Opcional e manual. A chave de API OpenAI não é salva nem substitui a sua conferência.</p></div>'+
+      '<p>Opcional e manual. Use a chave configurada na VPS ou informe uma somente nesta sessão. Confira tudo antes de importar.</p></div>'+
       '<input type="password" autocomplete="off" spellcheck="false" aria-label="Chave de API OpenAI" '+
-      'placeholder="'+(ctx.gptKey?'Chave conectada nesta sessão':'Cole sua chave API OpenAI (sk-...)')+
+      'placeholder="'+(ctx.gptKey?'Chave conectada nesta sessão':'API OpenAI (opcional se VPS configurada)')+
       '" oninput="App.receivingPdfSetGPTKey(this.value)"></div>'+
       (ctx.working?'<p class="rpdf-progress">'+icon("loader-circle")+' '+E(ctx.progress)+'</p>':'')+
       errors+datalist+summaries+
@@ -183,9 +183,6 @@ Object.assign(App,{
   async receivingPdfCheckGPT(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
     if(!ctx||!doc||ctx.working)return;
-    if(!ctx.gptKey?.startsWith("sk-")){
-      this.toast("Para usar o GPT, informe uma chave de API OpenAI no campo acima.",true);return;
-    }
     ctx.working=true;ctx.progress="Conferindo todos os itens do PDF com GPT...";
     this.receivingPdfRender();
     try{
