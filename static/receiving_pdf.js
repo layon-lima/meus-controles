@@ -150,6 +150,80 @@ Object.assign(App,{
     const pageScroll=modalRoot.querySelector(".rpdf-page-scroll");
     if(pageScroll)pageScroll.scrollTop=oldPdfScroll;
   },
+  receivingPdfWorkspaceRender(){
+    const ctx=this.s.receivingPdf;
+    const fi=ctx?.workspaceIndex,doc=ctx?.docs?.[fi];
+    if(!Number.isInteger(fi)||!doc||this.s.modal!=="receiving-pdf")return;
+    const page=doc.viewerPage||0,rect=doc.regionSelection;
+    const selectionStyle=rect?
+      'left:'+(rect.x0*100)+'%;top:'+(rect.y0*100)+'%;width:'+((rect.x1-rect.x0)*100)+
+      '%;height:'+((rect.y1-rect.y0)*100)+'%;':'display:none;';
+    const existing=doc.items.filter(row=>(row.source_page||0)===page);
+    const result=doc.regionResult;
+    const image=doc.pageImages?.[page];
+    const area=image?
+      '<div class="rpdf-page-scroll"><div class="rpdf-page-stage">'+
+      '<img draggable="false" alt="Página '+(page+1)+' do pedido" src="'+image+'">'+
+      '<div class="rpdf-page-mark" onpointerdown="App.receivingPdfMarkStart(event,'+fi+')" '+
+      'onpointermove="App.receivingPdfMarkMove(event,'+fi+')" '+
+      'onpointerup="App.receivingPdfMarkEnd(event,'+fi+')" '+
+      'onpointercancel="App.receivingPdfMarkEnd(event,'+fi+')">'+
+      '<div class="rpdf-selection" style="'+selectionStyle+'"></div>'+
+      '</div></div></div>':
+      '<div class="rpdf-page-placeholder">Preparando visualização da página...</div>';
+    const found=result?
+      '<section class="rpdf-workspace-results">'+
+      '<h3>Nova leitura da área selecionada <span>'+result.items.length+' itens</span></h3>'+
+      (result.items.length?
+        '<div class="rpdf-region-items">'+result.items.map(item=>
+        '<div class="rpdf-workspace-item"><strong>'+E(item.product)+'</strong>'+
+        '<span>'+E(item.ordered_qty)+' '+E(item.unit)+
+        (item.source_line?' · Item '+E(item.source_line):'')+'</span></div>').join("")+'</div>'+
+        '<p>Ao aplicar, todos os '+existing.length+' itens da leitura anterior desta página serão substituídos pelos '+
+        result.items.length+' itens encontrados. Nada será salvo no sistema ainda.</p>':
+        '<p>Não identifiquei itens seguros nesta área. Ajuste a marcação e tente novamente; sua prévia não será alterada.</p>')+
+      (result.raw_text?'<details><summary>Texto extraído</summary><pre>'+E(result.raw_text)+'</pre></details>':'')+
+      '</section>':'';
+    const root=document.getElementById("modalRoot");
+    const oldScroll=root.querySelector(".rpdf-workspace .rpdf-page-scroll");
+    const oldY=oldScroll?.scrollTop||0,oldX=oldScroll?.scrollLeft||0;
+    root.innerHTML=
+      '<div class="rpdf-workspace" role="dialog" aria-modal="true" aria-label="Selecionar produtos no PDF">'+
+      '<header class="rpdf-workspace-header">'+
+      '<button type="button" class="btn rpdf-workspace-back" onclick="App.receivingPdfToggleViewer('+fi+')">'+
+      icon("arrow-right")+' Voltar à importação</button>'+
+      '<div class="rpdf-workspace-title"><h2>Selecionar produtos no PDF</h2>'+
+      '<p>'+E(doc.filename)+'</p></div>'+
+      '<div class="rpdf-page-nav">'+
+      '<button type="button" class="btn btn-sm" onclick="App.receivingPdfSetPage('+fi+','+(page-1)+')" '+
+      (page===0||ctx.working?'disabled':'')+'>Anterior</button>'+
+      '<span>Página '+(page+1)+' de '+doc.pages+'</span>'+
+      '<button type="button" class="btn btn-sm" onclick="App.receivingPdfSetPage('+fi+','+(page+1)+')" '+
+      (page>=doc.pages-1||ctx.working?'disabled':'')+'>Próxima</button>'+
+      '</div></header>'+
+      '<main class="rpdf-workspace-main">'+
+      '<div class="rpdf-workspace-document">'+
+      '<div class="rpdf-workspace-label">Marque <b>somente a região dos produtos</b>, incluindo as colunas Produto e Qtde. Não precisa incluir o cabeçalho.</div>'+
+      area+
+      '</div><aside class="rpdf-workspace-panel">'+
+      '<h3>Conferência da página '+(page+1)+'</h3>'+
+      '<p>'+existing.length+' produto(s) já constam da prévia desta página.</p>'+
+      '<p>Arraste o mouse sobre todos os produtos da página. O OCR relê a área inteira, inclusive quantidades corretas anteriormente.</p>'+
+      '<button type="button" class="btn btn-primary rpdf-workspace-analyze" onclick="App.receivingPdfReadMark('+fi+')" '+
+      (!rect||ctx.working?'disabled':'')+'>'+icon("search")+' Ler toda a área marcada</button>'+
+      (ctx.working?'<p class="rpdf-progress">'+E(ctx.progress||"Lendo PDF...")+'</p>':'')+
+      found+
+      (result?.items?.length?
+       '<button type="button" class="btn btn-primary rpdf-workspace-replace" onclick="App.receivingPdfApplyRegion('+fi+')">'+
+       icon("check")+' Substituir TODOS os itens desta página</button>':'')+
+      '<div class="rpdf-workspace-help"><strong>Mais de uma página?</strong>'+
+      '<p>Faça a marcação em cada página que possui produtos. As demais páginas permanecem intactas.</p>'+
+      '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
+      icon("plus")+' Inserir linha manual</button></div>'+
+      '</aside></main></div>';
+    const scroll=root.querySelector(".rpdf-workspace .rpdf-page-scroll");
+    if(scroll){scroll.scrollTop=oldY;scroll.scrollLeft=oldX;}
+  },
   async receivingPdfToggleViewer(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
     if(!doc||ctx.working)return;
