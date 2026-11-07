@@ -90,6 +90,8 @@ def initialize(con):
     item_columns={row["name"] for row in con.execute("PRAGMA table_info(purchase_items)")}
     if "closed" not in item_columns:
         con.execute("ALTER TABLE purchase_items ADD COLUMN closed INTEGER NOT NULL DEFAULT 0")
+    if "source_line_code" not in item_columns:
+        con.execute("ALTER TABLE purchase_items ADD COLUMN source_line_code TEXT NOT NULL DEFAULT ''")
 
 def text(value, description, max_length=150, required=True):
     if not isinstance(value,str):
@@ -260,13 +262,20 @@ def item_identity(row):
 
 def ensure_item_unique(con,cid,row,exclude_id=None):
     wanted=item_identity(row)
+    incoming_line=str(row.get("source_line_code") or "").strip()
     for existing in con.execute(
-        "SELECT id,order_number,supplier,product,unit FROM purchase_items WHERE control_id=?",
+        "SELECT id,order_number,supplier,product,unit,source_line_code FROM purchase_items WHERE control_id=?",
         (cid,)):
-        if existing["id"]!=exclude_id and item_identity(existing)==wanted:
-            raise ValueError(
-                "Este produto já está cadastrado neste pedido e fornecedor. "
-                "Edite o registro existente em vez de criar outro.")
+        if existing["id"]==exclude_id or item_identity(existing)!=wanted:
+            continue
+        existing_line=str(existing["source_line_code"] or "").strip()
+        # Um produto pode aparecer em linhas distintas do pedido original,
+        # por exemplo venda e bonificacao FMC. Exigir NRO distintos reais.
+        if incoming_line and existing_line and incoming_line!=existing_line:
+            continue
+        raise ValueError(
+            "Este produto já está cadastrado neste pedido e fornecedor. "
+            "Edite o registro existente em vez de criar outro.")
 
 
 def summary(con,cid):
@@ -383,7 +392,8 @@ def handle(handler,con,method,path):
                 if item["closed"]:raise ValueError("Pedido concluído. Não é permitido editar.")
                 row=validate_item(handler.input())
                 row["supplier"]=canonical_supplier(con,item["control_id"],row["supplier"])
-                ensure_item_unique(con,item["control_id"],row,exclude_id=iid)
+                ensure_item_unique(con,item["control_id"],
+                    {**row,"source_line_code":item.get("source_line_code","")},exclude_id=iid)
                 if Decimal(row["ordered_qty"])<received_total(con,iid):
                     raise ValueError("A quantidade pedida não pode ser menor que a quantidade já recebida.")
                 # Alterar o pedido de um produto já recebido não pode inserir
