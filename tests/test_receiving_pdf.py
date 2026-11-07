@@ -204,6 +204,16 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([p["product"] for p in selected["items"]],["ASSIST","BRIGHT"])
         self.assertEqual([p["unit"] for p in selected["items"]],["L","kg"])
 
+    def test_marking_a_single_line_without_headers_is_understood(self):
+        import receiving_pdf_layout
+        words=[
+          (60,85,100,95,"ASSIST"),
+          (345,85,385,95,"2.000"),
+          (460,85,468,95,"L")
+        ]
+        result=receiving_pdf_layout.parse_words(words,receiving_pdf)
+        self.assertEqual(result,[{"product":"ASSIST","ordered_qty":"2000.000","unit":"L"}])
+
     def test_no_gpt_import_or_api_route_remains(self):
         source=(Path(__file__).resolve().parents[1]/"app.py").read_text(encoding="utf-8")
         viewer=(Path(__file__).resolve().parents[1]/"static"/"receiving_pdf.js").read_text(encoding="utf-8")
