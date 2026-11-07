@@ -181,7 +181,8 @@ class ReceivingSubtabsTests(unittest.TestCase):
             self.assertIn(version,SW)
         self.assertIn('central-de-controles-shell-v20261107-fornecedor-cards-v1',SW)
         self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',HTML)
-        self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',SW)\n        self.assertIn('/static/livro_caixa_theme.css?v=20261107-fornecedor-cards-v1',SW)
+        self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',SW)
+        self.assertIn('/static/livro_caixa_theme.css?v=20261107-fornecedor-cards-v1',SW)
         self.assertIn('surface.ondrop=event=>',JS)
         self.assertIn('event.preventDefault();',JS)
 
