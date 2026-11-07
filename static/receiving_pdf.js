@@ -270,7 +270,8 @@ Object.assign(App,{
       y:Math.max(0,Math.min(1,(event.clientY-box.top)/box.height))};
   },
   receivingPdfDrawSelection(fileIndex,rect){
-    const el=document.querySelector('[data-rpdf-doc="'+fileIndex+'"] .rpdf-selection');
+    const el=document.querySelector('.rpdf-workspace .rpdf-selection')||
+      document.querySelector('[data-rpdf-doc="'+fileIndex+'"] .rpdf-selection');
     if(!el||!rect)return;
     el.style.display="block";
     el.style.left=(rect.x0*100)+"%";
@@ -368,6 +369,11 @@ Object.assign(App,{
       supplier:first.supplier||doc.supplier||"",
       product:"",unit:"un",ordered_qty:"",
       source_page:Number.isInteger(ctx.workspaceIndex)?doc.viewerPage:0,source_line:""});
+    if(Number.isInteger(ctx.workspaceIndex)){
+      ctx.workspaceIndex=null;
+      doc.showViewer=false;
+      this.toast("Linha manual adicionada à prévia. Preencha os campos do produto.");
+    }
     this.receivingPdfRender();
   },
   receivingPdfEdit(fileIndex,rowIndex,key,value){
