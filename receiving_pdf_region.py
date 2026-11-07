@@ -117,7 +117,13 @@ def read_region(con,cid,payload):
         if native_count<=1 and (len(words)>14 or bool(page.get_images(full=True))):
             for attempt in _ocr_crop(page,clip,fitz):
                 sources.append(("ocr",receiving_pdf.parse_rows(attempt),attempt))
-        _,items,raw=max(sources,key=lambda x:(len(x[1]),len(x[2])))
+        # Tabela reconhecida tem prioridade: separa Qtde de preços e volumes
+        # embutidos no nome comercial (VELITREX_5L_BR, por exemplo).
+        if tables:
+            items=tables
+            raw=text
+        else:
+            _,items,raw=max(sources,key=lambda x:(len(x[1]),len(x[2])))
         warnings=[]
         if not items:
             warnings.append("Não consegui separar os produtos desta região. "
