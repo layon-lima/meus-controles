@@ -443,8 +443,17 @@ def confirm(con,cid,data):
             if not row["supplier"]:
                 raise ValueError("Preencha o fornecedor antes de confirmar: "+row["product"]+".")
             to_insert.append(row)
+    # Validar todas as linhas antes da primeira gravacao: nada e inserido parcialmente.
+    identities=set()
     for row in to_insert:
         row["supplier"]=canonical_pdf_supplier(con,cid,row["supplier"])
+        identity=receiving.item_identity(row)
+        if identity in identities:
+            raise ValueError("Produto repetido no lote: "+row["product"]+
+                             ". Confira se o arquivo contem copias da mesma linha.")
+        identities.add(identity)
+        receiving.ensure_item_unique(con,cid,row)
+    for row in to_insert:
         con.execute("""INSERT INTO purchase_items
             (control_id,order_number,supplier,product,unit,ordered_qty)
             VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
