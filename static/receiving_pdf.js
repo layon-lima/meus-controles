@@ -328,25 +328,34 @@ Object.assign(App,{
   },
   receivingPdfApplyRegion(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex],result=doc?.regionResult;
-    if(!doc||!result?.items?.length)return;
-    let added=0;
-    for(const item of result.items){
-      const duplicate=doc.items.some(row=>rpdfNormalize(row.product)===rpdfNormalize(item.product)&&
-        String(row.unit).toLowerCase()===String(item.unit).toLowerCase()&&
-        Number(row.ordered_qty)===Number(item.ordered_qty));
-      if(duplicate||doc.items.length>=150)continue;
-      const blank=doc.items.find(row=>!String(row.product||"").trim());
-      const values={order_number:item.order_number||doc.order_number||"",
-        supplier:item.supplier||doc.supplier||"",
-        product:item.product,ordered_qty:item.ordered_qty,unit:item.unit,enabled:true};
-      if(blank)Object.assign(blank,values);
-      else doc.items.push({index:doc.items.length,...values});
-      added++;
+    if(!doc||ctx.working||!result?.items?.length)return;
+    const page=doc.viewerPage;
+    // Não acrescenta ao OCR antigo: descarta TODAS as linhas anteriores
+    // desta página e reconstrói a lista usando integralmente a nova seleção.
+    // Itens de outras páginas são preservados, inclusive bonificações.
+    const kept=doc.items.filter(row=>(row.source_page||0)!==page);
+    const fresh=result.items.slice(0,150).map(item=>({
+      enabled:true,source_page:page,source_line:item.source_line||"",
+      delivery_type:item.delivery_type||"",
+      order_number:item.order_number||doc.order_number||"",
+      supplier:item.supplier||doc.supplier||"",
+      product:item.product||"",unit:item.unit||"un",
+      ordered_qty:item.ordered_qty||""
+    }));
+    const countBefore=doc.items.length-kept.length;
+    const combined=[...kept,...fresh].sort((a,b)=>(a.source_page||0)-(b.source_page||0));
+    if(combined.length>150){
+      this.toast("O PDF excede o limite de 150 itens. Revise a seleção.",true);
+      return;
     }
+    doc.items=combined.map((item,index)=>({...item,index}));
+    doc.revisedPages=doc.revisedPages||[];
+    if(!doc.revisedPages.includes(page))doc.revisedPages.push(page);
     doc.regionResult=null;
+    doc.regionSelection=null;
     this.receivingPdfRender();
-    this.toast(added?added+" produto(s) adicionados à prévia. Revise antes de importar.":
-      "Esses produtos já estão na prévia, não foram duplicados.");
+    this.toast("Página "+(page+1)+": "+countBefore+" linhas antigas substituídas por "+
+      fresh.length+" linhas reprocessadas. Confira antes de importar.");
   },
   receivingPdfAddRow(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
