@@ -62,7 +62,8 @@ Object.assign(App,{
         this.s.receivingPdf.docs.push({...result,pdfBase64:base64,items:result.items.map((item,index)=>({
           index,enabled:true,order_number:item.order_number||result.order_number||"",
           supplier:item.supplier||supplier,product:item.product||"",unit:item.unit||"un",
-          ordered_qty:item.ordered_qty||""
+          ordered_qty:item.ordered_qty||"",source_page:Number.isInteger(item.source_page)?item.source_page:0,
+          source_line:item.source_line||"",delivery_type:item.delivery_type||""
         }))});
       }catch(err){
         if(this.s.modal!=="receiving-pdf")return;
@@ -77,6 +78,10 @@ Object.assign(App,{
   receivingPdfRender(){
     const ctx=this.s.receivingPdf;
     if(!ctx||this.s.modal!=="receiving-pdf")return;
+    if(Number.isInteger(ctx.workspaceIndex)){
+      this.receivingPdfWorkspaceRender();
+      return;
+    }
     const vendors=[...new Map((this.s.receivingData?.items||[]).map(p=>
       [rpdfNormalize(p.supplier),p.supplier]).filter(x=>x[0])).values()];
     const datalist='<datalist id="receivingPdfSuppliers">'+vendors.map(name=>
@@ -100,47 +105,6 @@ Object.assign(App,{
           '<td><select aria-label="Unidade de medida" onchange="App.receivingPdfEdit('+fi+','+ri+
           ',&quot;unit&quot;,this.value)">'+options+'</select></td></tr>';
       }).join("");
-      const region=doc.regionSelection;
-      const selectionStyle=region?
-        'left:'+(region.x0*100)+'%;top:'+(region.y0*100)+'%;width:'+((region.x1-region.x0)*100)+'%;height:'+((region.y1-region.y0)*100)+'%;':
-        'display:none;';
-      const pdfViewer=doc.showViewer?
-        '<div class="rpdf-viewer">'+
-        '<div class="rpdf-viewer-tools"><strong>Marque a tabela ou cada linha no PDF</strong>'+
-        '<div class="rpdf-page-nav">'+
-        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfSetPage('+fi+','+(doc.viewerPage-1)+')" '+
-        (doc.viewerPage===0?'disabled':'')+'>Anterior</button>'+
-        '<span>Página '+(doc.viewerPage+1)+' de '+doc.pages+'</span>'+
-        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfSetPage('+fi+','+(doc.viewerPage+1)+')" '+
-        (doc.viewerPage>=doc.pages-1?'disabled':'')+'>Próxima</button></div></div>'+
-        '<p class="rpdf-mark-instructions">Arraste o mouse sobre a tabela inteira ou sobre uma linha de produto. Depois clique em <b>Ler área marcada</b>. Você pode repetir em outras páginas.</p>'+
-        (doc.pageImages?.[doc.viewerPage]?
-          '<div class="rpdf-page-scroll"><div class="rpdf-page-stage">'+
-          '<img draggable="false" alt="Página '+(doc.viewerPage+1)+' do pedido '+E(doc.filename)+'" '+
-          'src="'+doc.pageImages[doc.viewerPage]+'">'+
-          '<div class="rpdf-page-mark" onpointerdown="App.receivingPdfMarkStart(event,'+fi+')" '+
-          'onpointermove="App.receivingPdfMarkMove(event,'+fi+')" '+
-          'onpointerup="App.receivingPdfMarkEnd(event,'+fi+')" '+
-          'onpointercancel="App.receivingPdfMarkEnd(event,'+fi+')">'+
-          '<div class="rpdf-selection" style="'+selectionStyle+'"></div></div></div></div>':
-          '<p class="rpdf-progress">Carregando página do PDF...</p>')+
-        '<div class="rpdf-region-actions">'+
-        '<button type="button" class="btn btn-primary btn-sm" onclick="App.receivingPdfReadMark('+fi+')" '+
-        (!region||ctx.working?'disabled':'')+'>Ler área marcada</button>'+
-        '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
-        icon("plus")+' Inserir produto manualmente</button></div>'+
-        (doc.regionResult?
-          '<div class="rpdf-region-result"><strong>'+doc.regionResult.items.length+
-          ' produto(s) reconhecido(s) na área selecionada</strong>'+
-          (doc.regionResult.items.length?
-            '<div class="rpdf-region-items">'+doc.regionResult.items.map(p=>
-            '<span>'+E(p.product)+' · '+E(p.ordered_qty)+' '+E(p.unit)+'</span>').join("")+'</div>'+
-            '<button type="button" class="btn btn-primary btn-sm" onclick="App.receivingPdfApplyRegion('+fi+')">Adicionar produtos à prévia</button>':
-            '<p>Não consegui separar os itens. Tente selecionar uma linha de cada vez ou use Inserir produto manualmente.</p>')+
-          (doc.regionResult.raw_text?
-            '<details><summary>Texto encontrado na área</summary><pre>'+E(doc.regionResult.raw_text)+'</pre></details>':'')+
-          '</div>':'')+
-        '</div>':'';
       return '<section class="rpdf-document" data-rpdf-doc="'+fi+'">'+
         '<div class="rpdf-doc-title"><strong>'+E(doc.filename)+'</strong>'+
         '<span>'+doc.items.length+' produto(s) · '+doc.pages+' página(s) · '+
@@ -152,7 +116,6 @@ Object.assign(App,{
         (doc.items.length<=1?'<p class="rpdf-warning">O OCR reconheceu somente '+doc.items.length+
          ' produto. Se o PDF tiver mais, clique em <b>Marcar produtos no PDF</b> e selecione a tabela.</p>':'')+
         (doc.warnings||[]).map(w=>'<p class="rpdf-warning">'+E(w)+'</p>').join("")+
-        pdfViewer+
         (doc.needs_manual_review?'<p class="rpdf-warning">Alguns campos não foram reconhecidos com segurança. Revise e complete as informações.</p>':'')+
         '<div class="rpdf-table-wrap"><table class="rpdf-table"><thead><tr><th>Usar</th><th>Nº pedido</th>'+
         '<th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Unidade</th></tr></thead>'+
@@ -190,8 +153,15 @@ Object.assign(App,{
   async receivingPdfToggleViewer(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
     if(!doc||ctx.working)return;
-    doc.showViewer=!doc.showViewer;
-    if(!doc.showViewer){this.receivingPdfRender();return;}
+    if(ctx.workspaceIndex===fileIndex){
+      ctx.workspaceIndex=null;
+      doc.showViewer=false;
+      this.receivingPdfRender();
+      return;
+    }
+    // Tela dedicada, cobrindo a aplicação. Não expande a janela de importação.
+    ctx.workspaceIndex=fileIndex;
+    doc.showViewer=true;
     if(!Number.isInteger(doc.viewerPage))doc.viewerPage=0;
     doc.pageImages=doc.pageImages||{};
     this.receivingPdfRender();
@@ -313,7 +283,8 @@ Object.assign(App,{
     doc.items.push({index:doc.items.length,enabled:true,
       order_number:first.order_number||doc.order_number||"",
       supplier:first.supplier||doc.supplier||"",
-      product:"",unit:"un",ordered_qty:""});
+      product:"",unit:"un",ordered_qty:"",
+      source_page:Number.isInteger(ctx.workspaceIndex)?doc.viewerPage:0,source_line:""});
     this.receivingPdfRender();
   },
   receivingPdfEdit(fileIndex,rowIndex,key,value){
@@ -336,8 +307,8 @@ Object.assign(App,{
     const ctx=this.s.receivingPdf;
     if(!ctx||ctx.working||ctx.controlId!==this.s.detail?.control?.id)return;
     const files=ctx.docs.map(doc=>({fingerprint:doc.fingerprint,
-      items:doc.items.filter(item=>item.enabled).map(({index,order_number,supplier,product,unit,ordered_qty})=>
-        ({index,order_number,supplier,product,unit,ordered_qty}))})).filter(f=>f.items.length);
+      items:doc.items.filter(item=>item.enabled).map(({index,order_number,supplier,product,unit,ordered_qty,source_line})=>
+        ({index,order_number,supplier,product,unit,ordered_qty,source_line:source_line||""}))})).filter(f=>f.items.length);
     if(!files.length||files.some(f=>f.items.some(item=>!rpdfValid(item)))){
       this.toast("Confira os pedidos, fornecedores, produtos e quantidades.",true);return;
     }
