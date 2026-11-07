@@ -153,6 +153,46 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([(i["product"],i["ordered_qty"],i["unit"]) for i in items],
              [("ASSIST","2000.000","L"),("BRIGHT","2220.000","kg")])
 
+    def test_fmc_qtde_column_is_not_packaging_size_or_price(self):
+        import receiving_pdf_layout
+        class Table:
+            def extract(self):
+                return [
+                  ["NRO","Produto","Cultura","Tipo de Entrega","Qtde",
+                   "","Data de","", "Preço Unitário","Sub-Total"],
+                  ["000150","VELITREX_5L_BR","Soybeans","Normal Sales","300",
+                   "16/10/26","","","305,00","91.500,00"],
+                  ["000110","PRESENCE FULL_1KG_BR","Soybeans","Normal Sales","100",
+                   "16/10/26","","","606,00","60.600,00"],
+                  ["000130","SEED EVO_1L_BR","Soybeans","Free of Charge","12",
+                   "16/10/26","","","127,68","1.532,11"]
+                ]
+        class Page:
+            def find_tables(self):
+                return type("Result",(),{"tables":[Table()]})()
+        result=receiving_pdf_layout.parse_table(Page(),receiving_pdf)
+        self.assertEqual([(r["ordered_qty"],r["unit"],r.get("source_line"))
+                          for r in result],
+                         [("300.000","un","000150"),
+                          ("100.000","un","000110"),
+                          ("12.000","un","000130")])
+        self.assertEqual([r["product"] for r in result],
+                         ["VELITREX_5L_BR","PRESENCE FULL_1KG_BR","SEED EVO_1L_BR"])
+
+    def test_fmc_continuation_same_product_is_another_line(self):
+        import receiving_pdf_layout
+        class Table:
+            def extract(self):
+                return [["000140","PRESENCE FULL_1KG_BR","Soybeans",
+                         "Free of Charge","5","16/10/26","640,87","3.204,35"]]
+        class Page:
+            def find_tables(self):
+                return type("Result",(),{"tables":[Table()]})()
+        result=receiving_pdf_layout.parse_table(Page(),receiving_pdf)
+        self.assertEqual(result[0]["source_line"],"000140")
+        self.assertEqual(result[0]["ordered_qty"],"5.000")
+        self.assertEqual(result[0]["unit"],"un")
+
     def test_ocr_extracts_all_products_from_separate_table_columns(self):
         pdf=fitz.open()
         try:
