@@ -11,11 +11,11 @@ CODE = re.compile(r"(?:CODIGO|COD\.|COD\b|REFERENCIA|SKU)", re.I)
 def normalize_cell(value):
     return " ".join(str(value or "").replace("\xa0"," ").split())
 
-def parse_table(page, pdf):
+def parse_table(page, pdf, clip=None):
     """Extrai linhas de tabelas identificadas por PyMuPDF, sem misturar preco com quantidade."""
     result=[]
     try:
-        tables=getattr(page.find_tables(),"tables",[])
+        tables=getattr(page.find_tables(clip=clip) if clip is not None else page.find_tables(),"tables",[])
     except (AttributeError,ValueError,RuntimeError):
         return result
     for table in tables:
@@ -80,4 +80,88 @@ def parse_table(page, pdf):
             previous=item
             if len(result)>=pdf.MAX_ITEMS:
                 return result
+    return result
+
+
+def _row_words(words):
+    """Agrupa palavras pelas suas coordenadas Y sem depender da ordem do texto PDF."""
+    groups=[]
+    for word in sorted(words,key=lambda w:((w[1]+w[3])/2,w[0])):
+        if len(word)<5 or not str(word[4]).strip():
+            continue
+        mid=(word[1]+word[3])/2
+        if groups and abs(mid-groups[-1][0])<5:
+            groups[-1][1].append(word)
+        else:
+            groups.append([mid,[word]])
+    return [sorted(group,key=lambda w:w[0]) for _,group in groups]
+
+
+def _canonical_unit(raw,pdf):
+    unit=pdf.unit_name(raw)
+    known=("UN","UND","UNID","UNIDADE","UNIDADES","U/M","UM")
+    return unit if unit!="un" or pdf.normalize_text(raw).strip(". ") in known else None
+
+
+def parse_words(words,pdf):
+    """Captura produtos em colunas mesmo quando o PDF entrega texto por bloco,
+    e não na sequência visual de cada linha. A tabela precisa ter cabeçalho
+    identificando produto, quantidade e unidade; não usa preço como quantidade.
+    """
+    groups=_row_words(words)
+    header=None
+    for i,row in enumerate(groups[:80]):
+        descriptors=[w for w in row if DESCRIPTION.search(pdf.normalize_text(w[4]))]
+        quantities=[w for w in row if QUANTITY.search(pdf.normalize_text(w[4]))]
+        units=[w for w in row if UNIT.fullmatch(pdf.normalize_text(w[4]).replace(" ",""))]
+        if descriptors and quantities and units:
+            desc_x=descriptors[0][0];qty_x=quantities[0][0];unit_x=units[0][0]
+            if len({desc_x,qty_x,unit_x})<3:
+                continue
+            header=(i,desc_x,qty_x,unit_x)
+            break
+    if header is None:
+        return []
+    start,desc_x,qty_x,unit_x=header
+    column_order=sorted([("desc",desc_x),("qty",qty_x),("unit",unit_x)],
+                        key=lambda x:x[1])
+    result=[]
+    for row in groups[start+1:]:
+        # O fim de cada coluna é próximo ao início da próxima;
+        # 12 pontos de folga permitem valores alinhados à esquerda.
+        cells={"desc":[],"qty":[],"unit":[]}
+        for w in row:
+            x=w[0]
+            matched=None
+            for i,(name,left) in enumerate(column_order):
+                right=(column_order[i+1][1]-12) if i+1<len(column_order) else float("inf")
+                if x>=left-17 and x<right:
+                    matched=name
+                    break
+            if matched:
+                cells[matched].append(str(w[4]))
+        description=" ".join(cells["desc"]).strip()
+        quantity=" ".join(cells["qty"]).strip()
+        unit_text=" ".join(cells["unit"]).strip()
+        if not quantity and not unit_text:
+            if result and description and pdf.plausible_product(description):
+                result[-1]["product"]=(result[-1]["product"]+" "+pdf.clean_product(description))[:160]
+            continue
+        if not quantity or not unit_text:
+            continue
+        unit=_canonical_unit(unit_text,pdf)
+        if not unit:
+            continue
+        if not pdf.plausible_product(description):
+            continue
+        try:
+            amount=pdf.number(quantity)
+        except (ValueError,TypeError):
+            continue
+        if float(amount)<=0:
+            continue
+        result.append({"product":pdf.clean_product(description),
+                       "ordered_qty":amount,"unit":unit})
+        if len(result)>=pdf.MAX_ITEMS:
+            break
     return result
