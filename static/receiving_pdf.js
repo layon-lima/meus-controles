@@ -162,9 +162,17 @@ Object.assign(App,{
       '<div class="modal-body">'+
       '<div class="rpdf-gpt-connect"><div><strong>Assistente GPT para conferir o PDF</strong>'+
       '<p>Opcional e manual. OCR local primeiro. Ao clicar em Corrigir com GPT, o PDF é enviado à API OpenAI para análise. Use a chave da VPS ou informe uma somente nesta sessão. Confira antes de importar.</p></div>'+
+      '<div class="rpdf-gpt-actions">'+
       '<input type="password" autocomplete="off" spellcheck="false" aria-label="Chave de API OpenAI" '+
-      'placeholder="'+(ctx.gptKey?'Chave conectada nesta sessão':'API OpenAI (opcional se VPS configurada)')+
-      '" oninput="App.receivingPdfSetGPTKey(this.value)"></div>'+
+      'placeholder="Chave de API (opcional se VPS configurada)" '+
+      'oninput="App.receivingPdfSetGPTKey(this.value)" '+
+      'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingPdfAnalyzeAllGPT()}">'+
+      '<button type="button" class="btn btn-primary rpdf-gpt-start" '+
+      'onclick="App.receivingPdfAnalyzeAllGPT()" '+((ctx.working||!ctx.docs.length)?'disabled':'')+'>'+
+      icon("search")+' Analisar '+(ctx.docs.length===1?'PDF':'todos os PDFs')+' com GPT</button>'+
+      '<small id="receivingPdfGPTKeyStatus" class="rpdf-gpt-key-status">'+
+      (ctx.gptKey?'Chave informada para esta sessão.':'Também funciona com chave configurada na VPS.')+
+      '</small></div></div>'+
       (ctx.working?'<p class="rpdf-progress">'+icon("loader-circle")+' '+E(ctx.progress)+'</p>':'')+
       errors+datalist+summaries+
       (ctx.docs.length?'<p class="rpdf-hint">Pedidos existentes recebem novas linhas. Fornecedores com o mesmo nome serão agrupados. O PDF original não é salvo no servidor.</p>':'')+
@@ -178,7 +186,47 @@ Object.assign(App,{
   },
   receivingPdfSetGPTKey(value){
     const ctx=this.s.receivingPdf;
-    if(ctx)ctx.gptKey=String(value||"").trim();
+    if(!ctx)return;
+    ctx.gptKey=String(value||"").trim();
+    const status=document.getElementById("receivingPdfGPTKeyStatus");
+    if(status)status.textContent=ctx.gptKey?
+      "Chave informada para esta sessão. Clique em Analisar PDF com GPT.":
+      "Também funciona com chave configurada na VPS.";
+  },
+  receivingPdfRequestGPT(ctx,doc){
+    return this.api("/api/controls/"+ctx.controlId+"/receiving/pdf/gpt",
+      "POST",{filename:doc.filename,fingerprint:doc.fingerprint,
+        base64:doc.pdfBase64,api_key:ctx.gptKey});
+  },
+  async receivingPdfAnalyzeAllGPT(){
+    const ctx=this.s.receivingPdf;
+    if(!ctx||ctx.working||!ctx.docs.length||
+       ctx.controlId!==this.s.detail?.control?.id)return;
+    let success=0,failed=0;
+    ctx.working=true;
+    try{
+      for(let index=0;index<ctx.docs.length;index++){
+        if(this.s.modal!=="receiving-pdf"||this.s.receivingPdf!==ctx)return;
+        const doc=ctx.docs[index];
+        ctx.progress="Analisando PDF "+(index+1)+"/"+ctx.docs.length+": "+doc.filename;
+        this.receivingPdfRender();
+        try{
+          doc.gptResult=await this.receivingPdfRequestGPT(ctx,doc);
+          success++;
+        }catch(err){
+          failed++;
+          ctx.errors.push(doc.filename+": "+err.message);
+        }
+      }
+    }finally{
+      if(this.s.modal==="receiving-pdf"&&this.s.receivingPdf===ctx){
+        ctx.working=false;
+        ctx.progress="";
+        this.receivingPdfRender();
+        if(failed)this.toast(failed+" PDF(s) com erro. Veja os avisos na janela.",true);
+        else if(success)this.toast(success+" PDF(s) analisado(s). Confira e aplique as sugestões.");
+      }
+    }
   },
   async receivingPdfCheckGPT(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
@@ -186,8 +234,7 @@ Object.assign(App,{
     ctx.working=true;ctx.progress="Conferindo todos os itens do PDF com GPT...";
     this.receivingPdfRender();
     try{
-      const result=await this.api("/api/controls/"+ctx.controlId+"/receiving/pdf/gpt",
-        "POST",{filename:doc.filename,fingerprint:doc.fingerprint,base64:doc.pdfBase64,api_key:ctx.gptKey});
+      const result=await this.receivingPdfRequestGPT(ctx,doc);
       if(this.s.modal!=="receiving-pdf")return;
       doc.gptResult=result;
       if(!result.items?.length)this.toast("GPT não encontrou itens seguros. Revise manualmente.",true);
