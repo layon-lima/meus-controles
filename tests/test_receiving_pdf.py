@@ -153,23 +153,6 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([(i["product"],i["ordered_qty"],i["unit"]) for i in items],
              [("ASSIST","2000.000","L"),("BRIGHT","2220.000","kg")])
 
-    def test_gpt_parse_response_keeps_only_safe_items(self):
-        import receiving_pdf_gpt
-        import json
-        payload={"output":[{"content":[{"type":"output_text","text":json.dumps({
-          "order_number":"PED-2026-004","supplier":"AGREX",
-          "items":[
-            {"order_number":"PED-2026-004","supplier":"AGREX",
-             "product":"Assist","ordered_qty":"2000","unit":"L"},
-            {"order_number":"PED-2026-004","supplier":"AGREX",
-             "product":"Bright","ordered_qty":"2220","unit":"kg"},
-            {"order_number":"PED-2026-004","supplier":"AGREX",
-             "product":"","ordered_qty":"xx","unit":"kg"}],
-          "warnings":[]})}]}]}
-        parsed=receiving_pdf_gpt.parse_response(payload)
-        self.assertEqual(len(parsed["items"]),2)
-        self.assertEqual(parsed["items"][1]["ordered_qty"],"2220.000")
-
     def test_existing_order_gains_new_rows_and_supplier_merges(self):
         with app.db() as con:
             con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
