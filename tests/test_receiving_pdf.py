@@ -271,6 +271,15 @@ class PdfReceivingTests(unittest.TestCase):
         result=receiving_pdf_layout.parse_words(words,receiving_pdf)
         self.assertEqual(result,[{"product":"ASSIST","ordered_qty":"2000.000","unit":"L"}])
 
+    def test_ui_formats_quantities_pt_br_without_thousand_separator(self):
+        js=(Path(__file__).resolve().parents[1]/"static"/"receiving_pdf.js").read_text(encoding="utf-8")
+        # O valor canônico 60.000 deve aparecer como 60, nunca 60.000.
+        self.assertIn("const rpdfQtyUi=value=>",js)
+        self.assertIn('ordered_qty:rpdfQtyUi(item.ordered_qty||"")',js)
+        self.assertIn('ordered_qty:rpdfQtyCanonical(ordered_qty)',js)
+        self.assertIn('const rpdfQtyCanonical=value=>',js)
+        self.assertIn('replace(/0+$/,"")',js)
+
     def test_no_gpt_import_or_api_route_remains(self):
         source=(Path(__file__).resolve().parents[1]/"app.py").read_text(encoding="utf-8")
         viewer=(Path(__file__).resolve().parents[1]/"static"/"receiving_pdf.js").read_text(encoding="utf-8")
