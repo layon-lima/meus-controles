@@ -20,7 +20,7 @@ class DesktopCompactTests(unittest.TestCase):
         self.assertIn('url=="/static/desktop_compact.css"', server)
         worker = SW.read_text(encoding="utf-8")
         self.assertIn('/static/desktop_compact.css?v=20261022-conferencia-1', worker)
-        self.assertIn('central-de-controles-shell-v20261107-pedidos-ocr-gpt-v2', worker)
+        self.assertIn('central-de-controles-shell-v20261107-pedidos-ocr-manual-v1', worker)
 
     def test_control_cards_show_zero_instead_of_quitado(self):
         js=(ROOT/"static"/"app.js").read_text(encoding="utf-8")
