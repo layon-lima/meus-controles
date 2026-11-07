@@ -251,6 +251,24 @@ def ensure_not_duplicate(con,item_id,values,exclude_id=None):
     ensure_invoice_unique_in_order(con,item["control_id"],item["order_number"],
                                    values["invoice_number"],exclude_id)
 
+def item_identity(row):
+    """Identidade do produto dentro do pedido (sem confundir outros produtos)."""
+    normalize=lambda v: " ".join(unicodedata.normalize("NFKC",str(v or "")).casefold().split())
+    return (normalized_order(row["order_number"]),normalize(row["supplier"]),
+            normalize(row["product"]),normalize(row["unit"]).casefold())
+
+
+def ensure_item_unique(con,cid,row,exclude_id=None):
+    wanted=item_identity(row)
+    for existing in con.execute(
+        "SELECT id,order_number,supplier,product,unit FROM purchase_items WHERE control_id=?",
+        (cid,)):
+        if existing["id"]!=exclude_id and item_identity(existing)==wanted:
+            raise ValueError(
+                "Este produto já está cadastrado neste pedido e fornecedor. "
+                "Edite o registro existente em vez de criar outro.")
+
+
 def summary(con,cid):
     ensure_control(con,cid)
     items=[dict(row) for row in con.execute(
@@ -330,6 +348,7 @@ def handle(handler,con,method,path):
             row=validate_item(handler.input())
             con.execute("BEGIN IMMEDIATE")
             row["supplier"]=canonical_supplier(con,cid,row["supplier"])
+            ensure_item_unique(con,cid,row)
             cur=con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
               VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
             con.commit()
@@ -364,6 +383,7 @@ def handle(handler,con,method,path):
                 if item["closed"]:raise ValueError("Pedido concluído. Não é permitido editar.")
                 row=validate_item(handler.input())
                 row["supplier"]=canonical_supplier(con,item["control_id"],row["supplier"])
+                ensure_item_unique(con,item["control_id"],row,exclude_id=iid)
                 if Decimal(row["ordered_qty"])<received_total(con,iid):
                     raise ValueError("A quantidade pedida não pode ser menor que a quantidade já recebida.")
                 # Alterar o pedido de um produto já recebido não pode inserir
