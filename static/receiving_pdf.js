@@ -14,6 +14,24 @@ const rpdfBase64=async file=>{
     binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
   return btoa(binary);
 };
+// Aproximacao conservadora para conciliar produtos OCR e GPT; codigos numericos diferentes nunca se fundem.
+const rpdfSimilarity=(a,b)=>{
+  a=rpdfNormalize(a);b=rpdfNormalize(b);
+  if(a===b)return 1;
+  const nums=x=>x.match(/\d+/g)||[];
+  if(nums(a).join("|")!==nums(b).join("|"))return 0;
+  if(!a||!b)return 0;
+  const dp=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){
+    let prev=dp[0];dp[0]=i;
+    for(let j=1;j<=b.length;j++){
+      const old=dp[j];
+      dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
+      prev=old;
+    }
+  }
+  return 1-dp[b.length]/Math.max(a.length,b.length);
+};
 
 Object.assign(App,{
   receivingPdfChoose(){
@@ -38,7 +56,7 @@ Object.assign(App,{
     if(wrong){
       this.toast("Arquivo inválido ou maior que 7 MB: "+wrong.name,true);return;
     }
-    this.s.receivingPdf={controlId:control.id,docs:[],errors:[],working:true,
+    this.s.receivingPdf={controlId:control.id,docs:[],errors:[],working:true,gptKey:"",
       progress:"Preparando leitura dos PDFs..."};
     this.s.modal="receiving-pdf";
     this.receivingPdfRender();
@@ -60,9 +78,9 @@ Object.assign(App,{
         }
         const existingSupplier=vendors.find(name=>rpdfNormalize(name)===rpdfNormalize(result.supplier));
         const supplier=existingSupplier||result.supplier||"";
-        this.s.receivingPdf.docs.push({...result,items:result.items.map((item,index)=>({
-          index,enabled:true,order_number:result.order_number||"",
-          supplier,product:item.product||"",unit:item.unit||"un",
+        this.s.receivingPdf.docs.push({...result,pdfBase64:base64,items:result.items.map((item,index)=>({
+          index,enabled:true,order_number:item.order_number||result.order_number||"",
+          supplier:item.supplier||supplier,product:item.product||"",unit:item.unit||"un",
           ordered_qty:item.ordered_qty||""
         }))});
       }catch(err){
@@ -86,7 +104,9 @@ Object.assign(App,{
       const rows=doc.items.map((item,ri)=>{
         const options=(rpdfUnits.includes(item.unit)?rpdfUnits:[...rpdfUnits,item.unit]).map(u=>
           '<option value="'+E(u)+'"'+(u===item.unit?' selected':'')+'>'+E(u)+'</option>').join("");
-        return '<tr class="'+(!item.enabled?'rpdf-disabled':'')+'" data-rpdf-row="'+fi+'-'+ri+'">'+
+        return '<tr class="'+(!item.enabled?'rpdf-disabled':'')+
+          (doc.gptChanged?.includes(item.index)?' rpdf-gpt-changed':'')+
+          '" data-rpdf-row="'+fi+'-'+ri+'">'+
           '<td><input type="checkbox" '+(item.enabled?'checked':'')+
           ' aria-label="Importar produto '+(ri+1)+'" onchange="App.receivingPdfEdit('+fi+','+ri+
           ',&quot;enabled&quot;,this.checked)"></td>'+
@@ -101,12 +121,30 @@ Object.assign(App,{
           '<td><select aria-label="Unidade de medida" onchange="App.receivingPdfEdit('+fi+','+ri+
           ',&quot;unit&quot;,this.value)">'+options+'</select></td></tr>';
       }).join("");
+      const suggestion=doc.gptResult;
+      const suggested=suggestion?'<div class="rpdf-gpt-suggestion">'+
+        '<div class="rpdf-gpt-suggestion-title"><strong>Conferência GPT · '+suggestion.items.length+
+        ' produto(s) identificados</strong>'+
+        '<button type="button" class="btn btn-sm btn-primary" onclick="App.receivingPdfApplyGPT('+fi+')">'+
+        icon("check")+' Aplicar sugestões</button></div>'+
+        '<p>Compare os resultados. Nada é alterado até clicar em Aplicar sugestões.</p>'+
+        '<div class="rpdf-gpt-items">'+suggestion.items.map(item=>
+          '<span>'+E(item.product)+' · '+E(item.ordered_qty)+' '+E(item.unit)+
+          ' · '+E(item.supplier||suggestion.supplier||"Fornecedor não identificado")+
+          ' · '+E(item.order_number||suggestion.order_number||"Pedido não identificado")+'</span>').join("")+'</div>'+
+        (suggestion.warnings||[]).map(w=>'<p class="rpdf-gpt-alert">'+E(w)+'</p>').join("")+
+        '</div>':'';
       return '<section class="rpdf-document">'+
         '<div class="rpdf-doc-title"><strong>'+E(doc.filename)+'</strong>'+
         '<span>'+doc.items.length+' produto(s) · '+doc.pages+' página(s) · '+
         (doc.ocr_pages?'OCR em '+doc.ocr_pages+' página(s)':'texto selecionável')+'</span>'+
         '<button type="button" class="btn btn-sm" onclick="App.receivingPdfAddRow('+fi+')">'+
-        icon("plus")+' Adicionar produto</button></div>'+
+        icon("plus")+' Adicionar produto</button>'+
+        '<button type="button" class="btn btn-sm rpdf-gpt-button" onclick="App.receivingPdfCheckGPT('+fi+')" '+
+        (ctx.working?'disabled':'')+'>'+icon("sparkles")+' Corrigir com GPT</button></div>'+
+        (doc.warnings||[]).map(w=>'<p class="rpdf-warning">'+E(w)+'</p>').join("")+
+        (doc.gptApplied?'<p class="rpdf-gpt-applied">Sugestões aplicadas à prévia. Revise e clique em Importar quando estiver certo.</p>':'')+
+        suggested+
         (doc.needs_manual_review?'<p class="rpdf-warning">Alguns campos não foram reconhecidos com segurança. Revise e complete as informações.</p>':'')+
         '<div class="rpdf-table-wrap"><table class="rpdf-table"><thead><tr><th>Usar</th><th>Nº pedido</th>'+
         '<th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Unidade</th></tr></thead>'+
@@ -122,6 +160,11 @@ Object.assign(App,{
       '<p>Confira cada produto antes de lançar no controle. Um pedido pode ter várias linhas.</p></div>'+
       '<button class="close" aria-label="Fechar" onclick="App.closeModal()">'+icon("x")+'</button></div>'+
       '<div class="modal-body">'+
+      '<div class="rpdf-gpt-connect"><div><strong>Assistente GPT para conferir o PDF</strong>'+
+      '<p>Opcional e manual. A chave de API OpenAI não é salva nem substitui a sua conferência.</p></div>'+
+      '<input type="password" autocomplete="off" spellcheck="false" aria-label="Chave de API OpenAI" '+
+      'placeholder="'+(ctx.gptKey?'Chave conectada nesta sessão':'Cole sua chave API OpenAI (sk-...)')+
+      '" oninput="App.receivingPdfSetGPTKey(this.value)"></div>'+
       (ctx.working?'<p class="rpdf-progress">'+icon("loader-circle")+' '+E(ctx.progress)+'</p>':'')+
       errors+datalist+summaries+
       (ctx.docs.length?'<p class="rpdf-hint">Pedidos existentes recebem novas linhas. Fornecedores com o mesmo nome serão agrupados. O PDF original não é salvo no servidor.</p>':'')+
@@ -132,6 +175,70 @@ Object.assign(App,{
       '<button class="btn btn-primary" id="receivingPdfConfirm" onclick="App.receivingPdfConfirm()" '+
       ((ctx.working||!count||invalid)?'disabled':'')+'>'+
       icon("check")+' Importar '+count+' produto(s)</button></div></div></div>';
+  },
+  receivingPdfSetGPTKey(value){
+    const ctx=this.s.receivingPdf;
+    if(ctx)ctx.gptKey=String(value||"").trim();
+  },
+  async receivingPdfCheckGPT(fileIndex){
+    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
+    if(!ctx||!doc||ctx.working)return;
+    if(!ctx.gptKey?.startsWith("sk-")){
+      this.toast("Para usar o GPT, informe uma chave de API OpenAI no campo acima.",true);return;
+    }
+    ctx.working=true;ctx.progress="Conferindo todos os itens do PDF com GPT...";
+    this.receivingPdfRender();
+    try{
+      const result=await this.api("/api/controls/"+ctx.controlId+"/receiving/pdf/gpt",
+        "POST",{filename:doc.filename,fingerprint:doc.fingerprint,base64:doc.pdfBase64,api_key:ctx.gptKey});
+      if(this.s.modal!=="receiving-pdf")return;
+      doc.gptResult=result;
+      if(!result.items?.length)this.toast("GPT não encontrou itens seguros. Revise manualmente.",true);
+    }catch(err){
+      this.toast("Não foi possível conferir com GPT: "+err.message,true);
+    }finally{
+      if(this.s.modal==="receiving-pdf"){
+        ctx.working=false;ctx.progress="";this.receivingPdfRender();
+      }
+    }
+  },
+  receivingPdfApplyGPT(fileIndex){
+    const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex],suggestion=doc?.gptResult;
+    if(!ctx||!doc||!suggestion||ctx.working)return;
+    const used=new Set(),changed=new Set();
+    for(const proposed of suggestion.items){
+      let found=-1,score=0;
+      for(let i=0;i<doc.items.length;i++){
+        if(used.has(i))continue;
+        const row=doc.items[i];
+        // Para evitar juntar itens diferentes, a unidade precisa ser a mesma.
+        if(row.unit!==proposed.unit)continue;
+        const similarity=rpdfSimilarity(row.product,proposed.product);
+        if(similarity>score){found=i;score=similarity;}
+      }
+      const values={
+        order_number:proposed.order_number||suggestion.order_number||doc.order_number||"",
+        supplier:proposed.supplier||suggestion.supplier||doc.supplier||"",
+        product:proposed.product||"",unit:proposed.unit||"un",
+        ordered_qty:proposed.ordered_qty||""
+      };
+      if(found>=0&&score>=.88){
+        used.add(found);
+        const row=doc.items[found];
+        const before=JSON.stringify(Object.fromEntries(Object.keys(values).map(k=>[k,row[k]])));
+        Object.assign(row,values);
+        if(before!==JSON.stringify(values))changed.add(row.index);
+      }else if(doc.items.length<150){
+        const index=doc.items.length;
+        doc.items.push({index,enabled:true,...values});
+        changed.add(index);
+      }
+    }
+    doc.gptChanged=[...changed];
+    doc.gptApplied=true;
+    doc.gptResult=null;
+    this.receivingPdfRender();
+    this.toast("Sugestões colocadas na prévia. Confira antes de importar.");
   },
   receivingPdfAddRow(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
