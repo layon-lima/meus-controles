@@ -15,6 +15,7 @@ import subprocess
 import unicodedata
 
 import receiving
+import receiving_pdf_layout
 
 MAX_PDF_BYTES = 7 * 1024 * 1024
 MAX_PAGES = 16
@@ -207,6 +208,15 @@ def parse_rows(text):
                 # Se houver múltiplos pares preço/quantidade, o primeiro válido da linha prevalece.
                 candidate.append((match.start(),pre,match["qty"],match["unit"]))
         if not candidate:
+            # Alguns pedidos imprimem a quantidade antes do produto: "2.000 L ASSIST".
+            for pattern in (ROW_QTY,ROW_UNIT_FIRST):
+                m=pattern.match(line)
+                if not m:continue
+                after=line[m.end():].strip(" :-|")
+                if plausible_product(after):
+                    candidate.append((m.start(),after,m["qty"],m["unit"]))
+                    break
+        if not candidate:
             # Em pedidos com descrição e quantidade em linhas separadas.
             if i+1<len(lines) and plausible_product(line):
                 following=lines[i+1]
@@ -228,6 +238,30 @@ def parse_rows(text):
     # Nenhum item é inventado quando OCR não consegue identificar a tabela.
     return items[:MAX_ITEMS]
 
+def _tesseract_page(page,fitz,mode=3):
+    png=page.get_pixmap(matrix=fitz.Matrix(2.8,2.8),colorspace=fitz.csGRAY,alpha=False).tobytes("png")
+    try:
+        result=subprocess.run(["tesseract","stdin","stdout","-l","por+eng",
+              "--psm",str(mode),"--dpi","300"],
+              input=png,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+              timeout=36,check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError("OCR demorou demais; confira a qualidade do PDF ou tente um menor.") from exc
+    if result.returncode:
+        raise ValueError("OCR indisponível para PDF digitalizado.")
+    return result.stdout.decode("utf-8",errors="replace")
+
+
+def _choose_items(page,raw,aligned):
+    # A tabela nativa identifica as colunas separadas e evita confundir preco e quantidade.
+    sources=[("texto",parse_rows(raw)),("linhas",parse_rows(aligned))]
+    tabular=receiving_pdf_layout.parse_table(page, __import__(__name__))
+    if tabular:sources.append(("tabela",tabular))
+    # Maior numero de linhas validas primeiro; tabela estruturada desempata.
+    source,items=max(sources,key=lambda x:(len(x[1]),x[0]=="tabela",x[0]=="linhas"))
+    return items,source
+
+
 def extract_pdf(pdf_bytes):
     if not isinstance(pdf_bytes,bytes) or not pdf_bytes.startswith(PDF_PREFIX):
         raise ValueError("Envie um arquivo PDF válido.")
@@ -237,34 +271,59 @@ def extract_pdf(pdf_bytes):
         doc=fitz.open(stream=pdf_bytes,filetype="pdf")
     except Exception as e:
         raise ValueError("Não foi possível abrir o PDF. Confira se não está corrompido.") from e
-    if doc.is_encrypted:raise ValueError("PDF protegido por senha. Envie uma versão desbloqueada.")
+    if doc.is_encrypted:
+        doc.close()
+        raise ValueError("PDF protegido por senha. Envie uma versão desbloqueada.")
     if not 1<=doc.page_count<=MAX_PAGES:
+        doc.close()
         raise ValueError("Cada PDF deve ter de 1 a 16 páginas.")
-    pages=[];ocr_pages=0
-    for page in doc:
-        raw=page.get_text("text",sort=True)
-        aligned=layout_text(page) if raw.strip() else ""
-        if len(raw.strip())<90 and not parse_rows(raw):
-            try:
-                png=page.get_pixmap(matrix=fitz.Matrix(2,2),colorspace=fitz.csGRAY,alpha=False).tobytes("png")
-                result=subprocess.run(["tesseract","stdin","stdout","-l","por+eng","--psm","3"],
-                    input=png,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
-                    timeout=23,check=False)
-                if result.returncode!=0:
-                    raise ValueError("OCR indisponível para PDF digitalizado.")
-                detected=result.stdout.decode("utf-8",errors="replace")
-                if len(detected.strip())>len(raw.strip()):raw=detected
+    pages=[];all_items=[];ocr_pages=0;warnings=[]
+    try:
+        for index,page in enumerate(doc,1):
+            raw=page.get_text("text",sort=True)
+            aligned=layout_text(page) if raw.strip() else ""
+            items,source=_choose_items(page,raw,aligned)
+            if len(raw.strip())<90 or (not items and len(raw.strip())<450):
+                ocr=_tesseract_page(page,fitz,3)
+                if len(ocr.strip())>len(raw.strip()):raw=ocr
+                aligned=layout_text(page) if page.get_text("words") else ""
+                items,source=_choose_items(page,raw,aligned)
                 ocr_pages+=1
-            except subprocess.TimeoutExpired as e:
-                raise ValueError("O OCR demorou demais nesta página. Tente um PDF menor.") from e
-        if aligned and len(parse_rows(aligned))>len(parse_rows(raw)):
-            raw=aligned
-        pages.append(raw)
-    doc.close()
+                if not items:
+                    alternate=_tesseract_page(page,fitz,6)
+                    alternate_items=parse_rows(alternate)
+                    if alternate_items:
+                        raw=alternate;items=alternate_items;source="ocr-tabela"
+            pages.append(raw)
+            # Um pedido pode ocupar varias paginas. Se o cabecalho mudar,
+            # mantemos os dados por item para revisao individual.
+            lines=[clean_line(x) for x in raw.splitlines() if clean_line(x)]
+            page_order=find_order(lines)
+            page_supplier=find_supplier(lines)
+            for item in items:
+                copy=dict(item)
+                if page_order:copy["order_number"]=page_order
+                if page_supplier:copy["supplier"]=page_supplier
+                all_items.append(copy)
+            if not items and (len(raw.strip())>150 or len(aligned.strip())>150):
+                warnings.append("Página "+str(index)+": nenhum produto identificado. Confira a tabela manualmente.")
+            if len(all_items)>=MAX_ITEMS:
+                warnings.append("Limite de "+str(MAX_ITEMS)+" itens alcançado; confira se o PDF tem mais produtos.")
+                break
+    finally:
+        doc.close()
     body="\n".join(pages)
-    lines=[clean_line(s) for s in body.splitlines() if clean_line(s)]
-    return {"order_number":find_order(lines),"supplier":find_supplier(lines),
-            "items":parse_rows(body),"ocr_pages":ocr_pages,"pages":len(pages)}
+    lines=[clean_line(x) for x in body.splitlines() if clean_line(x)]
+    order=find_order(lines)
+    supplier=find_supplier(lines)
+    for item in all_items:
+        item.setdefault("order_number",order)
+        item.setdefault("supplier",supplier)
+    return {"order_number":order,"supplier":supplier,
+            "items":all_items[:MAX_ITEMS],"ocr_pages":ocr_pages,"pages":len(pages),
+            "warnings":warnings}
+
+
 
 def initialize(con):
     # executescript aplica a tradução de INTEGER PRIMARY KEY -> BIGSERIAL
@@ -321,7 +380,10 @@ def preview(con,cid,payload):
         parsed["items"]=[{"product":"","ordered_qty":"","unit":"un"}]
         parsed["needs_manual_review"]=True
     else:
-        parsed["needs_manual_review"]=not(parsed["order_number"] and parsed["supplier"])
+        parsed["needs_manual_review"]=bool(parsed.get("warnings")) or any(
+            not ((i.get("order_number") or parsed["order_number"]) and
+                 (i.get("supplier") or parsed["supplier"]))
+            for i in parsed["items"])
     parsed["fingerprint"]=fingerprint
     parsed["filename"]=name
     parsed["already_imported"]=False
