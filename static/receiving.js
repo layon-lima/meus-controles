@@ -184,12 +184,22 @@ Object.assign(App,{
         '<td class="numeric receiving-remaining">'+rxNum(p.remaining_qty)+' '+E(p.unit)+'</td>'+
         '<td><span class="receiving-status '+(p.closed?'closed':E(p.status))+'">'+status+'</span></td></tr>';
     };
-    const rows=supplierGroups.map(group=>{
+    if(this.s.receivingSupplierFold?.controlId!==c.id){
+      this.s.receivingSupplierFold={controlId:c.id,collapsed:[]};
+    }
+    const folded=new Set(this.s.receivingSupplierFold.collapsed);
+    const rows=supplierGroups.map((group,index)=>{
       const orders=new Set(group.items.map(p=>p.order_number)).size;
-      return '<tr class="receiving-supplier-group" data-receiving-supplier="'+E(group.key)+'"><td colspan="8">'+
+      const collapsed=folded.has(group.key);
+      return '<tr class="receiving-supplier-group'+(collapsed?' is-collapsed':'')+
+        '" data-receiving-supplier="'+E(group.key)+'"><td colspan="8">'+
+        '<button type="button" class="receiving-supplier-toggle" aria-expanded="'+(!collapsed)+
+        '" aria-label="'+(collapsed?'Expandir':'Recolher')+' pedidos de '+E(group.name)+
+        '" onclick="App.receivingToggleSupplier('+index+')">'+
+        '<span class="receiving-supplier-chevron" aria-hidden="true">▾</span>'+
         '<strong>'+E(group.name)+'</strong>'+
         '<span class="receiving-group-count">'+orders+' pedido'+(orders===1?"":"s")+' · '+group.items.length+
-        ' produto'+(group.items.length===1?"":"s")+'</span></td></tr>'+
+        ' produto'+(group.items.length===1?"":"s")+'</span></button></td></tr>'+
         group.items.map(renderRow).join("");
     }).join("");
     const receipts=r.receipts.map(p=>
@@ -338,22 +348,56 @@ Object.assign(App,{
     this.s.receivingSearch={controlId,queries};
     this.receivingApplyFilter(queries[tab]);
   },
+  receivingToggleSupplier(index){
+    const controlId=this.s.detail?.control?.id;
+    const groups=[...document.querySelectorAll(".receiving-orders .receiving-supplier-group")];
+    const group=groups[index];
+    if(controlId==null||!group)return;
+    if(this.s.receivingSupplierFold?.controlId!==controlId){
+      this.s.receivingSupplierFold={controlId,collapsed:[]};
+    }
+    const key=group.dataset.receivingSupplier;
+    const collapsed=new Set(this.s.receivingSupplierFold.collapsed);
+    if(collapsed.has(key))collapsed.delete(key);
+    else collapsed.add(key);
+    this.s.receivingSupplierFold.collapsed=[...collapsed];
+    const query=this.s.receivingSearch?.controlId===controlId?
+      (this.s.receivingSearch.queries?.pedidos||""):"";
+    this.receivingApplyFilter(query);
+  },
   receivingApplyFilter(query){
     const value=rxSupplierKey(query);
-    document.querySelectorAll("[data-receiving-search]").forEach(el=>{
+    const controlId=this.s.detail?.control?.id;
+    const collapsed=new Set(this.s.receivingSupplierFold?.controlId===controlId?
+      this.s.receivingSupplierFold.collapsed:[]);
+    document.querySelectorAll(".receiving-invoices [data-receiving-search]").forEach(el=>{
       el.hidden=!rxSupplierKey(el.getAttribute("data-receiving-search")).includes(value);
     });
-    document.querySelectorAll(".receiving-supplier-group").forEach(group=>{
-      let row=group.nextElementSibling,count=0;
-      const orders=new Set();
+    document.querySelectorAll(".receiving-orders .receiving-supplier-group").forEach(group=>{
+      const key=group.dataset.receivingSupplier;
+      const matchingSupplier=!!value&&rxSupplierKey(group.textContent).includes(value);
+      const rows=[];
+      let row=group.nextElementSibling;
       while(row&&!row.classList.contains("receiving-supplier-group")){
-        if(!row.hidden){count++;orders.add(row.children[1]?.textContent||"");}
+        rows.push(row);
         row=row.nextElementSibling;
       }
-      group.hidden=count===0;
+      const matches=rows.filter(item=>!value||matchingSupplier||
+        rxSupplierKey(item.getAttribute("data-receiving-search")).includes(value));
+      const isCollapsed=collapsed.has(key)&&!value;
+      const orders=new Set(matches.map(item=>item.children[1]?.textContent||""));
+      group.hidden=matches.length===0;
+      group.classList.toggle("is-collapsed",isCollapsed);
+      const button=group.querySelector(".receiving-supplier-toggle");
+      if(button){
+        button.setAttribute("aria-expanded",String(!isCollapsed));
+        button.setAttribute("aria-label",(isCollapsed?"Expandir":"Recolher")+
+          " pedidos de "+(group.querySelector("strong")?.textContent||"fornecedor"));
+      }
       const summary=group.querySelector(".receiving-group-count");
       if(summary)summary.textContent=orders.size+" pedido"+(orders.size===1?"":"s")+" · "+
-        count+" produto"+(count===1?"":"s");
+        matches.length+" produto"+(matches.length===1?"":"s");
+      rows.forEach(item=>{item.hidden=isCollapsed||!matches.includes(item);});
     });
     this.receivingUpdateSelectionToolbar();
   },
