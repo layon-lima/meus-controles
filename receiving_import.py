@@ -62,38 +62,38 @@ def prepare(con,cid,doc):
     already=con.execute("""SELECT id FROM receiving_imports WHERE control_id=? AND fingerprint=?""",
       (cid,fingerprint)).fetchone() is not None
 
-    # Multiconjunto: dois produtos iguais em um mesmo pedido são duas linhas.
-    existing=Counter((row["order_number"],normalize(row["supplier"]),
-        normalize(row["product"]),row["unit"],
-        receiving.display(receiving.qty(row["ordered_qty"])))
-      for row in con.execute("""SELECT order_number,supplier,product,unit,ordered_qty
-        FROM purchase_items WHERE control_id=?""",(cid,)))
+    # Importacao idempotente: pedido + fornecedor + produto + unidade.
+    # A quantidade pode ser corrigida pela edicao do item, nunca criando copia.
+    existing={receiving.item_identity(row) for row in con.execute(
+        "SELECT order_number,supplier,product,unit FROM purchase_items WHERE control_id=?",
+        (cid,))}
+    new_items=[]
     matched=0
+    seen=set(existing)
     for item in items:
-        key=(item["order_number"],normalize(item["supplier"]),normalize(item["product"]),
-             item["unit"],item["ordered_qty"])
-        if existing[key]>0:
-            existing[key]-=1
+        key=receiving.item_identity(item)
+        if key in seen:
             matched+=1
-    # Um produto pode repetir em compras futuras. Contabilizamos as coincidências,
-    # mas nunca descartamos uma linha nova apenas por ser igual à antiga.
+        else:
+            seen.add(key)
+            new_items.append(item)
     totals={}
     for item in items:
         totals[item["unit"]]=totals.get(item["unit"],0)+1
     return {
         "source":source,"count":len(items),"fingerprint":fingerprint,
         "matched":matched,
-        "new_count":0 if already else len(items),
+        "new_count":len(new_items),
         "repeat_count":len(items),
         "already_imported":already,
         "can_import":not already,
         "confirmation_token":token_hex(16),
-        "requires_duplicate_consent":already or matched>0,
+        "requires_duplicate_consent":False,
         "items_by_unit":totals,
         "preview_items":items[:60],
         "unknown_suppliers":sum(1 for i in items if not i["supplier"]),
         "receipts_created":0,
-        "_new_items":items
+        "_new_items":new_items
     }
 
 def preview(con,cid,doc):
@@ -109,30 +109,20 @@ def confirm(con,cid,doc,fingerprint,allow_duplicates=False,repeat_batch=False,co
         raise ValueError("Arquivo diferente da prévia. Confira os pedidos novamente.")
     if type(allow_duplicates) is not bool or type(repeat_batch) is not bool:
         raise ValueError("Confirmação de importação inválida.")
-    if report["already_imported"] and not repeat_batch:
+    # Nem consentimento antigo nem reenvio podem reproduzir linhas existentes.
+    if report["already_imported"]:
         return {"imported":0,"matched":report["count"],"already_imported":True}
-    if report["matched"] and not allow_duplicates:
-        raise ValueError("Há pedidos iguais já registrados. Confirme que este é um novo lote antes de importar.")
-    if repeat_batch:
-        if not report["already_imported"] or not allow_duplicates:
-            raise ValueError("Só é possível repetir um arquivo já importado com confirmação expressa.")
-        if not isinstance(confirmation_token,str) or not re.fullmatch(r"[0-9a-f]{32}",confirmation_token):
-            raise ValueError("Prévia expirada ou inválida. Confira novamente.")
-        # Chave por prévia: duplo clique/reenvio não duplica o novo lote.
-        import_key=hashlib.sha256(
-            ("repeat:"+fingerprint+":"+confirmation_token).encode("ascii")).hexdigest()
-        if con.execute("SELECT 1 FROM receiving_imports WHERE control_id=? AND fingerprint=?",
-                       (cid,import_key)).fetchone():
-            return {"imported":0,"matched":report["count"],"already_imported":True}
-    else:
-        import_key=fingerprint
+    import_key=fingerprint
+    inserted=0
     for row in report["_new_items"]:
+        receiving.ensure_item_unique(con,cid,row)
         con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
           VALUES(?,?,?,?,?,?)""",(cid,*row.values()))
+        inserted+=1
     con.execute("""INSERT INTO receiving_imports(control_id,fingerprint,source_name,source_count,inserted_count)
-      VALUES(?,?,?,?,?)""",(cid,import_key,report["source"],report["count"],len(report["_new_items"])))
+      VALUES(?,?,?,?,?)""",(cid,import_key,report["source"],report["count"],inserted))
     con.commit()
-    return {"imported":len(report["_new_items"]),"matched":report["matched"],
+    return {"imported":inserted,"matched":report["matched"],
       "already_imported":False}
 
 def handle(handler,con,method,path):
