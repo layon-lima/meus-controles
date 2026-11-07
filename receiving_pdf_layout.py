@@ -126,7 +126,9 @@ def parse_words(words,pdf):
     column_order=sorted([("desc",desc_x),("qty",qty_x),("unit",unit_x)],
                         key=lambda x:x[1])
     result=[]
+    last_item_y=None
     for row in groups[start+1:]:
+        row_y=(row[0][1]+row[0][3])/2
         # O fim de cada coluna é próximo ao início da próxima;
         # 12 pontos de folga permitem valores alinhados à esquerda.
         cells={"desc":[],"qty":[],"unit":[]}
@@ -145,8 +147,10 @@ def parse_words(words,pdf):
         # Apenas a primeira palavra é unidade; ignorar preço e total à direita.
         unit_text=(cells["unit"][0] if cells["unit"] else "").strip()
         if not quantity and not unit_text:
-            if result and description and pdf.plausible_product(description):
+            if (result and description and pdf.plausible_product(description) and
+                last_item_y is not None and 0<row_y-last_item_y<20):
                 result[-1]["product"]=(result[-1]["product"]+" "+pdf.clean_product(description))[:160]
+                last_item_y=row_y
             continue
         if not quantity or not unit_text:
             continue
@@ -163,6 +167,7 @@ def parse_words(words,pdf):
             continue
         result.append({"product":pdf.clean_product(description),
                        "ordered_qty":amount,"unit":unit})
+        last_item_y=row_y
         if len(result)>=pdf.MAX_ITEMS:
             break
     return result
