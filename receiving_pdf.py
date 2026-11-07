@@ -25,7 +25,7 @@ FORMAT = "receiving-pdf-v1"
 
 # A expressão exige uma unidade próxima à quantidade para não confundir
 # preço, código ou CNPJ com volumes comprados.
-UNIT_PATTERN = r"(?:QUILOGRAMAS?|KG|KGS|TONELADAS?|TON|TONS|TON\.?|T|LITROS?|LTS?|L|DOSES?|DOS|UNIDADES?|UNID\.?|UN|CX|CAIXAS?|SACAS?|SC|PCT|PACOTES?)"
+UNIT_PATTERN = r"(?:QUILOGRAMAS?|KG|KGS|TONELADAS?|TON|TONS|TON\.?|T|LITROS?|LTS?|L|DOSES?|DOS|UNIDADES?|UNID\.?|UND|UN|CX|CAIXAS?|SACAS?|SC|PCT|PACOTES?|M(?:\^?[23]|[²³])?|METROS?(?:\s+(?:QUADRADOS?|CUBICOS?))?)"
 QTY_PATTERN = r"(?:\d{1,3}(?:[.\s]\d{3})+(?:,\d{1,3})?|\d+(?:[.,]\d{1,3})?)"
 ROW_QTY = re.compile(r"(?<![\w])(?P<qty>" + QTY_PATTERN + r")\s*(?P<unit>" + UNIT_PATTERN + r")(?!\w)",re.I)
 ROW_UNIT_FIRST = re.compile(r"(?<!\w)(?P<unit>" + UNIT_PATTERN + r")\s+(?P<qty>" + QTY_PATTERN + r")(?!\w)",re.I)
@@ -66,6 +66,9 @@ def unit_name(raw):
     if n in ("CX","CAIXA","CAIXAS"):return "cx"
     if n in ("SACA","SACAS","SC"):return "sc"
     if n in ("PACOTE","PACOTES","PCT"):return "pct"
+    if n in ("M","METRO","METROS"):return "m"
+    if n in ("M²","M2","M^2","METRO QUADRADO","METROS QUADRADOS"):return "m²"
+    if n in ("M³","M3","M^3","METRO CUBICO","METROS CUBICOS"):return "m³"
     return "un"
 
 def split_product_code(text):
