@@ -162,7 +162,10 @@ Object.assign(App,{
     const invalid=ctx.docs.reduce((n,d)=>n+d.items.filter(i=>i.enabled&&!rpdfValid(i)).length,0);
     const errors=ctx.errors.length?'<div class="rpdf-errors">'+ctx.errors.map(e=>
       '<p>'+E(e)+'</p>').join("")+'</div>':"";
-    document.getElementById("modalRoot").innerHTML=
+    const modalRoot=document.getElementById("modalRoot");
+    const oldScroll=modalRoot.querySelector(".rpdf-modal .modal-body")?.scrollTop||0;
+    const oldPdfScroll=modalRoot.querySelector(".rpdf-page-scroll")?.scrollTop||0;
+    modalRoot.innerHTML=
       '<div class="modal-backdrop"><div class="modal rpdf-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
       '<div class="modal-header"><div><h2 id="modalTitle">Importar pedido</h2>'+
       '<p>Confira cada produto antes de lançar no controle. Um pedido pode ter várias linhas.</p></div>'+
@@ -179,6 +182,10 @@ Object.assign(App,{
       '<button class="btn btn-primary" id="receivingPdfConfirm" onclick="App.receivingPdfConfirm()" '+
       ((ctx.working||!count||invalid)?'disabled':'')+'>'+
       icon("check")+' Importar '+count+' produto(s)</button></div></div></div>';
+    const scrollBody=modalRoot.querySelector(".rpdf-modal .modal-body");
+    if(scrollBody)scrollBody.scrollTop=oldScroll;
+    const pageScroll=modalRoot.querySelector(".rpdf-page-scroll");
+    if(pageScroll)pageScroll.scrollTop=oldPdfScroll;
   },
   async receivingPdfToggleViewer(fileIndex){
     const ctx=this.s.receivingPdf,doc=ctx?.docs[fileIndex];
