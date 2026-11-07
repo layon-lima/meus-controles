@@ -346,6 +346,11 @@ Object.assign(App,{
     const queries={...(this.s.receivingSearch?.controlId===controlId?this.s.receivingSearch.queries:{}),
       [tab]:String(query??"")};
     this.s.receivingSearch={controlId,queries};
+    // Ao pesquisar pedidos, abrir grupos para mostrar os resultados encontrados.
+    if(tab==="pedidos"&&String(query??"").trim()&&
+       this.s.receivingSupplierFold?.controlId===controlId){
+      this.s.receivingSupplierFold.collapsed=[];
+    }
     this.receivingApplyFilter(queries[tab]);
   },
   receivingToggleSupplier(index){
@@ -384,7 +389,7 @@ Object.assign(App,{
       }
       const matches=rows.filter(item=>!value||matchingSupplier||
         rxSupplierKey(item.getAttribute("data-receiving-search")).includes(value));
-      const isCollapsed=collapsed.has(key)&&!value;
+      const isCollapsed=collapsed.has(key);
       const orders=new Set(matches.map(item=>item.children[1]?.textContent||""));
       group.hidden=matches.length===0;
       group.classList.toggle("is-collapsed",isCollapsed);
