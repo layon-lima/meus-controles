@@ -132,3 +132,24 @@ input[type=radio]{accent-color:#3277dc}
 @media(prefers-reduced-motion:reduce){
  .btn,.board-card,.control-card,.nav-link,.board-link{transition:none!important;transform:none!important}
 }
+
+
+/* Fornecedores como secoes recolhiveis — visual do explorador Livro Caixa. */
+.receiving-table .receiving-grid tbody .receiving-supplier-group td{
+  padding:0!important;background:#edf3fb!important;border-top:1px solid #d8e4f2;
+  border-bottom:1px solid #d8e4f2;line-height:normal!important}
+.receiving-table .receiving-grid tbody .receiving-supplier-group:hover td{
+  background:#e7effb!important}
+.receiving-supplier-toggle{appearance:none;display:flex;align-items:center;gap:10px;
+  width:100%;min-height:39px;text-align:left;padding:9px 13px;
+  border:0;background:transparent;color:#344a65;cursor:pointer;font:inherit}
+.receiving-supplier-toggle strong{font-weight:750!important;font-size:12px;color:#344b67}
+.receiving-supplier-toggle:hover{background:#e7effb}
+.receiving-supplier-toggle:focus-visible{outline:2px solid #79abec!important;outline-offset:-2px}
+.receiving-supplier-chevron{display:inline-flex;align-items:center;justify-content:center;
+  width:17px;height:17px;flex:none;border-radius:5px;color:#4281cd;
+  font-size:17px;line-height:1;transition:transform .15s ease}
+.receiving-supplier-group.is-collapsed .receiving-supplier-chevron{transform:rotate(-90deg)}
+.receiving-supplier-group .receiving-group-count{margin-left:2px;color:#778aa2;font-size:11px}
+.receiving-table .receiving-grid tbody tr[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){.receiving-supplier-chevron{transition:none}}
