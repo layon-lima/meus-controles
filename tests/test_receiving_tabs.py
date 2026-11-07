@@ -159,14 +159,29 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('if(item.selectable===false&&!needsManualConversion(index,item))',script)
         self.assertIn(".receiving-xml-manual[hidden]",CSS)
 
+    def test_each_supplier_is_a_separate_collapsible_card(self):
+        theme=(ROOT/"static"/"livro_caixa_theme.css").read_text(encoding="utf-8")
+        self.assertIn('const cards=supplierGroups.map((group,index)=>',JS)
+        self.assertIn('class="receiving-supplier-card',JS)
+        self.assertIn('class="receiving-supplier-body"',JS)
+        self.assertIn('receivingToggleSupplier(index){',JS)
+        self.assertIn('body.hidden=isCollapsed;',JS)
+        self.assertIn('receivingApplyFilter(query){',JS)
+        self.assertIn('receiving-supplier-cards',JS)
+        self.assertNotIn('const rows=supplierGroups.map(',JS)
+        self.assertEqual(JS.count('id="receivingSelectAll"'),1)
+        self.assertIn('.receiving-supplier-cards{',theme)
+        self.assertIn('.receiving-supplier-card{',theme)
+        self.assertIn('.receiving-supplier-body[hidden]{display:none!important}',theme)
+
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261107-fornecedor-fold-2"),("receiving.css","20261105-resumo-pedido-v19")):
+        for asset,release in (("receiving.js","20261107-fornecedor-cards-v1"),("receiving.css","20261105-resumo-pedido-v19")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261105-resumo-pedido-v34',SW)
+        self.assertIn('central-de-controles-shell-v20261107-fornecedor-cards-v1',SW)
         self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',HTML)
-        self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',SW)
+        self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',SW)\n        self.assertIn('/static/livro_caixa_theme.css?v=20261107-fornecedor-cards-v1',SW)
         self.assertIn('surface.ondrop=event=>',JS)
         self.assertIn('event.preventDefault();',JS)
 
