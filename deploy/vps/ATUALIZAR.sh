@@ -35,8 +35,8 @@ if ! "${COMPOSE[@]}" up -d --build --no-deps --wait app; then
   fi
   exit 1
 fi
-echo "Eliminando copias exatas de pedidos sem entregas (com backup ja realizado)..."
-"${COMPOSE[@]}" exec -T app python /srv/app/scripts/limpar_pedidos_duplicados.py
+# Saneamento de pedidos e uma tarefa separada, nao parte do deploy visual.
+# Nao executar alteracoes no banco em cada atualizacao de interface.
 echo "Verificando que o contêiner executa os MESMOS arquivos publicados..."
 for file in app.py receiving.py receiving_pdf.py static/receiving.js static/receiving.css static/receiving_pdf.js static/receiving_pdf.css; do
   expected="$(sha256sum "$ROOT/$file" | awk '{print $1}')"
