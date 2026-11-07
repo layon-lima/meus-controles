@@ -354,6 +354,12 @@ Object.assign(App,{
     const queries={...(this.s.receivingSearch?.controlId===controlId?this.s.receivingSearch.queries:{}),
       [tab]:String(query??"")};
     this.s.receivingSearch={controlId,queries};
+    // Em uma nova pesquisa, revelar os grupos para mostrar os resultados.
+    // Depois disso, o clique no card pode recolher mesmo com busca ativa.
+    if(tab==="pedidos"&&queries[tab].trim()&&
+       this.s.receivingSupplierFold?.controlId===controlId){
+      this.s.receivingSupplierFold.collapsed=[];
+    }
     this.receivingApplyFilter(queries[tab]);
   },
   receivingToggleSupplier(index){
@@ -389,7 +395,7 @@ Object.assign(App,{
         rxSupplierKey(row.getAttribute("data-receiving-search")).includes(value));
       const matchedIds=new Set(matching.map(row=>row.dataset.receivingId));
       // Busca revela resultados sem apagar a preferencia por grupos recolhidos.
-      const isCollapsed=collapsed.has(key)&&!value;
+      const isCollapsed=collapsed.has(key);
       card.hidden=matching.length===0;
       card.classList.toggle("is-collapsed",isCollapsed);
       const body=card.querySelector(".receiving-supplier-body");
