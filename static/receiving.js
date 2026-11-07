@@ -185,7 +185,10 @@ Object.assign(App,{
         '<td><span class="receiving-status '+(p.closed?'closed':E(p.status))+'">'+status+'</span></td></tr>';
     };
     if(this.s.receivingSupplierFold?.controlId!==c.id){
-      this.s.receivingSupplierFold={controlId:c.id,collapsed:[]};
+      // Primeira abertura: fornecedores recolhidos, como os meses no Livro Caixa.
+      // Busca preexistente abre os grupos para exibir seus resultados.
+      this.s.receivingSupplierFold={controlId:c.id,
+        collapsed:savedSearch.trim()?[]:supplierGroups.map(group=>group.key)};
     }
     const folded=new Set(this.s.receivingSupplierFold.collapsed);
     const rows=supplierGroups.map((group,index)=>{
