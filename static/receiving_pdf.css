@@ -63,3 +63,16 @@
  .rpdf-gpt-connect input{flex:1 1 100%;min-width:0;width:100%}
  .rpdf-doc-title{align-items:center}
 }
+
+
+/* Campo da chave e botao de analise visiveis lado a lado. */
+.rpdf-gpt-connect{align-items:flex-start}
+.rpdf-gpt-actions{display:flex;flex:1 1 100%;align-items:center;gap:9px;flex-wrap:wrap}
+.rpdf-gpt-actions input[type="password"]{flex:1 1 250px;max-width:470px;min-width:180px}
+.rpdf-gpt-start{white-space:nowrap;min-height:35px}
+.rpdf-gpt-start:disabled{opacity:.6;cursor:not-allowed}
+.rpdf-gpt-key-status{display:block;flex-basis:100%;font-size:11px;color:#637b9d}
+@media(max-width:650px){
+ .rpdf-gpt-actions input[type="password"]{min-width:0;max-width:none;flex:1 1 100%}
+ .rpdf-gpt-start{width:100%;justify-content:center}
+}
