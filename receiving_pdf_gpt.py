@@ -126,7 +126,7 @@ def analyze(con,cid,payload):
         ]}],
         "text":{"format":{"type":"json_schema","name":"pedido_pdf",
                            "strict":True,"schema":SCHEMA}},
-        "max_output_tokens":5500
+        "max_output_tokens":12000
     }
     req=request.Request(API_URL,data=json.dumps(query,ensure_ascii=False).encode("utf-8"),
                         method="POST",headers={
