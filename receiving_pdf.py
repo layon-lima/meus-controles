@@ -272,8 +272,11 @@ def _choose_items(page,raw,aligned):
     if coordinate_rows:sources.append(("colunas",coordinate_rows))
     tabular=receiving_pdf_layout.parse_table(page, __import__(__name__))
     if tabular:sources.append(("tabela",tabular))
-    # Maior numero de linhas validas primeiro; tabela estruturada desempata.
-    source,items=max(sources,key=lambda x:(len(x[1]),x[0]=="tabela",x[0]=="linhas"))
+    # Uma tabela com cabeçalho Qtde/Produto tem prioridade sobre regex solta:
+    # regex poderia confundir o 5L do nome com quantidade pedida.
+    if tabular:
+        return tabular,"tabela"
+    source,items=max(sources,key=lambda x:(len(x[1]),x[0]=="colunas"))
     return items,source
 
 
