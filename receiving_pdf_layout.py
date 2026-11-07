@@ -1,87 +1,120 @@
-"""Leitura complementar de tabelas de pedidos PDF (sem inferir quantidades).
-Cada produto precisa ter descricao, quantidade e unidade claramente reconhecidas.
-"""
+"""Leitura tabular conservadora de pedidos PDF, inclusive Qtde sem unidade explícita."""
 import re
 
 DESCRIPTION = re.compile(r"(?:DESCRI|PRODUTO|MATERIAL|MERCADORIA|INSUMO|ITEM)", re.I)
-QUANTITY = re.compile(r"(?:QUANT|QTD|QTDE|VOLUME|PESO)", re.I)
+QUANTITY = re.compile(r"(?:QUANT|QTDE|QTD|QUANTIDADE|VOLUME|PESO)", re.I)
 UNIT = re.compile(r"^(?:UN|UNID|UNIDADE|UND|UM|U/M|U\.M\.?|MEDIDA)$", re.I)
-CODE = re.compile(r"(?:CODIGO|COD\.|COD\b|REFERENCIA|SKU)", re.I)
+CODE = re.compile(r"(?:^NRO$|^N[ÚU]M\.?$|^ITEM$|C[ÓO]D(?:IGO)?\.?|REFERENCIA|SKU)", re.I)
+DELIVERY = re.compile(r"(?:TIPO\s*(?:DE)?\s*ENTREGA|BONIFIC|ENTREGA)", re.I)
+PURE_AMOUNT = re.compile(r"^\s*\d+(?:[.\s]\d{3})*(?:,\d{1,3})?\s*$")
+
 
 def normalize_cell(value):
     return " ".join(str(value or "").replace("\xa0"," ").split())
 
-def parse_table(page, pdf, clip=None):
-    """Extrai linhas de tabelas identificadas por PyMuPDF, sem misturar preco com quantidade."""
+
+def _cell_text(page, table, index, column, fallback):
+    """Preferir texto original do retângulo, que preserva _ e linhas do produto."""
+    try:
+        cells=table.rows[index].cells
+        box=cells[column]
+        if box:
+            text=normalize_cell(page.get_text("text",clip=box,sort=True))
+            if text:return text
+    except (AttributeError,IndexError,TypeError,ValueError,RuntimeError):
+        pass
+    return normalize_cell(fallback)
+
+
+def _row_overlaps(table,index,region):
+    if region is None:return True
+    try:
+        cells=[c for c in table.rows[index].cells if c]
+        if not cells:return False
+        y0=min(c[1] for c in cells)
+        y1=max(c[3] for c in cells)
+        # Requer sobreposição real da linha; não lê fora da marcação.
+        overlap=max(0,min(region.y1,y1)-max(region.y0,y0))
+        return overlap>=min(2,(y1-y0)*.25)
+    except (AttributeError,IndexError,TypeError,ValueError):
+        return True
+
+
+def parse_table(page,pdf,clip=None):
+    """Lê todas as linhas de produto pela coluna Qtde, sem confundir preços e volumes.
+
+    No PDF FMC, Qtde=300 e VELITREX_5L_BR descreve a embalagem. Como o
+    documento não informa unidade separada para a quantidade, usa 'un' e
+    preserva 300; NUNCA transforma em 5L nem multiplica por 5.
+    Em seleção manual, clip filtra linhas de uma tabela detectada na página
+    inteira, ainda que a pessoa não inclua o cabeçalho no retângulo.
+    """
     result=[]
     try:
-        tables=getattr(page.find_tables(clip=clip) if clip is not None else page.find_tables(),"tables",[])
+        tables=getattr(page.find_tables(),"tables",[])
     except (AttributeError,ValueError,RuntimeError):
         return result
     for table in tables:
-        try:
-            matrix=table.extract()
-        except (AttributeError,ValueError,RuntimeError):
-            continue
-        if not matrix or len(matrix)<2:
-            continue
-        rows=[[normalize_cell(cell) for cell in row] for row in matrix if row]
+        try:matrix=table.extract()
+        except (AttributeError,ValueError,RuntimeError):continue
+        if not matrix:continue
+        data=[[normalize_cell(v) for v in row] for row in matrix if row is not None]
         header=None
-        for idx,row in enumerate(rows[:4]):
-            labels=[pdf.normalize_text(v) for v in row]
-            desc=next((n for n,v in enumerate(labels) if DESCRIPTION.search(v) and not QUANTITY.search(v)),None)
-            qty=next((n for n,v in enumerate(labels) if QUANTITY.search(v) and not re.search(r"PRECO|VALOR|UNITARIO",v)),None)
-            unit=next((n for n,v in enumerate(labels) if UNIT.fullmatch(v.replace(" ",""))),None)
-            code=next((n for n,v in enumerate(labels) if CODE.search(v)),None)
+        for i,row in enumerate(data[:6]):
+            names=[pdf.normalize_text(v) for v in row]
+            desc=next((j for j,v in enumerate(names) if DESCRIPTION.search(v) and
+                       not QUANTITY.search(v)),None)
+            qty=next((j for j,v in enumerate(names) if QUANTITY.search(v) and
+                      not re.search(r"PRECO|VALOR|UNITARIO|SUB.?TOTAL",v)),None)
+            unit=next((j for j,v in enumerate(names) if UNIT.fullmatch(v.replace(" ",""))),None)
+            code=next((j for j,v in enumerate(names) if CODE.search(v)),None)
+            delivery=next((j for j,v in enumerate(names) if DELIVERY.search(v)),None)
             if desc is not None and qty is not None and desc!=qty:
-                header=(idx,desc,qty,unit,code)
+                header=(i,desc,qty,unit,code,delivery)
                 break
+        # Continuação em outra página: tabela inicia diretamente com os itens
+        # e não repete cabeçalhos (exemplo: item 000140 na página 2 da FMC).
         if header is None:
-            continue
-        start,desc_col,qty_col,unit_col,code_col=header
-        previous=None
-        for row in rows[start+1:]:
-            if max(desc_col,qty_col,unit_col if unit_col is not None else 0)>=len(row):
-                continue
-            raw_product=row[desc_col]
-            raw_qty=row[qty_col]
-            raw_unit=row[unit_col] if unit_col is not None else ""
-            if not raw_qty.strip():
-                # Descricao eventualmente continua na segunda linha fisica da tabela.
-                if previous and raw_product and pdf.plausible_product(raw_product):
-                    merged=(previous["product"]+" "+pdf.clean_product(raw_product)).strip()[:160]
-                    previous["product"]=merged
-                continue
-            quantity_match=re.match(r"^\s*([\d.,\s]+)\s*([A-Za-z²³]+)?\s*$",raw_qty)
-            if quantity_match:
-                raw_qty=quantity_match[1].strip()
-                if not raw_unit: raw_unit=quantity_match[2] or ""
+            first=data[0]
+            if (len(first)>=5 and re.fullmatch(r"\d{4,8}",first[0] or "") and
+                any(ch.isalpha() for ch in first[1]) and PURE_AMOUNT.fullmatch(first[4] or "")):
+                header=(-1,1,4,None,0,3)
             else:
-                unit_first=re.match(r"^([A-Za-z²³]+)\s+([\d.,\s]+)$",raw_qty)
-                if unit_first:
-                    if not raw_unit: raw_unit=unit_first[1]
-                    raw_qty=unit_first[2].strip()
-            if not raw_unit:
                 continue
-            unit=pdf.unit_name(raw_unit)
-            if unit=="un" and pdf.normalize_text(raw_unit) not in ("UN","UND","UNID","UNIDADE","UNIDADES"):
+        first,desc_col,qty_col,unit_col,code_col,delivery_col=header
+        for index in range(first+1,len(data)):
+            if not _row_overlaps(table,index,clip):continue
+            row=data[index]
+            if max(desc_col,qty_col,unit_col or 0)>=len(row):continue
+            raw_qty=_cell_text(page,table,index,qty_col,row[qty_col])
+            if not raw_qty:continue
+            qty_match=re.fullmatch(r"\s*(\d+(?:[.\s]\d{3})*(?:,\d{1,3})?)\s*([A-Za-z²³]+)?\s*",raw_qty)
+            if not qty_match:continue
+            raw_amount=qty_match[1]
+            raw_unit=_cell_text(page,table,index,unit_col,row[unit_col]) if unit_col is not None else (qty_match[2] or "")
+            # Sem coluna de unidade => quantidade de itens/embalagens, não
+            # conteúdo da embalagem inferido pelo nome do produto.
+            unit=pdf.unit_name(raw_unit) if raw_unit else "un"
+            if raw_unit and unit=="un" and pdf.normalize_text(raw_unit) not in (
+                 "UN","UND","UNID","UNIDADE","UNIDADES","UM"):
                 continue
-            product=pdf.clean_product(raw_product)
-            if not pdf.plausible_product(product):
-                continue
-            try: amount=pdf.number(raw_qty)
+            product=_cell_text(page,table,index,desc_col,row[desc_col])
+            product=pdf.clean_product(product)
+            if not pdf.plausible_product(product):continue
+            try:amount=pdf.number(raw_amount)
             except (ValueError,TypeError):continue
-            item={"product":product,"unit":unit,"ordered_qty":amount}
+            if float(amount)<=0:continue
+            item={"product":product,"ordered_qty":amount,"unit":unit}
             if code_col is not None and code_col<len(row):
-                code=normalize_cell(row[code_col])
-                if code and len(code)<=24:
-                    item["product_code"]=code
+                line=_cell_text(page,table,index,code_col,row[code_col])
+                if re.fullmatch(r"[A-Za-z0-9./_-]{1,24}",line):
+                    item["source_line"]=line
+            if delivery_col is not None and delivery_col<len(row):
+                delivery=_cell_text(page,table,index,delivery_col,row[delivery_col])
+                if delivery:item["delivery_type"]=delivery[:80]
             result.append(item)
-            previous=item
-            if len(result)>=pdf.MAX_ITEMS:
-                return result
+            if len(result)>=pdf.MAX_ITEMS:return result
     return result
-
 
 def _row_words(words):
     """Agrupa palavras pelas suas coordenadas Y sem depender da ordem do texto PDF."""
