@@ -89,7 +89,7 @@ def parse_response(payload):
         if not isinstance(item,dict):continue
         product=receiving_pdf.clean_product(item.get("product",""))
         if not receiving_pdf.plausible_product(product):continue
-        try:quantity=receiving_pdf.number(str(item.get("ordered_qty","")))
+        try:quantity=receiving.display(receiving.qty(str(item.get("ordered_qty",""))))
         except ValueError:continue
         u=receiving_pdf.unit_name(str(item.get("unit","")))
         if u=="un" and receiving_pdf.normalize_text(item.get("unit","")) not in (
