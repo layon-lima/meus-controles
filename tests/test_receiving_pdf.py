@@ -153,6 +153,66 @@ class PdfReceivingTests(unittest.TestCase):
         self.assertEqual([(i["product"],i["ordered_qty"],i["unit"]) for i in items],
              [("ASSIST","2000.000","L"),("BRIGHT","2220.000","kg")])
 
+    def test_ocr_extracts_all_products_from_separate_table_columns(self):
+        pdf=fitz.open()
+        try:
+            page=pdf.new_page()
+            for text,x in (("PRODUTO",55),("QUANTIDADE",340),("UNID",455),("VALOR",530)):
+                page.insert_text((x,55),text,fontsize=10)
+            for y,product,qty,unit in (
+                (81,"ASSIST","2.000","L"),
+                (106,"BRIGHT","2.220","kg"),
+                (131,"SULFATO DE AMONIO","500","t"),
+            ):
+                for label,x in ((product,55),(qty,340),(unit,455)):
+                    page.insert_text((x,y),label,fontsize=10)
+            raw=pdf.tobytes()
+        finally:
+            pdf.close()
+        parsed=receiving_pdf.extract_pdf(raw)
+        self.assertEqual(len(parsed["items"]),3,parsed)
+        self.assertEqual([(i["product"],i["ordered_qty"],i["unit"])
+                          for i in parsed["items"]],[
+            ("ASSIST","2000.000","L"),("BRIGHT","2220.000","kg"),
+            ("SULFATO DE AMONIO","500.000","t")])
+
+    def test_manual_pdf_region_recovers_multiple_rows_without_any_ai(self):
+        import receiving_pdf_region
+        pdf=fitz.open()
+        try:
+            page=pdf.new_page()
+            for name,x in (("PRODUTO",55),("QTD",340),("UNID",455)):
+                page.insert_text((x,55),name,fontsize=10)
+            for y,product,qty,unit in ((90,"ASSIST","1000","L"),
+                                       (115,"BRIGHT","1500","kg")):
+                for label,x in ((product,55),(qty,340),(unit,455)):
+                    page.insert_text((x,y),label,fontsize=10)
+            raw=pdf.tobytes()
+        finally:
+            pdf.close()
+        fingerprint=__import__("hashlib").sha256(raw).hexdigest()
+        data=base64.b64encode(raw).decode("ascii")
+        with app.db() as con:
+            receiving_pdf.preview(con,self.cid,{"filename":"pedido.pdf","base64":data})
+        payload={"base64":data,"fingerprint":fingerprint,"page":0}
+        with app.db() as con:
+            rendered=receiving_pdf_region.page_preview(con,self.cid,payload)
+            self.assertTrue(rendered["image"].startswith("data:image/png;base64,"))
+            selected=receiving_pdf_region.read_region(con,self.cid,{
+                **payload,"rect":{"x0":.06,"y0":.04,"x1":.9,"y1":.21}
+            })
+        self.assertEqual([p["product"] for p in selected["items"]],["ASSIST","BRIGHT"])
+        self.assertEqual([p["unit"] for p in selected["items"]],["L","kg"])
+
+    def test_no_gpt_import_or_api_route_remains(self):
+        source=(Path(__file__).resolve().parents[1]/"app.py").read_text(encoding="utf-8")
+        viewer=(Path(__file__).resolve().parents[1]/"static"/"receiving_pdf.js").read_text(encoding="utf-8")
+        self.assertNotIn("receiving_pdf_gpt",source)
+        self.assertNotIn("receiving/pdf/gpt",source)
+        self.assertNotIn("GPT",viewer)
+        self.assertIn("receivingPdfMarkStart(event,fileIndex)",viewer)
+        self.assertIn("receivingPdfReadMark(fileIndex)",viewer)
+
     def test_existing_order_gains_new_rows_and_supplier_merges(self):
         with app.db() as con:
             con.execute("""INSERT INTO purchase_items(control_id,order_number,supplier,product,unit,ordered_qty)
