@@ -5,6 +5,7 @@ Nao substitui OCR, nao salva produtos, nao autoriza alteracoes no banco.
 import base64
 import hashlib
 import json
+import os
 import re
 from urllib import request, error
 
@@ -111,16 +112,17 @@ def parse_response(payload):
 
 def analyze(con,cid,payload):
     name,raw=_read_pdf_payload(con,cid,payload)
-    key=payload.get("api_key")
+    # Preferir a chave ja configurada na VPS. Usuario nao precisa cola-la em cada PDF.
+    key=payload.get("api_key") or os.environ.get("CONTROLES_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not isinstance(key,str) or not key.startswith("sk-") or len(key)<24 or len(key)>400:
-        raise ValueError("Conecte uma chave de API OpenAI valida para usar o GPT.")
+        raise ValueError("Configure CONTROLES_OPENAI_API_KEY na VPS ou informe uma chave de API OpenAI.")
     encoded="data:application/pdf;base64,"+base64.b64encode(raw).decode("ascii")
     query={
         "model":MODEL,"store":False,
         "instructions":INSTRUCTIONS,
         "input":[{"role":"user","content":[
           {"type":"input_text","text":"Extraia todos os itens do pedido PDF anexo."},
-          {"type":"input_file","filename":name,"file_data":encoded}
+          {"type":"input_file","filename":name,"file_data":encoded,"detail":"high"}
         ]}],
         "text":{"format":{"type":"json_schema","name":"pedido_pdf",
                            "strict":True,"schema":SCHEMA}},
