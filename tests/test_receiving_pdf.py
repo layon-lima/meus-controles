@@ -162,7 +162,7 @@ class PdfReceivingTests(unittest.TestCase):
             {"order_number":"PED-2026-004","supplier":"AGREX",
              "product":"Assist","ordered_qty":"2000","unit":"L"},
             {"order_number":"PED-2026-004","supplier":"AGREX",
-             "product":"Bright","ordered_qty":"2.220","unit":"kg"},
+             "product":"Bright","ordered_qty":"2220","unit":"kg"},
             {"order_number":"PED-2026-004","supplier":"AGREX",
              "product":"","ordered_qty":"xx","unit":"kg"}],
           "warnings":[]})}]}]}
