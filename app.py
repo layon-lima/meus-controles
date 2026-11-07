@@ -25,7 +25,7 @@ import control_types
 import vales
 import receiving_import
 import receiving_pdf
-import receiving_pdf_gpt
+import receiving_pdf_region
 import receiving_xml
 import reports_excel
 import receiving_invoices_excel
@@ -700,8 +700,8 @@ class Handler(BaseHTTPRequestHandler):
                 if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm|issuer|pending(?:/\d+/assign)?)",url):
                     receiving_xml.handle(self,con,method,url)
                     return
-                if re.fullmatch(r"/api/controls/\d+/receiving/pdf/gpt",url):
-                    receiving_pdf_gpt.handle(self,con,method,url)
+                if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:page|region)",url):
+                    receiving_pdf_region.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:preview|confirm)",url):
                     receiving_pdf.handle(self,con,method,url)
