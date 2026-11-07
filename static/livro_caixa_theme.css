@@ -133,23 +133,74 @@ input[type=radio]{accent-color:#3277dc}
  .btn,.board-card,.control-card,.nav-link,.board-link{transition:none!important;transform:none!important}
 }
 
-
-/* Fornecedores como secoes recolhiveis — visual do explorador Livro Caixa. */
-.receiving-table .receiving-grid tbody .receiving-supplier-group td{
-  padding:0!important;background:#edf3fb!important;border-top:1px solid #d8e4f2;
-  border-bottom:1px solid #d8e4f2;line-height:normal!important}
-.receiving-table .receiving-grid tbody .receiving-supplier-group:hover td{
-  background:#e7effb!important}
-.receiving-supplier-toggle{appearance:none;display:flex;align-items:center;gap:10px;
-  width:100%;min-height:39px;text-align:left;padding:9px 13px;
-  border:0;background:transparent;color:#344a65;cursor:pointer;font:inherit}
-.receiving-supplier-toggle strong{font-weight:750!important;font-size:12px;color:#344b67}
-.receiving-supplier-toggle:hover{background:#e7effb}
-.receiving-supplier-toggle:focus-visible{outline:2px solid #79abec!important;outline-offset:-2px}
-.receiving-supplier-chevron{display:inline-flex;align-items:center;justify-content:center;
-  width:17px;height:17px;flex:none;border-radius:5px;color:#4281cd;
-  font-size:17px;line-height:1;transition:transform .15s ease}
-.receiving-supplier-group.is-collapsed .receiving-supplier-chevron{transform:rotate(-90deg)}
-.receiving-supplier-group .receiving-group-count{margin-left:2px;color:#778aa2;font-size:11px}
-.receiving-table .receiving-grid tbody tr[hidden]{display:none!important}
+/* RECEBIMENTOS: cada fornecedor e um card independente, como no Livro Caixa. */
+.receiving-supplier-cards{
+  display:flex;flex-direction:column;align-items:stretch;
+  gap:13px;min-width:0;margin:6px 0 18px;
+}
+.receiving-supplier-card{
+  display:block;min-width:0;background:#fff;
+  border:1px solid #dee7f1;border-radius:15px;
+  overflow:hidden;
+  box-shadow:0 3px 9px rgba(24,51,91,.035),0 9px 25px rgba(24,51,91,.035);
+}
+.receiving-supplier-card[hidden]{display:none!important}
+.receiving-supplier-card .receiving-supplier-toggle{
+  width:100%;min-height:51px;display:flex;align-items:center;
+  justify-content:flex-start;gap:12px;
+  padding:11px 17px;background:#fff;
+  border:0;text-align:left;color:#2e435c;
+  cursor:pointer;font:inherit;
+  transition:background .15s ease;
+}
+.receiving-supplier-card .receiving-supplier-toggle:hover{
+  background:#f1f6ff;
+}
+.receiving-supplier-card.is-collapsed .receiving-supplier-toggle{background:#fff}
+.receiving-supplier-card.is-collapsed .receiving-supplier-toggle:hover{background:#f2f6fc}
+.receiving-supplier-heading{
+  display:flex;flex-direction:column;align-items:flex-start;
+  justify-content:center;min-width:0;gap:3px;
+}
+.receiving-supplier-heading strong{
+  font-size:13px;line-height:1.2;font-weight:780;
+  color:#253a54;white-space:normal;overflow-wrap:anywhere;
+}
+.receiving-supplier-card .receiving-group-count{
+  display:block;margin:0;font-size:11px;line-height:1.25;
+  font-weight:500;color:#7a8ba0;
+}
+.receiving-supplier-chevron{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;flex:0 0 24px;
+  color:#377acf;font-size:19px;line-height:1;
+  background:#e9f2ff;border-radius:7px;
+  transition:transform .16s ease;
+}
+.receiving-supplier-card.is-collapsed .receiving-supplier-chevron{
+  transform:rotate(-90deg);
+}
+.receiving-supplier-body{border-top:1px solid #e2eaf3;min-width:0}
+.receiving-supplier-body[hidden]{display:none!important}
+.receiving-supplier-card .table-wrap{
+  width:100%;max-width:100%;border-radius:0;
+  overflow-x:auto;background:#fff;
+}
+.receiving-supplier-card .receiving-grid{margin:0;width:100%;border:0}
+.receiving-supplier-card .receiving-grid thead th{
+  background:#f7f9fd;color:#60748c;
+  border-bottom:1px solid #e5ebf3;
+}
+.receiving-supplier-card .receiving-grid tbody tr:last-child td{border-bottom:0}
+.receiving-select-all-label{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11px;font-weight:650;color:#566c86;
+  white-space:nowrap;cursor:pointer;
+}
+.receiving-select-all-label input{width:15px;height:15px;accent-color:#3277dc;cursor:pointer}
+@media(max-width:600px){
+  .receiving-supplier-cards{gap:10px}
+  .receiving-supplier-card .receiving-supplier-toggle{padding:10px 12px}
+  .receiving-supplier-heading strong{font-size:12px}
+}
 @media(prefers-reduced-motion:reduce){.receiving-supplier-chevron{transition:none}}
