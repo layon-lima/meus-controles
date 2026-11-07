@@ -3,10 +3,27 @@
 const rpdfUnits=["kg","t","L","DOS","un","cx","sc","pct","m","m²","m³"];
 const rpdfNormalize=t=>String(t??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .toLocaleLowerCase("pt-BR").replace(/[.,;:]/g," ").replace(/\s+/g," ").trim();
+// O servidor usa ponto decimal fixo (60.000 = sessenta). A tela usa
+// português do Brasil SEM separador de milhar (60; 1680; 1,5).
+const rpdfQtyUi=value=>{
+  const raw=String(value??"").trim();
+  const match=/^(\d+)(?:\.(\d{1,3}))?$/.exec(raw);
+  if(!match)return raw;
+  const fraction=(match[2]||"").replace(/0+$/,"");
+  return match[1]+(fraction?","+fraction:"");
+};
+// Entrada humana: vírgula decimal, ponto apenas como separador de milhar.
+// Para armazenar, enviar formato canônico com ponto decimal à API.
+const rpdfQtyCanonical=value=>{
+  const raw=String(value??"").trim().replace(/\s/g,"");
+  if(!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,3})?$/.test(raw))return null;
+  const canonical=raw.replace(/\./g,"").replace(",",".");
+  const amount=Number(canonical);
+  return Number.isFinite(amount)&&amount>0&&amount<=1e12?canonical:null;
+};
 const rpdfValid=row=>Boolean(String(row.order_number||"").trim()&&String(row.supplier||"").trim()&&
   String(row.product||"").trim()&&String(row.unit||"").trim()&&
-  Number.isFinite(Number(String(row.ordered_qty||"").replace(/\./g,"").replace(",",".")))&&
-  Number(String(row.ordered_qty||"").replace(/\./g,"").replace(",","."))>0);
+  rpdfQtyCanonical(row.ordered_qty)!==null);
 const rpdfBase64=async file=>{
   const bytes=new Uint8Array(await file.arrayBuffer());
   let binary="";
@@ -62,7 +79,7 @@ Object.assign(App,{
         this.s.receivingPdf.docs.push({...result,pdfBase64:base64,items:result.items.map((item,index)=>({
           index,enabled:true,order_number:item.order_number||result.order_number||"",
           supplier:item.supplier||supplier,product:item.product||"",unit:item.unit||"un",
-          ordered_qty:item.ordered_qty||"",source_page:Number.isInteger(item.source_page)?item.source_page:0,
+          ordered_qty:rpdfQtyUi(item.ordered_qty||""),source_page:Number.isInteger(item.source_page)?item.source_page:0,
           source_line:item.source_line||"",delivery_type:item.delivery_type||""
         }))});
       }catch(err){
@@ -100,7 +117,7 @@ Object.assign(App,{
           'oninput="App.receivingPdfEdit('+fi+','+ri+',&quot;supplier&quot;,this.value)" placeholder="Fornecedor"></td>'+
           '<td><input aria-label="Produto" value="'+E(item.product)+'" '+
           'oninput="App.receivingPdfEdit('+fi+','+ri+',&quot;product&quot;,this.value)" placeholder="Nome do produto"></td>'+
-          '<td><input aria-label="Quantidade" inputmode="decimal" value="'+E(item.ordered_qty)+'" '+
+          '<td><input aria-label="Quantidade" inputmode="decimal" value="'+E(item.ordered_qty)+'" title="Ex.: 60 ou 1,5 (sem pontos de milhar)" '+
           'oninput="App.receivingPdfEdit('+fi+','+ri+',&quot;ordered_qty&quot;,this.value)" placeholder="Quantidade"></td>'+
           '<td><select aria-label="Unidade de medida" onchange="App.receivingPdfEdit('+fi+','+ri+
           ',&quot;unit&quot;,this.value)">'+options+'</select></td></tr>';
@@ -177,7 +194,7 @@ Object.assign(App,{
       (result.items.length?
         '<div class="rpdf-region-items">'+result.items.map(item=>
         '<div class="rpdf-workspace-item"><strong>'+E(item.product)+'</strong>'+
-        '<span>'+E(item.ordered_qty)+' '+E(item.unit)+
+        '<span>'+E(rpdfQtyUi(item.ordered_qty))+' '+E(item.unit)+
         (item.source_line?' · Item '+E(item.source_line):'')+'</span></div>').join("")+'</div>'+
         '<p>Ao aplicar, todos os '+existing.length+' itens da leitura anterior desta página serão substituídos pelos '+
         result.items.length+' itens encontrados. Nada será salvo no sistema ainda.</p>':
@@ -341,7 +358,7 @@ Object.assign(App,{
       order_number:item.order_number||doc.order_number||"",
       supplier:item.supplier||doc.supplier||"",
       product:item.product||"",unit:item.unit||"un",
-      ordered_qty:item.ordered_qty||""
+      ordered_qty:rpdfQtyUi(item.ordered_qty||"")
     }));
     const countBefore=doc.items.length-kept.length;
     const combined=[...kept,...fresh].sort((a,b)=>(a.source_page||0)-(b.source_page||0));
@@ -397,7 +414,7 @@ Object.assign(App,{
     if(!ctx||ctx.working||ctx.controlId!==this.s.detail?.control?.id)return;
     const files=ctx.docs.map(doc=>({fingerprint:doc.fingerprint,
       items:doc.items.filter(item=>item.enabled).map(({index,order_number,supplier,product,unit,ordered_qty,source_line})=>
-        ({index,order_number,supplier,product,unit,ordered_qty,source_line:source_line||""}))})).filter(f=>f.items.length);
+        ({index,order_number,supplier,product,unit,ordered_qty:rpdfQtyCanonical(ordered_qty),source_line:source_line||""}))})).filter(f=>f.items.length);
     if(!files.length||files.some(f=>f.items.some(item=>!rpdfValid(item)))){
       this.toast("Confira os pedidos, fornecedores, produtos e quantidades.",true);return;
     }
