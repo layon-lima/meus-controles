@@ -142,7 +142,8 @@ def parse_words(words,pdf):
                 cells[matched].append(str(w[4]))
         description=" ".join(cells["desc"]).strip()
         quantity=" ".join(cells["qty"]).strip()
-        unit_text=" ".join(cells["unit"]).strip()
+        # Apenas a primeira palavra é unidade; ignorar preço e total à direita.
+        unit_text=(cells["unit"][0] if cells["unit"] else "").strip()
         if not quantity and not unit_text:
             if result and description and pdf.plausible_product(description):
                 result[-1]["product"]=(result[-1]["product"]+" "+pdf.clean_product(description))[:160]
