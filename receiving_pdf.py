@@ -283,7 +283,11 @@ def extract_pdf(pdf_bytes):
             raw=page.get_text("text",sort=True)
             aligned=layout_text(page) if raw.strip() else ""
             items,source=_choose_items(page,raw,aligned)
-            if len(raw.strip())<90 or (not items and len(raw.strip())<450):
+            # Texto digital legivel nao precisa de OCR: evita trabalho extra e
+            # impede que uma segunda leitura invente itens quando o PDF nao tem tabela.
+            try: has_image=bool(page.get_images(full=True))
+            except Exception:has_image=False
+            if not items and (not raw.strip() or (has_image and len(raw.strip())<550)):
                 ocr=_tesseract_page(page,fitz,3)
                 if len(ocr.strip())>len(raw.strip()):raw=ocr
                 aligned=layout_text(page) if page.get_text("words") else ""
