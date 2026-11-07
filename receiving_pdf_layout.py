@@ -103,6 +103,36 @@ def _canonical_unit(raw,pdf):
     return unit if unit!="un" or pdf.normalize_text(raw).strip(". ") in known else None
 
 
+def parse_unheaded_rows(words,pdf):
+    """Lê linhas isoladas marcadas pelo usuário, mesmo sem cabeçalho de colunas.
+    Exige quantidade seguida de uma unidade conhecida; nunca infere unidade.
+    """
+    result=[]
+    for row in _row_words(words):
+        labels=[str(w[4]).strip() for w in row]
+        candidate=None
+        for i in range(1,len(labels)):
+            unit=_canonical_unit(labels[i],pdf)
+            if unit is None:
+                continue
+            qty=labels[i-1]
+            if not re.fullmatch(r"[\d][\d.,\s]*",qty):
+                continue
+            product=pdf.clean_product(" ".join(labels[:i-1]))
+            if not pdf.plausible_product(product):
+                continue
+            try:amount=pdf.number(qty)
+            except (ValueError,TypeError):continue
+            if float(amount)<=0:
+                continue
+            candidate={"product":product,"ordered_qty":amount,"unit":unit}
+            break
+        if candidate:
+            result.append(candidate)
+        if len(result)>=pdf.MAX_ITEMS:break
+    return result
+
+
 def parse_words(words,pdf):
     """Captura produtos em colunas mesmo quando o PDF entrega texto por bloco,
     e não na sequência visual de cada linha. A tabela precisa ter cabeçalho
@@ -121,7 +151,7 @@ def parse_words(words,pdf):
             header=(i,desc_x,qty_x,unit_x)
             break
     if header is None:
-        return []
+        return parse_unheaded_rows(words,pdf)
     start,desc_x,qty_x,unit_x=header
     column_order=sorted([("desc",desc_x),("qty",qty_x),("unit",unit_x)],
                         key=lambda x:x[1])
