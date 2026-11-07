@@ -35,3 +35,31 @@
  .rpdf-table th,.rpdf-table td{padding:4px}
  .rpdf-doc-title{align-items:flex-start}
 }
+
+
+/* Conferencia opcional com GPT: apenas sugestoes, nunca salvamento automatico. */
+.rpdf-gpt-connect{display:flex;gap:12px;align-items:center;justify-content:space-between;
+ padding:12px 14px;margin-bottom:13px;background:#f3f7ff;border:1px solid #dbe6f8;
+ border-radius:12px;flex-wrap:wrap}
+.rpdf-gpt-connect strong{font-size:12px;color:#2a4e81}
+.rpdf-gpt-connect p{font-size:11px;color:#637b9d;margin:4px 0 0}
+.rpdf-gpt-connect input{flex:0 1 330px;min-width:190px;min-height:35px;border-radius:9px;
+ border:1px solid #cbd9ee;background:#fff;padding:7px 10px;font-size:11px}
+.rpdf-gpt-connect input:focus{outline:2px solid #8cb8ee;outline-offset:1px}
+.rpdf-doc-title .rpdf-gpt-button{border-color:#bad4f5;background:#edf4ff;color:#2b6ac2}
+.rpdf-gpt-suggestion{padding:12px 14px;background:#f6f9ff;border-bottom:1px solid #d8e6f8}
+.rpdf-gpt-suggestion-title{display:flex;justify-content:space-between;align-items:center;gap:10px;
+ flex-wrap:wrap;margin-bottom:8px}
+.rpdf-gpt-suggestion-title strong{font-size:12px;color:#2c547e}
+.rpdf-gpt-suggestion p{font-size:11px;color:#506a83;margin-bottom:10px}
+.rpdf-gpt-items{display:flex;flex-direction:column;gap:4px;max-height:230px;overflow:auto}
+.rpdf-gpt-items span{padding:6px 9px;border:1px solid #dde8f8;border-radius:7px;
+ background:#fff;font-size:11px;line-height:1.45}
+.rpdf-gpt-applied{padding:9px 12px;background:#eaf7ec;color:#2c6949;font-size:11px}
+.rpdf-gpt-alert{padding:8px 10px;background:#fff4e0;border-radius:6px;margin:6px 0!important}
+.rpdf-table tr.rpdf-gpt-changed td{background:#eef6ff}
+@media(max-width:650px){
+ .rpdf-gpt-connect{align-items:stretch}
+ .rpdf-gpt-connect input{flex:1 1 100%;min-width:0;width:100%}
+ .rpdf-doc-title{align-items:center}
+}
