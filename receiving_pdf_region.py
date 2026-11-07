@@ -111,7 +111,10 @@ def read_region(con,cid,payload):
         ]
         tables=receiving_pdf_layout.parse_table(page,receiving_pdf,clip=clip)
         if tables:sources.append(("tabela",tables,text))
-        if not any(rows for _,rows,_ in sources):
+        native_count=max(len(rows) for _,rows,_ in sources)
+        # Se a seleção contém uma tabela grande mas só 1 produto foi encontrado,
+        # testar OCR adicional em vez de repetir o problema da prévia.
+        if native_count<=1 and (len(words)>14 or bool(page.get_images(full=True))):
             for attempt in _ocr_crop(page,clip,fitz):
                 sources.append(("ocr",receiving_pdf.parse_rows(attempt),attempt))
         _,items,raw=max(sources,key=lambda x:(len(x[1]),len(x[2])))
