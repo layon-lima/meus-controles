@@ -883,12 +883,169 @@ Object.assign(App,{
       this.closeModal();await this.load();this.toast(ctx.item?"Produto atualizado.":"Produto cadastrado.");
     }catch(err){this.toast(err.message,true)}
   },
+  receivingManualInvoiceForm(itemId){
+    if(!this.canOpenForm())return;
+    const controlId=this.s.detail?.control?.id;
+    const item=this.s.receivingData?.items.find(p=>p.id===itemId&&!p.closed&&Number(p.remaining_qty)>0);
+    if(!controlId||!item)return this.toast("Selecione um produto pendente.",true);
+    this.s.receivingManualInvoice={
+      controlId,date:rxToday(),invoice_number:"",access_key:"",
+      items:[{item_id:item.id,quantity:""}],pickerOpen:false,query:"",saving:false
+    };
+    this.s.modal="receiving-invoice";
+    this.receivingRenderManualInvoice();
+  },
+  receivingRenderManualInvoice(){
+    const ctx=this.s.receivingManualInvoice;
+    if(!ctx||this.s.modal!=="receiving-invoice")return;
+    const products=this.s.receivingData?.items||[];
+    const rows=ctx.items.map((line,index)=>{
+      const item=products.find(x=>x.id===line.item_id);
+      if(!item)return "";
+      return '<div class="receiving-invoice-product" data-index="'+index+'">'+
+        '<div class="receiving-invoice-product-top"><strong>'+E(item.product)+'</strong>'+
+        '<button type="button" class="btn btn-sm receiving-invoice-remove" '+
+        'onclick="App.receivingManualInvoiceRemove('+index+')" '+
+        (ctx.items.length===1?'disabled':'')+'>'+icon("x")+' Remover</button></div>'+
+        '<small>Pedido '+E(item.order_number)+' · '+E(item.supplier)+
+        ' · Saldo: '+rxNum(item.remaining_qty)+' '+E(item.unit)+'</small>'+
+        '<div class="field"><label for="receivingInvoiceQty'+index+'">Quantidade recebida ('+E(item.unit)+')</label>'+
+        '<input id="receivingInvoiceQty'+index+'" name="quantity_'+index+'" inputmode="decimal" required '+
+        'placeholder="Ex.: 250" value="'+E(line.quantity)+'" '+
+        'oninput="App.receivingManualInvoiceQuantity('+index+',this.value)"></div>'+
+        '<button type="button" class="receiving-invoice-repeat" onclick="App.receivingManualInvoiceRepeat('+index+')">'+
+        icon("plus")+' Outra linha deste produto na NF-e</button></div>';
+    }).join("");
+    const picker=ctx.pickerOpen?
+      '<div class="receiving-invoice-picker"><label for="receivingInvoiceSearch">Buscar outro produto / pedido</label>'+
+      '<input id="receivingInvoiceSearch" type="search" autocomplete="off" '+
+      'placeholder="Fornecedor, pedido ou produto..." value="'+E(ctx.query)+'" '+
+      'oninput="App.receivingManualInvoiceSearch(this.value)">'+
+      '<div id="receivingInvoiceResults" class="receiving-invoice-results"></div>'+
+      '<button type="button" class="btn btn-sm" onclick="App.receivingManualInvoicePicker(false)">Fechar busca</button>'+
+      '</div>':"";
+    const html='<div class="modal-backdrop"><div class="modal receiving-form receiving-invoice-modal" '+
+      'role="dialog" aria-modal="true" aria-labelledby="modalTitle">'+
+      '<div class="modal-header"><div><h2 id="modalTitle">Registrar NF-e com produtos</h2>'+
+      '<p>Inclua todos os produtos e linhas desta nota antes de salvar.</p></div>'+
+      '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
+      '<div class="modal-body"><form id="receivingInvoiceForm" '+
+      'onsubmit="event.preventDefault();App.receivingSaveManualInvoice()">'+
+      '<div class="form-grid">'+
+      rxField("Data do recebimento",rxInput("date",ctx.date,'type="date" required '+
+        'oninput="App.receivingManualInvoiceField(&quot;date&quot;,this.value)"'))+
+      rxField("Nº NF-e",rxInput("invoice_number",ctx.invoice_number,'required maxlength="100" '+
+        'placeholder="Ex.: 13502" oninput="App.receivingManualInvoiceField(&quot;invoice_number&quot;,this.value)"'))+
+      '</div><div class="receiving-invoice-items-title"><strong>Produtos desta NF-e</strong>'+
+      '<span>'+ctx.items.length+' linha(s)</span></div>'+rows+
+      '<button type="button" class="btn receiving-invoice-add" '+
+      'onclick="App.receivingManualInvoicePicker(true)">'+icon("plus")+' Adicionar produto / pedido</button>'+
+      picker+
+      '<div class="receiving-invoice-key field"><label>Chave de acesso da NF-e (44 dígitos)</label>'+
+      '<input name="access_key" type="text" required inputmode="numeric" minlength="44" maxlength="44" '+
+      'pattern="[0-9]{44}" autocomplete="off" value="'+E(ctx.access_key)+'" '+
+      'placeholder="Cole os 44 dígitos" '+
+      'oninput="App.receivingManualInvoiceField(&quot;access_key&quot;,this.value)"></div>'+
+      '<p class="receiving-hint">Linhas do mesmo produto e pedido serão somadas em um único recebimento. '+
+      'A mesma NF-e pode conter vários produtos. Nada será salvo antes de confirmar.</p>'+
+      '</form></div><div class="modal-footer"><button type="button" class="btn" onclick="App.closeModal()">Cancelar</button>'+
+      '<button type="button" class="btn btn-primary" id="receivingManualInvoiceSave" '+
+      (ctx.saving?'disabled':'')+' onclick="App.receivingSaveManualInvoice()">'+
+      icon("check")+' Confirmar NF-e com '+ctx.items.length+' linha(s)</button></div></div></div>';
+    document.getElementById("modalRoot").innerHTML=html;
+    if(ctx.pickerOpen){
+      this.receivingManualInvoiceSearch(ctx.query,false);
+    }
+  },
+  receivingManualInvoiceField(field,value){
+    const ctx=this.s.receivingManualInvoice;
+    if(ctx&&["date","invoice_number","access_key"].includes(field))
+      ctx[field]=String(value||"");
+  },
+  receivingManualInvoiceQuantity(index,value){
+    const ctx=this.s.receivingManualInvoice;
+    if(ctx?.items[index])ctx.items[index].quantity=String(value||"");
+  },
+  receivingManualInvoiceRepeat(index){
+    const ctx=this.s.receivingManualInvoice;
+    if(!ctx||ctx.items.length>=150)return this.toast("Limite de 150 linhas por NF-e.",true);
+    const source=ctx.items[index];
+    if(!source)return;
+    ctx.items.splice(index+1,0,{item_id:source.item_id,quantity:""});
+    this.receivingRenderManualInvoice();
+    document.getElementById("receivingInvoiceQty"+(index+1))?.focus();
+  },
+  receivingManualInvoiceRemove(index){
+    const ctx=this.s.receivingManualInvoice;
+    if(!ctx||ctx.items.length<=1)return;
+    ctx.items.splice(index,1);
+    this.receivingRenderManualInvoice();
+  },
+  receivingManualInvoicePicker(open){
+    const ctx=this.s.receivingManualInvoice;
+    if(!ctx)return;
+    ctx.pickerOpen=!!open;
+    ctx.query="";
+    this.receivingRenderManualInvoice();
+    if(open)document.getElementById("receivingInvoiceSearch")?.focus();
+  },
+  receivingManualInvoiceSearch(query,update=true){
+    const ctx=this.s.receivingManualInvoice;
+    if(!ctx||!ctx.pickerOpen)return;
+    ctx.query=String(query||"");
+    const rows=rxPickMatches(this.s.receivingData?.items,ctx.query).slice(0,70);
+    const results=document.getElementById("receivingInvoiceResults");
+    if(!results)return;
+    results.innerHTML=rows.length?rows.map(item=>
+      '<button type="button" class="receiving-invoice-option" onclick="App.receivingManualInvoiceSelect('+item.id+')">'+
+      '<strong>'+E(item.product)+'</strong><small>Pedido '+E(item.order_number)+' · '+E(item.supplier)+
+      ' · Saldo '+rxNum(item.remaining_qty)+' '+E(item.unit)+'</small></button>').join(""):
+      '<p class="receiving-pick-empty">Nenhum produto pendente encontrado.</p>';
+  },
+  receivingManualInvoiceSelect(id){
+    const ctx=this.s.receivingManualInvoice;
+    const item=this.s.receivingData?.items.find(x=>x.id===id&&!x.closed&&Number(x.remaining_qty)>0);
+    if(!ctx||!item||ctx.items.length>=150)return;
+    ctx.items.push({item_id:item.id,quantity:""});
+    ctx.pickerOpen=false;ctx.query="";
+    this.receivingRenderManualInvoice();
+    document.getElementById("receivingInvoiceQty"+(ctx.items.length-1))?.focus();
+  },
+  async receivingSaveManualInvoice(){
+    const ctx=this.s.receivingManualInvoice;
+    const form=document.getElementById("receivingInvoiceForm");
+    if(!ctx||ctx.saving||this.s.modal!=="receiving-invoice"||!form||!form.reportValidity())return;
+    const f=new FormData(form);
+    const payload={date:f.get("date"),invoice_number:f.get("invoice_number"),
+      access_key:f.get("access_key"),items:ctx.items.map((line,index)=>({
+        item_id:line.item_id,quantity:f.get("quantity_"+index)}))};
+    ctx.saving=true;
+    const button=document.getElementById("receivingManualInvoiceSave");
+    if(button)button.disabled=true;
+    try{
+      const result=await this.api("/api/controls/"+ctx.controlId+"/receiving/invoice","POST",payload);
+      this.closeModal();
+      this.s.receivingPick=null;
+      this.s.receivingFocused={controlId:ctx.controlId,itemId:null};
+      await this.load();
+      this.toast("NF-e registrada: "+result.inserted+" produto(s), "+result.lines+
+        " linha(s) conferida(s). Saldos atualizados.");
+    }catch(err){
+      ctx.saving=false;
+      if(button)button.disabled=false;
+      this.toast("NF-e não salva: "+err.message,true);
+    }
+  },
   receivingReceiptForm(itemId,receiptId){
     if(!this.canOpenForm())return;
     const data=this.s.receivingData;
     const item=data?.items.find(x=>x.id===itemId);
     const old=receiptId?data?.receipts.find(x=>x.id===receiptId):null;
     if(!item||(receiptId&&!old))return this.toast("Pedido ou entrega não encontrado.",true);
+    if(!old){
+      this.receivingManualInvoiceForm(itemId);
+      return;
+    }
     if(item.closed)return this.toast("Recebimento concluído. Novos lançamentos estão bloqueados.",true);
     const max=Number(item.remaining_qty)+Number(old?.received_qty||0);
     if(max<=0)return this.toast("Este pedido já foi totalmente recebido.",true);
