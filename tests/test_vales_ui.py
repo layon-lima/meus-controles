@@ -117,7 +117,7 @@ class ValesSpreadsheetUITests(unittest.TestCase):
             version="/static/"+asset+"?v="+("20261026-vales-v5" if asset=="vales.js" else "20261026-vales-v6")
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn("central-de-controles-shell-v20261109-nfe-manual-multi-v1",SW)
+        self.assertIn("central-de-controles-shell-v20261109-nfe-manual-multi-v2",SW)
 
 
 if __name__=="__main__":
