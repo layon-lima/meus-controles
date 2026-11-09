@@ -267,15 +267,10 @@ def assign_pending(con,cid,pid,payload):
     amount,is_manual=quantity_in_order_unit(
         row["quantity"],row["unit"],item["unit"],payload.get("manual_quantity"))
     receiving.ensure_capacity(con,iid,receiving.display(amount))
-    existing=list(con.execute("""SELECT r.access_key,r.notes FROM purchase_receipts r
-      JOIN purchase_items i ON i.id=r.item_id
-      WHERE i.control_id=? AND i.order_number=? AND r.invoice_number=?""",
-      (cid,item["order_number"],row["invoice_number"])))
-    if existing and not (row["access_key"] and all(
-      r["access_key"]==row["access_key"] and
-      (r["notes"].startswith("Lançamento por XML") or r["notes"].startswith("Vinculado de Sem pedido"))
-      for r in existing)):
-        raise ValueError("NF-e já registrada neste pedido; confira antes de vincular.")
+    # A nota pode estar parcialmente registrada para outros produtos.
+    # Bloquear apenas este mesmo pedido/produto da mesma NF-e.
+    receiving.ensure_invoice_product_unique(
+        con,cid,item["order_number"],item["product"],row["invoice_number"])
     note="Vinculado de Sem pedido (XML)"
     if is_manual:
         note+=". Conversão manual: "+row["quantity"]+" "+row["unit"]+(
