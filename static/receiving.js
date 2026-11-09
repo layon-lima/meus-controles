@@ -892,15 +892,40 @@ Object.assign(App,{
       this.closeModal();await this.load();this.toast(ctx.item?"Produto atualizado.":"Produto cadastrado.");
     }catch(err){this.toast(err.message,true)}
   },
+  receivingManualInvoiceSaveDraft(){
+    const ctx=this.s.receivingManualInvoice;
+    if(!ctx?.controlId)return;
+    try{
+      sessionStorage.setItem("controles:nfe-manual:rascunho:"+ctx.controlId,JSON.stringify({
+        controlId:ctx.controlId,date:ctx.date,
+        invoice_number:ctx.invoice_number,access_key:ctx.access_key,
+        items:ctx.items.map(x=>({item_id:x.item_id,quantity:x.quantity}))
+      }));
+    }catch(_){/* O formulário continua funcionando se o armazenamento estiver bloqueado. */}
+  },
   receivingManualInvoiceForm(itemId){
     if(!this.canOpenForm())return;
     const controlId=this.s.detail?.control?.id;
     const item=this.s.receivingData?.items.find(p=>p.id===itemId&&!p.closed&&Number(p.remaining_qty)>0);
     if(!controlId||!item)return this.toast("Selecione um produto pendente.",true);
+    const storageKey="controles:nfe-manual:rascunho:"+controlId;
+    let saved=null;
+    try{
+      saved=JSON.parse(sessionStorage.getItem(storageKey)||"null");
+      if(saved?.controlId!==controlId||!Array.isArray(saved?.items)||
+         !saved.items.length||saved.items.length>150)saved=null;
+    }catch(_){saved=null;}
+    const validIds=new Set((this.s.receivingData?.items||[]).map(p=>p.id));
+    const draftItems=saved?.items?.filter(x=>validIds.has(x.item_id)).map(x=>({
+      item_id:x.item_id,quantity:String(x.quantity||"")
+    }))||[];
     this.s.receivingManualInvoice={
-      controlId,date:rxToday(),invoice_number:"",access_key:"",
-      items:[{item_id:item.id,quantity:""}],pickerOpen:false,query:"",saving:false
+      controlId,date:saved?.date||rxToday(),
+      invoice_number:saved?.invoice_number||"",access_key:saved?.access_key||"",
+      items:draftItems.length?draftItems:[{item_id:item.id,quantity:""}],
+      pickerOpen:false,query:"",saving:false
     };
+    this.receivingManualInvoiceSaveDraft();
     this.s.modal="receiving-invoice";
     this.receivingRenderManualInvoice();
   },
@@ -970,10 +995,12 @@ Object.assign(App,{
     const ctx=this.s.receivingManualInvoice;
     if(ctx&&["date","invoice_number","access_key"].includes(field))
       ctx[field]=String(value||"");
+    this.receivingManualInvoiceSaveDraft();
   },
   receivingManualInvoiceQuantity(index,value){
     const ctx=this.s.receivingManualInvoice;
     if(ctx?.items[index])ctx.items[index].quantity=String(value||"");
+    this.receivingManualInvoiceSaveDraft();
   },
   receivingManualInvoiceRepeat(index){
     const ctx=this.s.receivingManualInvoice;
@@ -981,6 +1008,7 @@ Object.assign(App,{
     const source=ctx.items[index];
     if(!source)return;
     ctx.items.splice(index+1,0,{item_id:source.item_id,quantity:""});
+    this.receivingManualInvoiceSaveDraft();
     this.receivingRenderManualInvoice();
     document.getElementById("receivingInvoiceQty"+(index+1))?.focus();
   },
@@ -988,6 +1016,7 @@ Object.assign(App,{
     const ctx=this.s.receivingManualInvoice;
     if(!ctx||ctx.items.length<=1)return;
     ctx.items.splice(index,1);
+    this.receivingManualInvoiceSaveDraft();
     this.receivingRenderManualInvoice();
   },
   receivingManualInvoicePicker(open){
@@ -1016,6 +1045,7 @@ Object.assign(App,{
     const item=this.s.receivingData?.items.find(x=>x.id===id&&!x.closed&&Number(x.remaining_qty)>0);
     if(!ctx||!item||ctx.items.length>=150)return;
     ctx.items.push({item_id:item.id,quantity:""});
+    this.receivingManualInvoiceSaveDraft();
     ctx.pickerOpen=false;ctx.query="";
     this.receivingRenderManualInvoice();
     document.getElementById("receivingInvoiceQty"+(ctx.items.length-1))?.focus();
@@ -1037,6 +1067,7 @@ Object.assign(App,{
     if(button)button.disabled=true;
     try{
       const result=await this.api("/api/controls/"+ctx.controlId+"/receiving/invoice","POST",payload);
+      try{sessionStorage.removeItem("controles:nfe-manual:rascunho:"+ctx.controlId);}catch(_){}
       this.closeModal();
       this.s.receivingPick=null;
       this.s.receivingFocused={controlId:ctx.controlId,itemId:null};
