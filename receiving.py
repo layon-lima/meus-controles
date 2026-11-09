@@ -248,10 +248,31 @@ def ensure_invoice_unique_in_order(con,control_id,order_number,invoice_number,ex
             raise ValueError("A nota fiscal "+invoice_number+" já foi lançada no pedido "+
                              order_number+". Não é permitido repetir uma nota no mesmo pedido.")
 
+def normalized_product(value):
+    raw=unicodedata.normalize("NFKD",str(value or "").casefold())
+    return " ".join("".join(ch for ch in raw if not unicodedata.combining(ch)).split())
+
+
+def ensure_invoice_product_unique(con,cid,order_number,product,invoice_number,exclude_id=None):
+    """Permite NF-e para varios produtos; bloqueia apenas pedido + produto + NF."""
+    wanted=(normalized_order(order_number),normalized_product(product),
+            normalized_invoice(invoice_number))
+    for existing in con.execute("""SELECT r.id,r.invoice_number,i.order_number,i.product
+       FROM purchase_receipts r JOIN purchase_items i ON i.id=r.item_id
+       WHERE i.control_id=?""",(cid,)):
+        if existing["id"]==exclude_id:continue
+        found=(normalized_order(existing["order_number"]),
+               normalized_product(existing["product"]),
+               normalized_invoice(existing["invoice_number"]))
+        if found==wanted:
+            raise ValueError("A nota fiscal "+invoice_number+" já foi lançada no pedido "+
+                order_number+" para o produto "+product+". Não repita o mesmo produto nesta NF-e.")
+
+
 def ensure_not_duplicate(con,item_id,values,exclude_id=None):
     item=get_item(con,item_id)
-    ensure_invoice_unique_in_order(con,item["control_id"],item["order_number"],
-                                   values["invoice_number"],exclude_id)
+    ensure_invoice_product_unique(con,item["control_id"],item["order_number"],
+        item["product"],values["invoice_number"],exclude_id)
 
 def item_identity(row):
     """Identidade do produto dentro do pedido (sem confundir outros produtos)."""
@@ -398,11 +419,12 @@ def handle(handler,con,method,path):
                     raise ValueError("A quantidade pedida não pode ser menor que a quantidade já recebida.")
                 # Alterar o pedido de um produto já recebido não pode inserir
                 # suas notas em um pedido onde os mesmos números já existem.
-                if normalized_order(row["order_number"])!=normalized_order(item["order_number"]):
+                if (normalized_order(row["order_number"])!=normalized_order(item["order_number"]) or
+                    normalized_product(row["product"])!=normalized_product(item["product"])):
                     for receipt in con.execute("""SELECT id,invoice_number FROM purchase_receipts
                       WHERE item_id=?""",(iid,)):
-                        ensure_invoice_unique_in_order(
-                            con,item["control_id"],row["order_number"],
+                        ensure_invoice_product_unique(
+                            con,item["control_id"],row["order_number"],row["product"],
                             receipt["invoice_number"],receipt["id"])
                 con.execute("""UPDATE purchase_items SET order_number=?,supplier=?,product=?,unit=?,ordered_qty=?,
                   updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*row.values(),iid))
