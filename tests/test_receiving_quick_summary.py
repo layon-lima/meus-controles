@@ -1,4 +1,4 @@
-"""Resumo rápido de pedidos: seleção inclui recebidos, sem totais combinados."""
+"""Resumo rápido: apenas produtos com recebimento, em cards compactos."""
 from pathlib import Path
 import unittest
 
@@ -11,7 +11,9 @@ class QuickSummaryTests(unittest.TestCase):
     def test_summary_control_attached_to_existing_selection(self):
         self.assertIn('id="receivingQuickSummaryBtn"',JS)
         self.assertIn('App.receivingQuickSummary()',JS)
-        self.assertIn('summary.hidden=!selected.size;',JS)
+        self.assertIn('summary.hidden=![...selected].some(id=>items.some(p=>p.id===id&&Number(p.received_qty)>0))',JS)
+        self.assertIn('if(!ids.has(item.id)||!(Number(item.received_qty)>0))return;',JS)
+        self.assertIn('Nenhum produto selecionado possui recebimentos.',JS)
         self.assertIn('const available=new Set(r.items.map(p=>p.id));',JS)
         self.assertIn('if(!item)return;',JS)
         self.assertIn('aria-label="Selecionar todos os produtos exibidos"',JS)
@@ -43,6 +45,13 @@ class QuickSummaryTests(unittest.TestCase):
         self.assertNotIn('reduce((sum,p)=>sum+Number(p.received_qty)',JS)
         self.assertIn('const unit=rxFullUnit(p.unit)',JS)
 
+    def test_only_received_products_are_grouped_and_counted(self):
+        self.assertIn('if(!ids.has(item.id)||!(Number(item.received_qty)>0))return;',JS)
+        self.assertIn('if(!groups.has(key))groups.set(key,{order,supplier,items:[]})',JS)
+        self.assertIn('const products=groups.reduce((sum,g)=>sum+g.items.length,0)',JS)
+        self.assertIn('Number(p.remaining_qty)<=0||p.closed',JS)
+        self.assertNotIn('summary.hidden=!selected.size;',JS)
+
     def test_safe_screenshot_layout(self):
         for term in ['.receiving-quick-sheet',
                      '.receiving-quick-order',
@@ -51,12 +60,16 @@ class QuickSummaryTests(unittest.TestCase):
                      '.receiving-quick-orders',
                      '.receiving-quick-modal']:
             self.assertIn(term,CSS)
-        self.assertIn('grid-template-columns:minmax(0,1fr);gap:11px',CSS)
-        self.assertIn('grid-template-columns:minmax(150px,.5fr) minmax(0,1.8fr)',CSS)
-        self.assertIn('border-left:4px solid #15866f',CSS)
-        self.assertIn('font-family:inherit',CSS)
+        self.assertIn('grid-template-columns:minmax(0,1fr);gap:9px',CSS)
+        self.assertIn('grid-template-columns:minmax(170px,.9fr) minmax(0,2fr)',CSS)
+        self.assertIn('border-left:3px solid #397fe0',CSS)
+        self.assertIn('min-height:48px;padding:7px 9px',CSS)
+        self.assertIn('font-size:17px;line-height:1.05',CSS)
+        self.assertIn('receiving-quick-metric-value',JS)
+        self.assertIn('receiving-quick-product-status',JS)
+        self.assertIn('font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif',CSS)
         self.assertIn('MEUS CONTROLES / RECEBIMENTOS',JS)
-        self.assertIn('Resumo de pedidos',JS)
+        self.assertIn('Resumo de recebimentos',JS)
         self.assertNotIn('Fazenda Novo Horizonte · Resumo individual por pedido',JS)
         self.assertIn('this.s.modal="receiving-quick-summary"',JS)
         self.assertIn('App.closeModal()',JS)
