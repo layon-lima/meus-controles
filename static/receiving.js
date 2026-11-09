@@ -2,6 +2,15 @@
 /* Pedidos, produtos e recebimentos parciais por nota fiscal. */
 const rxToday=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const rxNum=x=>Number(x||0).toLocaleString("pt-BR",{maximumFractionDigits:3});
+// Quantidade digitada em pt-BR: "1.250" é mil duzentos e cinquenta,
+// e "1.250,5" é mil duzentos e cinquenta vírgula cinco.
+const rxReceiptQuantityToApi=value=>{
+  const raw=String(value??"").trim().replace(/\s/g,"");
+  if(!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,3})?$/.test(raw))return null;
+  const normalized=raw.replace(/\./g,"").replace(",",".");
+  const amount=Number(normalized);
+  return Number.isFinite(amount)&&amount>0&&amount<=1e12?normalized:null;
+};
 const rxDate=x=>x?x.slice(8,10)+"/"+x.slice(5,7)+"/"+x.slice(0,4):"—";
 const rxInput=(name,value,attr="")=>'<input name="'+name+'" value="'+E(value??"")+'" '+attr+'>';
 const rxField=(title,widget)=>'<div class="field"><label>'+E(title)+'</label>'+widget+'</div>';
@@ -911,7 +920,7 @@ Object.assign(App,{
         ' · Saldo: '+rxNum(item.remaining_qty)+' '+E(item.unit)+'</small>'+
         '<div class="field"><label for="receivingInvoiceQty'+index+'">Quantidade recebida ('+E(item.unit)+')</label>'+
         '<input id="receivingInvoiceQty'+index+'" name="quantity_'+index+'" inputmode="decimal" required '+
-        'placeholder="Ex.: 250" value="'+E(line.quantity)+'" '+
+        'placeholder="Ex.: 250 ou 1.250,5" value="'+E(line.quantity)+'" '+
         'oninput="App.receivingManualInvoiceQuantity('+index+',this.value)"></div>'+
         '<button type="button" class="receiving-invoice-repeat" onclick="App.receivingManualInvoiceRepeat('+index+')">'+
         icon("plus")+' Outra linha deste produto na NF-e</button></div>';
@@ -1018,7 +1027,11 @@ Object.assign(App,{
     const f=new FormData(form);
     const payload={date:f.get("date"),invoice_number:f.get("invoice_number"),
       access_key:f.get("access_key"),items:ctx.items.map((line,index)=>({
-        item_id:line.item_id,quantity:f.get("quantity_"+index)}))};
+        item_id:line.item_id,quantity:rxReceiptQuantityToApi(f.get("quantity_"+index))}))};
+    if(payload.items.some(line=>line.quantity===null)){
+      this.toast("Confira as quantidades. Use 1250 ou 1.250 para mil e vírgula para decimais.",true);
+      return;
+    }
     ctx.saving=true;
     const button=document.getElementById("receivingManualInvoiceSave");
     if(button)button.disabled=true;
