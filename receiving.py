@@ -364,12 +364,75 @@ def delete_items(con,cid,payload):
     return {"deleted":len(ids)}
 
 
+def save_manual_invoice(con,cid,payload):
+    """Grava NF-e com vários produtos em uma transação. Linhas repetidas do
+    mesmo produto/pedido são somadas antes da validação e inserção.
+    """
+    ensure_control(con,cid)
+    if not isinstance(payload,dict) or not isinstance(payload.get("items"),list) or not 1<=len(payload["items"])<=150:
+        raise ValueError("Selecione de 1 a 150 produtos da nota fiscal.")
+    common=validate_receipt({
+        "date":payload.get("date"),"invoice_number":payload.get("invoice_number"),
+        "quantity":"1","access_key":payload.get("access_key"),"notes":payload.get("notes","")
+    })
+    if not common["access_key"]:
+        raise ValueError("Informe a chave de acesso de 44 dígitos antes de confirmar a NF-e.")
+    if not con.in_transaction:
+        con.execute("BEGIN IMMEDIATE")
+    for existing in con.execute("""SELECT DISTINCT r.invoice_number
+        FROM purchase_receipts r JOIN purchase_items i ON i.id=r.item_id
+        WHERE i.control_id=? AND r.access_key=?""",(cid,common["access_key"])):
+        if normalized_invoice(existing["invoice_number"])!=normalized_invoice(common["invoice_number"]):
+            raise ValueError("A chave de acesso já pertence a outro número de NF-e neste controle.")
+    grouped={}
+    for index,line in enumerate(payload["items"]):
+        if not isinstance(line,dict) or type(line.get("item_id")) is not int:
+            raise ValueError("Selecione o produto/pedido da linha "+str(index+1)+".")
+        item=get_item(con,line["item_id"])
+        if item["control_id"]!=cid:
+            raise ValueError("Produto de outro controle na linha "+str(index+1)+".")
+        if item["closed"]:
+            raise ValueError("Pedido concluído: "+item["order_number"]+" · "+item["product"])
+        amount=qty(line.get("quantity"),"a quantidade recebida")
+        key=(normalized_order(item["order_number"]),normalized_product(item["product"]))
+        if key not in grouped:
+            grouped[key]={"item":item,"amount":Decimal("0"),"lines":0}
+        group=grouped[key]
+        if group["item"]["unit"]!=item["unit"]:
+            raise ValueError("Unidades diferentes para o mesmo produto da NF-e: "+item["product"])
+        group["amount"]+=amount
+        group["lines"]+=1
+    # Checar capacidade e duplicidade ANTES de inserir.
+    for group in grouped.values():
+        item=group["item"]
+        ensure_capacity(con,item["id"],display(group["amount"]))
+        ensure_invoice_product_unique(con,cid,item["order_number"],item["product"],
+                                      common["invoice_number"])
+    inserted=[]
+    for group in grouped.values():
+        item=group["item"]
+        notes=common["notes"]
+        if group["lines"]>1:
+            notes=(notes+" | " if notes else "")+str(group["lines"])+\
+                  " linhas da NF-e somadas no produto"
+        cur=con.execute("""INSERT INTO purchase_receipts
+            (item_id,received_date,invoice_number,received_qty,access_key,notes)
+            VALUES(?,?,?,?,?,?)""",(item["id"],common["received_date"],
+            common["invoice_number"],display(group["amount"]),common["access_key"],notes))
+        inserted.append(cur.lastrowid)
+    con.commit()
+    return {"inserted":len(inserted),"lines":len(payload["items"]),
+            "aggregated":len(payload["items"])-len(inserted),"ids":inserted}
+
+
 def handle(handler,con,method,path):
-    root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items|bulk-delete))?",path)
+    root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items|bulk-delete|invoice))?",path)
     itemroute=re.fullmatch(r"/api/receiving-items/(\d+)(?:/(receipts|complete))?",path)
     receiptroute=re.fullmatch(r"/api/receiving-receipts/(\d+)",path)
     if root:
         cid=int(root[1]);ensure_control(con,cid)
+        if method=="POST" and root[2]=="invoice":
+            return handler.send(save_manual_invoice(con,cid,handler.input()),201)
         if method=="GET" and root[2] is None:
             return handler.send(summary(con,cid))
         if method=="POST" and root[2]=="bulk-delete":
