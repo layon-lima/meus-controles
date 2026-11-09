@@ -125,16 +125,19 @@ class ReceivingTests(unittest.TestCase):
             receiving.ensure_not_duplicate(con,item,repeated,exclude_id=rid)
             self.assertEqual(receiving.summary(con,self.cid)["items"][0]["received_qty"],"400.000")
 
-    def test_invoice_cannot_repeat_across_products_of_same_order(self):
+    def test_same_invoice_is_allowed_for_other_product_of_same_order(self):
         first=self.item("Adubo")
         second=self.item("Semente",ordered="500")
         self.deliver(first,"2284","40")
         with app.db() as con:
             new_receipt=receiving.validate_receipt({
                 "date":"2026-10-11","invoice_number":"002284","quantity":"75","notes":""})
-            with self.assertRaisesRegex(ValueError,"nota fiscal .*já foi lançada no pedido PED-123"):
-                receiving.ensure_not_duplicate(con,second,new_receipt)
-            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+            receiving.ensure_not_duplicate(con,second,new_receipt)
+        self.deliver(second,"002284","75")
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],2)
+            with self.assertRaisesRegex(ValueError,"já foi lançada"):
+                receiving.ensure_not_duplicate(con,first,new_receipt)
 
     def test_same_invoice_can_be_used_in_different_orders_or_controls(self):
         first=self.item("Adubo")
@@ -164,7 +167,10 @@ class ReceivingTests(unittest.TestCase):
         with app.db() as con:
             first=receiving.handle(Handler({"date":"2026-10-10","invoice_number":"2284",
                 "quantity":"100"}),con,"POST","/api/receiving-items/"+str(item1)+"/receipts")
+            # Outro produto do mesmo pedido pode usar a mesma NF.
             duplicate={"date":"2026-10-11","invoice_number":"002284","quantity":"50"}
+            allowed=receiving.handle(Handler(duplicate),con,"POST",
+                                 "/api/receiving-items/"+str(item2)+"/receipts")
             with self.assertRaisesRegex(ValueError,"já foi lançada no pedido PED-123"):
                 receiving.handle(Handler(duplicate),con,"POST",
                                  "/api/receiving-items/"+str(item2)+"/receipts")
@@ -178,16 +184,82 @@ class ReceivingTests(unittest.TestCase):
                     "quantity":"20"}),con,"PUT","/api/receiving-receipts/"+str(second["id"]))
         with app.db() as con:
             self.assertEqual(receiving.get_receipt(con,second["id"])["invoice_number"],"777")
-            # Editar um item para entrar no pedido de uma NF idêntica também deve ser bloqueado.
-            with self.assertRaisesRegex(ValueError,"já foi lançada no pedido PED-123"):
-                receiving.handle(Handler({"order_number":"PED-123","supplier":"Fornecedor A",
-                    "product":"Calcário","unit":"kg","ordered_qty":"700"}),con,
-                    "PUT","/api/receiving-items/"+str(item3))
+            # Mover outro produto para pedido com essa NF é permitido.
+            receiving.handle(Handler({"order_number":"PED-123","supplier":"Fornecedor A",
+                "product":"Calcário","unit":"kg","ordered_qty":"700"}),con,
+                "PUT","/api/receiving-items/"+str(item3))
         # Manter íntegros os saldos e as notas anteriores.
         with app.db() as con:
-            self.assertEqual(receiving.get_item(con,item3)["order_number"],"PED-456")
-            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],3)
+            self.assertEqual(receiving.get_item(con,item3)["order_number"],"PED-123")
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],4)
             self.assertEqual(receiving.get_receipt(con,second["id"])["invoice_number"],"777")
+
+    def test_manual_invoice_groups_same_product_lines_and_keeps_other_products(self):
+        first=self.item("DROPON",ordered="400",unit="L")
+        second=self.item("ADJUVANTE",ordered="200",unit="L")
+        key="3"*44
+        payload={"date":"2026-11-09","invoice_number":"13502","access_key":key,
+                 "items":[{"item_id":first,"quantity":"100"},
+                          {"item_id":first,"quantity":"150"},
+                          {"item_id":second,"quantity":"30"}]}
+        with app.db() as con:
+            result=receiving.save_manual_invoice(con,self.cid,payload)
+            self.assertEqual((result["inserted"],result["lines"],result["aggregated"]),(2,3,1))
+            receipts=receiving.summary(con,self.cid)["receipts"]
+            self.assertEqual(len(receipts),2)
+            self.assertEqual({r["product"]:r["received_qty"] for r in receipts},
+                             {"DROPON":"250.000","ADJUVANTE":"30.000"})
+            self.assertEqual({r["access_key"] for r in receipts},{key})
+        # O cadastro manual posterior de OUTRO produto na mesma NF é permitido.
+        third=self.item("HERBICIDA",ordered="50",unit="L")
+        with app.db() as con:
+            receiving.save_manual_invoice(con,self.cid,{
+                **payload,"items":[{"item_id":third,"quantity":"10"}]})
+            self.assertEqual(len(receiving.summary(con,self.cid)["receipts"]),3)
+
+    def test_manual_invoice_rejects_same_invoice_order_product_across_item_ids(self):
+        first=self.item("DROPON",ordered="100")
+        other=self.item("DROPON",ordered="200")
+        key="4"*44
+        with app.db() as con:
+            receiving.save_manual_invoice(con,self.cid,{"date":"2026-11-09",
+               "invoice_number":"222","access_key":key,
+               "items":[{"item_id":first,"quantity":"15"}]})
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"já foi lançada"):
+                receiving.save_manual_invoice(con,self.cid,{"date":"2026-11-09",
+                  "invoice_number":"222","access_key":key,
+                  "items":[{"item_id":other,"quantity":"10"}]})
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],1)
+
+    def test_manual_invoice_is_atomic_when_sum_exceeds_balance(self):
+        first=self.item("DROPON",ordered="100")
+        second=self.item("SEMENTE",ordered="500")
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"Entrega maior que o saldo"):
+                receiving.save_manual_invoice(con,self.cid,{
+                  "date":"2026-11-09","invoice_number":"111",
+                  "access_key":"5"*44,
+                  "items":[{"item_id":second,"quantity":"100"},
+                           {"item_id":first,"quantity":"80"},
+                           {"item_id":first,"quantity":"30"}]})
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],0)
+
+    def test_manual_invoice_requires_key_and_rejects_other_control(self):
+        first=self.item("DROPON",ordered="100")
+        foreign=self.item("OUTRO",cid=self.other)
+        payload={"date":"2026-11-09","invoice_number":"13502","access_key":"",
+                 "items":[{"item_id":first,"quantity":"20"}]}
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"chave de acesso"):
+                receiving.save_manual_invoice(con,self.cid,payload)
+        with app.db() as con:
+            with self.assertRaisesRegex(ValueError,"outro controle"):
+                receiving.save_manual_invoice(con,self.cid,{
+                    **payload,"access_key":"6"*44,
+                    "items":[{"item_id":foreign,"quantity":"20"}]})
 
     def test_cannot_reduce_order_below_received(self):
         item=self.item()
