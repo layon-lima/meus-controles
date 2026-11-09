@@ -127,7 +127,9 @@ function rxFullUnit(unit){
 function rxQuickSummaryOrders(items,selectedIds){
   const ids=new Set(selectedIds||[]),groups=new Map();
   (items||[]).forEach(item=>{
-    if(!ids.has(item.id))return;
+    // O resumo inclui somente produtos com entrega efetivamente registrada.
+    // Pedidos pendentes (0 recebido) não aparecem, mesmo quando selecionados.
+    if(!ids.has(item.id)||!(Number(item.received_qty)>0))return;
     const order=String(item.order_number||"Pedido sem número").trim();
     const supplier=String(item.supplier||"Fornecedor não informado").trim();
     const key=rxSupplierKey(supplier)+"|"+order;
@@ -641,7 +643,7 @@ Object.assign(App,{
       this.s.receivingSelection.ids:[];
     const groups=rxQuickSummaryOrders(this.s.receivingData?.items,selected);
     if(!groups.length){
-      this.toast("Marque ao menos um pedido para gerar o resumo.",true);
+      this.toast("Nenhum produto selecionado possui recebimentos. Selecione produtos com entregas registradas.",true);
       return;
     }
     const products=groups.reduce((sum,g)=>sum+g.items.length,0);
@@ -656,11 +658,12 @@ Object.assign(App,{
         const unit=rxFullUnit(p.unit);
         const metric=(label,qty,kind)=>
           '<div class="receiving-quick-metric receiving-quick-'+kind+'">'+
-          '<span>'+label+'</span><strong>'+rxNum(qty)+'</strong>'+
-          '<small>'+E(unit)+'</small></div>';
+          '<span>'+label+'</span><div class="receiving-quick-metric-value">'+
+          '<strong>'+rxNum(qty)+'</strong><small>'+E(unit)+'</small></div></div>';
         return '<div class="receiving-quick-product">'+
-          '<div class="receiving-quick-product-name">'+E(p.product)+
-          (p.closed?'<span>Concluído</span>':'')+'</div>'+
+          '<div class="receiving-quick-product-name"><strong>'+E(p.product)+'</strong>'+
+          '<span class="receiving-quick-product-status '+(Number(p.remaining_qty)<=0||p.closed?'is-complete':'is-partial')+'">'+
+          (Number(p.remaining_qty)<=0||p.closed?'Concluído':'Parcial')+'</span></div>'+
           '<div class="receiving-quick-metrics">'+
           metric('Total pedido',p.ordered_qty,'total')+
           metric('Recebido',p.received_qty,'received')+
@@ -738,7 +741,10 @@ Object.assign(App,{
       count.textContent=selected.size+" selecionado"+(selected.size===1?"":"s");
     }
     const summary=document.getElementById("receivingQuickSummaryBtn");
-    if(summary)summary.hidden=!selected.size;
+    if(summary){
+      const items=this.s.receivingData?.items||[];
+      summary.hidden=![...selected].some(id=>items.some(p=>p.id===id&&Number(p.received_qty)>0));
+    }
     // Excluir continua permitido APENAS para produtos sem entregas. A
     // selecao para resumo inclui tambem pedidos parciais e concluidos.
     const canDelete=selected.size>0&&[...selected].every(id=>{
