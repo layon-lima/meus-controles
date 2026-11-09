@@ -194,6 +194,28 @@ class ReceivingTests(unittest.TestCase):
             self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],4)
             self.assertEqual(receiving.get_receipt(con,second["id"])["invoice_number"],"777")
 
+    def test_http_manual_invoice_batch_route_and_sum(self):
+        class Handler:
+            def __init__(self,payload):self.payload=payload
+            def input(self):return self.payload
+            def send(self,result,status=200):return result
+        one=self.item("DROPON",ordered="300",unit="L")
+        two=self.item("FUNGICIDA",ordered="100",unit="L")
+        payload={"date":"2026-11-09","invoice_number":"13502",
+                 "access_key":"7"*44,
+                 "items":[{"item_id":one,"quantity":"100"},
+                          {"item_id":one,"quantity":"150"},
+                          {"item_id":two,"quantity":"25"}]}
+        with app.db() as con:
+            result=receiving.handle(Handler(payload),con,"POST",
+                "/api/controls/"+str(self.cid)+"/receiving/invoice")
+            self.assertEqual((result["inserted"],result["aggregated"]),(2,1))
+        with app.db() as con:
+            self.assertEqual(receiving.summary(con,self.cid)["totals"]["receipts"],2)
+            self.assertEqual({x["product"]:x["received_qty"] for x in
+                receiving.summary(con,self.cid)["receipts"]},
+                {"DROPON":"250.000","FUNGICIDA":"25.000"})
+
     def test_manual_invoice_groups_same_product_lines_and_keeps_other_products(self):
         first=self.item("DROPON",ordered="400",unit="L")
         second=self.item("ADJUVANTE",ordered="200",unit="L")
