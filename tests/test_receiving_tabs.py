@@ -175,7 +175,7 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('.receiving-supplier-body[hidden]{display:none!important}',theme)
 
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261109-nfe-manual-multi-v1"),("receiving.css","20261105-resumo-pedido-v19")):
+        for asset,release in (("receiving.js","20261109-nfe-manual-multi-v1"),("receiving.css","20261109-nfe-manual-multi-v1")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
