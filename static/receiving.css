@@ -468,3 +468,47 @@ body.receiving-xml-drag:after{content:"SOLTE O XML DA NF-e PARA CONFERIR";positi
   .receiving-quick-sheet{margin:0!important;box-shadow:none!important;border:0!important}
   .receiving-quick-metric,.receiving-quick-order-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+
+/* Lançamento manual de NF-e: múltiplos produtos, uma confirmação final. */
+.receiving-invoice-modal{width:min(94vw,760px);max-height:min(94vh,960px);display:flex;flex-direction:column}
+.receiving-invoice-modal .modal-body{overflow-y:auto;min-height:0;flex:1}
+.receiving-invoice-modal .modal-footer{flex-shrink:0;background:#fff}
+.receiving-invoice-items-title{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:19px 0 10px;padding-bottom:8px;border-bottom:1px solid #e4eaf3}
+.receiving-invoice-items-title strong{font-size:13px;color:#2c4260}
+.receiving-invoice-items-title span{font-size:11px;color:#7c8fa8;background:#f0f5fa;
+  padding:4px 9px;border-radius:99px}
+.receiving-invoice-product{display:flex;flex-direction:column;gap:9px;padding:14px 15px;margin-bottom:11px;
+  background:#fff;border:1px solid #dde6f1;border-radius:13px;
+  box-shadow:0 3px 12px rgba(39,69,109,.035)}
+.receiving-invoice-product-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.receiving-invoice-product-top strong{font-size:13px;color:#24436b;overflow-wrap:anywhere}
+.receiving-invoice-product-top button{flex-shrink:0}
+.receiving-invoice-product>small{font-size:11px;color:#70849d;line-height:1.4}
+.receiving-invoice-product .field{max-width:100%}
+.receiving-invoice-repeat{align-self:flex-start;border:0;padding:2px 0;background:transparent;
+  color:#3277dc;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}
+.receiving-invoice-repeat:hover{text-decoration:underline}
+.receiving-invoice-add{margin:3px 0 13px;min-height:39px;border-color:#bed5f5;
+  background:#eff5fe;color:#2a69c0}
+.receiving-invoice-picker{display:flex;flex-direction:column;gap:9px;padding:13px;
+  border:1px solid #cbdcf5;background:#f5f9ff;border-radius:12px;margin-bottom:15px}
+.receiving-invoice-picker label{font-size:12px;font-weight:750;color:#3c5779}
+.receiving-invoice-picker>input{width:100%;min-height:40px;border:1px solid #c8d8ef;
+  border-radius:9px;background:#fff;padding:9px 11px}
+.receiving-invoice-results{display:flex;flex-direction:column;gap:5px;max-height:225px;overflow-y:auto}
+.receiving-invoice-option{width:100%;text-align:left;padding:9px 12px;border:1px solid #e2eafa;
+  background:#fff;border-radius:9px;display:flex;flex-direction:column;gap:4px}
+.receiving-invoice-option:hover{background:#ebf4ff;border-color:#bbd7fc}
+.receiving-invoice-option strong{font-size:12px;color:#2f4e72}
+.receiving-invoice-option small{font-size:11px;color:#7c8da1}
+.receiving-invoice-picker>.btn{align-self:flex-start}
+.receiving-invoice-key{border-top:1px solid #e5ebf3;margin-top:9px;padding-top:15px}
+.receiving-invoice-key input{font-variant-numeric:tabular-nums}
+.receiving-invoice-modal .receiving-hint{line-height:1.5;margin-top:13px}
+@media(max-width:620px){
+ .receiving-invoice-modal{width:100%;max-height:96vh}
+ .receiving-invoice-product{padding:10px}
+ .receiving-invoice-product-top{flex-wrap:wrap}
+}
