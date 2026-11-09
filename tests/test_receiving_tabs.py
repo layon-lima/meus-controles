@@ -175,14 +175,14 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('.receiving-supplier-body[hidden]{display:none!important}',theme)
 
     def test_pwa_precaches_fresh_versions(self):
-        for asset,release in (("receiving.js","20261109-nfe-manual-multi-v2"),("receiving.css","20261109-nfe-manual-multi-v2")):
+        for asset,release in (("receiving.js","20261109-nfe-manual-rascunho-v3"),("receiving.css","20261109-nfe-manual-rascunho-v3")):
             version="/static/"+asset+"?v="+release
             self.assertIn(version,HTML)
             self.assertIn(version,SW)
-        self.assertIn('central-de-controles-shell-v20261109-nfe-manual-multi-v2',SW)
+        self.assertIn('central-de-controles-shell-v20261109-nfe-manual-rascunho-v3',SW)
         self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',HTML)
         self.assertIn('/static/receiving_xml.js?v=20261104-xml-emitente-v21',SW)
-        self.assertIn('/static/livro_caixa_theme.css?v=20261109-nfe-manual-multi-v2',SW)
+        self.assertIn('/static/livro_caixa_theme.css?v=20261109-nfe-manual-rascunho-v3',SW)
         self.assertIn('surface.ondrop=event=>',JS)
         self.assertIn('event.preventDefault();',JS)
 
