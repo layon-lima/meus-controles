@@ -174,6 +174,15 @@ class ReceivingSubtabsTests(unittest.TestCase):
         self.assertIn('.receiving-supplier-card{',theme)
         self.assertIn('.receiving-supplier-body[hidden]{display:none!important}',theme)
 
+    def test_manual_invoice_http_dispatch_and_draft_recovery(self):
+        app_source=(ROOT/"app.py").read_text(encoding="utf-8")
+        self.assertIn("items|bulk-delete|invoice",app_source)
+        self.assertIn("receiving.handle(self,con,method,url)",app_source)
+        self.assertIn("receivingManualInvoiceSaveDraft(){",JS)
+        self.assertIn('sessionStorage.setItem("controles:nfe-manual:rascunho:"',JS)
+        self.assertIn('sessionStorage.getItem(storageKey)',JS)
+        self.assertIn('sessionStorage.removeItem("controles:nfe-manual:rascunho:"',JS)
+
     def test_pwa_precaches_fresh_versions(self):
         for asset,release in (("receiving.js","20261109-nfe-manual-rascunho-v3"),("receiving.css","20261109-nfe-manual-rascunho-v3")):
             version="/static/"+asset+"?v="+release
