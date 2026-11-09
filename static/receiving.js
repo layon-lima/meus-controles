@@ -677,7 +677,7 @@ Object.assign(App,{
       '<div class="modal receiving-quick-modal" role="dialog" aria-modal="true" '+
       'aria-labelledby="receivingQuickTitle">'+
       '<div class="receiving-quick-tools">'+
-      '<span>Pré-visualização pronta para print</span>'+
+      '<span>Resumo rápido · somente produtos com recebimento</span>'+
       '<button class="btn btn-sm" type="button" onclick="App.closeModal()">'+
       icon("x")+' Fechar</button></div>'+
       '<div class="receiving-quick-sheet">'+
@@ -685,10 +685,10 @@ Object.assign(App,{
       '<div class="receiving-quick-heading-main">'+
       '<span class="receiving-quick-eyebrow">'+
       '<span class="receiving-quick-brand-mark">MC</span> MEUS CONTROLES / RECEBIMENTOS</span>'+
-      '<h2 id="receivingQuickTitle">Resumo de pedidos</h2>'+
+      '<h2 id="receivingQuickTitle">Resumo de recebimentos</h2>'+
       '<p>'+groups.length+' pedido'+(groups.length===1?'':'s')+
-      ' selecionado'+(groups.length===1?'':'s')+' · '+products+
-      ' produto'+(products===1?'':'s')+'</p></div>'+
+      ' com recebimento'+(groups.length===1?'':'s')+' · '+products+
+      ' produto'+(products===1?'':'s')+' recebido'+(products===1?'':'s')+'</p></div>'+
       '<span class="receiving-quick-date">'+E(new Date().toLocaleDateString("pt-BR"))+'</span>'+
       '</header>'+
       '<div class="receiving-quick-orders">'+groups.map(card).join('')+'</div>'+
