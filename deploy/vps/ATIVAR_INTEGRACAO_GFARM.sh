@@ -66,16 +66,16 @@ from pathlib import Path
 key="GFARM_RECEBIMENTOS_TOKEN"
 paths=[Path(p) for p in sys.argv[1:]]
 def existing(path):
-    m=re.search(r"(?m)^\\s*"+key+r"=([^\\r\\n]*)",path.read_text(encoding="utf-8"))
-    return m.group(1).strip().strip("'\\\"") if m else ""
+    m=re.search(r"(?m)^\s*"+key+r"=([^\r\n]*)",path.read_text(encoding="utf-8"))
+    return m.group(1).strip().strip("'\"") if m else ""
 tokens=[existing(p) for p in paths]
 # Preserve uma chave válida já existente. GFARM é a fonte primária.
 token=next((t for t in tokens if re.fullmatch(r"[A-Za-z0-9_-]{32,256}",t)),None)
 if not token: token=secrets.token_hex(32)
 for path in paths:
     old=path.read_text(encoding="utf-8")
-    lines=[line for line in old.splitlines() if not re.match(r"^\\s*"+key+r"=",line)]
-    path.write_text("\\n".join(lines).rstrip()+"\\n"+key+"="+token+"\\n",encoding="utf-8")
+    lines=[line for line in old.splitlines() if not re.match(r"^\s*"+key+r"=",line)]
+    path.write_text("\n".join(lines).rstrip()+"\n"+key+"="+token+"\n",encoding="utf-8")
     os.chmod(path,0o600)
 print("Autenticação privada configurada (chave não exibida).")
 PY
