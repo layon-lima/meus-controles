@@ -413,12 +413,14 @@ def save_manual_invoice(con,cid,payload):
         fiscal=receiving_gfarm.fiscal_manual({**payload,**line},exigir=receiving_gfarm.fiscal_required())
         key=(normalized_order(item["order_number"]),normalized_product(item["product"]))
         if key not in grouped:
-            grouped[key]={"item":item,"amount":Decimal("0"),"lines":0,"total_value":Decimal("0"),"fiscal":fiscal}
+            grouped[key]={"item":item,"amount":Decimal("0"),"lines":0,"total_value":Decimal("0"),"priced_lines":0,"fiscal":fiscal}
         group=grouped[key]
         if group["item"]["unit"]!=item["unit"]:
             raise ValueError("Unidades diferentes para o mesmo produto da NF-e: "+item["product"])
         group["amount"]+=amount
-        group["total_value"]+=Decimal(fiscal["valor_unitario"] or "0")*amount
+        if fiscal["valor_unitario"] is not None:
+            group["total_value"]+=Decimal(fiscal["valor_unitario"])*amount
+            group["priced_lines"]+=1
         group["lines"]+=1
     # Checar capacidade e duplicidade ANTES de inserir.
     for group in grouped.values():
@@ -433,9 +435,10 @@ def save_manual_invoice(con,cid,payload):
         if group["lines"]>1:
             notes=(notes+" | " if notes else "")+str(group["lines"])+\
                   " linhas da NF-e somadas no produto"
+        todos_precos=group["priced_lines"]==group["lines"]
         fiscal={**group["fiscal"],
-                "valor_unitario":str(group["total_value"]/group["amount"]),
-                "valor_total":str(group["total_value"])}
+                "valor_unitario":str(group["total_value"]/group["amount"]) if todos_precos else None,
+                "valor_total":str(group["total_value"]) if todos_precos else None}
         cur=con.execute("""INSERT INTO purchase_receipts
             (item_id,received_date,invoice_number,received_qty,access_key,notes,
              invoice_issuer,invoice_issuer_document,fiscal_json)
