@@ -100,7 +100,7 @@ def queue(con, receipt_id, fiscal=None):
                     (json.dumps(fiscal,ensure_ascii=False), receipt_id))
     # Só registra/atualiza a nota LOCALMENTE: enviar depende de uma seleção explícita.
     con.execute("""
-        INSERT INTO receiving_gfarm_queue(receipt_id) VALUES(?)
+        INSERT INTO receiving_gfarm_queue(receipt_id,remote_status) VALUES(?,'NAO_ENVIADO')
         ON CONFLICT(receipt_id) DO UPDATE SET
             sent_at=NULL, requested_at=NULL, remote_status='NAO_ENVIADO',
             attempts=0, last_error='', updated_at=CURRENT_TIMESTAMP
@@ -167,8 +167,8 @@ def send_selected(con,control_id,receipt_ids):
             rid=row["id"]
             # Protege a nota se ainda não existia na fila (cadastros antigos).
             con.execute("""
-                INSERT INTO receiving_gfarm_queue(receipt_id)
-                VALUES(?) ON CONFLICT(receipt_id) DO NOTHING
+                INSERT INTO receiving_gfarm_queue(receipt_id,remote_status)
+                VALUES(?,'NAO_ENVIADO') ON CONFLICT(receipt_id) DO NOTHING
             """,(rid,))
             result=con.execute("""
                 UPDATE receiving_gfarm_queue
