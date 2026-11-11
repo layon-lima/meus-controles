@@ -32,6 +32,11 @@ def initialize(con):
         con.execute("ALTER TABLE receiving_xml_pending ADD COLUMN fiscal_json TEXT NOT NULL DEFAULT '{}'")
 
 
+def fiscal_required():
+    """Obrigatório em instalações que ativaram a comunicação com GFARM."""
+    return _connection() is not None
+
+
 def fiscal_manual(payload, *, exigir=True):
     """Campos solicitados ao operador quando não houve leitura de documento."""
     if not isinstance(payload, dict):
