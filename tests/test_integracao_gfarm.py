@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from decimal import Decimal
 
 import app
 import receiving
@@ -46,10 +47,10 @@ class IntegracaoGfarmTest(unittest.TestCase):
             result = receiving.save_manual_invoice(con,self.cid,payload)
             self.assertEqual(result["inserted"],1)
             receipt = con.execute("SELECT * FROM purchase_receipts").fetchone()
-            self.assertEqual(receipt["received_qty"],"300")
+            self.assertEqual(Decimal(receipt["received_qty"]),Decimal("300"))
             fiscal=json.loads(receipt["fiscal_json"])
             self.assertEqual(fiscal["valor_total"],"1750.00")
-            self.assertEqual(fiscal["valor_unitario"],str(1750/300) if False else str(__import__("decimal").Decimal("1750.00")/__import__("decimal").Decimal("300")))
+            self.assertEqual(fiscal["valor_unitario"],str(Decimal("1750.00")/Decimal("300")))
             status=con.execute("SELECT remote_status FROM receiving_gfarm_queue").fetchone()
             self.assertEqual(status["remote_status"],"AGUARDANDO_ENVIO")
             payload=receiving_gfarm._payload(con,receipt["id"])
@@ -84,7 +85,7 @@ class IntegracaoGfarmTest(unittest.TestCase):
             })
             self.assertEqual(result["inserted"],1)
             receipt=con.execute("SELECT * FROM purchase_receipts").fetchone()
-            self.assertEqual(receipt["received_qty"],"150")
+            self.assertEqual(Decimal(receipt["received_qty"]),Decimal("150"))
             fiscal=json.loads(receipt["fiscal_json"])
             self.assertEqual(fiscal["serie"],"7")
             self.assertEqual(fiscal["cfop"],"5102")
