@@ -1139,6 +1139,8 @@ Object.assign(App,{
     const max=Number(item.remaining_qty)+Number(old?.received_qty||0);
     if(max<=0)return this.toast("Este pedido já foi totalmente recebido.",true);
     this.s.modal="receiving-receipt";
+    let fiscal={};
+    try{fiscal=JSON.parse(old?.fiscal_json||"{}");}catch(_){}
     this.s.modalContext={itemId,receipt:old?deep(old):null};
     document.getElementById("modalRoot").innerHTML=
       '<div class="modal-backdrop"><div class="modal receiving-form" role="dialog" aria-modal="false" aria-labelledby="modalTitle">'+
@@ -1154,6 +1156,16 @@ Object.assign(App,{
       '<div class="form-grid">'+
       rxField("Data do recebimento",rxInput("date",old?.received_date||rxToday(),'type="date" required'))+
       rxField("Nº NF-e",rxInput("invoice_number",old?.invoice_number||"",'required maxlength="100" placeholder="Ex.: 123456"'))+
+      rxField("Série NF-e",rxInput("serie",fiscal.serie||"",'required maxlength="20"'))+
+      rxField("Data de emissão",rxInput("data_emissao",fiscal.data_emissao||old?.received_date||"",'type="date" required'))+
+      rxField("Fornecedor emitente",rxInput("fornecedor",fiscal.fornecedor||old?.invoice_issuer||item.supplier||"",'required maxlength="240"'))+
+      rxField("CPF/CNPJ do emitente",rxInput("documento_fornecedor",fiscal.documento_fornecedor||old?.invoice_issuer_document||"",'required maxlength="20"'))+
+      rxField("Valor unitário do produto (R$)",rxInput("valor_unitario",fiscal.valor_unitario||"",'required inputmode="decimal"'))+
+      rxField("Código do produto NF-e",rxInput("codigo_produto",fiscal.codigo_produto||"",'maxlength="100"'))+
+      rxField("CFOP",rxInput("cfop",fiscal.cfop||"",'maxlength="10"'))+
+      rxField("NCM",rxInput("ncm",fiscal.ncm||"",'maxlength="12"'))+
+      rxField("Lote",rxInput("lote",fiscal.lote||"",'maxlength="100"'))+
+      rxField("Validade",rxInput("validade",fiscal.validade||"",'type="date"'))+
       '<div class="field full"><label>Quantidade recebida ('+E(item.unit)+')</label>'+
       rxInput("quantity",old?.received_qty||"",'required inputmode="decimal" placeholder="Ex.: 450"')+'</div>'+
       '<div class="field full"><label>Chave de acesso da NF-e (44 dígitos)</label>'+
@@ -1176,7 +1188,11 @@ Object.assign(App,{
     if(!form||!ctx||!form.reportValidity())return;
     const f=new FormData(form),payload={
       date:f.get("date"),invoice_number:f.get("invoice_number"),
-      quantity:f.get("quantity"),access_key:f.get("access_key"),notes:ctx.receipt?.notes||""
+      quantity:f.get("quantity"),access_key:f.get("access_key"),notes:ctx.receipt?.notes||"",
+      serie:f.get("serie"),data_emissao:f.get("data_emissao"),fornecedor:f.get("fornecedor"),
+      documento_fornecedor:f.get("documento_fornecedor"),
+      valor_unitario:String(f.get("valor_unitario")||"").replace(",","."),codigo_produto:f.get("codigo_produto"),
+      cfop:f.get("cfop"),ncm:f.get("ncm"),lote:f.get("lote"),validade:f.get("validade")
     };
     try{
       await this.api(ctx.receipt?"/api/receiving-receipts/"+ctx.receipt.id:
