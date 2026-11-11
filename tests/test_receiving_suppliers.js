@@ -56,7 +56,7 @@ sandbox.App.s.receivingData={
 };
 sandbox.App.renderReceivingView();
 const html=screen.innerHTML;
-assert.equal((html.match(/class="receiving-supplier-group"/g)||[]).length,3);
+assert.equal((html.match(/class="receiving-supplier-card(?: is-collapsed)?"/g)||[]).length,3);
 assert.ok(html.indexOf('data-receiving-supplier="agrex"')<html.indexOf('data-receiving-supplier="bayer"'));
 assert.ok(html.indexOf('data-receiving-supplier="bayer"')<html.indexOf('data-receiving-supplier=""'));
 assert.ok(html.indexOf("A-2")<html.indexOf("A-12"),"pedidos numericos ordenados");
