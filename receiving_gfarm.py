@@ -103,6 +103,34 @@ def _request(endpoint,token,method="GET",payload=None):
         return json.loads(response.read(64*1024))
 
 
+def assert_editable(con,receipt_id):
+    row=con.execute("SELECT * FROM receiving_gfarm_queue WHERE receipt_id=?",(receipt_id,)).fetchone()
+    if not row or not row["sent_at"]:
+        return
+    link=_connection()
+    if not link:
+        raise ValueError("Recebimento já integrado. Configure a conexão com o GFARM para alterá-lo.")
+    try:
+        response=_request(link[0]+"/status/controles:receipt:"+str(receipt_id),link[1])
+    except Exception as error:
+        raise ValueError("Não foi possível confirmar no GFARM se o recebimento pode ser alterado.") from error
+    if response["status"] != "PENDENTE":
+        raise ValueError("Recebimento já revisado no GFARM. Não é possível alterar/excluir este documento.")
+
+
+def cancel(con,receipt_id):
+    assert_editable(con,receipt_id)
+    row=con.execute("SELECT sent_at FROM receiving_gfarm_queue WHERE receipt_id=?",(receipt_id,)).fetchone()
+    if row and row["sent_at"]:
+        link=_connection()
+        if not link:
+            raise ValueError("Integração indisponível; exclusão cancelada.")
+        try:
+            _request(link[0]+"/controles:receipt:"+str(receipt_id),link[1],"DELETE")
+        except Exception as error:
+            raise ValueError("GFARM não autorizou cancelar a pendência. Nada foi excluído.") from error
+
+
 def _payload(con,receipt_id):
     row=con.execute("""
         SELECT r.*,i.product,i.unit,i.order_number,i.supplier
@@ -170,7 +198,7 @@ def worker_loop(db_factory):
                 with db_factory() as con:
                     ids=[r["receipt_id"] for r in con.execute("""
                         SELECT receipt_id FROM receiving_gfarm_queue
-                        WHERE remote_status NOT IN ('APROVADO','REJEITADO')
+                        WHERE remote_status NOT IN ('APROVADO','REJEITADO','CANCELADO')
                         ORDER BY (sent_at IS NULL) DESC, updated_at ASC LIMIT 50
                     """)]
                     for rid in ids:
