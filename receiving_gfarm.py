@@ -6,6 +6,7 @@ aprova e movimenta estoque. Integração desligada sem URL/token no ambiente.
 from __future__ import annotations
 
 from datetime import datetime
+import unicodedata
 import json
 import os
 import threading
@@ -13,16 +14,30 @@ import time
 import urllib.error
 import urllib.request
 
+_worker_wakeup=threading.Event()
+
 def initialize(con):
     con.executescript("""
         CREATE TABLE IF NOT EXISTS receiving_gfarm_queue(
             receipt_id INTEGER PRIMARY KEY REFERENCES purchase_receipts(id) ON DELETE CASCADE,
             sent_at TEXT,
-            remote_status TEXT NOT NULL DEFAULT 'AGUARDANDO_ENVIO',
+            requested_at TEXT,
+            remote_status TEXT NOT NULL DEFAULT 'NAO_ENVIADO',
             attempts INTEGER NOT NULL DEFAULT 0,
             last_error TEXT NOT NULL DEFAULT '',
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+    """)
+    # Migração segura: filas antigas nunca solicitadas deixam de ser enviadas.
+    # requested_at distingue seleção explícita de registros criados automaticamente.
+    qcols={x["name"] for x in con.execute("PRAGMA table_info(receiving_gfarm_queue)")}
+    if "requested_at" not in qcols:
+        con.execute("ALTER TABLE receiving_gfarm_queue ADD COLUMN requested_at TEXT")
+    con.execute("""
+        UPDATE receiving_gfarm_queue
+           SET remote_status='NAO_ENVIADO', updated_at=CURRENT_TIMESTAMP
+         WHERE sent_at IS NULL AND requested_at IS NULL
+           AND remote_status='AGUARDANDO_ENVIO'
     """)
     columns={x["name"] for x in con.execute("PRAGMA table_info(purchase_receipts)")}
     if "fiscal_json" not in columns:
@@ -33,8 +48,8 @@ def initialize(con):
 
 
 def fiscal_required():
-    """Obrigatório em instalações que ativaram a comunicação com GFARM."""
-    return _connection() is not None
+    """Cadastrar no Controles independe de decidir enviar a nota ao GFARM."""
+    return False
 
 
 def fiscal_manual(payload, *, exigir=True):
@@ -83,12 +98,95 @@ def queue(con, receipt_id, fiscal=None):
     if fiscal is not None:
         con.execute("UPDATE purchase_receipts SET fiscal_json=? WHERE id=?",
                     (json.dumps(fiscal,ensure_ascii=False), receipt_id))
+    # Só registra/atualiza a nota LOCALMENTE: enviar depende de uma seleção explícita.
     con.execute("""
         INSERT INTO receiving_gfarm_queue(receipt_id) VALUES(?)
         ON CONFLICT(receipt_id) DO UPDATE SET
-            sent_at=NULL, remote_status='AGUARDANDO_ENVIO',
-            last_error='', updated_at=CURRENT_TIMESTAMP
+            sent_at=NULL, requested_at=NULL, remote_status='NAO_ENVIADO',
+            attempts=0, last_error='', updated_at=CURRENT_TIMESTAMP
     """, (receipt_id,))
+
+
+def _normalize(value):
+    raw=unicodedata.normalize("NFKC",str(value or "")).strip().casefold()
+    return " ".join(raw.split())
+
+
+def invoice_group_key(row):
+    """Mesma NF-e = mesma chave; sem chave, número + emitente + data da entrega."""
+    access="".join(str(row["access_key"] or "").split())
+    if len(access)==44 and access.isdigit():
+        return "chave:"+access
+    try:
+        fiscal=json.loads(row["fiscal_json"] or "{}")
+    except (ValueError, TypeError):
+        fiscal={}
+    issuer=fiscal.get("documento_fornecedor") or row["invoice_issuer_document"]
+    issuer=_normalize(issuer or row["invoice_issuer"] or row["order_supplier"])
+    series=_normalize(fiscal.get("serie"))
+    return "manual:"+json.dumps([
+        _normalize(row["invoice_number"]),series,issuer,
+        str(row["received_date"] or "")[:10]
+    ],ensure_ascii=False,separators=(",",":"))
+
+
+def send_selected(con,control_id,receipt_ids):
+    """Operação EXPLÍCITA: escolhe NF-es completas, nunca só alguns itens delas."""
+    import receiving
+    receiving.ensure_control(con,control_id)
+    if _connection() is None:
+        raise ValueError("A conexão com o GFARM não está configurada nesta instalação.")
+    if (not isinstance(receipt_ids,list) or not 1<=len(receipt_ids)<=100
+            or any(type(rid) is not int or rid<=0 for rid in receipt_ids)
+            or len(set(receipt_ids))!=len(receipt_ids)):
+        raise ValueError("Selecione entre 1 e 100 notas fiscais válidas, sem repetições.")
+    if not con.in_transaction:
+        con.execute("BEGIN IMMEDIATE")
+    rows=[dict(row) for row in con.execute("""
+        SELECT r.*,i.supplier AS order_supplier
+          FROM purchase_receipts r JOIN purchase_items i ON i.id=r.item_id
+         WHERE i.control_id=?
+    """,(control_id,))]
+    by_id={int(r["id"]):r for r in rows}
+    if any(rid not in by_id for rid in receipt_ids):
+        raise ValueError("Uma ou mais notas não pertencem a este controle.")
+    groups={}
+    for row in rows:
+        groups.setdefault(invoice_group_key(row),[]).append(row)
+    selected={invoice_group_key(by_id[rid]) for rid in receipt_ids}
+    if len(selected)>100:
+        raise ValueError("Selecione no máximo 100 notas por envio.")
+    selected_rows=[row for key in selected for row in groups[key]]
+    if len(selected_rows)>500:
+        raise ValueError("O envio possui mais de 500 produtos. Divida em lotes menores.")
+    sent_rows=0
+    sent_notes=0
+    for key in selected:
+        queued=0
+        for row in groups[key]:
+            rid=row["id"]
+            # Protege a nota se ainda não existia na fila (cadastros antigos).
+            con.execute("""
+                INSERT INTO receiving_gfarm_queue(receipt_id)
+                VALUES(?) ON CONFLICT(receipt_id) DO NOTHING
+            """,(rid,))
+            result=con.execute("""
+                UPDATE receiving_gfarm_queue
+                   SET requested_at=CURRENT_TIMESTAMP,
+                       remote_status='AGUARDANDO_ENVIO',
+                       last_error='', updated_at=CURRENT_TIMESTAMP
+                 WHERE receipt_id=? AND sent_at IS NULL
+                   AND requested_at IS NULL AND remote_status='NAO_ENVIADO'
+            """,(rid,))
+            queued+=result.rowcount
+        if queued:
+            sent_notes+=1
+            sent_rows+=queued
+    if not sent_rows:
+        raise ValueError("As notas selecionadas já foram enviadas ou estão na fila do GFARM.")
+    con.commit()
+    _worker_wakeup.set()
+    return {"notas":sent_notes,"itens":sent_rows,"status":"AGUARDANDO_ENVIO"}
 
 
 def _connection():
@@ -173,6 +271,8 @@ def dispatch_one(con,receipt_id):
     url,token=connection
     row=con.execute("SELECT * FROM receiving_gfarm_queue WHERE receipt_id=?",(receipt_id,)).fetchone()
     if not row:return
+    # Mesmo se chamado por engano, nada sai sem o clique do usuário.
+    if row["sent_at"] is None and row["requested_at"] is None:return
     try:
         payload=_payload(con,receipt_id)
         if not payload:return
@@ -203,14 +303,16 @@ def worker_loop(db_factory):
                 with db_factory() as con:
                     ids=[r["receipt_id"] for r in con.execute("""
                         SELECT receipt_id FROM receiving_gfarm_queue
-                        WHERE remote_status NOT IN ('APROVADO','REJEITADO','CANCELADO')
+                        WHERE (requested_at IS NOT NULL OR sent_at IS NOT NULL)
+                          AND remote_status NOT IN ('APROVADO','REJEITADO','CANCELADO')
                         ORDER BY (sent_at IS NULL) DESC, updated_at ASC LIMIT 50
                     """)]
                     for rid in ids:
                         dispatch_one(con,rid)
         except Exception as error:
             print("GFARM integração: "+str(error)[:300],flush=True)
-        time.sleep(30)
+        _worker_wakeup.wait(timeout=5)
+        _worker_wakeup.clear()
 
 
 def start_worker(db_factory):
