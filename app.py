@@ -26,6 +26,7 @@ import vales
 import receiving_import
 import receiving_pdf
 import receiving_pdf_region
+import receiving_fiscal_pdf
 import receiving_xml
 import receiving_gfarm
 import reports_excel
@@ -701,6 +702,9 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/xml/(?:preview|confirm|issuer|pending(?:/\d+/assign)?)",url):
                     receiving_xml.handle(self,con,method,url)
+                    return
+                if re.fullmatch(r"/api/controls/\d+/receiving/fiscal/pdf/preview",url):
+                    receiving_fiscal_pdf.handle(self,con,method,url)
                     return
                 if re.fullmatch(r"/api/controls/\d+/receiving/pdf/(?:page|region)",url):
                     receiving_pdf_region.handle(self,con,method,url)
