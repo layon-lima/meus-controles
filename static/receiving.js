@@ -222,17 +222,36 @@ Object.assign(App,{
         '<th class="numeric">Falta receber</th><th>Status</th></tr></thead>'+
         '<tbody>'+group.items.map(renderRow).join("")+'</tbody></table></div></div></section>';
     }).join("");
+    if(this.s.receivingGfarmSelection?.controlId!==c.id){
+      this.s.receivingGfarmSelection={controlId:c.id,keys:[]};
+    }
+    const notasDisponiveis=new Set(r.receipts
+      .filter(p=>p.gfarm_status==="NAO_ENVIADO").map(p=>p.gfarm_note_key));
+    this.s.receivingGfarmSelection.keys=this.s.receivingGfarmSelection.keys
+      .filter(key=>notasDisponiveis.has(key));
+    const notasSelecionadas=new Set(this.s.receivingGfarmSelection.keys);
     const receipts=r.receipts.map(p=>
       '<tr data-receiving-search="'+E([p.invoice_number,p.access_key||"",p.order_number,p.product,p.supplier].join(" ").toLowerCase())+
       '" tabindex="0" title="Duplo clique para editar ou excluir a nota" '+
       'ondblclick="App.receivingManageReceipt('+p.id+')" '+
       'onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();App.receivingManageReceipt('+p.id+')}">'+
+      '<td class="receiving-gfarm-select-cell"><input type="checkbox" data-gfarm-note="'+E(p.gfarm_note_key)+
+      '" aria-label="Selecionar NF '+E(p.invoice_number)+' para enviar ao GFARM" '+
+      (!notasDisponiveis.has(p.gfarm_note_key)?'disabled ':'')+
+      (notasSelecionadas.has(p.gfarm_note_key)?'checked ':'')+
+      'onclick="event.stopPropagation()" onchange="App.receivingGfarmSelectNote(this.dataset.gfarmNote,this.checked)"></td>'+
       '<td>'+rxDate(p.received_date)+'</td><td><b>'+E(p.invoice_number)+'</b></td>'+
       '<td class="receiving-key">'+E(p.access_key||"—")+'</td><td>'+E(p.order_number)+'</td>'+
       '<td>'+E(p.product)+'</td><td class="receiving-supplier" title="'+E(p.invoice_issuer_document||"Emitente não salvo na nota")+'">'+
       E(p.invoice_issuer||"Emitente não registrado")+'</td>'+
       '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+
-      (p.gfarm_status?'<small style="display:block;font-size:10px;opacity:.8">GFARM: '+E(p.gfarm_status.replaceAll("_"," "))+'</small>':'')+
+      '<small class="receiving-gfarm-status" title="'+E(p.gfarm_error||"")+'">GFARM: '+
+      E(({
+        NAO_ENVIADO:"Não enviada",AGUARDANDO_ENVIO:"Aguardando envio",
+        PENDENTE:"Enviada • aguardando aprovação",PROCESSANDO:"Em análise",
+        APROVADO:"Aprovada",REJEITADO:"Recusada",CANCELADO:"Cancelada"
+      })[p.gfarm_status]||p.gfarm_status||"Não enviada")+
+      (p.gfarm_error?' · Falha na comunicação':'')+'</small>'+
       '</td></tr>').join("");
     document.getElementById("main").innerHTML=
       '<div class="receiving-head"><div><div class="eyebrow">RECEBIMENTO DE PRODUTOS</div>'+
@@ -269,6 +288,13 @@ Object.assign(App,{
         icon("file-spreadsheet")+' Exportar Excel</button>':'')+
       (activeTab==="notas"?'<button class="btn btn-sm" type="button" onclick="App.receivingXMLRestoreIssuers()">'+
         icon("file-up")+' Recuperar emitentes de XMLs antigos</button>':'')+
+      (activeTab==="notas"?'<label class="receiving-gfarm-select-all"><input type="checkbox" id="receivingGfarmSelectAll" '+
+        'aria-label="Marcar todas as notas fiscais não enviadas da busca" onchange="App.receivingGfarmSelectAll(this.checked)">'+
+        '<span>Marcar notas</span></label>'+
+        '<span id="receivingGfarmSelectedCount" class="receiving-selected-count"></span>'+
+        '<button type="button" id="receivingGfarmSendBtn" class="btn btn-sm btn-primary" '+
+        'onclick="App.receivingGfarmSend()" hidden>Enviar ao GFARM</button>'+
+        '<button type="button" class="btn btn-sm" onclick="App.renderReceiving()">Atualizar situação</button>':'')+
       (activeTab==="pedidos"?'<label class="receiving-select-all-label"><input type="checkbox" id="receivingSelectAll" '+
       'aria-label="Selecionar todos os produtos exibidos" onchange="App.receivingToggleAll(this.checked)">'+
       '<span>Selecionar todos</span></label>'+
@@ -286,7 +312,7 @@ Object.assign(App,{
         '<section class="panel receiving-table"><div class="empty-state"><strong>Nenhum produto cadastrado</strong><p>Cadastre um pedido para começar.</p></div></section>')
       :
         '<section class="panel receiving-table">'+
-        (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th>Data</th><th>Nº nota fiscal</th><th>Chave da NF-e</th><th>Pedido</th>'+
+        (t.receipts?'<div class="table-wrap"><table class="receiving-grid receiving-invoices"><thead><tr><th class="receiving-gfarm-select-cell">Marcar</th><th>Data</th><th>Nº nota fiscal</th><th>Chave da NF-e</th><th>Pedido</th>'+
         '<th>Produto</th><th>Fornecedor</th><th class="numeric">Quantidade</th></tr></thead><tbody>'+receipts+'</tbody></table></div>':
         '<p class="receiving-no-receipts">Ainda não existem recebimentos lançados.</p>')+'</section>')+
       '<button type="button" class="receiving-fab" onclick="App.receivingFloatingAdd()" '+
@@ -318,6 +344,88 @@ Object.assign(App,{
     if(controlId==null||this.s.detail?.control?.mode!=="recebimento")return;
     this.s.receivingTab={controlId,value:tab};
     this.renderReceivingView();
+  },
+  receivingGfarmSelectNote(key,checked){
+    const controlId=this.s.detail?.control?.id;
+    if(controlId==null||this.s.receivingGfarmSelection?.controlId!==controlId)return;
+    const allowed=new Set((this.s.receivingData?.receipts||[])
+      .filter(p=>p.gfarm_status==="NAO_ENVIADO").map(p=>p.gfarm_note_key));
+    if(!allowed.has(key))return;
+    const selected=new Set(this.s.receivingGfarmSelection.keys);
+    if(checked)selected.add(key);
+    else selected.delete(key);
+    this.s.receivingGfarmSelection.keys=[...selected];
+    this.receivingGfarmUpdateSelection();
+  },
+  receivingGfarmSelectAll(checked){
+    const controlId=this.s.detail?.control?.id;
+    if(controlId==null||this.s.receivingGfarmSelection?.controlId!==controlId)return;
+    const query=rxSupplierKey(this.s.receivingSearch?.controlId===controlId?
+      (this.s.receivingSearch.queries?.notas||""):"");
+    const matching=new Set((this.s.receivingData?.receipts||[])
+      .filter(p=>p.gfarm_status==="NAO_ENVIADO" &&
+        rxSupplierKey([p.invoice_number,p.access_key,p.order_number,p.product,p.supplier].join(" ")).includes(query))
+      .map(p=>p.gfarm_note_key));
+    const selected=new Set(this.s.receivingGfarmSelection.keys);
+    matching.forEach(key=>checked?selected.add(key):selected.delete(key));
+    this.s.receivingGfarmSelection.keys=[...selected];
+    this.receivingGfarmUpdateSelection();
+  },
+  receivingGfarmUpdateSelection(){
+    const selection=this.s.receivingGfarmSelection;
+    if(!selection)return;
+    const selected=new Set(selection.keys);
+    document.querySelectorAll(".receiving-invoices [data-gfarm-note]").forEach(input=>{
+      input.checked=selected.has(input.dataset.gfarmNote);
+    });
+    const button=document.getElementById("receivingGfarmSendBtn");
+    const counter=document.getElementById("receivingGfarmSelectedCount");
+    const count=selected.size;
+    if(counter)counter.textContent=count?count+" nota"+(count===1?"":"s")+" selecionada"+(count===1?"":"s"):"";
+    if(button){
+      button.hidden=count===0;
+      button.disabled=!!this.s.receivingGfarmBusy;
+      button.textContent="Enviar "+count+" nota"+(count===1?"":"s")+" ao GFARM";
+    }
+    const selectAll=document.getElementById("receivingGfarmSelectAll");
+    if(selectAll){
+      const query=rxSupplierKey(this.s.receivingSearch?.controlId===selection.controlId?
+        (this.s.receivingSearch.queries?.notas||""):"");
+      const visible=new Set((this.s.receivingData?.receipts||[])
+        .filter(p=>p.gfarm_status==="NAO_ENVIADO" &&
+          rxSupplierKey([p.invoice_number,p.access_key,p.order_number,p.product,p.supplier].join(" ")).includes(query))
+        .map(p=>p.gfarm_note_key));
+      const n=[...visible].filter(key=>selected.has(key)).length;
+      selectAll.disabled=visible.size===0;
+      selectAll.checked=visible.size>0&&n===visible.size;
+      selectAll.indeterminate=n>0&&n<visible.size;
+    }
+  },
+  async receivingGfarmSend(){
+    const cid=this.s.detail?.control?.id;
+    if(!cid||this.s.receivingGfarmBusy||this.s.receivingGfarmSelection?.controlId!==cid)return;
+    const keys=new Set(this.s.receivingGfarmSelection.keys);
+    if(!keys.size)return this.toast("Marque as notas que deseja enviar ao GFARM.",true);
+    const ids=[];
+    for(const key of keys){
+      const row=(this.s.receivingData?.receipts||[])
+        .find(p=>p.gfarm_note_key===key&&p.gfarm_status==="NAO_ENVIADO");
+      if(row)ids.push(row.id);
+    }
+    if(!ids.length)return this.toast("Essas notas não estão mais disponíveis para envio.",true);
+    if(ids.length>100)return this.toast("Selecione no máximo 100 notas por vez.",true);
+    this.s.receivingGfarmBusy=true;
+    this.receivingGfarmUpdateSelection();
+    try{
+      const result=await this.api("/api/controls/"+cid+"/receiving/gfarm/send",
+        "POST",{receipt_ids:ids});
+      this.s.receivingGfarmSelection.keys=[];
+      await this.renderReceiving();
+      this.toast(result.notas+" nota"+(result.notas===1?"":"s")+" enviada"+
+        (result.notas===1?"":"s")+" à fila do GFARM ("+result.itens+" produto(s)). "+
+        "A entrada no estoque depende da aprovação no GFARM.");
+    }catch(err){this.toast("Envio ao GFARM não iniciado: "+err.message,true);}
+    finally{this.s.receivingGfarmBusy=false;this.receivingGfarmUpdateSelection();}
   },
   async receivingExportInvoices(){
     const cid=this.s.detail?.control?.id;
@@ -425,6 +533,7 @@ Object.assign(App,{
       rows.forEach(row=>{row.hidden=!matchedIds.has(row.dataset.receivingId);});
     });
     this.receivingUpdateSelectionToolbar();
+    this.receivingGfarmUpdateSelection();
   },
   receivingFocusItem(id){
     const controlId=this.s.detail?.control?.id;
