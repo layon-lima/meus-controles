@@ -323,15 +323,21 @@ def summary(con,cid):
         else:pending+=1
         for receipt in receipts:
             try:
-                status_row=con.execute("SELECT remote_status FROM receiving_gfarm_queue WHERE receipt_id=?",
-                                       (receipt["id"],)).fetchone()
+                status_row=con.execute("""
+                    SELECT remote_status, sent_at, requested_at, last_error
+                    FROM receiving_gfarm_queue WHERE receipt_id=?
+                """,(receipt["id"],)).fetchone()
             except Exception:
                 status_row=None
             history.append({**receipt,
                 "order_number":item["order_number"],"order_supplier":item["supplier"],
                 "supplier":receipt["invoice_issuer"],
                 "product":item["product"],"unit":item["unit"],
-                "gfarm_status":status_row["remote_status"] if status_row else ""})
+                "gfarm_status":status_row["remote_status"] if status_row else "NAO_ENVIADO",
+                "gfarm_note_key":receiving_gfarm.invoice_group_key(
+                    {**receipt,"order_supplier":item["supplier"]}),
+                "gfarm_sent_at":status_row["sent_at"] if status_row else None,
+                "gfarm_error":status_row["last_error"] if status_row else ""})
     history.sort(key=lambda row:(row["received_date"],row["id"]),reverse=True)
     return {
       "control_id":cid,
@@ -444,13 +450,16 @@ def save_manual_invoice(con,cid,payload):
 
 
 def handle(handler,con,method,path):
-    root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items|bulk-delete|invoice))?",path)
+    root=re.fullmatch(r"/api/controls/(\d+)/receiving(?:/(items|bulk-delete|invoice|gfarm/send))?",path)
     itemroute=re.fullmatch(r"/api/receiving-items/(\d+)(?:/(receipts|complete))?",path)
     receiptroute=re.fullmatch(r"/api/receiving-receipts/(\d+)",path)
     if root:
         cid=int(root[1]);ensure_control(con,cid)
         if method=="POST" and root[2]=="invoice":
             return handler.send(save_manual_invoice(con,cid,handler.input()),201)
+        if method=="POST" and root[2]=="gfarm/send":
+            data=handler.input()
+            return handler.send(receiving_gfarm.send_selected(con,cid,data.get("receipt_ids")),200)
         if method=="GET" and root[2] is None:
             return handler.send(summary(con,cid))
         if method=="POST" and root[2]=="bulk-delete":
