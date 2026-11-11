@@ -36,11 +36,14 @@ services:
       CONTROLES_PORT: "18765"
       CONTROLES_PUBLIC_ORIGIN: "https://${CONTROLES_DOMAIN:?Defina CONTROLES_DOMAIN}"
       CONTROLES_DISABLE_LOCAL_SHUTDOWN: "1"
+      GFARM_RECEBIMENTOS_URL: "http://gfarm-app-1:8000/api/integracoes/recebimentos"
+      GFARM_RECEBIMENTOS_TOKEN: ${GFARM_RECEBIMENTOS_TOKEN:-}
     networks:
       banco_privado:
       interface_web:
         aliases:
           - central-controles-api
+      gfarm_proxy: {}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18765/api/ready', timeout=5)"]
       interval: 15s
@@ -55,6 +58,9 @@ volumes:
 networks:
   banco_privado:
     internal: true
+  gfarm_proxy:
+    external: true
+    name: gfarm_proxy
   interface_web:
     # O Caddy existente pode ser conectado a esta rede, sem mexer nas portas 80/443.
     driver: bridge
