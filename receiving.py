@@ -322,10 +322,16 @@ def summary(con,cid):
         elif got>0:partial+=1
         else:pending+=1
         for receipt in receipts:
+            try:
+                status_row=con.execute("SELECT remote_status FROM receiving_gfarm_queue WHERE receipt_id=?",
+                                       (receipt["id"],)).fetchone()
+            except Exception:
+                status_row=None
             history.append({**receipt,
                 "order_number":item["order_number"],"order_supplier":item["supplier"],
                 "supplier":receipt["invoice_issuer"],
-                "product":item["product"],"unit":item["unit"]})
+                "product":item["product"],"unit":item["unit"],
+                "gfarm_status":status_row["remote_status"] if status_row else ""})
     history.sort(key=lambda row:(row["received_date"],row["id"]),reverse=True)
     return {
       "control_id":cid,
