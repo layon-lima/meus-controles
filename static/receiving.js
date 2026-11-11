@@ -231,7 +231,9 @@ Object.assign(App,{
       '<td class="receiving-key">'+E(p.access_key||"—")+'</td><td>'+E(p.order_number)+'</td>'+
       '<td>'+E(p.product)+'</td><td class="receiving-supplier" title="'+E(p.invoice_issuer_document||"Emitente não salvo na nota")+'">'+
       E(p.invoice_issuer||"Emitente não registrado")+'</td>'+
-      '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+'</td></tr>').join("");
+      '<td class="numeric">'+rxNum(p.received_qty)+' '+E(p.unit)+
+      (p.gfarm_status?'<small style="display:block;font-size:10px;opacity:.8">GFARM: '+E(p.gfarm_status.replaceAll("_"," "))+'</small>':'')+
+      '</td></tr>').join("");
     document.getElementById("main").innerHTML=
       '<div class="receiving-head"><div><div class="eyebrow">RECEBIMENTO DE PRODUTOS</div>'+
       '<p>Controle de pedidos, fornecedores e entregas por nota fiscal.</p></div>'+
