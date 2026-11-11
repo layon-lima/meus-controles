@@ -492,6 +492,8 @@ def handle(handler,con,method,path):
             else:
                 if item["closed"]:raise ValueError("Pedido concluído. Não é permitido editar.")
                 row=validate_item(handler.input())
+                for saved in con.execute("SELECT id FROM purchase_receipts WHERE item_id=?",(iid,)):
+                    receiving_gfarm.assert_editable(con,saved["id"])
                 row["supplier"]=canonical_supplier(con,item["control_id"],row["supplier"])
                 ensure_item_unique(con,item["control_id"],
                     {**row,"source_line_code":item.get("source_line_code","")},exclude_id=iid)
@@ -508,6 +510,8 @@ def handle(handler,con,method,path):
                             receipt["invoice_number"],receipt["id"])
                 con.execute("""UPDATE purchase_items SET order_number=?,supplier=?,product=?,unit=?,ordered_qty=?,
                   updated_at=CURRENT_TIMESTAMP WHERE id=?""",(*row.values(),iid))
+                for saved in con.execute("SELECT id FROM purchase_receipts WHERE item_id=?",(iid,)):
+                    receiving_gfarm.queue(con,saved["id"])
             con.commit()
             return handler.send({"ok":True})
     if receiptroute and method in ("PUT","DELETE"):
@@ -515,8 +519,10 @@ def handle(handler,con,method,path):
         existing=get_receipt(con,rid)
         con.execute("BEGIN IMMEDIATE")
         if method=="DELETE":
+            receiving_gfarm.cancel(con,rid)
             con.execute("DELETE FROM purchase_receipts WHERE id=?",(rid,))
         else:
+            receiving_gfarm.assert_editable(con,rid)
             payload=handler.input()
             row=validate_receipt(payload)
             fiscal=receiving_gfarm.fiscal_manual(payload,exigir=True)
