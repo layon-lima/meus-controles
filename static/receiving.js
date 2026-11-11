@@ -1079,7 +1079,7 @@ Object.assign(App,{
         'oninput="App.receivingManualInvoiceQuantity('+index+',this.value)"></div>'+
         '<div class="form-grid">'+
         rxField("Valor unitário (R$ por "+item.unit+")",rxInput("unit_price_"+index,line.valor_unitario,
-          'required inputmode="decimal" placeholder="Ex.: 7,65" oninput="App.receivingManualInvoiceItemField('+index+',&quot;valor_unitario&quot;,this.value)"'))+
+          'inputmode="decimal" placeholder="Ex.: 7,65" oninput="App.receivingManualInvoiceItemField('+index+',&quot;valor_unitario&quot;,this.value)"'))+
         rxField("Código do produto na nota",rxInput("product_code_"+index,line.codigo_produto,
           'maxlength="100" oninput="App.receivingManualInvoiceItemField('+index+',&quot;codigo_produto&quot;,this.value)"'))+
         rxField("CFOP",rxInput("cfop_"+index,line.cfop,
@@ -1119,10 +1119,10 @@ Object.assign(App,{
         'oninput="App.receivingManualInvoiceField(&quot;date&quot;,this.value)"'))+
       rxField("Nº NF-e",rxInput("invoice_number",ctx.invoice_number,'required maxlength="100" '+
         'placeholder="Ex.: 13502" oninput="App.receivingManualInvoiceField(&quot;invoice_number&quot;,this.value)"'))+
-      rxField("Série NF-e",rxInput("serie",ctx.serie,'required maxlength="20" oninput="App.receivingManualInvoiceField(&quot;serie&quot;,this.value)"'))+
-      rxField("Emissão da NF-e",rxInput("data_emissao",ctx.data_emissao,'type="date" required oninput="App.receivingManualInvoiceField(&quot;data_emissao&quot;,this.value)"'))+
-      rxField("Emitente / fornecedor",rxInput("fornecedor",ctx.fornecedor,'required maxlength="240" oninput="App.receivingManualInvoiceField(&quot;fornecedor&quot;,this.value)"'))+
-      rxField("CPF/CNPJ do emitente",rxInput("documento_fornecedor",ctx.documento_fornecedor,'required maxlength="20" oninput="App.receivingManualInvoiceField(&quot;documento_fornecedor&quot;,this.value)"'))+
+      rxField("Série NF-e",rxInput("serie",ctx.serie,'maxlength="20" oninput="App.receivingManualInvoiceField(&quot;serie&quot;,this.value)"'))+
+      rxField("Emissão da NF-e",rxInput("data_emissao",ctx.data_emissao,'type="date" oninput="App.receivingManualInvoiceField(&quot;data_emissao&quot;,this.value)"'))+
+      rxField("Emitente / fornecedor",rxInput("fornecedor",ctx.fornecedor,'maxlength="240" oninput="App.receivingManualInvoiceField(&quot;fornecedor&quot;,this.value)"'))+
+      rxField("CPF/CNPJ do emitente",rxInput("documento_fornecedor",ctx.documento_fornecedor,'maxlength="20" oninput="App.receivingManualInvoiceField(&quot;documento_fornecedor&quot;,this.value)"'))+
       '</div><div class="receiving-invoice-items-title"><strong>Produtos desta NF-e</strong>'+
       '<span>'+ctx.items.length+' linha(s)</span></div>'+rows+
       '<button type="button" class="btn receiving-invoice-add" '+
@@ -1312,11 +1312,11 @@ Object.assign(App,{
       '<div class="form-grid">'+
       rxField("Data do recebimento",rxInput("date",old?.received_date||rxToday(),'type="date" required'))+
       rxField("Nº NF-e",rxInput("invoice_number",old?.invoice_number||"",'required maxlength="100" placeholder="Ex.: 123456"'))+
-      rxField("Série NF-e",rxInput("serie",fiscal.serie||"",'required maxlength="20"'))+
-      rxField("Data de emissão",rxInput("data_emissao",fiscal.data_emissao||old?.received_date||"",'type="date" required'))+
-      rxField("Fornecedor emitente",rxInput("fornecedor",fiscal.fornecedor||old?.invoice_issuer||item.supplier||"",'required maxlength="240"'))+
-      rxField("CPF/CNPJ do emitente",rxInput("documento_fornecedor",fiscal.documento_fornecedor||old?.invoice_issuer_document||"",'required maxlength="20"'))+
-      rxField("Valor unitário do produto (R$)",rxInput("valor_unitario",fiscal.valor_unitario||"",'required inputmode="decimal"'))+
+      rxField("Série NF-e",rxInput("serie",fiscal.serie||"",'maxlength="20"'))+
+      rxField("Data de emissão",rxInput("data_emissao",fiscal.data_emissao||old?.received_date||"",'type="date"'))+
+      rxField("Fornecedor emitente",rxInput("fornecedor",fiscal.fornecedor||old?.invoice_issuer||item.supplier||"",'maxlength="240"'))+
+      rxField("CPF/CNPJ do emitente",rxInput("documento_fornecedor",fiscal.documento_fornecedor||old?.invoice_issuer_document||"",'maxlength="20"'))+
+      rxField("Valor unitário do produto (R$)",rxInput("valor_unitario",fiscal.valor_unitario||"",'inputmode="decimal"'))+
       rxField("Código do produto NF-e",rxInput("codigo_produto",fiscal.codigo_produto||"",'maxlength="100"'))+
       rxField("CFOP",rxInput("cfop",fiscal.cfop||"",'maxlength="10"'))+
       rxField("NCM",rxInput("ncm",fiscal.ncm||"",'maxlength="12"'))+
