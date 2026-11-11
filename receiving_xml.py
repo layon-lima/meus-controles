@@ -29,6 +29,7 @@ def initialize(con):
         UNIQUE(control_id,access_key,line_index)
       );
     """)
+    receiving_gfarm.initialize(con)
 
 def child(parent,name):
     return next((e for e in parent.iter() if e.tag.rsplit("}",1)[-1]==name),None) if parent is not None else None
