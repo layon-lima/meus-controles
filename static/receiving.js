@@ -905,7 +905,11 @@ Object.assign(App,{
       sessionStorage.setItem("controles:nfe-manual:rascunho:"+ctx.controlId,JSON.stringify({
         controlId:ctx.controlId,date:ctx.date,
         invoice_number:ctx.invoice_number,access_key:ctx.access_key,
-        items:ctx.items.map(x=>({item_id:x.item_id,quantity:x.quantity}))
+        serie:ctx.serie,data_emissao:ctx.data_emissao,fornecedor:ctx.fornecedor,
+        documento_fornecedor:ctx.documento_fornecedor,
+        items:ctx.items.map(x=>({item_id:x.item_id,quantity:x.quantity,
+          valor_unitario:x.valor_unitario,codigo_produto:x.codigo_produto,
+          cfop:x.cfop,ncm:x.ncm,validade:x.validade,lote:x.lote}))
       }));
     }catch(_){/* O formulário continua funcionando se o armazenamento estiver bloqueado. */}
   },
@@ -923,12 +927,19 @@ Object.assign(App,{
     }catch(_){saved=null;}
     const validIds=new Set((this.s.receivingData?.items||[]).map(p=>p.id));
     const draftItems=saved?.items?.filter(x=>validIds.has(x.item_id)).map(x=>({
-      item_id:x.item_id,quantity:String(x.quantity||"")
+      item_id:x.item_id,quantity:String(x.quantity||""),
+      valor_unitario:String(x.valor_unitario??""),codigo_produto:String(x.codigo_produto||""),
+      cfop:String(x.cfop||""),ncm:String(x.ncm||""),
+      validade:String(x.validade||""),lote:String(x.lote||"")
     }))||[];
     this.s.receivingManualInvoice={
       controlId,date:saved?.date||rxToday(),
       invoice_number:saved?.invoice_number||"",access_key:saved?.access_key||"",
-      items:draftItems.length?draftItems:[{item_id:item.id,quantity:""}],
+      serie:saved?.serie||"",data_emissao:saved?.data_emissao||rxToday(),
+      fornecedor:saved?.fornecedor||item.supplier||"",
+      documento_fornecedor:saved?.documento_fornecedor||"",
+      items:draftItems.length?draftItems:[{item_id:item.id,quantity:"",
+        valor_unitario:"",codigo_produto:"",cfop:"",ncm:"",validade:"",lote:""}],
       pickerOpen:false,query:"",saving:false
     };
     this.receivingManualInvoiceSaveDraft();
@@ -953,6 +964,20 @@ Object.assign(App,{
         '<input id="receivingInvoiceQty'+index+'" name="quantity_'+index+'" inputmode="decimal" required '+
         'placeholder="Ex.: 250 ou 1.250,5" value="'+E(line.quantity)+'" '+
         'oninput="App.receivingManualInvoiceQuantity('+index+',this.value)"></div>'+
+        '<div class="form-grid">'+
+        rxField("Valor unitário (R$ por "+item.unit+")",rxInput("unit_price_"+index,line.valor_unitario,
+          'required inputmode="decimal" placeholder="Ex.: 7,65" oninput="App.receivingManualInvoiceItemField('+index+',&quot;valor_unitario&quot;,this.value)"'))+
+        rxField("Código do produto na nota",rxInput("product_code_"+index,line.codigo_produto,
+          'maxlength="100" oninput="App.receivingManualInvoiceItemField('+index+',&quot;codigo_produto&quot;,this.value)"'))+
+        rxField("CFOP",rxInput("cfop_"+index,line.cfop,
+          'maxlength="10" oninput="App.receivingManualInvoiceItemField('+index+',&quot;cfop&quot;,this.value)"'))+
+        rxField("NCM",rxInput("ncm_"+index,line.ncm,
+          'maxlength="12" oninput="App.receivingManualInvoiceItemField('+index+',&quot;ncm&quot;,this.value)"'))+
+        rxField("Lote",rxInput("lote_"+index,line.lote,
+          'maxlength="100" oninput="App.receivingManualInvoiceItemField('+index+',&quot;lote&quot;,this.value)"'))+
+        rxField("Validade",rxInput("validade_"+index,line.validade,
+          'type="date" oninput="App.receivingManualInvoiceItemField('+index+',&quot;validade&quot;,this.value)"'))+
+        '</div>'+
         '<button type="button" class="receiving-invoice-repeat" onclick="App.receivingManualInvoiceRepeat('+index+')">'+
         icon("plus")+' Outra linha deste produto na NF-e</button></div>';
     }).join("");
@@ -976,6 +1001,10 @@ Object.assign(App,{
         'oninput="App.receivingManualInvoiceField(&quot;date&quot;,this.value)"'))+
       rxField("Nº NF-e",rxInput("invoice_number",ctx.invoice_number,'required maxlength="100" '+
         'placeholder="Ex.: 13502" oninput="App.receivingManualInvoiceField(&quot;invoice_number&quot;,this.value)"'))+
+      rxField("Série NF-e",rxInput("serie",ctx.serie,'required maxlength="20" oninput="App.receivingManualInvoiceField(&quot;serie&quot;,this.value)"'))+
+      rxField("Emissão da NF-e",rxInput("data_emissao",ctx.data_emissao,'type="date" required oninput="App.receivingManualInvoiceField(&quot;data_emissao&quot;,this.value)"'))+
+      rxField("Emitente / fornecedor",rxInput("fornecedor",ctx.fornecedor,'required maxlength="240" oninput="App.receivingManualInvoiceField(&quot;fornecedor&quot;,this.value)"'))+
+      rxField("CPF/CNPJ do emitente",rxInput("documento_fornecedor",ctx.documento_fornecedor,'required maxlength="20" oninput="App.receivingManualInvoiceField(&quot;documento_fornecedor&quot;,this.value)"'))+
       '</div><div class="receiving-invoice-items-title"><strong>Produtos desta NF-e</strong>'+
       '<span>'+ctx.items.length+' linha(s)</span></div>'+rows+
       '<button type="button" class="btn receiving-invoice-add" '+
@@ -999,7 +1028,7 @@ Object.assign(App,{
   },
   receivingManualInvoiceField(field,value){
     const ctx=this.s.receivingManualInvoice;
-    if(ctx&&["date","invoice_number","access_key"].includes(field))
+    if(ctx&&["date","invoice_number","access_key","serie","data_emissao","fornecedor","documento_fornecedor"].includes(field))
       ctx[field]=String(value||"");
     this.receivingManualInvoiceSaveDraft();
   },
@@ -1008,12 +1037,18 @@ Object.assign(App,{
     if(ctx?.items[index])ctx.items[index].quantity=String(value||"");
     this.receivingManualInvoiceSaveDraft();
   },
+  receivingManualInvoiceItemField(index,field,value){
+    const ctx=this.s.receivingManualInvoice;
+    if(ctx?.items[index]&&["valor_unitario","codigo_produto","cfop","ncm","lote","validade"].includes(field))
+      ctx.items[index][field]=String(value||"");
+    this.receivingManualInvoiceSaveDraft();
+  },
   receivingManualInvoiceRepeat(index){
     const ctx=this.s.receivingManualInvoice;
     if(!ctx||ctx.items.length>=150)return this.toast("Limite de 150 linhas por NF-e.",true);
     const source=ctx.items[index];
     if(!source)return;
-    ctx.items.splice(index+1,0,{item_id:source.item_id,quantity:""});
+    ctx.items.splice(index+1,0,{...source,quantity:""});
     this.receivingManualInvoiceSaveDraft();
     this.receivingRenderManualInvoice();
     document.getElementById("receivingInvoiceQty"+(index+1))?.focus();
@@ -1050,7 +1085,7 @@ Object.assign(App,{
     const ctx=this.s.receivingManualInvoice;
     const item=this.s.receivingData?.items.find(x=>x.id===id&&!x.closed&&Number(x.remaining_qty)>0);
     if(!ctx||!item||ctx.items.length>=150)return;
-    ctx.items.push({item_id:item.id,quantity:""});
+    ctx.items.push({item_id:item.id,quantity:"",valor_unitario:"",codigo_produto:"",cfop:"",ncm:"",validade:"",lote:""});
     this.receivingManualInvoiceSaveDraft();
     ctx.pickerOpen=false;ctx.query="";
     this.receivingRenderManualInvoice();
@@ -1062,8 +1097,12 @@ Object.assign(App,{
     if(!ctx||ctx.saving||this.s.modal!=="receiving-invoice"||!form||!form.reportValidity())return;
     const f=new FormData(form);
     const payload={date:f.get("date"),invoice_number:f.get("invoice_number"),
-      access_key:f.get("access_key"),items:ctx.items.map((line,index)=>({
-        item_id:line.item_id,quantity:rxReceiptQuantityToApi(f.get("quantity_"+index))}))};
+      access_key:f.get("access_key"),serie:f.get("serie"),data_emissao:f.get("data_emissao"),
+      fornecedor:f.get("fornecedor"),documento_fornecedor:f.get("documento_fornecedor"),
+      items:ctx.items.map((line,index)=>({
+        item_id:line.item_id,quantity:rxReceiptQuantityToApi(f.get("quantity_"+index)),
+        valor_unitario:String(f.get("unit_price_"+index)||"").replace(",","."),codigo_produto:f.get("product_code_"+index),
+        cfop:f.get("cfop_"+index),ncm:f.get("ncm_"+index),lote:f.get("lote_"+index),validade:f.get("validade_"+index)}))};
     if(payload.items.some(line=>line.quantity===null)){
       this.toast("Confira as quantidades. Use 1250 ou 1.250 para mil e vírgula para decimais.",true);
       return;
