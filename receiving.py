@@ -393,7 +393,7 @@ def save_manual_invoice(con,cid,payload):
         if normalized_invoice(existing["invoice_number"])!=normalized_invoice(common["invoice_number"]):
             raise ValueError("A chave de acesso já pertence a outro número de NF-e neste controle.")
     # Campos da nota obrigatórios quando o usuário não anexou XML/PDF.
-    receiving_gfarm.fiscal_manual({**payload,"valor_unitario":"0"},exigir=True)
+    receiving_gfarm.fiscal_manual({**payload,"valor_unitario":"0"},exigir=receiving_gfarm.fiscal_required())
     grouped={}
     for index,line in enumerate(payload["items"]):
         if not isinstance(line,dict) or type(line.get("item_id")) is not int:
@@ -404,7 +404,7 @@ def save_manual_invoice(con,cid,payload):
         if item["closed"]:
             raise ValueError("Pedido concluído: "+item["order_number"]+" · "+item["product"])
         amount=qty(line.get("quantity"),"a quantidade recebida")
-        fiscal=receiving_gfarm.fiscal_manual({**payload,**line},exigir=True)
+        fiscal=receiving_gfarm.fiscal_manual({**payload,**line},exigir=receiving_gfarm.fiscal_required())
         key=(normalized_order(item["order_number"]),normalized_product(item["product"]))
         if key not in grouped:
             grouped[key]={"item":item,"amount":Decimal("0"),"lines":0,"total_value":Decimal("0"),"fiscal":fiscal}
@@ -476,7 +476,7 @@ def handle(handler,con,method,path):
         if method=="POST" and itemroute[2]=="receipts":
             payload=handler.input()
             row=validate_receipt(payload)
-            fiscal=receiving_gfarm.fiscal_manual(payload,exigir=True)
+            fiscal=receiving_gfarm.fiscal_manual(payload,exigir=receiving_gfarm.fiscal_required())
             con.execute("BEGIN IMMEDIATE")
             ensure_capacity(con,iid,row["received_qty"])
             ensure_not_duplicate(con,iid,row)
@@ -531,7 +531,7 @@ def handle(handler,con,method,path):
             receiving_gfarm.assert_editable(con,rid)
             payload=handler.input()
             row=validate_receipt(payload)
-            fiscal=receiving_gfarm.fiscal_manual(payload,exigir=True)
+            fiscal=receiving_gfarm.fiscal_manual(payload,exigir=receiving_gfarm.fiscal_required())
             ensure_capacity(con,existing["item_id"],row["received_qty"],rid)
             ensure_not_duplicate(con,existing["item_id"],row,rid)
             con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,access_key=?,notes=?,
