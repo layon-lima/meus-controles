@@ -7,6 +7,8 @@ import re
 import unicodedata
 from xml.etree import ElementTree as ET
 import receiving
+import receiving_gfarm
+import json
 
 def initialize(con):
     con.executescript("""
@@ -103,6 +105,7 @@ def parse(raw):
     cnpj=val(emit,"CNPJ") or val(emit,"CPF")
     number=val(ide,"nNF")
     issued=(val(ide,"dhEmi") or val(ide,"dEmi"))[:10]
+    serie=val(ide,"serie")
     if not number or not supplier:raise ValueError("NF-e sem número ou emitente.")
     try:date.fromisoformat(issued)
     except ValueError:raise ValueError("NF-e sem data válida.") from None
@@ -121,11 +124,15 @@ def parse(raw):
         unit=val(prod,"uCom")
         if not name or not amount or not unit:raise ValueError("Item da NF-e sem produto, unidade ou quantidade.")
         quantity=receiving.qty(amount)
+        rastro=child(prod,"rastro")
         lines.append({"index":len(lines),"name":name,"code":val(prod,"cProd"),
-                      "quantity":receiving.display(quantity),"unit":unit})
+                      "quantity":receiving.display(quantity),"unit":unit,
+                      "total_value":val(prod,"vProd"),"unit_price":val(prod,"vUnCom"),
+                      "cfop":val(prod,"CFOP"),"ncm":val(prod,"NCM"),
+                      "lote":val(rastro,"nLote"),"validade":val(rastro,"dVal")})
     if not lines:raise ValueError("NF-e sem produtos.")
     return {"invoice_number":number,"access_key":key,"date":issued,
-            "supplier":supplier,"cnpj":cnpj,"lines":lines}
+            "serie":serie,"supplier":supplier,"cnpj":cnpj,"lines":lines}
 
 def candidates(orders,xml,line):
     rows=[]
@@ -216,14 +223,14 @@ def confirm(con,cid,payload):
         quantity,is_manual=quantity_in_order_unit(
             line["quantity"],line["unit"],item["unit"],manual)
         key=selected
-        already=sum(q for iid,q,_ in chosen if iid==key)
+        already=sum(q for iid,q,_,_ in chosen if iid==key)
         if quantity+already>Decimal(item["remaining_qty"]):
             raise ValueError("Quantidade superior ao saldo disponível: "+item["product"])
         note="Lançamento por XML NF-e"
         if is_manual:
             note+=". Conversão manual: "+line["quantity"]+" "+line["unit"]+(
                 " = "+receiving.display(quantity)+" "+item["unit"])
-        chosen.append((selected,quantity,note))
+        chosen.append((selected,quantity,note,line))
         seen.add((item["order_number"],item["supplier"]))
     # Uma mesma NF-e pode ter vários itens no mesmo pedido: conferir duplicidade contra histórico,
     # sem proibir itens diferentes na própria importação.
@@ -235,21 +242,54 @@ def confirm(con,cid,payload):
         if con.execute("SELECT id FROM receiving_xml_pending WHERE control_id=? AND access_key=? AND line_index=?",
           (cid,xml["access_key"],line["index"])).fetchone():
             raise ValueError("Este item já está em Sem pedido.")
-    for iid,quantity,note in chosen:
-        con.execute("""INSERT INTO purchase_receipts
+    # Várias linhas do mesmo produto no XML viram um único recebimento,
+    # com custo médio ponderado na unidade do pedido.
+    grouped={}
+    for iid,quantity,note,line in chosen:
+        g=grouped.setdefault(iid,{"quantity":Decimal("0"),"total":Decimal("0"),
+                                   "lines":0,"line":line,"notes":[]})
+        g["quantity"]+=quantity
+        g["lines"]+=1
+        if note not in g["notes"]:g["notes"].append(note)
+        try:
+            total=Decimal(line["total_value"] or "0")
+        except Exception:
+            total=Decimal("0")
+        g["total"]+=total
+    for iid,g in grouped.items():
+        line=g["line"]
+        fiscal={
+            "serie":xml["serie"],"data_emissao":xml["date"],
+            "fornecedor":xml["supplier"],"documento_fornecedor":xml["cnpj"],
+            "codigo_produto":line["code"],"valor_unitario":str(g["total"]/g["quantity"]),
+            "valor_total":str(g["total"]),"cfop":line["cfop"],"ncm":line["ncm"],
+            "lote":line["lote"],"validade":line["validade"],"origem_arquivo":"xml",
+            "descricao_xml":line["name"],"unidade_xml":line["unit"]
+        }
+        notes=" | ".join(g["notes"])
+        if g["lines"]>1:notes+=" | "+str(g["lines"])+" linhas da NF-e somadas"
+        cur=con.execute("""INSERT INTO purchase_receipts
             (item_id,received_date,invoice_number,received_qty,access_key,notes,
-             invoice_issuer,invoice_issuer_document)
-            VALUES(?,?,?,?,?,?,?,?)""",
-            (iid,xml["date"],xml["invoice_number"],receiving.display(quantity),xml["access_key"],
-             note,xml["supplier"],xml["cnpj"]))
+             invoice_issuer,invoice_issuer_document,fiscal_json)
+            VALUES(?,?,?,?,?,?,?,?,?)""",
+            (iid,xml["date"],xml["invoice_number"],receiving.display(g["quantity"]),xml["access_key"],
+             notes,xml["supplier"],xml["cnpj"],json.dumps(fiscal,ensure_ascii=False)))
+        receiving_gfarm.queue(con,cur.lastrowid)
     for line in pending:
+        fiscal={"serie":xml["serie"],"data_emissao":xml["date"],
+                "fornecedor":xml["supplier"],"documento_fornecedor":xml["cnpj"],
+                "codigo_produto":line["code"],"valor_unitario":line["unit_price"],
+                "valor_total":line["total_value"],"cfop":line["cfop"],
+                "ncm":line["ncm"],"lote":line["lote"],"validade":line["validade"],
+                "origem_arquivo":"xml","descricao_xml":line["name"],"unidade_xml":line["unit"]}
         con.execute("""INSERT INTO receiving_xml_pending
          (control_id,access_key,invoice_number,issued_date,supplier,cnpj,line_index,
-          product,product_code,quantity,unit) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+          product,product_code,quantity,unit,fiscal_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
          (cid,xml["access_key"],xml["invoice_number"],xml["date"],xml["supplier"],xml["cnpj"],
-          line["index"],line["name"],line["code"],line["quantity"],line["unit"]))
+          line["index"],line["name"],line["code"],line["quantity"],line["unit"],
+          json.dumps(fiscal,ensure_ascii=False)))
     con.commit()
-    return {"inserted":len(chosen),"pending":len(pending)}
+    return {"inserted":len(grouped),"pending":len(pending)}
 
 def pending_list(con,cid):
     receiving.ensure_control(con,cid)
@@ -275,11 +315,16 @@ def assign_pending(con,cid,pid,payload):
     if is_manual:
         note+=". Conversão manual: "+row["quantity"]+" "+row["unit"]+(
             " = "+receiving.display(amount)+" "+item["unit"])
-    con.execute("""INSERT INTO purchase_receipts
+    fiscal=json.loads(row["fiscal_json"] or "{}")
+    if fiscal.get("valor_total") not in (None,""):
+        fiscal["valor_unitario"]=str(Decimal(fiscal["valor_total"])/amount)
+    cur=con.execute("""INSERT INTO purchase_receipts
       (item_id,received_date,invoice_number,received_qty,access_key,notes,
-       invoice_issuer,invoice_issuer_document)
-      VALUES(?,?,?,?,?,?,?,?)""",(iid,row["issued_date"],row["invoice_number"],
-      receiving.display(amount),row["access_key"],note,row["supplier"],row["cnpj"]))
+       invoice_issuer,invoice_issuer_document,fiscal_json)
+      VALUES(?,?,?,?,?,?,?,?,?)""",(iid,row["issued_date"],row["invoice_number"],
+      receiving.display(amount),row["access_key"],note,row["supplier"],row["cnpj"],
+      json.dumps(fiscal,ensure_ascii=False)))
+    receiving_gfarm.queue(con,cur.lastrowid)
     con.execute("DELETE FROM receiving_xml_pending WHERE id=?",(pid,))
     con.commit()
     return {"ok":True}
