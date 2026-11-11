@@ -27,6 +27,7 @@ import receiving_import
 import receiving_pdf
 import receiving_pdf_region
 import receiving_xml
+import receiving_gfarm
 import reports_excel
 import receiving_invoices_excel
 import debt_import
@@ -131,6 +132,7 @@ def initialize():
         receiving_import.initialize(con)
         receiving_pdf.initialize(con)
         receiving_xml.initialize(con)
+        receiving_gfarm.initialize(con)
         debt_import.initialize(con)
         if not con.execute("SELECT 1 FROM settings WHERE key=\'seeded\'").fetchone():
             already_has_boards = bool(con.execute("SELECT 1 FROM boards LIMIT 1").fetchone())
@@ -918,6 +920,7 @@ if __name__=="__main__":
         raise RuntimeError("A VPS exige CONTROLES_PUBLIC_ORIGIN=https://... e desligamento remoto desabilitado.")
     initialize()
     ensure_windows_desktop_shortcut()
+    receiving_gfarm.start_worker(db)
     server=ThreadingHTTPServer((HOST,PORT),Handler)
     print(f"Central de Controles: http://{HOST}:{PORT}",flush=True)
     try: server.serve_forever()
