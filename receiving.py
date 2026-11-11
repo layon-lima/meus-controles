@@ -7,6 +7,8 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 import re
 import unicodedata
+import json
+import receiving_gfarm
 
 MAX_QTY=Decimal("1000000000000")
 PRECISION=Decimal("0.001")
@@ -384,6 +386,8 @@ def save_manual_invoice(con,cid,payload):
         WHERE i.control_id=? AND r.access_key=?""",(cid,common["access_key"])):
         if normalized_invoice(existing["invoice_number"])!=normalized_invoice(common["invoice_number"]):
             raise ValueError("A chave de acesso já pertence a outro número de NF-e neste controle.")
+    # Campos da nota obrigatórios quando o usuário não anexou XML/PDF.
+    receiving_gfarm.fiscal_manual({**payload,"valor_unitario":"0"},exigir=True)
     grouped={}
     for index,line in enumerate(payload["items"]):
         if not isinstance(line,dict) or type(line.get("item_id")) is not int:
@@ -394,13 +398,15 @@ def save_manual_invoice(con,cid,payload):
         if item["closed"]:
             raise ValueError("Pedido concluído: "+item["order_number"]+" · "+item["product"])
         amount=qty(line.get("quantity"),"a quantidade recebida")
+        fiscal=receiving_gfarm.fiscal_manual({**payload,**line},exigir=True)
         key=(normalized_order(item["order_number"]),normalized_product(item["product"]))
         if key not in grouped:
-            grouped[key]={"item":item,"amount":Decimal("0"),"lines":0}
+            grouped[key]={"item":item,"amount":Decimal("0"),"lines":0,"total_value":Decimal("0"),"fiscal":fiscal}
         group=grouped[key]
         if group["item"]["unit"]!=item["unit"]:
             raise ValueError("Unidades diferentes para o mesmo produto da NF-e: "+item["product"])
         group["amount"]+=amount
+        group["total_value"]+=Decimal(fiscal["valor_unitario"])*amount
         group["lines"]+=1
     # Checar capacidade e duplicidade ANTES de inserir.
     for group in grouped.values():
@@ -415,10 +421,16 @@ def save_manual_invoice(con,cid,payload):
         if group["lines"]>1:
             notes=(notes+" | " if notes else "")+str(group["lines"])+\
                   " linhas da NF-e somadas no produto"
+        fiscal={**group["fiscal"],
+                "valor_unitario":str(group["total_value"]/group["amount"]),
+                "valor_total":str(group["total_value"])}
         cur=con.execute("""INSERT INTO purchase_receipts
-            (item_id,received_date,invoice_number,received_qty,access_key,notes)
-            VALUES(?,?,?,?,?,?)""",(item["id"],common["received_date"],
-            common["invoice_number"],display(group["amount"]),common["access_key"],notes))
+            (item_id,received_date,invoice_number,received_qty,access_key,notes,
+             invoice_issuer,invoice_issuer_document,fiscal_json)
+            VALUES(?,?,?,?,?,?,?,?,?)""",(item["id"],common["received_date"],
+            common["invoice_number"],display(group["amount"]),common["access_key"],notes,
+            fiscal["fornecedor"],fiscal["documento_fornecedor"],json.dumps(fiscal,ensure_ascii=False)))
+        receiving_gfarm.queue(con,cur.lastrowid)
         inserted.append(cur.lastrowid)
     con.commit()
     return {"inserted":len(inserted),"lines":len(payload["items"]),
@@ -456,14 +468,19 @@ def handle(handler,con,method,path):
             con.commit()
             return handler.send({"ok":True})
         if method=="POST" and itemroute[2]=="receipts":
-            row=validate_receipt(handler.input())
+            payload=handler.input()
+            row=validate_receipt(payload)
+            fiscal=receiving_gfarm.fiscal_manual(payload,exigir=True)
             con.execute("BEGIN IMMEDIATE")
             ensure_capacity(con,iid,row["received_qty"])
             ensure_not_duplicate(con,iid,row)
             cur=con.execute("""INSERT INTO purchase_receipts
-              (item_id,received_date,invoice_number,received_qty,access_key,notes) VALUES(?,?,?,?,?,?)""",
+              (item_id,received_date,invoice_number,received_qty,access_key,notes,
+               invoice_issuer,invoice_issuer_document,fiscal_json) VALUES(?,?,?,?,?,?,?,?,?)""",
               (iid,row["received_date"],row["invoice_number"],row["received_qty"],
-               row["access_key"],row["notes"]))
+               row["access_key"],row["notes"],fiscal["fornecedor"],fiscal["documento_fornecedor"],
+               json.dumps(fiscal,ensure_ascii=False)))
+            receiving_gfarm.queue(con,cur.lastrowid)
             con.commit()
             return handler.send({"id":cur.lastrowid},201)
         if itemroute[2] is None and method in ("PUT","DELETE"):
@@ -500,12 +517,17 @@ def handle(handler,con,method,path):
         if method=="DELETE":
             con.execute("DELETE FROM purchase_receipts WHERE id=?",(rid,))
         else:
-            row=validate_receipt(handler.input())
+            payload=handler.input()
+            row=validate_receipt(payload)
+            fiscal=receiving_gfarm.fiscal_manual(payload,exigir=True)
             ensure_capacity(con,existing["item_id"],row["received_qty"],rid)
             ensure_not_duplicate(con,existing["item_id"],row,rid)
             con.execute("""UPDATE purchase_receipts SET received_date=?,invoice_number=?,received_qty=?,access_key=?,notes=?,
+              invoice_issuer=?,invoice_issuer_document=?,fiscal_json=?,
               updated_at=CURRENT_TIMESTAMP WHERE id=?""",
-              (row["received_date"],row["invoice_number"],row["received_qty"],row["access_key"],row["notes"],rid))
+              (row["received_date"],row["invoice_number"],row["received_qty"],row["access_key"],row["notes"],
+               fiscal["fornecedor"],fiscal["documento_fornecedor"],json.dumps(fiscal,ensure_ascii=False),rid))
+            receiving_gfarm.queue(con,rid)
         con.commit()
         return handler.send({"ok":True})
     raise LookupError("Operação não encontrada.")
