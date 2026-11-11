@@ -11,6 +11,8 @@ on:
       - 'app.py'
       - 'tests/test_integracao_gfarm.py'
       - 'tests/test_receiving_gfarm_manual.js'
+      - 'tests/test_ativar_gfarm_env.py'
+      - 'deploy/vps/ATIVAR_INTEGRACAO_GFARM.sh'
       - '.github/workflows/validar-integracao-gfarm.yml'
   workflow_dispatch:
 
@@ -29,4 +31,6 @@ jobs:
           node --check static/receiving.js
           node tests/test_receiving_gfarm_manual.js
       - name: Testar fila persistente, XML e lançamento manual
-        run: python -m unittest discover -s tests -p 'test_integracao_gfarm.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_integracao_gfarm.py' -v
+          python -m unittest discover -s tests -p 'test_ativar_gfarm_env.py' -v
