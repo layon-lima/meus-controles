@@ -10,6 +10,7 @@ on:
       - 'static/receiving.js'
       - 'app.py'
       - 'tests/test_integracao_gfarm.py'
+      - 'tests/test_receiving_gfarm_manual.js'
       - '.github/workflows/validar-integracao-gfarm.yml'
   workflow_dispatch:
 
@@ -24,6 +25,8 @@ jobs:
       - name: Checar sintaxe e importação
         run: python -m compileall -q app.py receiving.py receiving_gfarm.py receiving_xml.py receiving_fiscal_pdf.py tests/test_integracao_gfarm.py
       - name: Checar Javascript do formulário
-        run: node --check static/receiving.js
+        run: |
+          node --check static/receiving.js
+          node tests/test_receiving_gfarm_manual.js
       - name: Testar fila persistente, XML e lançamento manual
         run: python -m unittest discover -s tests -p 'test_integracao_gfarm.py' -v
