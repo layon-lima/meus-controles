@@ -573,3 +573,18 @@ body.receiving-xml-drag:after{content:"SOLTE O XML DA NF-e PARA CONFERIR";positi
  .receiving-invoice-product{padding:10px}
  .receiving-invoice-product-top{flex-wrap:wrap}
 }
+
+/* Envio MANUAL de notas para o GFARM (checkbox e toolbar sem alterar a grade de pedidos). */
+.receiving-toolbar .receiving-gfarm-select-all{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}
+.receiving-gfarm-select-all input,.receiving-gfarm-select-cell input{width:15px;height:15px;accent-color:#15866e;cursor:pointer}
+.receiving-gfarm-select-cell input:disabled{cursor:not-allowed;opacity:.45}
+.receiving-table .receiving-invoices th.receiving-gfarm-select-cell,
+.receiving-table .receiving-invoices td.receiving-gfarm-select-cell{width:48px;min-width:48px;text-align:center!important;padding:7px 5px}
+.receiving-gfarm-status{display:block;margin-top:2px;font-size:10px;line-height:1.2;color:var(--muted);white-space:normal}
+.receiving-toolbar #receivingGfarmSendBtn{white-space:nowrap}
+.receiving-toolbar #receivingGfarmSendBtn[hidden]{display:none}
+.receiving-toolbar #receivingGfarmSelectedCount{font-size:11px}
+@media(max-width:700px){
+  .receiving-toolbar{flex-wrap:wrap}
+  .receiving-toolbar #receivingGfarmSendBtn{flex:1}
+}
