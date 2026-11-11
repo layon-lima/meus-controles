@@ -3,6 +3,7 @@ import base64
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from decimal import Decimal
 
@@ -59,8 +60,12 @@ class IntegracaoGfarmTest(unittest.TestCase):
 
     def test_manual_blocks_missing_fiscal_fields(self):
         with app.db() as con:
-            with self.assertRaisesRegex(ValueError,"série"):
-                receiving.save_manual_invoice(con,self.cid,{
+            with patch.dict("os.environ", {
+                "GFARM_RECEBIMENTOS_URL":"http://gfarm-app-1:8000/api/integracoes/recebimentos",
+                "GFARM_RECEBIMENTOS_TOKEN":"a"*48,
+            }):
+                with self.assertRaisesRegex(ValueError,"série"):
+                    receiving.save_manual_invoice(con,self.cid,{
                     "date":"2026-11-11","invoice_number":"123","access_key":"1"*44,
                     "items":[{"item_id":self.iid,"quantity":"10"}],
                 })
