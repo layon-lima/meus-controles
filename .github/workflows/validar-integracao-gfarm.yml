@@ -1,0 +1,29 @@
+name: Validar integração de Recebimentos com GFARM
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'receiving.py'
+      - 'receiving_xml.py'
+      - 'receiving_gfarm.py'
+      - 'receiving_fiscal_pdf.py'
+      - 'static/receiving.js'
+      - 'app.py'
+      - 'tests/test_integracao_gfarm.py'
+      - '.github/workflows/validar-integracao-gfarm.yml'
+  workflow_dispatch:
+
+jobs:
+  teste-integracao:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Checar sintaxe e importação
+        run: python -m compileall -q app.py receiving.py receiving_gfarm.py receiving_xml.py receiving_fiscal_pdf.py tests/test_integracao_gfarm.py
+      - name: Checar Javascript do formulário
+        run: node --check static/receiving.js
+      - name: Testar fila persistente, XML e lançamento manual
+        run: python -m unittest discover -s tests -p 'test_integracao_gfarm.py' -v
