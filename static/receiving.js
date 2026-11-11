@@ -908,7 +908,7 @@ Object.assign(App,{
         controlId:ctx.controlId,date:ctx.date,
         invoice_number:ctx.invoice_number,access_key:ctx.access_key,
         serie:ctx.serie,data_emissao:ctx.data_emissao,fornecedor:ctx.fornecedor,
-        documento_fornecedor:ctx.documento_fornecedor,
+        documento_fornecedor:ctx.documento_fornecedor,origem_arquivo:ctx.origem_arquivo,
         items:ctx.items.map(x=>({item_id:x.item_id,quantity:x.quantity,
           valor_unitario:x.valor_unitario,codigo_produto:x.codigo_produto,
           cfop:x.cfop,ncm:x.ncm,validade:x.validade,lote:x.lote}))
@@ -940,6 +940,8 @@ Object.assign(App,{
       serie:saved?.serie||"",data_emissao:saved?.data_emissao||rxToday(),
       fornecedor:saved?.fornecedor||item.supplier||"",
       documento_fornecedor:saved?.documento_fornecedor||"",
+      origem_arquivo:saved?.origem_arquivo||"manual",
+      pdfWarnings:[],
       items:draftItems.length?draftItems:[{item_id:item.id,quantity:"",
         valor_unitario:"",codigo_produto:"",cfop:"",ncm:"",validade:"",lote:""}],
       pickerOpen:false,query:"",saving:false
@@ -998,6 +1000,11 @@ Object.assign(App,{
       '<button class="close" onclick="App.closeModal()" aria-label="Fechar">'+icon("x")+'</button></div>'+
       '<div class="modal-body"><form id="receivingInvoiceForm" '+
       'onsubmit="event.preventDefault();App.receivingSaveManualInvoice()">'+
+      '<div class="receiving-hint" style="margin-bottom:10px"><label class="btn btn-sm" for="receivingInvoicePdfFile">Ler DANFE PDF</label>'+
+      '<input type="file" id="receivingInvoicePdfFile" accept=".pdf,application/pdf" hidden '+
+      'onchange="App.receivingLoadNfePdf(this.files[0])">'+
+      '<span style="margin-left:8px">Preenche o que for identificado. Confira os dados antes de salvar.</span></div>'+
+      (ctx.pdfWarnings?.length?'<p class="receiving-hint">'+ctx.pdfWarnings.map(E).join(" · ")+'</p>':"")+
       '<div class="form-grid">'+
       rxField("Data do recebimento",rxInput("date",ctx.date,'type="date" required '+
         'oninput="App.receivingManualInvoiceField(&quot;date&quot;,this.value)"'))+
@@ -1027,6 +1034,43 @@ Object.assign(App,{
     if(ctx.pickerOpen){
       this.receivingManualInvoiceSearch(ctx.query,false);
     }
+  },
+  async receivingLoadNfePdf(file){
+    const ctx=this.s.receivingManualInvoice;
+    if(!file||!ctx||this.s.modal!=="receiving-invoice")return;
+    if(file.size>7*1024*1024)return this.toast("O DANFE PDF deve ter até 7 MB.",true);
+    try{
+      const bytes=new Uint8Array(await file.arrayBuffer());
+      let binary="";
+      for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      const report=await this.api("/api/controls/"+ctx.controlId+"/receiving/fiscal/pdf/preview",
+        "POST",{pdf:btoa(binary)});
+      for(const field of ["invoice_number","serie","data_emissao","access_key",
+        "fornecedor","documento_fornecedor"]){
+        if(report[field])ctx[field]=String(report[field]);
+      }
+      function normal(value){
+        return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+          .toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+      }
+      for(const line of ctx.items){
+        const item=(this.s.receivingData?.items||[]).find(x=>x.id===line.item_id);
+        if(!item)continue;
+        const matches=(report.products||[]).filter(x=>
+          normal(x.produto)===normal(item.product) &&
+          normal(x.unidade)===normal(item.unit));
+        if(matches.length!==1)continue;
+        const matched=matches[0];
+        for(const field of ["valor_unitario","codigo_produto","cfop","ncm"]){
+          if(matched[field]&&!line[field])line[field]=String(matched[field]);
+        }
+      }
+      ctx.origem_arquivo="pdf";
+      ctx.pdfWarnings=report.warnings||[];
+      this.receivingManualInvoiceSaveDraft();
+      this.receivingRenderManualInvoice();
+      this.toast("DANFE lido. Confira os dados da nota e de cada produto.");
+    }catch(err){this.toast("Não foi possível ler o DANFE: "+err.message,true);}
   },
   receivingManualInvoiceField(field,value){
     const ctx=this.s.receivingManualInvoice;
@@ -1101,6 +1145,7 @@ Object.assign(App,{
     const payload={date:f.get("date"),invoice_number:f.get("invoice_number"),
       access_key:f.get("access_key"),serie:f.get("serie"),data_emissao:f.get("data_emissao"),
       fornecedor:f.get("fornecedor"),documento_fornecedor:f.get("documento_fornecedor"),
+      origem_arquivo:ctx.origem_arquivo||"manual",
       items:ctx.items.map((line,index)=>({
         item_id:line.item_id,quantity:rxReceiptQuantityToApi(f.get("quantity_"+index)),
         valor_unitario:String(f.get("unit_price_"+index)||"").replace(",","."),codigo_produto:f.get("product_code_"+index),
