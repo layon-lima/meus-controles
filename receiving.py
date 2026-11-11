@@ -412,7 +412,7 @@ def save_manual_invoice(con,cid,payload):
         if group["item"]["unit"]!=item["unit"]:
             raise ValueError("Unidades diferentes para o mesmo produto da NF-e: "+item["product"])
         group["amount"]+=amount
-        group["total_value"]+=Decimal(fiscal["valor_unitario"])*amount
+        group["total_value"]+=Decimal(fiscal["valor_unitario"] or "0")*amount
         group["lines"]+=1
     # Checar capacidade e duplicidade ANTES de inserir.
     for group in grouped.values():
