@@ -3,7 +3,7 @@
 "use strict";
 (function(){
   if(typeof window==="undefined"||typeof document==="undefined")return;
-  const media=window.matchMedia("(max-width: 820px)");
+  const media=window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)");
   if(!media.matches)return;
   const $=id=>document.getElementById(id);
   const escape=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
