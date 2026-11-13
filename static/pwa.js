@@ -29,7 +29,10 @@
       if (!data.ok) throw new Error("Banco indisponível");
       if (wasOffline || pendingReload) {
         wasOffline = false;
-        if (typeof App !== "undefined" && !App.s.modal) {
+        if (typeof MobileReceiving !== "undefined" && MobileReceiving.isMobile) {
+          pendingReload = false;
+          await MobileReceiving.refresh();
+        } else if (typeof App !== "undefined" && !App.s.modal) {
           pendingReload = false;
           await App.load();
         } else {
