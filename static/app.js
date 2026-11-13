@@ -857,6 +857,9 @@ document.addEventListener("click",e=>{
   if(!e.target.closest(".search-wrap"))App.closeSearch();
   if(!e.target.closest(".control-card-edit")&&!e.target.closest(".card-action-menu"))App.closeControlMenus();
 });
-document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");
-App.initNavigation();
-App.load();
+// O celular tem apenas acompanhamento; não inicializar telas de edição.
+if(!window.matchMedia("(max-width: 820px)").matches){
+  document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");
+  App.initNavigation();
+  App.load();
+}
