@@ -55,6 +55,8 @@ class PWATests(unittest.TestCase):
                     ("/static/pwa.js", b"/* Instala"),
                     ("/static/desktop_compact.css?v=20261022-conferencia-1", b"/* CENTRAL"),
                     ("/static/vales.js?v=20261026-vales-v5", b'"use strict"'),
+                    ("/static/receiving_mobile.js?v=20261113-mobile-recebimentos-v1", b"/* MEUS CONTROLES"),
+                    ("/static/receiving_mobile.css?v=20261113-mobile-recebimentos-v1", b"/* Mesmo endere"),
                     ("/static/vales.css?v=20261026-vales-v6", b"/* Controle de Vales"),
                     ("/static/receiving.js?v=20261027-pedidos-pdf-ocr-selecao-v11", b'"use strict"'),
                     ("/static/receiving.css?v=20261027-pedidos-pdf-ocr-selecao-v11", b"/* Recebimento de Produtos"),
