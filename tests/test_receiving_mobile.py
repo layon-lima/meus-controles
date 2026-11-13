@@ -15,10 +15,10 @@ PWA=(ROOT/"static/pwa.js").read_text(encoding="utf-8")
 class ReceivingMobileTests(unittest.TestCase):
     def test_mobile_uses_same_url_and_hides_desktop(self):
         self.assertIn('id="mobileReceiving"',HTML)
-        self.assertIn("@media (max-width:820px)",CSS)
+        self.assertIn("@media (max-width:820px), (hover:none) and (pointer:coarse)",CSS)
         self.assertIn('.app-shell,#modalRoot,#toastRoot{display:none!important}',CSS)
         self.assertIn('#mobileReceiving{display:none}',CSS)
-        self.assertIn('if(!window.matchMedia("(max-width: 820px)").matches)',APP)
+        self.assertIn('if(!window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches)',APP)
         self.assertIn('App.initNavigation();',APP)
         self.assertIn('App.load();',APP)
 
