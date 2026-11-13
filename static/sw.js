@@ -1,6 +1,6 @@
 /* PWA Central de Controles. APENAS o shell é armazenado; nunca API/dados financeiros. */
 "use strict";
-const CACHE = "central-de-controles-shell-v20261113-recebimentos-mobile-v1";
+const CACHE = "central-de-controles-shell-v20261113-mobile-ios-cards-v2";
 const SHELL = [
   "/", "/manifest.webmanifest", "/static/icons.svg", "/favicon.ico",
   "/pwa-icon-192.png", "/pwa-icon-512.png",
@@ -11,7 +11,7 @@ const SHELL = [
   "/static/debt.js?v=20261022-conferencia-1", "/static/open_debt.js?v=20261022-conferencia-1", "/static/receiving.js?v=20261111-gfarm-envio-manual-v2", "/static/receiving_xml.js?v=20261104-xml-emitente-v21",
   "/static/pair.js?v=20261104-tipo-transacao-v2", "/static/pair_records.js?v=20261104-tipo-transacao-v2",
   "/static/pair_financial_import.js?v=acerto-misto-formulario-20261014",
-  "/static/vales.js?v=20261026-vales-v5", "/static/control_types.js?v=20261030-menu-correcoes-v3", "/static/receiving_import.js", "/static/receiving_pdf.js?v=20261109-resumo-recebidos-compacto-v4", "/static/pwa.js?v=20261113-recebimentos-mobile-v1", "/static/receiving_mobile.js?v=20261113-mobile-recebimentos-v1", "/static/receiving_mobile.css?v=20261113-mobile-recebimentos-v1"
+  "/static/vales.js?v=20261026-vales-v5", "/static/control_types.js?v=20261030-menu-correcoes-v3", "/static/receiving_import.js", "/static/receiving_pdf.js?v=20261109-resumo-recebidos-compacto-v4", "/static/pwa.js?v=20261113-recebimentos-mobile-v1", "/static/receiving_mobile.js?v=20261113-mobile-ios-cards-v2", "/static/receiving_mobile.css?v=20261113-mobile-ios-cards-v2"
 ];
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
