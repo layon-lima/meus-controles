@@ -612,6 +612,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send((ROOT/"static"/"livro_caixa_theme.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/desktop_compact.css":
                 return self.send((ROOT/"static"/"desktop_compact.css").read_bytes(),mime="text/css; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_mobile.js":
+                return self.send((ROOT/"static"/"receiving_mobile.js").read_bytes(),mime="application/javascript; charset=utf-8")
+            if method=="GET" and url=="/static/receiving_mobile.css":
+                return self.send((ROOT/"static"/"receiving_mobile.css").read_bytes(),mime="text/css; charset=utf-8")
             if method=="GET" and url=="/static/app.js":
                 return self.send((ROOT/"static"/"app.js").read_bytes(),mime="application/javascript; charset=utf-8")
             if method=="GET" and url=="/static/truck.js":
