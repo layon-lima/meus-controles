@@ -26,7 +26,7 @@
   <!-- Tema visual global: nao modifica as funcionalidades. -->
   <link rel="stylesheet" href="/static/livro_caixa_theme.css?v=20261109-resumo-recebidos-compacto-v4">
   <!-- Mesma URL: no celular mostra somente acompanhamento de recebimentos. -->
-  <link rel="stylesheet" href="/static/receiving_mobile.css?v=20261113-mobile-recebimentos-v1">
+  <link rel="stylesheet" href="/static/receiving_mobile.css?v=20261113-mobile-ios-cards-v2">
 </head>
 <body>
   <div class="app-shell">
@@ -67,45 +67,23 @@
       <footer>Central de Controles · Dados salvos no servidor configurado · <span id="footerClock"></span></footer>
     </div>
   </div>
-  <!-- Interface exclusiva para telas de até 820px. Nenhuma ação de escrita. -->
-  <div id="mobileReceiving" aria-label="Acompanhamento de pedidos">
+  <!-- Painel mobile: somente consulta, sem menus, busca ou indicadores agregados. -->
+  <div id="mobileReceiving" aria-label="Acompanhamento de recebimentos">
     <header class="mr-top">
       <div class="mr-top-inner">
         <div class="mr-brand">
           <span class="mr-logo" aria-hidden="true">MC</span>
-          <span><strong>MEUS CONTROLES</strong><small>Acompanhamento de recebimentos</small></span>
+          <strong>MEUS CONTROLES</strong>
         </div>
-        <button type="button" id="mobileReceivingRefresh" class="mr-refresh" aria-label="Atualizar recebimentos" title="Atualizar"><span aria-hidden="true">↻</span></button>
       </div>
     </header>
     <main class="mr-content">
-      <span class="mr-overline">Recebimento de produtos</span>
-      <h1 class="mr-title">Acompanhar pedidos</h1>
-      <p class="mr-subtitle">Veja quanto chegou e quanto ainda falta receber.</p>
-      <p class="mr-date" id="mobileReceivingDate" role="status">Conectando ao servidor...</p>
       <div id="mobileReceivingFeedback" class="mr-alert" role="alert" hidden></div>
-      <section class="mr-stats" aria-label="Situação dos produtos">
-        <div class="mr-stat"><span>Produtos</span><strong id="mobileReceivingAll">—</strong></div>
-        <div class="mr-stat is-complete"><span>Concluídos</span><strong id="mobileReceivingComplete">—</strong></div>
-        <div class="mr-stat is-partial"><span>Parciais</span><strong id="mobileReceivingPartial">—</strong></div>
-        <div class="mr-stat is-pending"><span>Pendentes</span><strong id="mobileReceivingPending">—</strong></div>
-      </section>
-      <label class="mr-search">
-        <span aria-hidden="true">⌕</span>
-        <input id="mobileReceivingSearch" type="search" autocomplete="off"
-               placeholder="Buscar fornecedor, pedido ou produto" aria-label="Buscar fornecedor, pedido ou produto">
-      </label>
-      <nav class="mr-filters" aria-label="Filtrar recebimentos">
-        <button type="button" class="mr-filter is-active" data-filter="all" aria-pressed="true">Todos</button>
-        <button type="button" class="mr-filter" data-filter="pending" aria-pressed="false">Pendentes</button>
-        <button type="button" class="mr-filter" data-filter="partial" aria-pressed="false">Parciais</button>
-        <button type="button" class="mr-filter" data-filter="complete" aria-pressed="false">Concluídos</button>
-      </nav>
-      <div class="mr-section-title"><strong>Fornecedores e pedidos</strong><span id="mobileReceivingShown">Carregando…</span></div>
       <div id="mobileReceivingList" class="mr-list" aria-live="polite">
-        <div class="mr-empty"><strong>Carregando recebimentos...</strong><p>Consultando os dados da VPS.</p></div>
+        <div class="mr-empty"><strong>Carregando recebimentos...</strong>
+          <p>Consultando os dados da VPS.</p>
+        </div>
       </div>
-      <footer class="mr-footer">MEUS CONTROLES · Atualização automática</footer>
     </main>
   </div>
   <div id="modalRoot"></div>
@@ -125,6 +103,6 @@
   <script src="/static/receiving_import.js" defer></script>
   <script src="/static/receiving_pdf.js?v=20261109-resumo-recebidos-compacto-v4" defer></script>
   <script src="/static/pwa.js?v=20261113-recebimentos-mobile-v1" defer></script>
-  <script src="/static/receiving_mobile.js?v=20261113-mobile-recebimentos-v1" defer></script>
+  <script src="/static/receiving_mobile.js?v=20261113-mobile-ios-cards-v2" defer></script>
 </body>
 </html>
