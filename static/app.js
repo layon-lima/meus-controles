@@ -858,7 +858,7 @@ document.addEventListener("click",e=>{
   if(!e.target.closest(".control-card-edit")&&!e.target.closest(".card-action-menu"))App.closeControlMenus();
 });
 // O celular tem apenas acompanhamento; não inicializar telas de edição.
-if(!window.matchMedia("(max-width: 820px)").matches){
+if(!window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches){
   document.getElementById("footerClock").textContent=new Date().toLocaleDateString("pt-BR");
   App.initNavigation();
   App.load();
