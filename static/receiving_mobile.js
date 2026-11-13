@@ -23,7 +23,8 @@
     const asked=Number(item.ordered_qty)||0;
     const got=Number(item.received_qty)||0;
     const remaining=Number(item.remaining_qty)||0;
-    if(got>0&&(item.closed||remaining<=.0001))return "complete";
+    // A situação oficial do pedido vem do servidor, inclusive fechamentos.
+    if(item.status==="complete"||item.closed||remaining<=.0001)return "complete";
     if(got>0)return "partial";
     return "pending";
   };
@@ -204,6 +205,7 @@
   }
   const root=$("mobileReceiving");
   if(!root)return;
+  document.title="Recebimentos | Meus Controles";
   root.addEventListener("click",event=>{
     const filter=event.target.closest("[data-filter]");
     if(filter){state.filter=filter.dataset.filter;render();return;}
