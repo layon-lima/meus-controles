@@ -31,6 +31,7 @@ import receiving_xml
 import receiving_gfarm
 import reports_excel
 import receiving_invoices_excel
+import pair_excel
 import debt_import
 import truck_workflow
 import threading
@@ -667,6 +668,16 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261027-pedidos-pdf-ocr-dbfix-v12","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
+                pair_excel_route=re.fullmatch(
+                    r"/api/controls/(\\d+)/pair/entries\\.xlsx",url)
+                if method=="POST" and pair_excel_route:
+                    request=self.input(max_bytes=2000)
+                    if not isinstance(request,dict):
+                        raise ValueError("Parâmetros de exportação inválidos.")
+                    result=pair_excel.generate(
+                        con,int(pair_excel_route[1]),request.get("include_history",False))
+                    return self.send_excel(
+                        result,"acerto_lancamentos_"+pair_excel_route[1]+".xlsx")
                 invoice_route=re.fullmatch(
                     r"/api/controls/(\d+)/receiving/invoices\.xlsx",url)
                 if method=="POST" and invoice_route:
