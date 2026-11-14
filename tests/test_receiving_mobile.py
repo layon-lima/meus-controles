@@ -80,7 +80,7 @@ class ReceivingMobileTests(unittest.TestCase):
             self.assertIn(name,HTML)
             self.assertIn(name,SW)
             self.assertIn('url=="/static/'+asset+'"',SERVER)
-        self.assertIn('central-de-controles-shell-v20261113-mobile-ios-cards-v2',SW)
+        self.assertIn('central-de-controles-shell-v20261114-acerto-export-xlsx-v1',SW)
         self.assertIn('url.pathname.startsWith("/api/")',SW)
 
 if __name__=="__main__":
