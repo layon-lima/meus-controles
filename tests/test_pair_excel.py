@@ -95,7 +95,7 @@ class PairExcelTests(unittest.TestCase):
             self.assertNotIn("SEGREDO",xml)
             self.assertNotIn("<f>",xml)
             self.assertIn("autoFilter",xml)
-            self.assertIn("freeze",xml) if False else self.assertIn("pane",xml)
+            self.assertIn("pane",xml)
             self.assertIn("R$",book.read("xl/styles.xml").decode())
 
     def test_historical_export_contains_closed_and_payment(self):
