@@ -119,6 +119,8 @@ Object.assign(App,{
       '<div class="ab-row-actions"><button class="btn btn-sm" onclick="App.pairToggleHistory()">'+icon("list")+
       (all?" Período atual":" Ver histórico")+'</button>'+
       '<button class="btn btn-sm" onclick="App.pairImportRecords()">'+icon("list")+' Importar lançamentos</button>'+
+      '<button id="pairExportExcelBtn" type="button" class="btn btn-sm" '+
+      'onclick="App.pairExportExcel()">'+icon("file-spreadsheet")+' Exportar Excel</button>'+
       
       
       '</div></div>'+
@@ -131,6 +133,46 @@ Object.assign(App,{
       '</section>';
   },
   pairToggleHistory(){this.s.pairAll=!this.s.pairAll;this.renderPairView()},
+  async pairExportExcel(){
+    const cid=this.s.pairData?.control_id;
+    if(!cid||this.s.detail?.control?.mode!=="acerto_ab"||this.s.pairExportBusy)return;
+    this.s.pairExportBusy=true;
+    const button=document.getElementById("pairExportExcelBtn");
+    if(button)button.disabled=true;
+    try{
+      const response=await fetch("/api/controls/"+cid+"/pair/entries.xlsx",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({include_history:!!this.s.pairAll}),
+      });
+      if(!response.ok){
+        let message="Não foi possível gerar o Excel do acerto.";
+        try{const error=await response.json();message=error.error||message;}catch(_){}
+        throw new Error(message);
+      }
+      const blob=await response.blob();
+      if(!blob.size)throw new Error("O servidor retornou um arquivo Excel vazio.");
+      const url=URL.createObjectURL(blob);
+      try{
+        const link=document.createElement("a");
+        link.href=url;
+        link.download="acerto_lancamentos_"+cid+".xlsx";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }finally{
+        setTimeout(()=>URL.revokeObjectURL(url),2000);
+      }
+      this.toast("Excel dos lançamentos exportado.");
+    }catch(e){
+      this.toast(e.message,true);
+    }finally{
+      this.s.pairExportBusy=false;
+      const current=document.getElementById("pairExportExcelBtn");
+      if(current)current.disabled=false;
+    }
+  },
+
   pairEntryForm(id=null,initialKind="debt"){
     if(!this.canOpenForm())return;
     const data=this.s.pairData;if(!data)return;
