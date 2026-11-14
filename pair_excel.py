@@ -122,8 +122,11 @@ def generate(con,cid,include_history=False):
     people=data["settings"]
     ws.merge_range(0,0,0,8,
        "ACERTO - "+people["party_a"]+" × "+people["party_b"],title)
-    subtitle_text=("Histórico completo" if include_history else "Lançamentos do período aberto")+
-       " | "+str(len(rows))+" lançamento(s) | Exportado em "+datetime.now().strftime("%d/%m/%Y %H:%M")
+    subtitle_text=(
+        ("Histórico completo" if include_history else "Lançamentos do período aberto")
+        + " | " + str(len(rows)) + " lançamento(s) | Exportado em "
+        + datetime.now().strftime("%d/%m/%Y %H:%M")
+    )
     ws.merge_range(1,0,1,8,subtitle_text,subtitle)
     ws.set_row(3,30)
     ws.write_row(3,0,HEADERS,header)
