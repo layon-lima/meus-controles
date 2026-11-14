@@ -25,6 +25,7 @@ RUN python -m compileall -q /srv/app \
     && python -m unittest discover -s tests -p test_receiving_consolidation.py -v \
     && python -m unittest discover -s tests -p test_pair.py -v \
     && python -m unittest discover -s tests -p test_pair_records.py -v \
+    && python -m unittest discover -s tests -p test_pair_excel.py -v \
     && python -m unittest discover -s tests -p test_reports_excel.py -v \
     && python -m unittest discover -s tests -p test_receiving_invoices_excel.py -v \
     && python -m unittest discover -s tests -p test_emitentes_nf.py -v \
