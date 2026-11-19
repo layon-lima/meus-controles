@@ -18,6 +18,8 @@ ASSETS = {
     "/app.css": ("app.css", "text/css; charset=utf-8"),
     "/operations.css": ("operations.css", "text/css; charset=utf-8"),
     "/operations.js": ("operations.js", "text/javascript; charset=utf-8"),
+    "/launcher.css": ("launcher.css", "text/css; charset=utf-8"),
+    "/launcher.js": ("launcher.js", "text/javascript; charset=utf-8"),
 }
 
 
