@@ -95,3 +95,35 @@ Não executar docker compose up em produção antes de inventariar as fontes,
 validar permissões, confirmar o banco principal do CONTAS 4 e executar os
 testes de homologação com dados fictícios. A porta 18771 não deve ser
 publicada diretamente na internet.
+
+
+## Atualização da interface (19/11/2026)
+
+A tela inicial agora usa **oito cards de módulos, sem menu lateral**.
+Contas, recebimentos e sugestões de vínculos consultam os bancos automaticamente;
+os outros cards abrem as funções já existentes dos aplicativos originais, sem
+migrações nem recriação das rotinas de OCR, holerites, PDF, XML ou GFARM.
+
+Não há mais campo para colar uma chave no navegador. Para atualizar
+uma Central já instalada na VPS, como root:
+
+    curl -fsSL "https://raw.githubusercontent.com/layon-lima/meus-controles/feature/central-administrativa-v1/central_admin/deploy/ATUALIZAR_VPS.sh" -o /root/ATUALIZAR_CENTRAL_VPS.sh && bash /root/ATUALIZAR_CENTRAL_VPS.sh
+
+O atualizador confere os bancos, preserva .env.production e o Caddy,
+reconstrói **somente** o container da Central e verifica a API.
+Se falhar, tenta restaurar o código anterior.
+
+**AVISO DE PRIVACIDADE IMPORTANTE**: a opção CENTRAL_PUBLIC_READ=1
+retira a autenticação da API de consulta. Enquanto a rota /central/
+estiver publicada sem proteção no Caddy/Cloudflare Access, **qualquer pessoa
+com o link pode consultar os valores, nomes de fornecedores e informações
+que esse painel disponibiliza**. Não usar essa configuração em produção
+para dados financeiros sensíveis sem restringir o acesso externo por
+Cloudflare Access ou autenticação equivalente.
+
+O modo sem chave não autoriza cadastrar, pagar, editar, remover documentos
+nem alterar notas: a API continua estritamente somente leitura.
+
+Este avanço não conclui a unificação operacional. A incorporação das telas
+de manutenção e os vínculos financeiros persistentes ainda exigem
+implementação e homologação.
