@@ -9,12 +9,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .core import snapshot
+from .operations_gateway import proxy
 
 STATIC = Path(__file__).with_name("static")
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/app.css": ("app.css", "text/css; charset=utf-8"),
+    "/operations.css": ("operations.css", "text/css; charset=utf-8"),
+    "/operations.js": ("operations.js", "text/javascript; charset=utf-8"),
 }
 
 
@@ -56,6 +59,8 @@ class Handler(BaseHTTPRequestHandler):
                 and hmac.compare_digest(header[7:], expected))
 
     def do_GET(self):
+        if proxy(self):
+            return
         path = urlsplit(self.path).path
         if path == "/health":
             self.respond(200, {"ok": True, "servico": "central-administrativa"})
@@ -73,7 +78,9 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(404, {"ok": False, "erro": "Rota inexistente."})
 
     def do_POST(self):
-        self.respond(405, {"ok": False, "erro": "Operação não habilitada: somente leitura."})
+        if proxy(self):
+            return
+        self.respond(405, {"ok": False, "erro": "Rota de escrita não habilitada."})
 
     do_PUT = do_PATCH = do_DELETE = do_POST
 
