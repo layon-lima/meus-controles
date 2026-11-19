@@ -32,7 +32,8 @@ body.nh-hub-active .nh-hub-fab{opacity:0!important;pointer-events:none!important
     radial-gradient(ellipse 39% 49% at 50% 99%,rgba(210,234,235,.53),transparent 82%),
     linear-gradient(140deg,#eef5fd 0%,#f8fafe 51%,#ebf2fc 100%)!important;
   border:1px solid rgba(255,255,255,.92)!important;
-  border-radius:22px!important;
+  /* Na escala inicial, 360px viram cerca de 20px: formato arredondado do ícone. */
+  border-radius:360px!important;
   box-shadow:0 25px 80px rgba(24,54,88,.24),inset 0 1.5px 0 rgba(255,255,255,.97)!important;
   transform-origin:top left!important;
   transform:translate3d(var(--nh-expand-x,0px),var(--nh-expand-y,0px),0)
