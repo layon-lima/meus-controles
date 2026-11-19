@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Central Administrativa · Novo Horizonte</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head><body>
+<div class="shell">
+<aside class="sidebar">
+<div class="brand"><span class="logo">NH</span><div><b>Novo Horizonte</b><small>Central Administrativa</small></div></div>
+<span class="caption">GERENCIAMENTO</span>
+<nav aria-label="Menu da Central">
+<button type="button" class="nav active" data-view="inicio">Visão geral</button>
+<button type="button" class="nav" data-view="contas">Contas a pagar</button>
+<button type="button" class="nav" data-view="notas">Recebimentos</button>
+<button type="button" class="nav" data-view="vinculos">Conferir vínculos</button>
+</nav><p class="side-foot">Primeira etapa · Sem alterar os dados</p>
+</aside>
+<main class="main">
+<header class="top"><div><small>CENTRAL DE GESTÃO</small><h1 id="title">Visão geral</h1></div><span class="pill">Somente leitura</span></header>
+<section class="login" id="login"><div><b>Acesso administrativo</b><p>Informe a chave privada configurada para esta Central.</p></div><div class="login-fields"><input type="password" id="token" aria-label="Chave administrativa" placeholder="Chave de acesso" autocomplete="off"><button id="connect" type="button">Conectar</button></div></section>
+<p id="feedback" role="status" aria-live="polite"></p>
+<section class="view active" id="inicio"><div class="cards" id="cards"></div>
+<div class="split"><article class="panel"><h2>Últimas notas recebidas</h2><div class="listing" id="mini-notas"></div></article>
+<article class="panel"><h2>Próximas contas a pagar</h2><div class="listing" id="mini-contas"></div></article></div></section>
+<section class="view" id="contas"><article class="panel"><h2>Contas a pagar</h2><p class="help">Prévia sem alteração. Os pagamentos continuam sendo registrados no CONTAS 4.</p><div class="listing" id="lista-contas"></div></article></section>
+<section class="view" id="notas"><article class="panel"><h2>Notas e recebimentos</h2><p class="help">Cada NF-e é contada uma vez, mesmo que possua vários produtos.</p><div class="listing" id="lista-notas"></div></article></section>
+<section class="view" id="vinculos"><article class="panel"><h2>Possíveis vínculos entre nota e conta</h2><p class="help">As sugestões devem ser conferidas. Nenhuma conta ou pagamento é criado automaticamente.</p><div class="listing" id="lista-vinculos"></div></article></section>
+<footer>Versão inicial de integração · Aplicativos originais preservados · Sem migração de bancos</footer>
+</main></div>
+</body></html>
