@@ -1,0 +1,204 @@
+/* Central Novo Horizonte — ícone de painel que se expande como um app.
+ * Escopo total: somente componentes .nh-hub-*, sem tocar nos motores.
+ */
+html.nh-hub-lock{overflow:hidden!important;scrollbar-gutter:stable}
+body.central-operational .nh-hub-fab{
+  position:fixed!important;bottom:24px!important;left:24px!important;right:auto!important;top:auto!important;
+  width:62px!important;height:62px!important;min-width:62px!important;padding:0!important;
+  display:grid!important;place-items:center!important;
+  z-index:45000!important;cursor:pointer!important;
+  color:#2e638f!important;
+  border-radius:20px!important;
+  border:1px solid rgba(255,255,255,.96)!important;
+  background:linear-gradient(138deg,rgba(255,255,255,.88),rgba(213,230,248,.72))!important;
+  box-shadow:0 12px 30px rgba(33,77,129,.18),inset 0 1.5px 0 #fff!important;
+  backdrop-filter:blur(22px) saturate(190%);-webkit-backdrop-filter:blur(22px) saturate(190%);
+  transition:transform .2s ease,opacity .15s ease,box-shadow .2s ease!important;
+  touch-action:manipulation;
+}
+body.central-operational .nh-hub-fab:hover{transform:translateY(-3px);box-shadow:0 17px 38px rgba(34,76,132,.23),inset 0 1px 0 #fff!important}
+body.central-operational .nh-hub-fab:active{transform:scale(.96)}
+body.central-operational .nh-hub-fab:focus-visible{outline:3px solid #73a9e4!important;outline-offset:4px}
+body.nh-hub-active .nh-hub-fab{opacity:0!important;pointer-events:none!important;transform:none!important}
+.nh-hub-window{
+  position:fixed!important;inset:0!important;z-index:45500!important;isolation:isolate;
+  width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;
+  display:flex!important;flex-direction:column!important;box-sizing:border-box!important;
+  overflow:hidden!important;
+  color:#183451!important;
+  background:
+    radial-gradient(ellipse 50% 55% at 4% 2%,rgba(173,211,249,.61),transparent 85%),
+    radial-gradient(ellipse 39% 46% at 98% 16%,rgba(204,227,249,.66),transparent 80%),
+    radial-gradient(ellipse 39% 49% at 50% 99%,rgba(210,234,235,.53),transparent 82%),
+    linear-gradient(140deg,#eef5fd 0%,#f8fafe 51%,#ebf2fc 100%)!important;
+  border:1px solid rgba(255,255,255,.92)!important;
+  border-radius:22px!important;
+  box-shadow:0 25px 80px rgba(24,54,88,.24),inset 0 1.5px 0 rgba(255,255,255,.97)!important;
+  transform-origin:top left!important;
+  transform:translate3d(var(--nh-expand-x,0px),var(--nh-expand-y,0px),0)
+    scale(var(--nh-expand-sx,.04),var(--nh-expand-sy,.08))!important;
+  opacity:.86!important;
+  will-change:transform,border-radius;
+  transition:
+    transform .54s cubic-bezier(.22,.88,.24,1),
+    border-radius .54s cubic-bezier(.22,.88,.24,1),
+    opacity .34s ease,
+    box-shadow .54s ease!important;
+}
+.nh-hub-window.nh-hub-expanded{
+  transform:translate3d(0,0,0) scale(1,1)!important;
+  border-radius:0!important;box-shadow:none!important;opacity:1!important
+}
+.nh-hub-window *{box-sizing:border-box}
+.nh-hub-window :is(button,input,select){font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif}
+.nh-hub-header{
+  flex:0 0 auto;
+  padding:0 max(26px,calc((100vw - 1280px)/2));
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  min-height:80px;
+  background:linear-gradient(120deg,rgba(255,255,255,.79),rgba(232,242,254,.65));
+  border-bottom:1px solid rgba(255,255,255,.94);
+  box-shadow:0 6px 26px rgba(42,87,135,.054),inset 0 1px 0 #fff;
+  backdrop-filter:blur(23px) saturate(175%);-webkit-backdrop-filter:blur(23px) saturate(175%)
+}
+.nh-hub-brand{display:flex;align-items:center;gap:12px;color:#1b3552}
+.nh-hub-brand-mark{
+  width:42px;height:42px;display:grid;place-items:center;flex:none;border-radius:13px;
+  font-size:12px;font-weight:850;color:#fff;background:linear-gradient(140deg,#244c7c,#79a8d5);
+  border:1px solid rgba(255,255,255,.76);
+  box-shadow:inset 0 1px 0 #ffffff6f,0 4px 14px #255a972b
+}
+.nh-hub-brand-words{display:grid;line-height:1.35;gap:2px}
+.nh-hub-brand-words strong{font-size:13px;font-weight:790}
+.nh-hub-brand-words small{font-size:11px;color:#8195aa}
+.nh-hub-header-controls{display:flex;align-items:center;gap:15px}
+#nh-hub-heading{font-size:12px;font-weight:700;color:#748ca5}
+body.central-operational .nh-hub-close{
+  height:40px!important;width:40px!important;display:grid!important;place-items:center!important;
+  background:linear-gradient(155deg,rgba(255,255,255,.94),rgba(223,238,252,.70))!important;
+  color:#365d84!important;border:1px solid #ffffffd9!important;
+  border-radius:13px!important;font-size:26px!important;font-weight:350!important;line-height:1!important;
+  padding:0!important;box-shadow:inset 0 1px 0 #fff,0 4px 15px #305d8b14!important;
+}
+body.central-operational .nh-hub-close:hover{background:#edf4ff!important}
+.nh-hub-scroller{
+  flex:1 1 auto;min-height:0;width:100%;overflow:auto!important;overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.nh-hub-dashboard{
+  max-width:1280px;width:100%;min-height:calc(100% - 24px);padding:38px 26px 48px;
+  margin:0 auto;
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif!important;
+  color:#1b3552;
+}
+.nh-hub-loading{font-size:14px;color:#7089a4;margin-top:65px;text-align:center}
+.nh-hub-icons{position:absolute!important;width:0!important;height:0!important;overflow:hidden!important;pointer-events:none}
+.nh-hub-dashboard :is(h1,h2,h3,p){font-family:inherit;margin-top:0}
+.nh-hub-dashboard :is(.intro,.section-heading){display:flex;justify-content:space-between;align-items:center;gap:20px}
+.nh-hub-dashboard .intro{margin-bottom:28px}
+.nh-hub-dashboard .eyebrow{
+  color:#7894b0;letter-spacing:1.75px;font-size:10px;font-weight:800;margin:0 0 7px
+}
+.nh-hub-dashboard .intro h1{
+  font-size:clamp(24px,2.7vw,32px);font-weight:760;letter-spacing:-1px;line-height:1.22;
+  margin:0;color:#173455
+}
+.nh-hub-dashboard .subtitle{font-size:14px;margin:10px 0 0;color:#7d8ea4}
+.nh-hub-dashboard .intro-tag{
+  display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:14px;
+  color:#6a829b;font-size:12px;white-space:nowrap;
+  background:linear-gradient(135deg,#ffffffd9,#e9f2fcac);border:1px solid #fff;
+  backdrop-filter:blur(15px);box-shadow:inset 0 1px 0 #fff,0 4px 13px #294f7a09
+}
+.nh-hub-dashboard svg{height:21px;width:21px;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.nh-hub-dashboard .intro-tag svg{width:17px;height:17px;color:#6688ac}
+.nh-hub-dashboard .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:36px}
+.nh-hub-dashboard .summary-item{
+  min-height:123px;padding:19px 19px;
+  background:linear-gradient(135deg,rgba(255,255,255,.88),rgba(235,246,255,.64))!important;
+  border:1px solid rgba(255,255,255,.97)!important;
+  border-radius:18px;backdrop-filter:blur(21px) saturate(165%);-webkit-backdrop-filter:blur(21px) saturate(165%);
+  box-shadow:0 13px 35px rgba(42,80,129,.09),inset 0 1px 1px #fff!important
+}
+.nh-hub-dashboard .summary-item span{display:block;color:#788ba1;font-size:11px;font-weight:650}
+.nh-hub-dashboard .summary-item strong{display:block;margin:7px 0 3px;font-size:27px;line-height:1.25;letter-spacing:-.9px;font-weight:800;color:#234974}
+.nh-hub-dashboard .summary-item small{color:#9aabbb;font-size:11px}
+.nh-hub-dashboard .section-heading{align-items:flex-end;margin:0 0 15px}
+.nh-hub-dashboard .section-heading h2{font-size:17px;letter-spacing:-.3px;color:#1c3753;margin:0 0 4px;font-weight:760}
+.nh-hub-dashboard .section-heading p{font-size:12px;color:#8395ab;margin:0}
+.nh-hub-dashboard .section-heading>span{font-size:11px;color:#9cadbd}
+.nh-hub-dashboard .modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+body.central-operational .nh-hub-dashboard .module-card{
+  min-height:208px;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
+  position:relative;overflow:hidden;text-align:left;text-decoration:none!important;
+  padding:20px 19px 17px!important;
+  border:1px solid rgba(255,255,255,.97)!important;border-radius:19px!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.87),rgba(237,248,255,.62))!important;
+  box-shadow:0 14px 37px rgba(42,80,126,.087),inset 0 1.5px 1px #fff!important;
+  backdrop-filter:blur(21px) saturate(170%);
+  -webkit-backdrop-filter:blur(21px) saturate(170%);
+  color:#193b60!important;cursor:pointer!important;line-height:1.5!important;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease!important
+}
+body.central-operational .nh-hub-dashboard .module-card:hover{
+  transform:translateY(-3px);border-color:#cde2f7!important;
+  box-shadow:0 21px 45px rgba(42,84,134,.14),inset 0 1px 0 #fff!important
+}
+.nh-hub-dashboard .module-card::before{
+  position:absolute;top:0;left:0;right:0;height:45%;pointer-events:none;content:"";
+  background:linear-gradient(152deg,rgba(255,255,255,.48),transparent 71%)
+}
+.nh-hub-dashboard .module-card>*{position:relative;z-index:1}
+.nh-hub-dashboard .module-icon{
+  width:45px;height:45px;display:grid;place-items:center;margin-bottom:16px;flex:none;
+  border-radius:13px;color:#467ab0;
+  background:linear-gradient(145deg,#f6fbff,#dcecfab8);
+  border:1px solid #fff;box-shadow:inset 0 1px 0 #fff,0 5px 12px rgba(44,100,159,.10)
+}
+.nh-hub-dashboard .module-icon svg{width:23px;height:23px}
+.nh-hub-dashboard .module-name{
+  font-size:14px;font-weight:780;color:#1e3b5b;letter-spacing:-.17px;line-height:1.35
+}
+.nh-hub-dashboard .module-description{display:block;font-size:12px;color:#879ab0;margin:7px 0 15px}
+.nh-hub-dashboard .module-footer{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  width:100%;margin-top:auto;font-size:11px;font-weight:740;color:#477db3
+}
+.nh-hub-dashboard .module-footer svg{width:17px;height:17px}
+.nh-hub-dashboard .notice{display:flex;align-items:center;gap:10px;font-size:11px;margin-top:22px;color:#899caf}
+.nh-hub-dashboard .notice-dot{height:6px;width:6px;background:#9eaebf;border-radius:50%;flex:none}
+@media(max-width:1050px){
+  .nh-hub-dashboard .modules{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .nh-hub-dashboard .summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  body.central-operational .nh-hub-fab{left:16px!important;bottom:calc(16px + env(safe-area-inset-bottom,0px))!important;width:56px!important;height:56px!important;min-width:56px!important;border-radius:18px!important}
+  .nh-hub-header{min-height:69px;padding:0 15px}.nh-hub-brand-mark{height:37px;width:37px}
+  #nh-hub-heading{display:none}.nh-hub-close{height:36px!important;width:36px!important}
+  .nh-hub-dashboard{padding:25px 16px 44px}
+  .nh-hub-dashboard .intro{margin-bottom:22px}.nh-hub-dashboard .intro-tag{display:none}
+  .nh-hub-dashboard .intro h1{font-size:25px}
+  .nh-hub-dashboard .summary{gap:9px;margin-bottom:28px}
+  .nh-hub-dashboard .summary-item{padding:14px;min-height:105px}
+  .nh-hub-dashboard .summary-item strong{font-size:22px}
+  .nh-hub-dashboard .modules{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  body.central-operational .nh-hub-dashboard .module-card{min-height:181px;padding:15px 13px!important;border-radius:15px!important}
+  .nh-hub-dashboard .module-icon{width:39px;height:39px;margin-bottom:12px}
+  .nh-hub-dashboard .module-icon svg{width:20px;height:20px}
+  .nh-hub-dashboard .module-name{font-size:12px}
+  .nh-hub-dashboard .module-description{font-size:11px;margin-bottom:11px}
+  .nh-hub-dashboard .module-footer{font-size:10px}
+}
+@media(max-width:360px){
+  .nh-hub-dashboard .summary-item strong{font-size:19px}
+  .nh-hub-dashboard .module-card{min-height:168px}
+}
+@media(prefers-reduced-motion:reduce){
+  .nh-hub-window{transition-duration:.01ms!important}
+  body.central-operational .nh-hub-fab{transition-duration:.01ms!important}
+  body.central-operational .nh-hub-dashboard .module-card{transition-duration:.01ms!important}
+}
+@supports not (backdrop-filter:blur(2px)){
+  .nh-hub-header,.nh-hub-dashboard .module-card,.nh-hub-dashboard .summary-item{background:#f7fbff!important}
+  body.central-operational .nh-hub-fab{background:#eaf3ff!important}
+}
