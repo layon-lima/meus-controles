@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from central_admin.operations_gateway import (
-    destination, proxy, rewrite_location, rewrite_text,
+    adapt_legacy_script, destination, proxy, rewrite_location, rewrite_text,
 )
 
 
@@ -111,6 +111,17 @@ class GatewayTests(unittest.TestCase):
                       rewrite_text(code, "/central/modules/contas", "js"))
         self.assertEqual(rewrite_location("/mobile/", "/central/modules/contas"),
                          "/central/modules/contas/mobile/")
+
+    def test_native_desktop_operates_on_mobile_only_inside_central(self):
+        original = ('if(!window.matchMedia("(max-width: 820px), '
+                    '(hover: none) and (pointer: coarse)").matches){App.load();}')
+        adapted = adapt_legacy_script("controles", "/static/app.js", original)
+        self.assertIn("if(true){App.load();}", adapted)
+        self.assertEqual(adapt_legacy_script("contas", "/app.js", original), original)
+        self.assertEqual(
+            adapt_legacy_script("controles", "/static/receiving_mobile.js", "if(media.matches)doMobile();").count("doMobile"),
+            0
+        )
 
     def test_operations_default_disabled(self):
         handler = _Handler("/modules/contas/api/accounts")
