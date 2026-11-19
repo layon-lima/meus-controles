@@ -24,7 +24,7 @@
     transportadoras: c => c.mode === "caminhao",
     controles: c => !["recebimento","caminhao"].includes(c.mode)
   };
-  const suggestedMode = {recebimentos:"recebimento", transportadoras:"caminhao"};
+  const suggestedMode = {controles:"financeiro",recebimentos:"recebimento", transportadoras:"caminhao"};
   let selectedBoard = "all";
   let typedSearch = "";
   function svg() {
