@@ -35,7 +35,7 @@ function boot(module, controls){
     body,
     listeners:{},
     createElement:tag=>new Element(tag),
-    getElementById:element,
+    getElementById:id=>id==="nh-documents-view"&&!elements.has(id)?null:element(id),
     addEventListener(type,fn){this.listeners[type]=fn}
   };
   const state={
