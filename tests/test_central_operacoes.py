@@ -57,6 +57,8 @@ class _Handler:
         self.headers = headers or {}
         self.rfile, self.wfile = io.BytesIO(body), io.BytesIO()
         self.status, self.response_headers, self.json_error = None, {}, None
+    def authorized(self):
+        return True
     def respond(self, code, body):
         self.status, self.json_error = code, body
     def send_response(self, code):
@@ -126,6 +128,34 @@ class GatewayTests(unittest.TestCase):
                                           "CENTRAL_PUBLIC_ORIGIN": "https://controles.fazendanovohorizonte.com"}):
                 self.assertTrue(proxy(handler))
             self.assertEqual(handler.status, 403)
+
+
+    def test_auth_blocks_all_operations_without_browser_session(self):
+        handler = _Handler("/modules/contas/api/accounts")
+        handler.authorized = lambda: False
+        with patch.dict(os.environ, {"CENTRAL_OPERATIONS_ENABLED": "1"}):
+            self.assertTrue(proxy(handler))
+        self.assertEqual(handler.status, 401)
+
+    def test_session_pairing_cookie_and_expiration(self):
+        from central_admin import access
+        config = {
+            "CENTRAL_SESSION_SECRET": "s" * 64,
+            "CENTRAL_PAIR_TOKEN": "a" * 64,
+            "CENTRAL_PUBLIC_ORIGIN": "https://controles.fazendanovohorizonte.com",
+        }
+        with patch.dict(os.environ, config, clear=True):
+            self.assertTrue(access.verify_pair("a" * 64))
+            self.assertFalse(access.verify_pair("b" * 64))
+            self.assertTrue(access.trusted_origin("https://controles.fazendanovohorizonte.com"))
+            self.assertFalse(access.trusted_origin("https://bad.example"))
+            cookie_header = access.issue_cookie(now=1000)
+            self.assertIn("HttpOnly", cookie_header)
+            self.assertIn("Secure", cookie_header)
+            self.assertIn("SameSite=Strict", cookie_header)
+            value = cookie_header.split(";",1)[0]
+            self.assertTrue(access.authenticated({"Cookie": value}, now=1001))
+            self.assertFalse(access.authenticated({"Cookie": value}, now=1000+access.MAX_AGE+1))
 
     def test_live_page_and_script_pass_through_same_gateway(self):
         handler = _Handler("/modules/contas/?desktop=1", headers={"User-Agent": "Test"})
