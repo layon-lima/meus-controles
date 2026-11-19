@@ -100,7 +100,7 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(404, {"ok": False, "erro": "Rota inexistente."})
 
     def do_POST(self):
-        if urlsplit(self.path).path == "/api/pair":
+        if self.command == "POST" and urlsplit(self.path).path == "/api/pair":
             return self.pair()
         if proxy(self):
             return
