@@ -28,9 +28,16 @@ services:
     ports:
       - "127.0.0.1:18771:18771"
     networks:
-      - controles_db
+      controles_db: {}
+      interface_web:
+        aliases:
+          - central-nh
 
 networks:
   controles_db:
     external: true
     name: meus-controles_banco_privado
+
+  interface_web:
+    external: true
+    name: meus-controles_interface_web
