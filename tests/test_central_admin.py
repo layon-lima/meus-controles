@@ -68,13 +68,14 @@ class CentralAdminTests(unittest.TestCase):
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM contas").fetchone()[0], 2)
 
 
-    def test_automatic_read_only_mode_needs_explicit_vps_config(self):
+    def test_sem_sessao_nao_exibe_dados_financeiros(self):
         from central_admin.server import Handler
         handler = object.__new__(Handler)
-        handler.headers = {"Authorization": ""}
-        with patch.dict("os.environ", {"CENTRAL_PUBLIC_READ": "1"}, clear=True):
-            self.assertTrue(handler.authorized())
-        with patch.dict("os.environ", {"CENTRAL_PUBLIC_READ": "0"}, clear=True):
+        handler.headers = {"Cookie": ""}
+        with patch.dict("os.environ", {
+            "CENTRAL_SESSION_SECRET": "s" * 64,
+            "CENTRAL_PAIR_TOKEN": "a" * 64,
+        }, clear=True):
             self.assertFalse(handler.authorized())
 
     def test_no_write_methods_exposed(self):
