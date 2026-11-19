@@ -29,3 +29,10 @@ jobs:
         run: python -m unittest discover -s tests -p "test_central_admin.py" -v
       - name: Conferir JavaScript
         run: node --check central_admin/static/app.js
+      - name: Conferir instalador da VPS
+        run: bash -n central_admin/deploy/INSTALAR_VPS.sh
+      - name: Validar Compose isolado
+        run: |
+          printf 'CENTRAL_TOKEN=chave_temporaria_apenas_para_sintaxe_de_configuracao_0123456789\nCENTRAL_CONTROLES_DSN=postgresql://central_nh_ro:exemplo@db/meus_controles\n' > central_admin/deploy/.env.production
+          docker compose -f central_admin/deploy/compose.yml config --quiet
+          rm -f central_admin/deploy/.env.production
