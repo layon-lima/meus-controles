@@ -16,3 +16,5 @@ nav{display:grid;gap:5px}.nav{text-align:left;background:transparent;border:0;co
 .view{display:none}.view.active{display:block}footer{color:#a4afbb;font-size:11px;margin-top:26px}
 @media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}.login{flex-direction:column;align-items:stretch}.login-fields{min-width:0}}
 @media(max-width:650px){.shell{display:block}.sidebar{width:100%;padding:14px;border:0;border-bottom:1px solid var(--edge)}.brand{padding:0 0 10px}.caption,.side-foot{display:none}nav{display:flex;gap:4px;overflow:auto}.nav{font-size:12px;white-space:nowrap;padding:9px 11px}.main{padding:21px 14px}.top h1{font-size:21px}.card{padding:13px}.card strong{font-size:19px}.login-fields{display:grid}.item .value{white-space:normal}}
+
+[hidden]{display:none!important}
