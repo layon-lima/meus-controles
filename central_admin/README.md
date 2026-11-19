@@ -188,29 +188,30 @@ acesso financeiro.
   sem autorização explícita do usuário, mesmo após concluir os testes.**
 
 
-## Ícone expansível Liquid Glass (19/11/2026)
+## Menu Iniciar Liquid Glass (correção da navegação)
 
-O menu horizontal de navegação foi retirado de todas as telas operacionais.
-No lugar aparece um único ícone flutuante de painel, com quatro quadrados
-arredondados, no canto inferior esquerdo.
+A implementação anterior tentava abrir uma segunda cópia do painel inicial em
+tela cheia dentro da página atual. Esse comportamento foi **retirado**.
 
-- Ao tocar, o próprio ícone se expande até preencher a tela, com animação
-  semelhante à abertura de um aplicativo de celular.
-- O conteúdo é o painel inicial real da Central, carregado de /central/,
-  com os mesmos oito cards e indicadores atualizados. Não usa iframe.
-- Ao fechar (X ou Escape), a superfície se recolhe ao ícone. A tela
-  operacional, o formulário em edição e a posição de navegação permanecem
-  intactos: fechar o painel não recarrega a aplicação.
-- Escolher um módulo fecha com animação e navega para sua rota interna.
-  Escolher o próprio módulo atual apenas recolhe o painel.
-- A animação respeita a opção do sistema para movimento reduzido;
-  o botão e o diálogo têm nomes acessíveis e controle por teclado.
+Agora, cada tela operacional exibe somente um botão flutuante no canto inferior.
+Ele abre um **menu Iniciar independente**, com largura máxima de 600 px,
+grade de oito aplicativos e busca instantânea. Não há iframe, DOMParser,
+cópia de HTML, API financeira nem nova página dentro do módulo.
 
-Novos recursos: static/launcher.js e static/launcher.css, inseridos somente
-nas rotas da Central. Testes em tests/test_central_launcher_ui.js verificam
-abertura e recolhimento sem troca de página.
+- O menu nasce do canto do ícone com animação curta de escala e deslizamento.
+- O fundo e o formulário em edição permanecem visíveis e intocados.
+- Clique fora, Esc ou segundo clique no botão fecham o menu.
+- Clicar no módulo em uso apenas fecha; não recarrega o formulário.
+- Clicar em outro módulo navega para sua rota interna própria.
+- "Abrir painel completo" é uma opção **explícita** que abre a página inicial
+  verdadeira (/central/) e não a incorpora ao módulo.
+- O menu tem atalhos de teclado, pesquisa de módulos, Liquid Glass,
+  dimensões compactas em desktop e layout responsivo no celular.
 
-Para atualizar a VPS, basta o mesmo deploy/ATUALIZAR_VPS.sh usado nas
-entregas anteriores. O script agora verifica as folhas e scripts do
-lançador nos sete módulos, sem modificar bancos, DNS, Caddy ou aplicativos
-antigos. Somente o usuário autoriza uma eventual aposentadoria dos apps.
+Arquivos launcher.js e launcher.css foram **substituídos**, não houve
+alteração nos motores, tabelas, R2 ou configurações dos aplicativos antigos.
+O teste tests/test_central_launcher_ui.js verifica dimensões,
+comportamento de abrir/fechar, pesquisa e preservação do módulo.
+
+O mesmo atualizador deploy/ATUALIZAR_VPS.sh aplica a correção,
+validando o menu compacto em vez da antiga sobreposição de tela cheia.
