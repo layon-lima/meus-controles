@@ -38,6 +38,7 @@ class MockElement {
   setAttribute(k,v){this.attributes[k]=v;if(k==="id")this.id=v}
   getAttribute(k){return this.attributes[k]}
   addEventListener(k,fn){this.listeners[k]=fn}
+  removeEventListener(k,fn){if(this.listeners[k]===fn)delete this.listeners[k]}
   getBoundingClientRect(){return {left:24,top:800,width:62,height:62}}
   querySelector(selector) {
     if(selector==="#nh-hub-close")return this.children[0]?.children[1]?.children[1]||null;
