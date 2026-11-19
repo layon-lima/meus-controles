@@ -150,6 +150,30 @@ async function refresh() {
   }
 }
 
+async function pairBrowserFromPrivateLink() {
+  const fragment = window.location.hash;
+  if (!fragment.startsWith("#parear=")) return;
+  const token = decodeURIComponent(fragment.slice("#parear=".length));
+  // Nunca deixar o segredo na barra de endereço ou no histórico posterior.
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  if (!/^[a-f0-9]{64}$/.test(token)) {
+    setFeedback("Link de vinculação inválido.");
+    return;
+  }
+  try {
+    const response = await fetch("api/pair", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({token})
+    });
+    if (!response.ok) throw new Error("Não foi possível vincular este navegador à Central.");
+  } catch (error) {
+    setFeedback(error.message || "Falha ao vincular navegador.");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-section]").forEach(button => {
     button.addEventListener("click", () => goTo(button.dataset.section));
@@ -164,6 +188,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   const start = window.location.hash.slice(1);
   if (["contas","notas","vinculos"].includes(start)) goTo(start);
-  refresh();
+  pairBrowserFromPrivateLink().then(refresh);
   setInterval(() => { if (!document.hidden) refresh(); }, 120000);
 });
