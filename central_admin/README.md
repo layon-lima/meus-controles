@@ -68,3 +68,30 @@ operando independentemente durante a homologação.
 6. Homologar as operações e apenas depois direcionar os domínios ao novo app.
 
 Este projeto é um início funcional da unificação, não a migração completa.
+
+
+## Preparação de container na VPS (ainda não executada)
+
+Os arquivos em central_admin/deploy/Dockerfile e compose.yml permitem subir
+um serviço separado em uma porta exclusiva de loopback da VPS (18771).
+Não recriam o banco do Meus Controles nem o volume de Contas e não alteram o
+proxy Caddy. O caminho de leitura do SQLite é
+/opt/apps/contas-runtime/data/controle_contas.db, sujeito a confirmação
+na máquina de produção. Se o diretório não existir, o Compose falha sem
+criar uma pasta vazia.
+
+O serviço participa somente da rede privada PostgreSQL do Meus Controles.
+Antes de iniciar, criar um usuário de banco exclusivo com permissões apenas
+de leitura nas tabelas purchase_items e purchase_receipts e inserir as
+credenciais geradas em central_admin/deploy/.env.production (chmod 600).
+O arquivo .env.example contém propositalmente uma chave inválida: o servidor
+não deve iniciar enquanto a chave real não for criada.
+
+A configuração pode ser validada com:
+
+    docker compose -f central_admin/deploy/compose.yml config --quiet
+
+Não executar docker compose up em produção antes de inventariar as fontes,
+validar permissões, confirmar o banco principal do CONTAS 4 e executar os
+testes de homologação com dados fictícios. A porta 18771 não deve ser
+publicada diretamente na internet.
