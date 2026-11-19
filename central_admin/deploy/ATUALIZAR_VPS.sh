@@ -153,6 +153,14 @@ for asset in launcher.js launcher.css; do
   grep -Fq 'nh-hub-' "$TMP/asset" \
     || fail "Recurso $asset nao corresponde ao painel expansivel."
 done
+# Impede retorno da antiga abertura de pagina em tela cheia.
+grep -Fq 'nh-start-menu' "$APP/static/launcher.js" \
+  || fail "Menu Iniciar nao encontrado. Aplicacao anterior sera restaurada."
+grep -Fq 'width:min(600px' "$APP/static/launcher.css" \
+  || fail "O lancador nao tem a largura compacta esperada."
+if grep -Fq 'DOMParser' "$APP/static/launcher.js"; then
+  fail "Lancador ainda tenta copiar a pagina inteira para dentro do app."
+fi
 # A API de escrita precisa recusar uma tentativa sem Origin de navegador.
 HTTP="$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
   -H "Cookie: $COOKIE" -H "Content-Type: application/json" \
@@ -162,7 +170,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: menu superior removido; icone flutuante expande e recolhe o painel Liquid Glass."
+echo "LAYOUT: menu Iniciar compacto Liquid Glass, flutuante e sem tela cheia."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
