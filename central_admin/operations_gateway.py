@@ -53,6 +53,20 @@ def destination(path):
     return backend, module, upstream_path
 
 
+def adapt_legacy_script(backend, upstream_path, source):
+    """Executa as telas completas no celular, apenas dentro da Central."""
+    if backend != "controles":
+        return source
+    if upstream_path == "/static/receiving_mobile.js":
+        # O painel legado mobile é só consulta e ocultava toda a aplicação.
+        return "/* A Central usa a interface operacional responsiva completa. */"
+    if upstream_path == "/static/app.js":
+        guard = ('if(!window.matchMedia("(max-width: 820px), '
+                 '(hover: none) and (pointer: coarse)").matches){')
+        return source.replace(guard, "if(true){", 1)
+    return source
+
+
 def rewrite_text(text, prefix, kind):
     """Ajusta URLs dos módulos web para funcionar sob a mesma origem."""
     text = ABSOLUTE.sub(
@@ -172,16 +186,8 @@ def proxy(handler):
                 content_type = "text/javascript; charset=utf-8"
             elif is_html or is_js or is_css:
                 source = data.decode("utf-8")
-                if backend == "controles" and target_path == "/static/app.js":
-                    # No site legado, telas pequenas recebem só um resumo mobile.
-                    # Dentro da Central, carregar as operações responsivas completas
-                    # sem modificar os fontes originais nem a experiência antiga.
-                    legacy_guard = ('if(!window.matchMedia("(max-width: 820px), '
-                                    '(hover: none) and (pointer: coarse)").matches){')
-                    if legacy_guard in source:
-                        source = source.replace(legacy_guard, "if(true){", 1)
-                if backend == "controles" and target_path == "/static/receiving_mobile.js":
-                    source = "/* Módulo mobile legado isolado: Central carrega interface operacional completa. */"
+                if is_js:
+                    source = adapt_legacy_script(backend, target_path, source)
                 data = rewrite_text(
                     source,
                     prefix,
