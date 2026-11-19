@@ -48,7 +48,7 @@ class MockElement {
 }
 const body=new MockElement("body");
 const doc={
-  readyState:"complete",body,activeElement:body,
+  readyState:"complete",body,documentElement:new MockElement("html"),activeElement:body,
   listeners:{},
   createElement:t=>new MockElement(t),
   createElementNS:(ns,t)=>new MockElement(t),
