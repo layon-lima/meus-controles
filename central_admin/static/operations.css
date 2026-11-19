@@ -182,3 +182,33 @@ body.central-operational.nh-scope-transportadoras .model-advanced{display:none!i
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:0s!important;animation-duration:0s!important}
 }
+
+/* Arquivo documental: lista própria, mas ações e formulários são os originais. */
+body.central-operational.nh-scope-documentos #contasView{display:none!important}
+body.central-operational.nh-scope-documentos .topbar .kpis{display:none!important}
+.nh-documents{width:100%;max-width:1460px;padding:22px 16px 40px;margin:0 auto}
+.nh-documents .nh-module-head{padding:0 2px 21px}
+.nh-documents-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.nh-document-card{
+  min-width:0;display:flex;align-items:center;justify-content:space-between;gap:14px;
+  border:1px solid rgba(255,255,255,.96);
+  background:linear-gradient(135deg,rgba(255,255,255,.88),rgba(237,247,255,.64));
+  border-radius:18px;padding:17px 18px;box-shadow:var(--nh-shadow);
+  backdrop-filter:blur(18px) saturate(160%);
+  -webkit-backdrop-filter:blur(18px) saturate(160%)
+}
+.nh-document-info{min-width:0;flex:1}
+.nh-document-info strong{display:block;font-size:13px;color:#243e5d;overflow-wrap:anywhere}
+.nh-document-info small{display:block;margin-top:5px;font-size:11px;color:#7d8fa4;overflow-wrap:anywhere}
+.nh-document-badges{display:block;margin-top:7px;color:#527cad;font-size:10px;font-weight:730}
+.nh-document-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+body.central-operational .nh-document-action{
+  border:1px solid rgba(168,194,221,.6)!important;
+  background:rgba(255,255,255,.7)!important;
+  color:#376793!important;border-radius:9px!important;
+  padding:8px 10px;font-size:11px;font-weight:700;
+  white-space:nowrap
+}
+body.central-operational .nh-document-action:disabled{opacity:.35;cursor:not-allowed}
+@media(max-width:1050px){.nh-documents-list{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:620px){.nh-documents{padding:12px 10px 28px}.nh-document-card{align-items:stretch;flex-direction:column}.nh-document-actions{justify-content:flex-start}.nh-module-count{font-size:10px}}
