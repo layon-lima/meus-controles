@@ -186,3 +186,31 @@ acesso financeiro.
   ainda estão pendentes. Esta é uma entrega operacional intermediária.
 - **É proibido desativar, redirecionar ou remover Meus Controles e CONTAS 4
   sem autorização explícita do usuário, mesmo após concluir os testes.**
+
+
+## Ícone expansível Liquid Glass (19/11/2026)
+
+O menu horizontal de navegação foi retirado de todas as telas operacionais.
+No lugar aparece um único ícone flutuante de painel, com quatro quadrados
+arredondados, no canto inferior esquerdo.
+
+- Ao tocar, o próprio ícone se expande até preencher a tela, com animação
+  semelhante à abertura de um aplicativo de celular.
+- O conteúdo é o painel inicial real da Central, carregado de /central/,
+  com os mesmos oito cards e indicadores atualizados. Não usa iframe.
+- Ao fechar (X ou Escape), a superfície se recolhe ao ícone. A tela
+  operacional, o formulário em edição e a posição de navegação permanecem
+  intactos: fechar o painel não recarrega a aplicação.
+- Escolher um módulo fecha com animação e navega para sua rota interna.
+  Escolher o próprio módulo atual apenas recolhe o painel.
+- A animação respeita a opção do sistema para movimento reduzido;
+  o botão e o diálogo têm nomes acessíveis e controle por teclado.
+
+Novos recursos: static/launcher.js e static/launcher.css, inseridos somente
+nas rotas da Central. Testes em tests/test_central_launcher_ui.js verificam
+abertura e recolhimento sem troca de página.
+
+Para atualizar a VPS, basta o mesmo deploy/ATUALIZAR_VPS.sh usado nas
+entregas anteriores. O script agora verifica as folhas e scripts do
+lançador nos sete módulos, sem modificar bancos, DNS, Caddy ou aplicativos
+antigos. Somente o usuário autoriza uma eventual aposentadoria dos apps.
