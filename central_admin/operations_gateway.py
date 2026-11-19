@@ -27,7 +27,7 @@ MAX_REQUEST = 60 * 1024 * 1024
 ASSET_PREFIXES = (
     "api/", "static/", "icons/", "mobile/",
     "app.js", "search.svg", "sw.js", "favicon.ico",
-    "manifest.webmanifest", "pwa-icon-", "icon.svg", "styles.css"
+    "manifest.webmanifest", "pwa-icon-", "icon.svg", "styles.css", "?"
 )
 # Somente aspas de um caminho absoluto conhecido: nunca substitui URLs
 # externas, strings financeiras, XML nem o corpo das requisições.
