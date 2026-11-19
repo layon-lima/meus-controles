@@ -12,13 +12,8 @@ services:
       CENTRAL_BIND: "0.0.0.0"
       CENTRAL_ALLOW_CONTAINER_BIND: "1"
       CENTRAL_PORT: "18771"
-      # Libera painel de CONSULTA sem chave no navegador.
-      # A rota e publica enquanto o Caddy nao tiver um controle de acesso externo.
-      CENTRAL_PUBLIC_READ: "1"
-      CENTRAL_OPERATIONS_ENABLED: "${CENTRAL_OPERATIONS_ENABLED:-0}"
       CENTRAL_CONTROLES_UPSTREAM: "http://central-controles-api:18765"
       CENTRAL_CONTAS_UPSTREAM: "http://contas-web:8767"
-      CENTRAL_CONTAS_ORIGIN: "${CENTRAL_CONTAS_ORIGIN:-https://contas-cloud.fazendanovohorizonte.com}"
       CENTRAL_CONTROLES_ORIGIN: "https://controles.fazendanovohorizonte.com"
       CENTRAL_PUBLIC_ORIGIN: "https://controles.fazendanovohorizonte.com"
       CENTRAL_CONTAS_DB: "/contas-data/controle_contas.db"
