@@ -30,8 +30,8 @@
       <span class="brand-copy"><strong>Novo Horizonte</strong><small>Central Administrativa</small></span>
     </a>
     <div class="header-actions">
-      <span class="connection-state" id="connectionState"><span class="status-dot"></span>Dados protegidos</span>
-      <button type="button" class="header-button" id="openAccess">Conectar dados</button>
+      <span class="connection-state" id="connectionState"><span class="status-dot"></span>Consultando bases</span>
+      <button type="button" class="header-button" id="refreshData">Atualizar</button>
     </div>
   </header>
 
@@ -43,8 +43,8 @@
       </div>
 
       <section class="summary" aria-label="Resumo do sistema">
-        <div class="summary-item"><span>Contas em aberto</span><strong id="kpiOpen">—</strong><small id="subOpen">Conecte os dados</small></div>
-        <div class="summary-item"><span>Contas vencidas</span><strong id="kpiOverdue">—</strong><small id="subOverdue">Aguardando consulta</small></div>
+        <div class="summary-item"><span>Contas em aberto</span><strong id="kpiOpen">—</strong><small id="subOpen">Aguardando atualização</small></div>
+        <div class="summary-item"><span>Contas vencidas</span><strong id="kpiOverdue">—</strong><small id="subOverdue">Aguardando atualização</small></div>
         <div class="summary-item"><span>Notas recebidas</span><strong id="kpiInvoices">—</strong><small id="subInvoices">Aguardando consulta</small></div>
         <div class="summary-item"><span>Vínculos sugeridos</span><strong id="kpiLinks">—</strong><small id="subLinks">Conferência manual</small></div>
       </section>
@@ -92,7 +92,7 @@
           <span class="module-footer"><span>Abrir módulo atual</span><svg><use href="#i-arrow"/></svg></span>
         </a>
       </div>
-      <div class="notice"><span class="notice-dot"></span>Os módulos originais continuam funcionando enquanto concluímos a integração.</div>
+      <div class="notice"><span class="notice-dot"></span>A Central consulta automaticamente os bancos existentes. Os módulos originais continuam disponíveis durante a integração.</div>
     </section>
 
     <section id="detailPanel" hidden>
@@ -105,14 +105,4 @@
   <footer class="site-footer"><span>Fazenda Novo Horizonte</span><span>Versão inicial de integração • Dados originais preservados</span></footer>
 </div>
 
-<div class="modal-backdrop" id="accessModal" hidden>
-  <section class="access-modal" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
-    <div class="modal-top"><span class="lock-icon"><svg><use href="#i-lock"/></svg></span><button type="button" id="closeAccess" class="modal-close" aria-label="Fechar">×</button></div>
-    <h2 id="accessTitle">Conectar os dados da Central</h2>
-    <p>O painel mostra os módulos imediatamente. Para consultar valores, notas e vínculos, informe a chave privada da VPS uma vez por sessão.</p>
-    <form id="accessForm"><label for="token">Chave administrativa</label><input id="token" type="password" autocomplete="off" required placeholder="Cole a chave aqui"><button type="submit" id="connect">Conectar e atualizar painel</button></form>
-    <p id="authError" role="alert" class="auth-error" hidden></p>
-    <p class="modal-footnote">A chave não é salva no navegador. A conexão autenticada expira automaticamente.</p>
-  </section>
-</div>
 </body></html>
