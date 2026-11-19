@@ -2,6 +2,7 @@
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from central_admin.core import (
@@ -65,6 +66,22 @@ class CentralAdminTests(unittest.TestCase):
             self.assertEqual(report["valor_em_aberto"], "150.00")
             with sqlite3.connect(path) as conn:
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM contas").fetchone()[0], 2)
+
+
+    def test_automatic_read_only_mode_needs_explicit_vps_config(self):
+        from central_admin.server import Handler
+        handler = object.__new__(Handler)
+        handler.headers = {"Authorization": ""}
+        with patch.dict("os.environ", {"CENTRAL_PUBLIC_READ": "1"}, clear=True):
+            self.assertTrue(handler.authorized())
+        with patch.dict("os.environ", {"CENTRAL_PUBLIC_READ": "0"}, clear=True):
+            self.assertFalse(handler.authorized())
+
+    def test_no_write_methods_exposed(self):
+        from central_admin.server import Handler
+        self.assertIs(Handler.do_PUT, Handler.do_POST)
+        self.assertIs(Handler.do_DELETE, Handler.do_POST)
+        self.assertIs(Handler.do_PATCH, Handler.do_POST)
 
     def test_sem_base_nao_significa_zero(self):
         with self.assertRaises(SourceUnavailable):
