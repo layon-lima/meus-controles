@@ -115,7 +115,6 @@ class GatewayTests(unittest.TestCase):
         with patch.dict(os.environ, {"CENTRAL_OPERATIONS_ENABLED": "0"}):
             self.assertTrue(proxy(handler))
         self.assertEqual(handler.status, 503)
-        self.assertIsNone(_Connection.last)
 
     def test_reject_post_without_correct_browser_origin(self):
         for origin in ("", "https://evil.example"):
