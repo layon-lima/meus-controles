@@ -1,328 +1,204 @@
 "use strict";
 /*
- * Lançador Liquid Glass Novo Horizonte.
- * O botão flutuante vira o painel real da Central por uma transição FLIP,
- * sem recarregar as páginas operacionais nem apagar formulários em edição.
- *
- * O conteúdo é reaproveitado diretamente do #homePanel em /central/.
- * Não há iframe, duplicação de motores ou troca de banco de dados.
+ * Menu Iniciar da Central Novo Horizonte.
+ * Único popover flutuante; não importa/copia a home, não monta outra página,
+ * não usa iframe, não navega ao abrir/fechar e não altera a UI de negócios.
  */
 (function () {
-  const HOME = "/central/";
-  const ANIMATION_MS = 540;
-  const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-  let fab = null;
-  let panel = null;
-  let panelState = "closed";
-  let sourcePromise = null;
-  let previousFocus = null;
-  let navigationAfterClose = null;
+  const currentModule = (location.pathname.match(/^\/central\/modules\/([a-z-]+)/) || [])[1] || "";
+  const MODULES = [
+    {id:"contas",name:"Contas a pagar",detail:"Pagamentos e vencimentos",icon:"wallet"},
+    {id:"recebimentos",name:"Recebimentos",detail:"Pedidos e notas fiscais",icon:"package"},
+    {id:"controles",name:"Meus Controles",detail:"Controles personalizados",icon:"sliders"},
+    {id:"transportadoras",name:"Transportadoras",detail:"Fretes e comissões",icon:"truck"},
+    {id:"funcionarios",name:"Funcionários",detail:"Holerites e chaves Pix",icon:"users"},
+    {id:"documentos",name:"Documentos",detail:"Boletos e comprovantes",icon:"file"},
+    {id:"vinculos",name:"Conferir vínculos",detail:"Notas e contas relacionadas",icon:"link"},
+    {id:"relatorios",name:"Relatórios",detail:"Consultas e exportações",icon:"chart"}
+  ];
+  const ICON_PATHS = {
+    wallet:[["rect",{x:3,y:5,width:18,height:15,rx:3}],["path",{d:"M3 9h18M16 14h2"}]],
+    package:[["path",{d:"m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10M7.5 5l9 4"}]],
+    sliders:[["path",{d:"M4 7h16M4 17h16"}],["circle",{cx:9,cy:7,r:2}],["circle",{cx:16,cy:17,r:2}]],
+    truck:[["path",{d:"M3 6h12v11H3zM15 10h4l3 3v4h-7"}],["circle",{cx:7,cy:18,r:2}],["circle",{cx:18,cy:18,r:2}]],
+    users:[["circle",{cx:9,cy:8,r:3}],["path",{d:"M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v1"}]],
+    file:[["path",{d:"M6 3h8l5 5v13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM14 3v6h5M8 14h8M8 18h6"}]],
+    link:[["path",{d:"M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2"}]],
+    chart:[["path",{d:"M4 20V4M4 20h17M8 15l4-4 3 2 5-7M17 6h3v3"}]],
+    grid:[["rect",{x:3,y:3,width:7,height:7,rx:1.6}],["rect",{x:14,y:3,width:7,height:7,rx:1.6}],["rect",{x:3,y:14,width:7,height:7,rx:1.6}],["rect",{x:14,y:14,width:7,height:7,rx:1.6}]]
+  };
+  const NAMESPACE = "http://www.w3.org/2000/svg";
+  let fab, menu, search, tiles, emptyText;
+  let open = false;
 
-  function iconGrid() {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("width", "23");
-    svg.setAttribute("height", "23");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.7");
-    svg.setAttribute("stroke-linejoin", "round");
-    for (const [x,y] of [[3,3],[14,3],[3,14],[14,14]]) {
-      const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
-      rect.setAttribute("x",x); rect.setAttribute("y",y);
-      rect.setAttribute("width","7");rect.setAttribute("height","7");
-      rect.setAttribute("rx","2");
-      svg.appendChild(rect);
+  function icon(type) {
+    const svg = document.createElementNS(NAMESPACE,"svg");
+    svg.setAttribute("viewBox","0 0 24 24");
+    svg.setAttribute("aria-hidden","true");
+    svg.setAttribute("focusable","false");
+    svg.classList.add("nh-start-icon");
+    for (const [tag,attributes] of ICON_PATHS[type]) {
+      const shape = document.createElementNS(NAMESPACE,tag);
+      for (const [name,value] of Object.entries(attributes)) shape.setAttribute(name,String(value));
+      svg.appendChild(shape);
     }
     return svg;
   }
-
-  function addFloatingButton() {
-    // Não criar duas entradas se um script da aplicação antiga recarregar a UI.
-    if (document.getElementById("nh-dashboard-launcher")) return;
-    fab = document.createElement("button");
-    fab.id = "nh-dashboard-launcher";
-    fab.className = "nh-hub-fab";
-    fab.type = "button";
-    fab.setAttribute("aria-label", "Abrir painel da Central Novo Horizonte");
-    fab.setAttribute("aria-haspopup", "dialog");
-    fab.setAttribute("aria-controls", "nh-hub-dialog");
-    fab.setAttribute("aria-expanded", "false");
-    fab.title = "Central de gestão";
-    fab.appendChild(iconGrid());
-    fab.addEventListener("click", () => {
-      if (panelState === "closed") openPanel();
-      else if (panelState === "open") closePanel();
+  function node(tag,cls,content) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (content != null) el.textContent = content;
+    return el;
+  }
+  function normal(value) {
+    return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .toLocaleLowerCase("pt-BR").trim();
+  }
+  function urlOf(item) {
+    return item.id === "vinculos" ? "/central/#vinculos" :
+      "/central/modules/"+item.id+"/";
+  }
+  function createTile(item) {
+    const a = node("a","nh-start-tile");
+    a.href = urlOf(item);
+    a.dataset.module = item.id;
+    if (item.id === currentModule) a.setAttribute("aria-current","page");
+    const symbol = node("span","nh-start-tile-icon");
+    symbol.appendChild(icon(item.icon));
+    const title = node("strong","nh-start-tile-name",item.name);
+    const detail = node("small","nh-start-tile-subtitle",item.detail);
+    a.append(symbol,title,detail);
+    a.addEventListener("click",event => {
+      // Trocar para o módulo atual deve apenas fechar o menu. Modificações
+      // não salvas, posição de scroll e componentes permanecem intactos.
+      if (item.id === currentModule &&
+          !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        closeMenu();
+      }
     });
-    document.body.appendChild(fab);
+    return a;
+  }
+  function showFiltered() {
+    const q = normal(search.value);
+    let visible = 0;
+    for (const tile of tiles.children) {
+      const item = MODULES.find(entry => entry.id === tile.dataset.module);
+      const match = !q || normal(item.name+" "+item.detail).includes(q);
+      tile.hidden = !match;
+      if (match) visible++;
+    }
+    emptyText.hidden = visible !== 0;
   }
 
-  function createWindow() {
-    const dialog = document.createElement("div");
-    dialog.id = "nh-hub-dialog";
-    dialog.className = "nh-hub-window";
-    dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-labelledby", "nh-hub-heading");
-    dialog.setAttribute("tabindex", "-1");
-
-    const header = document.createElement("header");
-    header.className = "nh-hub-header";
-    const brand = document.createElement("div");
-    brand.className = "nh-hub-brand";
-    const mark = document.createElement("span");
-    mark.className = "nh-hub-brand-mark";
-    mark.textContent = "NH";
-    const words = document.createElement("span");
-    words.className = "nh-hub-brand-words";
-    const name = document.createElement("strong");
-    name.textContent = "Novo Horizonte";
-    const sub = document.createElement("small");
-    sub.textContent = "Central Administrativa";
-    words.append(name,sub);
-    brand.append(mark,words);
-
-    const controls = document.createElement("div");
-    controls.className = "nh-hub-header-controls";
-    const heading = document.createElement("span");
-    heading.id = "nh-hub-heading";
-    heading.textContent = "Painel de gestão";
-    const close = document.createElement("button");
-    close.id = "nh-hub-close";
-    close.className = "nh-hub-close";
-    close.type = "button";
-    close.setAttribute("aria-label","Fechar painel e voltar à tela atual");
-    close.textContent = "×";
-    close.addEventListener("click", () => closePanel());
-    controls.append(heading,close);
-    header.append(brand,controls);
-
-    const scroller = document.createElement("div");
-    scroller.className = "nh-hub-scroller";
-    const content = document.createElement("main");
-    content.className = "nh-hub-dashboard";
-    content.id = "nh-hub-dashboard";
-    const loading = document.createElement("p");
-    loading.className = "nh-hub-loading";
-    loading.textContent = "Abrindo seu painel…";
-    content.appendChild(loading);
-    scroller.appendChild(content);
-
-    dialog.append(header,scroller);
-    return dialog;
-  }
-
-  function transitionFromButton(dialog) {
-    const rect = fab.getBoundingClientRect();
-    const vw = Math.max(window.innerWidth,1);
-    const vh = Math.max(window.innerHeight,1);
-    dialog.style.setProperty("--nh-expand-x", rect.left + "px");
-    dialog.style.setProperty("--nh-expand-y", rect.top + "px");
-    dialog.style.setProperty("--nh-expand-sx", String(rect.width / vw));
-    dialog.style.setProperty("--nh-expand-sy", String(rect.height / vh));
-  }
-
-  function openPanel() {
-    if (panelState !== "closed" || !fab) return;
-    panelState = "opening";
-    previousFocus = document.activeElement;
-    navigationAfterClose = null;
-    panel = createWindow();
-    transitionFromButton(panel);
-    document.body.appendChild(panel);
-    document.documentElement.classList.add("nh-hub-lock");
-    document.body.classList.add("nh-hub-active");
+  function openMenu() {
+    if (open) return;
+    open = true;
+    search.value = "";
+    showFiltered();
+    menu.classList.add("nh-start-open");
+    menu.setAttribute("aria-hidden","false");
     fab.setAttribute("aria-expanded","true");
-    const opened = panel;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (opened !== panel || panelState === "closing") return;
-      opened.classList.add("nh-hub-expanded");
-      panelState = "open";
-      opened.querySelector("#nh-hub-close")?.focus({preventScroll:true});
-    }));
-    fillPanel(opened);
+    search.focus({preventScroll:true});
   }
+  function closeMenu(restoreFocus=true) {
+    if (!open) return;
+    open = false;
+    menu.classList.remove("nh-start-open");
+    menu.setAttribute("aria-hidden","true");
+    fab.setAttribute("aria-expanded","false");
+    if (restoreFocus) fab.focus({preventScroll:true});
+  }
+  function build() {
+    // Não iniciar duas vezes se o motor original reexecutar o JS.
+    if (document.getElementById("nh-dashboard-launcher")) return;
+    fab = node("button","nh-hub-fab");
+    fab.type = "button";
+    fab.id = "nh-dashboard-launcher";
+    fab.title = "Abrir menu de módulos";
+    fab.setAttribute("aria-label","Abrir menu Iniciar da Central");
+    fab.setAttribute("aria-haspopup","dialog");
+    fab.setAttribute("aria-controls","nh-start-menu");
+    fab.setAttribute("aria-expanded","false");
+    fab.appendChild(icon("grid"));
+    fab.addEventListener("click",() => open ? closeMenu() : openMenu());
 
-  function closePanel(navigateTo) {
-    if (!panel || panelState === "closed" || panelState === "closing") return;
-    if (navigateTo) navigationAfterClose = navigateTo;
-    panelState = "closing";
-    const closing = panel;
-    const cleanup = () => {
-      if (panel !== closing) return;
-      closing.remove();
-      panel = null;
-      panelState = "closed";
-      document.documentElement.classList.remove("nh-hub-lock");
-      document.body.classList.remove("nh-hub-active");
-      fab.setAttribute("aria-expanded","false");
-      if (navigationAfterClose) {
-        const url = navigationAfterClose;
-        navigationAfterClose = null;
-        window.location.assign(url);
-      } else {
-        (previousFocus && previousFocus.isConnected ? previousFocus : fab)
-          .focus({preventScroll:true});
+    menu = node("section","nh-start-menu");
+    menu.id = "nh-start-menu";
+    menu.setAttribute("role","dialog");
+    menu.setAttribute("aria-modal","false");
+    menu.setAttribute("aria-hidden","true");
+    menu.setAttribute("aria-label","Menu Iniciar da Central Novo Horizonte");
+
+    const top = node("div","nh-start-top");
+    const mark = node("span","nh-start-mark","NH");
+    const brand = node("div","nh-start-brand");
+    brand.append(node("strong","", "Novo Horizonte"),node("small","", "Central Administrativa"));
+    const close = node("button","nh-start-close","×");
+    close.type = "button";
+    close.setAttribute("aria-label","Fechar menu Iniciar");
+    close.addEventListener("click",() => closeMenu());
+    top.append(mark,brand,close);
+
+    const searchBox = node("div","nh-start-search");
+    searchBox.appendChild(icon("grid"));
+    search = node("input","nh-start-search-input");
+    search.type = "search";
+    search.autocomplete = "off";
+    search.placeholder = "Pesquisar módulos...";
+    search.setAttribute("aria-label","Pesquisar módulos da Central");
+    search.addEventListener("input",showFiltered);
+    searchBox.appendChild(search);
+
+    const head = node("div","nh-start-section-title");
+    head.append(node("strong","", "Aplicativos"),node("small","", "8 módulos"));
+
+    const scroll = node("div","nh-start-scroll");
+    tiles = node("div","nh-start-grid");
+    MODULES.forEach(item => tiles.appendChild(createTile(item)));
+    emptyText = node("p","nh-start-empty","Nenhum módulo encontrado.");
+    emptyText.hidden = true;
+    scroll.append(head,tiles,emptyText);
+
+    const bottom = node("div","nh-start-bottom");
+    const overview = node("a","nh-start-overview");
+    overview.href = "/central/";
+    overview.append(icon("grid"),node("span","", "Abrir painel completo"));
+    const hint = node("span","nh-start-hint","Central de gestão");
+    bottom.append(overview,hint);
+    menu.append(top,searchBox,scroll,bottom);
+
+    document.body.append(menu,fab);
+    document.addEventListener("pointerdown",event => {
+      if (open && !fab.contains(event.target) && !menu.contains(event.target)) closeMenu(false);
+    },true);
+    document.addEventListener("keydown",event => {
+      if (!open) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMenu();
       }
-    };
-    closing.classList.remove("nh-hub-expanded");
-    const onEnd = event => {
-      if (event.target === closing && event.propertyName === "transform") {
-        closing.removeEventListener("transitionend",onEnd);
-        cleanup();
+      // Navegação por teclado continua dentro do menu enquanto aberto.
+      if (event.key === "Tab") {
+        const focus = Array.from(menu.querySelectorAll("a:not([hidden]),button,input"))
+          .filter(item => !item.hidden && !item.disabled &&
+                          !item.closest("[hidden]"));
+        if (!focus.length) return;
+        const first = focus[0],last = focus[focus.length-1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
-    };
-    closing.addEventListener("transitionend",onEnd);
-    // Fallback para navegadores que reduzem ou não emitem transitionend.
-    window.setTimeout(cleanup, ANIMATION_MS + 100);
-  }
-
-  function contentSource() {
-    if (!sourcePromise) {
-      sourcePromise = fetch(HOME,{credentials:"same-origin",cache:"no-store"})
-        .then(response => {
-          if (!response.ok) throw new Error("Não foi possível abrir o painel.");
-          return response.text();
-        })
-        .then(html => {
-          const page = new DOMParser().parseFromString(html,"text/html");
-          const section = page.querySelector("#homePanel");
-          const icons = page.querySelector("svg.svg-sprite");
-          if (!section || !icons) throw new Error("Painel inicial não encontrado.");
-          return {section,icons};
-        })
-        .catch(error => {sourcePromise = null;throw error;});
-    }
-    return sourcePromise;
-  }
-
-  function updateCounter(root,id,value) {
-    const element = root.querySelector("#"+id);
-    if (element) element.textContent = String(value);
-  }
-
-  function brl(value) {
-    const n = Number(value);
-    return Number.isFinite(n)
-      ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : "—";
-  }
-
-  async function hydrateStats(root) {
-    try {
-      const response = await fetch("/central/api/resumo",{
-        credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (!root.isConnected) return;
-      const contas = data.contas, recebimentos = data.controles;
-      updateCounter(root,"kpiOpen",contas ? contas.em_aberto : "—");
-      updateCounter(root,"kpiOverdue",contas ? contas.vencidas : "—");
-      updateCounter(root,"kpiInvoices",recebimentos ? recebimentos.notas : "—");
-      updateCounter(root,"kpiLinks",contas && recebimentos ? (data.sugestoes||[]).length : "—");
-      updateCounter(root,"subOpen",contas ? brl(contas.valor_em_aberto)+" pendentes" : "Indisponível");
-      updateCounter(root,"subOverdue",contas ? "Não pagas, vencidas" : "Indisponível");
-      updateCounter(root,"subInvoices",recebimentos ? recebimentos.itens_pedido+" itens em pedidos" : "Indisponível");
-      updateCounter(root,"subLinks",contas && recebimentos ? "Para conferir" : "Indisponível");
-      updateCounter(root,"moduleAccounts",contas ? contas.em_aberto+" em aberto" : "Consultar contas");
-      updateCounter(root,"moduleInvoices",recebimentos ? recebimentos.notas+" notas" : "Consultar notas");
-      updateCounter(root,"moduleLinks",contas && recebimentos ? (data.sugestoes||[]).length+" sugestões" : "Conferir vínculos");
-    } catch (_) {
-      // O painel continua navegável mesmo se as estatísticas estão indisponíveis.
-    }
-  }
-
-  function installDashboard(dialog,{section,icons}) {
-    if (dialog !== panel || panelState === "closing") return;
-    const target = dialog.querySelector("#nh-hub-dashboard");
-    if (!target) return;
-    const fragment = document.createDocumentFragment();
-    const clonedIcons = document.importNode(icons,true);
-    clonedIcons.classList.add("nh-hub-icons");
-    clonedIcons.setAttribute("aria-hidden","true");
-    const clonedSection = document.importNode(section,true);
-    clonedSection.id = "nh-hub-home";
-    fragment.append(clonedIcons,clonedSection);
-    target.replaceChildren(fragment);
-    hydrateStats(target);
-  }
-
-  async function fillPanel(dialog) {
-    try {
-      const template = await contentSource();
-      installDashboard(dialog,template);
-    } catch (_) {
-      if (dialog !== panel || panelState === "closing") return;
-      const target = dialog.querySelector("#nh-hub-dashboard");
-      if (!target) return;
-      target.replaceChildren();
-      const title = document.createElement("h2");
-      title.textContent = "Áreas da Central";
-      const help = document.createElement("p");
-      help.textContent = "Os indicadores estão indisponíveis, mas você pode abrir os módulos.";
-      const cards = document.createElement("div");
-      cards.className = "modules";
-      for (const [label,path] of [
-        ["Contas a pagar","contas"],["Recebimentos","recebimentos"],
-        ["Meus Controles","controles"],["Transportadoras","transportadoras"],
-        ["Funcionários","funcionarios"],["Documentos","documentos"],["Relatórios","relatorios"]
-      ]) {
-        const a = document.createElement("a");
-        a.className = "module-card";
-        a.href = "/central/modules/"+path+"/";
-        a.textContent = label;
-        cards.appendChild(a);
-      }
-      target.append(title,help,cards);
-    }
-  }
-
-  function navigationWithinPanel(event) {
-    if (!panel || panelState === "closing") return;
-    const button = event.target.closest("button[data-section='vinculos']");
-    if (button && panel.contains(button)) {
-      event.preventDefault();
-      closePanel("/central/#vinculos");
-      return;
-    }
-    const link = event.target.closest("a.module-card[href]");
-    if (!link || !panel.contains(link)) return;
-    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey ||
-        event.shiftKey || (event.button !== undefined && event.button !== 0)) return;
-    const url = new URL(link.href,window.location.href);
-    if (url.origin !== window.location.origin ||
-        !url.pathname.startsWith("/central/modules/")) return;
-    event.preventDefault();
-    if (url.pathname === window.location.pathname) closePanel();
-    else closePanel(url.href);
-  }
-
-  function onKeyboard(event) {
-    if (!panel || panelState === "closing") return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      closePanel();
-      return;
-    }
-    if (event.key !== "Tab") return;
-    const focusable = Array.from(panel.querySelectorAll(FOCUSABLE))
-      .filter(el => !el.hidden && !el.disabled);
-    if (!focusable.length) { event.preventDefault();panel.focus();return; }
-    const first=focusable[0],last=focusable[focusable.length-1];
-    if(event.shiftKey && document.activeElement===first) {
-      event.preventDefault();last.focus();
-    } else if (!event.shiftKey && document.activeElement===last) {
-      event.preventDefault();first.focus();
-    }
+    },true);
   }
 
   function init() {
-    // Somente telas internas. O painel inicial continua sendo uma página normal.
-    if (!window.location.pathname.startsWith("/central/modules/")) return;
-    addFloatingButton();
-    document.addEventListener("click",navigationWithinPanel);
-    document.addEventListener("keydown",onKeyboard,true);
+    if (!location.pathname.startsWith("/central/modules/")) return;
+    build();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",init);
   else init();
