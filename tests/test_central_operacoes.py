@@ -169,6 +169,17 @@ class GatewayTests(unittest.TestCase):
             self.assertTrue(access.authenticated({"Cookie": value}, now=1001))
             self.assertFalse(access.authenticated({"Cookie": value}, now=1000+access.MAX_AGE+1))
 
+    def test_contas_mobile_receives_same_complete_desktop_module(self):
+        handler = _Handler("/modules/funcionarios/", headers={"User-Agent": "Android"})
+        with patch.dict(os.environ, {
+            "CENTRAL_OPERATIONS_ENABLED": "1",
+            "CENTRAL_CONTAS_UPSTREAM": "http://contas-web:8767"
+        }):
+            with patch("central_admin.operations_gateway.http.client.HTTPConnection", _Connection):
+                self.assertTrue(proxy(handler))
+        self.assertEqual(handler.status, 200)
+        self.assertEqual(_Connection.last.uri, "/?desktop=1")
+
     def test_live_page_and_script_pass_through_same_gateway(self):
         handler = _Handler("/modules/contas/?desktop=1", headers={"User-Agent": "Test"})
         with patch.dict(os.environ, {
