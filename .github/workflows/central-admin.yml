@@ -6,6 +6,7 @@ on:
       - "tests/test_central_admin.py"
       - "tests/test_central_operacoes.py"
       - "tests/test_central_modulos_ui.js"
+      - "tests/test_central_launcher_ui.js"
       - ".github/workflows/central-admin.yml"
   push:
     branches: [main]
@@ -35,8 +36,11 @@ jobs:
         run: |
           node --check central_admin/static/app.js
           node --check central_admin/static/operations.js
+          node --check central_admin/static/launcher.js
           node --check tests/test_central_modulos_ui.js
           node tests/test_central_modulos_ui.js
+          node --check tests/test_central_launcher_ui.js
+          node tests/test_central_launcher_ui.js
       - name: Conferir instalador da VPS
         run: |
           bash -n central_admin/deploy/INSTALAR_VPS.sh
