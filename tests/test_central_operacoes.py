@@ -103,6 +103,8 @@ class GatewayTests(unittest.TestCase):
         self.assertIn('src="/central/modules/contas/app.js"', updated)
         self.assertIn('/central/operations.css', updated)
         self.assertIn('/central/operations.js', updated)
+        self.assertIn('/central/launcher.css', updated)
+        self.assertIn('/central/launcher.js', updated)
         self.assertIn('class="central-operational nh-scope-contas"', updated)
         self.assertIn("https://example.org/docs", updated)
         code = "fetch('/api/accounts');fetch('/?_contas_session_refresh=1');"
