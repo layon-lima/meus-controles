@@ -247,30 +247,140 @@
     };
     if (app.s.state) app.render();
   }
+  function configureDocuments() {
+    const original = document.getElementById("contasView");
+    if (!original || document.getElementById("nh-documents-view")) return;
+    const view = document.createElement("section");
+    view.id = "nh-documents-view";
+    view.className = "nh-documents";
+    const heading = document.createElement("header");
+    heading.className = "nh-module-head";
+    const text = document.createElement("div");
+    const kicker = document.createElement("small");
+    kicker.className = "nh-kicker";
+    kicker.textContent = "ARQUIVO DIGITAL";
+    const title = document.createElement("h2");
+    title.textContent = "Documentos e comprovantes";
+    const desc = document.createElement("p");
+    desc.textContent = "Localize documentos, abra PDFs e comprovantes ou anexe e substitua arquivos usando o motor do CONTAS 4.";
+    text.append(kicker,title,desc);
+    const importPDF = document.createElement("button");
+    importPDF.type="button";importPDF.className="primary nh-add";
+    importPDF.textContent="+ Importar PDF";
+    importPDF.addEventListener("click",()=>document.getElementById("pdfImport")?.click());
+    heading.append(text,importPDF);
+
+    const bar = document.createElement("div");
+    bar.className="nh-module-toolbar";
+    const search = document.createElement("input");
+    search.type="search";search.className="nh-module-search";
+    search.placeholder="Fornecedor, documento ou observação…";
+    search.setAttribute("aria-label","Pesquisar documentos");
+    const status = document.createElement("select");
+    status.className="nh-board-select";status.setAttribute("aria-label","Filtrar documentos");
+    [["pdf","Com PDF"],["all","Todas as contas"],["missing","Sem PDF"],["receipt","Com comprovante"]]
+      .forEach(([value,label])=>{
+        const option=document.createElement("option");
+        option.value=value;option.textContent=label;status.append(option);
+      });
+    status.value="pdf";
+    const count=document.createElement("span");
+    count.className="nh-module-count";count.textContent="Carregando...";
+    bar.append(search,status,count);
+
+    const list=document.createElement("div");
+    list.className="nh-documents-list";
+    view.append(heading,bar,list);
+    original.before(view);
+
+    function data() {
+      try { return typeof accounts !== "undefined" && Array.isArray(accounts) ? accounts : []; }
+      catch (_) { return []; }
+    }
+    function action(text,label,fn,disabled=false){
+      const button=document.createElement("button");
+      button.type="button";button.textContent=text;
+      button.className="nh-document-action";
+      button.setAttribute("aria-label",label);
+      button.disabled=disabled;
+      button.addEventListener("click",fn);
+      return button;
+    }
+    function renderDocuments(){
+      const all=data();
+      const normalized=value=>String(value||"").normalize("NFD")
+        .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+      const term=normalized(search.value.trim());
+      const filtered=all.filter(a=>{
+        if(status.value==="pdf"&&!a.has_pdf)return false;
+        if(status.value==="missing"&&a.has_pdf)return false;
+        if(status.value==="receipt"&&!a.has_receipt)return false;
+        return normalized([a.fornecedor,a.documento,a.observacoes,a.referencia]
+          .join(" ")).includes(term);
+      });
+      count.textContent=filtered.length+(filtered.length===1?" documento":" documentos");
+      list.replaceChildren();
+      if(!filtered.length){
+        const empty=document.createElement("p");
+        empty.className="nh-module-empty";
+        empty.textContent=all.length?"Nenhum documento encontrado neste filtro."
+          :"Nenhum documento cadastrado ainda.";
+        list.append(empty);return;
+      }
+      filtered.forEach(a=>{
+        const card=document.createElement("article");card.className="nh-document-card";
+        const info=document.createElement("div");info.className="nh-document-info";
+        const name=document.createElement("strong");name.textContent=a.fornecedor||"Fornecedor não informado";
+        const details=document.createElement("small");
+        details.textContent=[a.documento||"Documento",a.vencimento||"",a.status||""]
+          .filter(Boolean).join(" · ");
+        const badges=document.createElement("span");badges.className="nh-document-badges";
+        badges.textContent=(a.has_pdf?"PDF disponível":"Sem PDF")+
+          (a.has_receipt?" · Comprovante disponível":"");
+        info.append(name,details,badges);
+        const actions=document.createElement("div");actions.className="nh-document-actions";
+        const selectAccount=()=>{
+          if(typeof select==="function")select(a.id);
+        };
+        actions.append(
+          action("PDF","Abrir documento de "+a.fornecedor,()=>{
+            selectAccount();
+            if(typeof showPDF==="function")Promise.resolve(showPDF(false))
+              .catch(error=>{if(typeof notice==="function")notice(error.message,true);});
+          },!a.has_pdf),
+          action("Comprovante","Abrir comprovante de "+a.fornecedor,()=>{
+            selectAccount();
+            if(typeof showPDF==="function")Promise.resolve(showPDF(true))
+              .catch(error=>{if(typeof notice==="function")notice(error.message,true);});
+          },!a.has_receipt)
+        );
+        const menu=action("Ações","Editar, anexar ou substituir documento de "+a.fornecedor,()=>{});
+        menu.addEventListener("click",()=>{
+          selectAccount();
+          if(typeof openMenu==="function")openMenu(a.id,{currentTarget:menu});
+        });
+        actions.append(menu);
+        card.append(info,actions);
+        list.append(card);
+      });
+    }
+    search.addEventListener("input",renderDocuments);
+    status.addEventListener("change",renderDocuments);
+    const tableRows=document.getElementById("rows");
+    if(tableRows && typeof MutationObserver === "function"){
+      const observer=new MutationObserver(()=>renderDocuments());
+      observer.observe(tableRows,{childList:true});
+    }
+    renderDocuments();
+  }
   function configureContas() {
-    const needsPayroll = active==="funcionarios";
-    if (typeof setModule === "function") {
+    const needsPayroll=active==="funcionarios";
+    if(typeof setModule==="function"){
       setModule(needsPayroll?"holerites":"contas");
-    } else if (needsPayroll) {
+    }else if(needsPayroll){
       document.getElementById("tabHolerites")?.click();
     }
-    if(active==="documentos") {
-      const surface = document.getElementById("contasView");
-      if (!surface) return;
-      const intro = document.createElement("section");
-      intro.className = "nh-documents-intro";
-      const heading = document.createElement("h2");
-      heading.textContent = "Documentos e comprovantes";
-      const details = document.createElement("p");
-      details.textContent = "Importe boletos, consulte PDFs, anexe comprovantes e mantenha tudo vinculado à conta correspondente.";
-      const action = document.createElement("button");
-      action.type = "button";
-      action.className = "primary";
-      action.textContent = "+ Importar PDF";
-      action.addEventListener("click",()=>document.getElementById("pdfImport")?.click());
-      intro.append(heading,details,action);
-      surface.before(intro);
-    }
+    if(active==="documentos")configureDocuments();
   }
   document.addEventListener("DOMContentLoaded", () => {
     renderShell();
