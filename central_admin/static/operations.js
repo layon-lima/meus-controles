@@ -93,8 +93,6 @@
       return;
     }
     app.newControl();
-    const mode = suggestedMode[active];
-    if (mode && app.s.modal === "builder") app.mode(mode);
   }
   function buildModuleHome(app) {
     const main = document.getElementById("main");
@@ -208,6 +206,7 @@
             return originalRender.apply(this,arguments);
           const main = document.getElementById("main");
           if (!main) return;
+          document.body.classList.toggle("nh-module-list",true);
           document.getElementById("pageTitle").textContent = "Relatórios";
           document.getElementById("crumb").textContent = "NOVO HORIZONTE / RELATÓRIOS";
           main.innerHTML = '<section class="nh-module-head"><div><small class="nh-kicker">ARQUIVOS E CONSULTAS</small><h2>Relatórios</h2><p>Exportações e consultas executadas pelo motor original, sem recadastrar dados.</p></div></section><section class="nh-report-actions"><button class="btn btn-primary" type="button" id="nh-export-report">Gerar relatório Excel de controles</button></section>';
@@ -237,6 +236,7 @@
     };
     const originalRender = app.render;
     app.render = function () {
+      document.body.classList.toggle("nh-module-list",this.s.route === "home");
       const detail = this.s.detail && this.s.detail.control;
       if (this.s.route === "control" && detail && !modeFilters[active](detail)) {
         this.navigate("home",null,{replace:true});
