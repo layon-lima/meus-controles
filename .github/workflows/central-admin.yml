@@ -4,6 +4,7 @@ on:
     paths:
       - "central_admin/**"
       - "tests/test_central_admin.py"
+      - "tests/test_central_operacoes.py"
       - ".github/workflows/central-admin.yml"
   push:
     branches: [main]
@@ -24,11 +25,15 @@ jobs:
         with:
           node-version: "22"
       - name: Conferir sintaxe Python
-        run: python -m compileall -q central_admin tests/test_central_admin.py
+        run: python -m compileall -q central_admin tests/test_central_admin.py tests/test_central_operacoes.py
       - name: Testes de não regressão da Central
-        run: python -m unittest discover -s tests -p "test_central_admin.py" -v
+        run: |
+          python -m unittest discover -s tests -p "test_central_admin.py" -v
+          python -m unittest discover -s tests -p "test_central_operacoes.py" -v
       - name: Conferir JavaScript
-        run: node --check central_admin/static/app.js
+        run: |
+          node --check central_admin/static/app.js
+          node --check central_admin/static/operations.js
       - name: Conferir instalador da VPS
         run: bash -n central_admin/deploy/INSTALAR_VPS.sh
       - name: Validar Compose isolado
