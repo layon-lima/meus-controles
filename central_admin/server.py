@@ -46,6 +46,10 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def authorized(self):
+        # Consulta automática, somente leitura, quando explicitamente liberada
+        # pelo administrador na configuração privada da VPS.
+        if os.environ.get("CENTRAL_PUBLIC_READ") == "1":
+            return True
         expected = os.environ.get("CENTRAL_TOKEN", "")
         header = self.headers.get("Authorization", "")
         return (len(expected) >= 32 and header.startswith("Bearer ")
@@ -76,7 +80,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     if len(os.environ.get("CENTRAL_TOKEN", "")) < 32:
-        raise RuntimeError("CENTRAL_TOKEN obrigatório (pelo menos 32 caracteres).")
+        if os.environ.get("CENTRAL_PUBLIC_READ") != "1":
+            raise RuntimeError("CENTRAL_TOKEN obrigatório (pelo menos 32 caracteres).")
     bind = os.environ.get("CENTRAL_BIND", "127.0.0.1")
     if bind != "127.0.0.1" and not (
         bind == "0.0.0.0" and os.environ.get("CENTRAL_ALLOW_CONTAINER_BIND") == "1"
