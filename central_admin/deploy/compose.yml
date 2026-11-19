@@ -17,7 +17,10 @@ services:
       - type: bind
         source: /opt/apps/contas-runtime/data
         target: /contas-data
-        read_only: true
+        # A pasta SQLite do CONTAS pode ser 0700/root; o container so recebe bind RO,
+    # filesystem RO, nenhuma capability e nenhuma rota de escrita.
+    user: "0:0"
+    read_only: true
         bind:
           create_host_path: false
     read_only: true
