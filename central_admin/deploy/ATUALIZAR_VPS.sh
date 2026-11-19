@@ -115,11 +115,21 @@ CODE="$(curl -sS -D "$TMP/headers" -o "$TMP/pair.json" -w '%{http_code}' \
 COOKIE="$(sed -n 's/^[Ss]et-[Cc]ookie: *\(central_nh_session=[^;]*\).*/\1/p' \
   "$TMP/headers" | tr -d '\r' | head -1)"
 [[ -n "$COOKIE" ]] || fail "Cookie da sessao nao emitido."
-for entry in 'api/resumo' 'modules/contas/?desktop=1' 'modules/controles/'; do
+for entry in 'api/resumo' \
+             'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' \
+             'modules/controles/' 'modules/recebimentos/' \
+             'modules/transportadoras/' 'modules/relatorios/'; do
   HTTP="$(curl -sS --max-time 25 -o "$TMP/response" -w '%{http_code}' \
     -H "Cookie: $COOKIE" "http://127.0.0.1:18771/$entry")"
   [[ "$HTTP" == 200 ]] || fail "Rota $entry indisponivel (HTTP $HTTP)."
-  if [[ "$entry" == 'api/resumo' ]]; then cp "$TMP/response" "$TMP/resumo.json"; fi
+  if [[ "$entry" == 'api/resumo' ]]; then
+    cp "$TMP/response" "$TMP/resumo.json"
+  else
+    grep -Fq '/central/operations.css' "$TMP/response" \
+      || fail "Tema comum nao encontrado em $entry."
+    grep -Fq 'central-operational' "$TMP/response" \
+      || fail "Classe de interface unica ausente em $entry."
+  fi
 done
 python3 - "$TMP/resumo.json" <<'PY'
 import json,sys
@@ -138,7 +148,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: oito cards, navegação unica e mesmo dominio, sem iframes."
+echo "LAYOUT: Liquid Glass em toda a Central, sem barra lateral e com modulos separados."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
