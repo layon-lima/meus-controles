@@ -17,12 +17,12 @@ services:
       - type: bind
         source: /opt/apps/contas-runtime/data
         target: /contas-data
-        # A pasta SQLite do CONTAS pode ser 0700/root; o container so recebe bind RO,
-    # filesystem RO, nenhuma capability e nenhuma rota de escrita.
-    user: "0:0"
-    read_only: true
+        read_only: true
         bind:
           create_host_path: false
+    # O banco do CONTAS pode ter permissoes root-only. O bind e RO,
+    # o filesystem do container e RO e todas as capabilities sao removidas.
+    user: "0:0"
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -40,7 +40,6 @@ networks:
   controles_db:
     external: true
     name: meus-controles_banco_privado
-
   interface_web:
     external: true
     name: meus-controles_interface_web
