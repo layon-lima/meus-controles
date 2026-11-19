@@ -127,3 +127,62 @@ nem alterar notas: a API continua estritamente somente leitura.
 Este avanço não conclui a unificação operacional. A incorporação das telas
 de manutenção e os vínculos financeiros persistentes ainda exigem
 implementação e homologação.
+
+
+## Etapa operacional unificada — gateway sem iframe (novembro/2026)
+
+Implementação em homologação: as rotas /central/modules/controles/,
+recebimentos/, transportadoras/, contas/, funcionarios/, documentos/ e
+relatorios/ passam pela própria Central, sob **uma origem HTTPS e uma
+barra de navegação comum**, usando os motores web que já operam na VPS.
+
+O gateway não abre o domínio antigo e não usa iframe. Ele reescreve os
+caminhos de assets/API para os prefixos internos e preserva os formulários,
+endpoints, downloads, pagamentos e métodos HTTP das aplicações originais.
+A nova folha de estilo normaliza cartões, fontes, menus e botões. A
+reescrita completa de cada tela em componentes nativos do design system
+ainda é uma fase posterior: não declarar paridade visual total prematuramente.
+
+### Segurança
+
+A API operacional e o painel financeiro exigem uma **sessão assinada
+HttpOnly, SameSite=Strict, Secure**, com expiração de 90 dias. A ativação
+gera uma URL de pareamento cujo segredo está no fragmento # (não enviado
+em GET), que deve ser aberta uma vez no navegador autorizado.
+Não há formulário para colar chave no aplicativo. Solicitações de escrita
+exigem Origin exato e passam pelas regras de autenticação/validação
+dos motores originais.
+
+O modo legado CENTRAL_PUBLIC_READ=1 não concede mais leitura financeira.
+Novos segredos de sessão são gerados na VPS, mantidos exclusivamente em
+.env.production (chmod 600) e preservados nas atualizações seguintes.
+
+### Atualização da VPS existente
+
+No terminal Ubuntu da VPS, como root:
+
+    curl -fsSL 'https://raw.githubusercontent.com/layon-lima/meus-controles/feature/central-administrativa-v1/central_admin/deploy/ATUALIZAR_VPS.sh' -o /root/ATUALIZAR_CENTRAL_VPS.sh && bash /root/ATUALIZAR_CENTRAL_VPS.sh
+
+O script verifica o contêiner web original do Contas, o Meus Controles,
+o banco do Contas, as redes privadas, a sessão e as páginas operacionais.
+Reinicia **somente o contêiner da Central** e tenta restaurar sua versão
+anterior em caso de erro. Não redireciona, desativa nem atualiza aplicativos
+originais. Não altera DNS, Caddy, R2, PDFs ou bancos.
+
+Depois da publicação, no terminal da VPS:
+
+    cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt
+
+Abra a URL privada mostrada uma única vez no seu navegador. Depois
+acesse normalmente /central/, sem repetir o vínculo enquanto a sessão
+estiver válida. Não compartilhe o link de pareamento, pois autoriza
+acesso financeiro.
+
+### Limites e regra de aposentadoria
+
+- Os motores antigos ainda são dependências operacionais da Central; ela
+  **não** funciona quando um desses serviços estiver fora do ar.
+- A integração de fornecedores/obrigações e a unificação profunda do UI
+  ainda estão pendentes. Esta é uma entrega operacional intermediária.
+- **É proibido desativar, redirecionar ou remover Meus Controles e CONTAS 4
+  sem autorização explícita do usuário, mesmo após concluir os testes.**
