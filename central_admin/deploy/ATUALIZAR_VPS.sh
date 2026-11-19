@@ -11,7 +11,7 @@ fail(){ printf 'ERRO: %s\n' "$*" >&2; exit 1; }
 log(){ printf '\n==> %s\n' "$*"; }
 
 [[ "$(id -u)" == "0" ]] || fail "Execute no terminal Ubuntu da VPS, como root."
-for cmd in curl tar docker python3; do command -v "$cmd" >/dev/null || fail "Programa ausente: $cmd"; done
+for cmd in curl tar docker python3 openssl; do command -v "$cmd" >/dev/null || fail "Programa ausente: $cmd"; done
 [[ -s "$APP/deploy/.env.production" ]] || fail "Arquivo de configuracao da Central existente nao encontrado. Nao criar nova chave."
 [[ -f "$APP/server.py" && -f "$COMPOSE" ]] || fail "Central atual nao encontrada."
 docker compose version >/dev/null || fail "Docker Compose indisponivel."
@@ -48,7 +48,7 @@ trap rollback EXIT
 
 log "Criando backup integral do codigo e das configuracoes atuais..."
 cp -a "$APP" "$TMP/central_admin"
-log "Obtendo nova interface de cards e integracao automatica..."
+log "Baixando o sistema unificado com modulos operacionais..."
 curl -fsSL --retry 2 \
   "https://api.github.com/repos/layon-lima/meus-controles/tarball/feature%2Fcentral-administrativa-v1" \
   -o "$TMP/central.tgz"
@@ -138,7 +138,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: painel inicial com 8 cards, sem menu lateral e sem campo de chave."
+echo "LAYOUT: oito cards, navegação unica e mesmo dominio, sem iframes."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
