@@ -56,8 +56,9 @@ mkdir "$TMP/extract"
 tar -xzf "$TMP/central.tgz" -C "$TMP/extract"
 SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 [[ -n "$SOURCE" && -f "$SOURCE/central_admin/server.py" ]] || fail "Download incompleto."
-[[ -f "$SOURCE/central_admin/static/index.html" && -f "$SOURCE/central_admin/static/app.js" ]] \
-  || fail "Interface nao encontrada no pacote."
+[[ -f "$SOURCE/central_admin/static/index.html" && -f "$SOURCE/central_admin/static/app.js" &&
+    -f "$SOURCE/central_admin/static/launcher.js" && -f "$SOURCE/central_admin/static/launcher.css" ]] \
+  || fail "Interface ou lançador flutuante não encontrados no pacote."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
 cp -a "$SOURCE/central_admin/." "$APP/"
@@ -90,6 +91,7 @@ python3 -m compileall -q "$APP" || fail "Falha na verificacao de sintaxe Python.
 if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/app.js"
   node --check "$APP/static/operations.js"
+  node --check "$APP/static/launcher.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -127,6 +129,10 @@ for entry in 'api/resumo' \
   else
     grep -Fq '/central/operations.css' "$TMP/response" \
       || fail "Tema comum nao encontrado em $entry."
+    grep -Fq '/central/launcher.js' "$TMP/response" \
+      || fail "Botao flutuante nao foi injetado em $entry."
+    grep -Fq '/central/launcher.css' "$TMP/response" \
+      || fail "Estilo da animacao ausente em $entry."
     grep -Fq 'central-operational' "$TMP/response" \
       || fail "Classe de interface unica ausente em $entry."
   fi
@@ -139,6 +145,14 @@ for key in ("contas","controles"):
         raise SystemExit("ERRO: fonte "+key+" indisponivel. Aplicacao anterior sera restaurada.")
 print("OK: os dois bancos de dados estao conectados sem nenhuma escrita.")
 PY
+# Confere se os arquivos da animacao realmente estao no container.
+for asset in launcher.js launcher.css; do
+  HTTP="$(curl -sS --max-time 6 -o "$TMP/asset" -w '%{http_code}' \
+    "http://127.0.0.1:18771/$asset")"
+  [[ "$HTTP" == 200 ]] || fail "Recurso $asset nao respondeu (HTTP $HTTP)."
+  grep -Fq 'nh-hub-' "$TMP/asset" \
+    || fail "Recurso $asset nao corresponde ao painel expansivel."
+done
 # A API de escrita precisa recusar uma tentativa sem Origin de navegador.
 HTTP="$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
   -H "Cookie: $COOKIE" -H "Content-Type: application/json" \
@@ -148,7 +162,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: Liquid Glass em toda a Central, sem barra lateral e com modulos separados."
+echo "LAYOUT: menu superior removido; icone flutuante expande e recolhe o painel Liquid Glass."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
