@@ -34,39 +34,9 @@
     return shape;
   }
   function renderShell() {
+    // A barra superior compartilhada foi substituída pelo lançador flutuante
+    // de painel, montado por launcher.js. Não recarrega nem interfere no App.
     document.body.classList.add("central-operational","nh-scope-"+active);
-    const top = document.createElement("header");
-    top.className = "central-shell-bar";
-    top.setAttribute("aria-label","Navegação da Central Novo Horizonte");
-    const inner = document.createElement("div");
-    inner.className = "central-shell-inner";
-    const logo = document.createElement("a");
-    logo.href = "/central/";
-    logo.className = "central-home";
-    const mark = document.createElement("span");
-    mark.className = "central-mark";
-    mark.textContent = "NH";
-    const company = document.createElement("span");
-    company.className = "central-brandline";
-    const name = document.createElement("strong");
-    name.textContent = "Novo Horizonte";
-    const detail = document.createElement("small");
-    detail.textContent = "Central Administrativa";
-    company.append(name,detail);
-    logo.append(mark,company);
-    const links = document.createElement("nav");
-    links.className = "central-tabs";
-    links.setAttribute("aria-label","Áreas de trabalho");
-    modules.forEach(([label,href]) => {
-      const link = document.createElement("a");
-      link.href = href;
-      link.textContent = label;
-      if (href === "/central/modules/"+active+"/") link.setAttribute("aria-current","page");
-      links.append(link);
-    });
-    inner.append(logo,links);
-    top.append(inner);
-    document.body.insertBefore(top, document.body.firstChild);
   }
   function quietOldSidebar() {
     // O antigo App.toggleMenu era chamado por toda navegação. Esta alteração
