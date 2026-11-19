@@ -166,9 +166,13 @@
       }
     };
     closing.classList.remove("nh-hub-expanded");
-    closing.addEventListener("transitionend", event => {
-      if (event.target === closing && event.propertyName === "transform") cleanup();
-    },{once:true});
+    const onEnd = event => {
+      if (event.target === closing && event.propertyName === "transform") {
+        closing.removeEventListener("transitionend",onEnd);
+        cleanup();
+      }
+    };
+    closing.addEventListener("transitionend",onEnd);
     // Fallback para navegadores que reduzem ou não emitem transitionend.
     window.setTimeout(cleanup, ANIMATION_MS + 100);
   }
