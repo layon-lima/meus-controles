@@ -1,0 +1,31 @@
+name: Validar Central Administrativa
+on:
+  pull_request:
+    paths:
+      - "central_admin/**"
+      - "tests/test_central_admin.py"
+      - ".github/workflows/central-admin.yml"
+  push:
+    branches: [main]
+    paths:
+      - "central_admin/**"
+      - "tests/test_central_admin.py"
+      - ".github/workflows/central-admin.yml"
+
+jobs:
+  central-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Conferir sintaxe Python
+        run: python -m compileall -q central_admin tests/test_central_admin.py
+      - name: Testes de não regressão da Central
+        run: python -m unittest discover -s tests -p "test_central_admin.py" -v
+      - name: Conferir JavaScript
+        run: node --check central_admin/static/app.js
