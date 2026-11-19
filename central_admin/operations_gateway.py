@@ -74,6 +74,11 @@ def rewrite_text(text, prefix, kind):
         text,
     )
     if kind == "html":
+        # Aplicar o tema ANTES do primeiro paint, evitando o flash da barra
+        # lateral do sistema antigo quando outra página é aberta.
+        module = prefix.rstrip("/").rsplit("/", 1)[-1]
+        if module in MODULES:
+            text = text.replace("<body>", '<body class="central-operational nh-scope-' + module + '">', 1)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
         css = '<link rel="stylesheet" href="/central/operations.css">'
         js = '<script defer src="/central/operations.js"></script>'
