@@ -212,3 +212,8 @@ body.central-operational .nh-document-action{
 body.central-operational .nh-document-action:disabled{opacity:.35;cursor:not-allowed}
 @media(max-width:1050px){.nh-documents-list{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:620px){.nh-documents{padding:12px 10px 28px}.nh-document-card{align-items:stretch;flex-direction:column}.nh-document-actions{justify-content:flex-start}.nh-module-count{font-size:10px}}
+
+/* Busca da barra antiga atravessava categorias; cada módulo já tem sua busca dedicada. */
+body.central-operational.nh-scope-recebimentos .topbar .search-wrap,
+body.central-operational.nh-scope-transportadoras .topbar .search-wrap,
+body.central-operational.nh-scope-controles .topbar .search-wrap{display:none!important}
