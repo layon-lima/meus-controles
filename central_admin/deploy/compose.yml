@@ -14,7 +14,12 @@ services:
       CENTRAL_PORT: "18771"
       CENTRAL_CONTAS_DB: "/contas-data/controle_contas.db"
     volumes:
-      - /opt/apps/contas-runtime/data:/contas-data:ro
+      - type: bind
+        source: /opt/apps/contas-runtime/data
+        target: /contas-data
+        read_only: true
+        bind:
+          create_host_path: false
     read_only: true
     security_opt:
       - no-new-privileges:true
