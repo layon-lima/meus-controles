@@ -89,7 +89,7 @@ async function connect() {
   }
   el("connect").disabled = true;
   try {
-    const response = await fetch("/api/resumo", {
+    const response = await fetch("api/resumo", {
       headers: {"Authorization": "Bearer " + adminToken},
       cache: "no-store"
     });
