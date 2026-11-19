@@ -17,3 +17,46 @@ svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke
 @media(max-width:790px){.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.content{padding:27px 18px}.intro h1{font-size:26px}.intro-tag{display:none}.site-header{padding:0 18px}}
 @media(max-width:520px){.site-header{height:73px}.brand-mark{height:37px;width:37px}.brand-copy strong{font-size:12px}.brand-copy small{font-size:10px}.header-actions{gap:0}.connection-state{display:none}.header-button{font-size:11px;padding:9px 11px}.content{padding:23px 14px}.intro{margin-bottom:22px}.intro h1{font-size:24px}.summary{gap:9px;margin-bottom:28px}.summary-item{padding:14px;min-height:103px}.summary-item strong{font-size:21px}.modules{gap:10px}.module-card{min-height:182px;padding:15px 13px;border-radius:14px}.module-icon{width:40px;height:40px;margin-bottom:13px}.module-icon svg{width:20px;height:20px}.module-name{font-size:12px}.module-description{font-size:11px;margin-bottom:10px}.module-footer{font-size:10px}.site-footer{padding:18px 14px;align-items:flex-start;flex-direction:column}.detail-box{padding:7px 15px}.detail-row{align-items:flex-start}.detail-row .row-value{white-space:normal}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.module-card{transition:none}.module-card:hover{transform:none}}
+
+/* Central Novo Horizonte — Liquid Glass no painel inicial, igual aos módulos. */
+:root{
+  --bg:#f2f6fc;--ink:#1b3653;--muted:#788ca3;--line:rgba(255,255,255,.89);
+  --paper:rgba(255,255,255,.69);--primary:#306eae;
+  --glass-shadow:0 16px 43px rgba(37,80,133,.091),0 2px 7px rgba(39,73,118,.035),inset 0 1.5px 1px rgba(255,255,255,.98)
+}
+body{
+  background:
+    radial-gradient(ellipse 48% 50% at 3% 4%,rgba(176,213,248,.51),transparent 85%),
+    radial-gradient(ellipse 38% 54% at 99% 19%,rgba(204,224,249,.56),transparent 83%),
+    radial-gradient(ellipse 40% 50% at 55% 100%,rgba(201,236,229,.39),transparent 82%),
+    linear-gradient(132deg,#eff5fc,#f8fafe 48%,#edf3fc) fixed;
+  -webkit-font-smoothing:antialiased
+}
+.site-header{
+  background:linear-gradient(125deg,rgba(255,255,255,.80),rgba(234,244,255,.68));
+  border-color:rgba(255,255,255,.91);
+  backdrop-filter:blur(25px) saturate(180%);-webkit-backdrop-filter:blur(25px) saturate(180%);
+  box-shadow:0 6px 26px rgba(48,83,128,.055),inset 0 1px 0 #fff
+}
+.brand-mark{background:linear-gradient(140deg,#244d7e,#77a6d5);border:1px solid #ffffffa6;box-shadow:inset 0 1px 0 #ffffff55,0 5px 15px #3b679130}
+:where(.module-card,.summary-item,.intro-tag,.nh-home-panel){
+  background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(240,248,255,.60))!important;
+  border:1px solid rgba(255,255,255,.94)!important;
+  border-radius:19px!important;box-shadow:var(--glass-shadow)!important;
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%)
+}
+.module-card{position:relative;overflow:hidden;min-height:210px}
+.module-card::before{
+  content:"";pointer-events:none;position:absolute;inset:0 0 auto 0;height:55%;
+  border-radius:inherit;background:linear-gradient(150deg,rgba(255,255,255,.52),transparent 66%);opacity:.52
+}
+.module-card>*{position:relative;z-index:1}
+.module-card:hover{border-color:#d6e9fa!important;box-shadow:0 23px 48px rgba(47,87,136,.135),inset 0 1px 0 #fff!important;transform:translateY(-3px)}
+.module-icon{background:linear-gradient(150deg,rgba(242,249,255,.96),rgba(203,227,249,.74));color:#3e73a9;border:1px solid rgba(255,255,255,.98);box-shadow:inset 0 1px 0 #fff,0 4px 14px #366ca21b}
+.summary-item strong{color:#264c77}.summary-item small{color:#8296ab}
+.header-button{background:linear-gradient(140deg,rgba(255,255,255,.97),rgba(230,242,255,.80));border-color:rgba(172,199,226,.61);box-shadow:inset 0 1px 1px #fff}
+.site-footer{border-color:#ffffffac}
+@supports not (backdrop-filter:blur(2px)){
+  .site-header,.module-card,.summary-item,.intro-tag{background:#f9fcff!important}
+}
+@media(prefers-reduced-motion:reduce){.module-card{transition:none!important}.module-card:hover{transform:none}}
