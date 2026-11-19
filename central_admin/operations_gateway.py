@@ -171,8 +171,19 @@ def proxy(handler):
                 data = b"/* PWA legado desabilitado apenas na Central. */"
                 content_type = "text/javascript; charset=utf-8"
             elif is_html or is_js or is_css:
+                source = data.decode("utf-8")
+                if backend == "controles" and target_path == "/static/app.js":
+                    # No site legado, telas pequenas recebem só um resumo mobile.
+                    # Dentro da Central, carregar as operações responsivas completas
+                    # sem modificar os fontes originais nem a experiência antiga.
+                    legacy_guard = ('if(!window.matchMedia("(max-width: 820px), '
+                                    '(hover: none) and (pointer: coarse)").matches){')
+                    if legacy_guard in source:
+                        source = source.replace(legacy_guard, "if(true){", 1)
+                if backend == "controles" and target_path == "/static/receiving_mobile.js":
+                    source = "/* Módulo mobile legado isolado: Central carrega interface operacional completa. */"
                 data = rewrite_text(
-                    data.decode("utf-8"),
+                    source,
                     prefix,
                     "html" if is_html else "js" if is_js else "css",
                 ).encode("utf-8")
