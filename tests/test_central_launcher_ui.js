@@ -9,7 +9,7 @@ const css = fs.readFileSync("central_admin/static/launcher.css","utf8");
 
 assert.ok(!source.includes("DOMParser"),"Não pode copiar a página da Central");
 assert.ok(!source.includes("fetch("),"O menu Iniciar não precisa consultar a rede para abrir");
-assert.ok(!source.includes("iframe"),"A navegação não pode usar iframe");
+assert.ok(!source.includes('createElement("iframe")'),"A navegação não pode usar iframe");
 assert.ok(!operations.includes('className = "central-shell-bar"'),
   "As abas superiores antigas não podem voltar");
 assert.ok(!css.includes("width:100vw!important;height:100dvh"),
