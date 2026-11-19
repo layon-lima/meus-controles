@@ -175,6 +175,13 @@ def proxy(handler):
         if body is not None:
             request_headers["Content-Length"] = str(len(body))
         upstream_uri = target_path + (("?" + uri.query) if uri.query else "")
+        if backend == "contas" and target_path == "/":
+            # A versão web do CONTAS redireciona celulares para um painel
+            # diferente e reduzido. A Central deve manter o mesmo módulo
+            # operacional responsivo, com todas as funções, em qualquer tela.
+            query = upstream_uri.partition("?")[2]
+            if not re.search(r"(?:^|&)desktop=1(?:&|$)", query):
+                upstream_uri += ("&" if query else "?") + "desktop=1"
         connection = http.client.HTTPConnection(host, port, timeout=80)
         try:
             connection.request(method, upstream_uri, body=body, headers=request_headers)
