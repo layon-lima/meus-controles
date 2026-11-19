@@ -24,7 +24,7 @@ class Element {
   addEventListener(type,fn){this.listeners[type]=fn}
   setAttribute(k,v){this.attributes[k]=v}
   getAttribute(k){return this.attributes[k]}
-  before(){}
+  before(node){this.beforeNodes=(this.beforeNodes||[]).concat([node])}
   click(){this.listeners.click?.()}
 }
 function boot(module, controls){
@@ -56,7 +56,10 @@ function boot(module, controls){
   };
   const location={pathname:"/central/modules/"+module+"/"};
   const win={location};
-  const context={document,location,window:win,App:app,controlCard:c=>"<article data-mode='"+c.mode+"'>"+c.name+"</article>"};
+  const context={document,location,window:win,App:app,
+    accounts:[{id:1,fornecedor:"Agrex",documento:"NF 2402",has_pdf:true,has_receipt:true}],
+    setModule:()=>{},select:()=>{},showPDF:()=>Promise.resolve(),openMenu:()=>{},
+    controlCard:c=>"<article data-mode='"+c.mode+"'>"+c.name+"</article>"};
   vm.runInNewContext(source,context);
   document.listeners.DOMContentLoaded();
   return {elements,app,body};
@@ -70,7 +73,7 @@ const testControls=[
 for(const [module,allowed,forbidden,newMode] of [
   ["recebimentos",["Pedido de Fertilizantes"],["Frete da Soja","Dívida","Acerto"],"recebimento"],
   ["transportadoras",["Frete da Soja"],["Pedido de Fertilizantes","Dívida","Acerto"],"caminhao"],
-  ["controles",["Dívida","Acerto"],["Pedido de Fertilizantes","Frete da Soja"],null]
+  ["controles",["Dívida","Acerto"],["Pedido de Fertilizantes","Frete da Soja"],"financeiro"]
 ]){
   const {elements,app,body}=boot(module,testControls);
   const results=elements.get("main").children.find(x=>x.className==="control-grid nh-filtered-results");
@@ -88,4 +91,12 @@ for(const [module,allowed,forbidden,newMode] of [
   if(newMode)assert.equal(app.s.draft.mode,newMode,"O botão novo deve abrir o modelo da área");
   console.log("OK:",module,"lista isolada e menu lateral fechado");
 }
+const docs=boot("documentos",testControls);
+const before=docs.elements.get("contasView").beforeNodes||[];
+assert.equal(before.length,1,"Documentos deve ter uma tela dedicada");
+assert.equal(before[0].id,"nh-documents-view");
+assert.equal(before[0].children.length,3,"Cabeçalho, filtro e lista de documentos");
+const records=before[0].children[2];
+assert.equal(records.children.length,1,"Documento existente deve aparecer na lista");
+console.log("OK: Documentos mostra apenas arquivos e mantém ações nativas");
 console.log("OK: módulos testados sem afetar o App legado");
