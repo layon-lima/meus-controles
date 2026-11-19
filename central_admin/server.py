@@ -1,13 +1,13 @@
-"""Serviço isolado da Central Administrativa, sem rotas de escrita."""
+"""Servidor web único da Central Novo Horizonte, com sessões protegidas."""
 from __future__ import annotations
 
-import hmac
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from . import access
 from .core import snapshot
 from .operations_gateway import proxy
 
@@ -49,14 +49,36 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def authorized(self):
-        # Consulta automática, somente leitura, quando explicitamente liberada
-        # pelo administrador na configuração privada da VPS.
-        if os.environ.get("CENTRAL_PUBLIC_READ") == "1":
-            return True
-        expected = os.environ.get("CENTRAL_TOKEN", "")
-        header = self.headers.get("Authorization", "")
-        return (len(expected) >= 32 and header.startswith("Bearer ")
-                and hmac.compare_digest(header[7:], expected))
+        return access.authenticated(self.headers)
+
+    def pair(self):
+        if not access.trusted_origin(self.headers.get("Origin", "")):
+            self.respond(403, {"ok": False, "erro": "Origem não autorizada."})
+            return
+        if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+            self.respond(415, {"ok": False, "erro": "Formato inválido."})
+            return
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if not 2 <= size <= 512:
+                raise ValueError()
+            payload = json.loads(self.rfile.read(size))
+            valid = isinstance(payload, dict) and access.verify_pair(payload.get("token"))
+        except (ValueError, TypeError, UnicodeError):
+            valid = False
+        if not valid:
+            self.respond(403, {"ok": False, "erro": "Pareamento não autorizado."})
+            return
+        body = b'{"ok":true}'
+        self.send_response(200)
+        self.send_header("Set-Cookie", access.issue_cookie())
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_GET(self):
         if proxy(self):
@@ -78,6 +100,8 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(404, {"ok": False, "erro": "Rota inexistente."})
 
     def do_POST(self):
+        if urlsplit(self.path).path == "/api/pair":
+            return self.pair()
         if proxy(self):
             return
         self.respond(405, {"ok": False, "erro": "Rota de escrita não habilitada."})
@@ -86,16 +110,15 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    if len(os.environ.get("CENTRAL_TOKEN", "")) < 32:
-        if os.environ.get("CENTRAL_PUBLIC_READ") != "1":
-            raise RuntimeError("CENTRAL_TOKEN obrigatório (pelo menos 32 caracteres).")
+    if not access.ready():
+        raise RuntimeError("CENTRAL_SESSION_SECRET e CENTRAL_PAIR_TOKEN precisam estar configurados.")
     bind = os.environ.get("CENTRAL_BIND", "127.0.0.1")
     if bind != "127.0.0.1" and not (
         bind == "0.0.0.0" and os.environ.get("CENTRAL_ALLOW_CONTAINER_BIND") == "1"
     ):
         raise RuntimeError("Bind não autorizado: use loopback ou container isolado.")
     port = int(os.environ.get("CENTRAL_PORT", "18771"))
-    print("Central Administrativa ativa em modo somente leitura.", flush=True)
+    print("Central Novo Horizonte ativa. Acesso por sessão protegida.", flush=True)
     ThreadingHTTPServer((bind, port), Handler).serve_forever()
 
 
