@@ -12,6 +12,9 @@ services:
       CENTRAL_BIND: "0.0.0.0"
       CENTRAL_ALLOW_CONTAINER_BIND: "1"
       CENTRAL_PORT: "18771"
+      # Libera painel de CONSULTA sem chave no navegador.
+      # A rota e publica enquanto o Caddy nao tiver um controle de acesso externo.
+      CENTRAL_PUBLIC_READ: "1"
       CENTRAL_CONTAS_DB: "/contas-data/controle_contas.db"
     volumes:
       - type: bind
