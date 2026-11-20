@@ -257,3 +257,25 @@ sem parar ou aposentar os aplicativos antigos.
 
 Os ganhos reais de tempo e memória dependem do tamanho das bases e do
 navegador; não declarar porcentagens de melhora sem medições na VPS.
+
+
+## Expansão suave do Iniciar para a página inicial (novembro/2026)
+
+Correção de fluidez: a versão anterior animava width, height, bottom e
+right do popup, obrigando o navegador a recalcular a grade e o Liquid Glass
+em cada quadro. Além disso, navegava com timer fixo de 220 ms.
+Essa técnica foi removida.
+
+- No Edge/Chrome moderno, a expansão é uma View Transition entre
+  documentos reais da mesma origem, usando @view-transition com
+  navigation:auto. O popup e a home compartilham o nome nh-central-expand.
+  O navegador interpola as imagens na camada de composição.
+- O clique navega imediatamente para /central/; o navegador coordena
+  a troca de página sem timer arbitrário nem aplicativo embutido.
+- Sem suporte, uma superfície gráfica temporária anima apenas transform
+  e opacity, não o layout ou os formulários antigos.
+- A preferência de movimento reduzido é respeitada.
+- launcher.css e app.css receberam estilos de entrada/saída e arquivos
+  versionados para não reutilizar o estilo anterior do cache.
+- O instalador recusa a CSS antiga que animava dimensões.
+  Não há alteração em bancos, pagamentos, documentos ou motores originais.
