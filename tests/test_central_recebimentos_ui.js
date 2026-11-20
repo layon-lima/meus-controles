@@ -33,6 +33,8 @@ class Element{
     };
   }
   addEventListener(name,fn){this.listeners[name]=fn}
+  append(){}
+  remove(){}
   replaceChildren(){this.innerHTML=""}
   removeAttribute(){}
   setAttribute(){}
@@ -45,6 +47,7 @@ const get=selector=>{
 const document={
   listeners:{},
   querySelector:get,
+  createElement:()=>new Element(),
   querySelectorAll(){return []},
   addEventListener(name,fn){this.listeners[name]=fn}
 };
