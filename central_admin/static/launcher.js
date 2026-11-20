@@ -129,6 +129,10 @@
         typeof CSS !== "undefined" &&
         typeof CSS.supports === "function" &&
         CSS.supports("view-transition-name: nh-central-expand")) {
+      // Garante que o elemento nomeado seja capturado no documento de saída
+      // antes de iniciar a navegação entre documentos.
+      if (typeof menu.getBoundingClientRect === "function")
+        menu.getBoundingClientRect();
       navigate();
       return;
     }
