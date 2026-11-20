@@ -153,9 +153,8 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(_Connection.last.headers["X-Pdf-Name"], name)
         self.assertEqual(_Connection.last.headers["X-Ocr-Mode"], "hybrid")
         self.assertEqual(_Connection.last.headers["X-Local-Token"], "private-session")
-        self.assertEqual(_Connection.last.headers["Origin"], _Connection.last.headers["Host"].join(
-            ("https://", "")
-        ))
+        self.assertEqual(_Connection.last.headers["Origin"],
+                         "https://" + _Connection.last.headers["Host"])
 
     def test_native_desktop_operates_on_mobile_only_inside_central(self):
         original = ('if(!window.matchMedia("(max-width: 820px), '
