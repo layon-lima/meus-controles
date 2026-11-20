@@ -1,14 +1,17 @@
 """Servidor web único da Central Novo Horizonte, com sessões protegidas."""
 from __future__ import annotations
 
+import gzip
 import json
 import os
+from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import access
 from .core import snapshot
+from .performance import cached_snapshot
 from .operations_gateway import proxy
 
 STATIC = Path(__file__).with_name("static")
@@ -22,6 +25,14 @@ ASSETS = {
     "/launcher.js": ("launcher.js", "text/javascript; charset=utf-8"),
 }
 
+@lru_cache(maxsize=16)
+def static_payload(filename, compress):
+    """JS/CSS da Central já carregados e comprimidos no início da sessão."""
+    data = (STATIC / filename).read_bytes()
+    if compress and len(data) >= 1024:
+        return gzip.compress(data, compresslevel=5), True
+    return data, False
+
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "CentralNovoHorizonte"
@@ -30,14 +41,15 @@ class Handler(BaseHTTPRequestHandler):
         # Não registrar headers, chaves de acesso ou dados financeiros.
         return
 
-    def respond(self, status, payload, mime="application/json; charset=utf-8"):
+    def respond(self, status, payload, mime="application/json; charset=utf-8",
+                cache_control="no-store", encoded=False):
         body = (json.dumps(payload, ensure_ascii=False).encode("utf-8")
                 if isinstance(payload, dict) else payload)
         self.send_response(status)
         for header, value in [
             ("Content-Type", mime),
             ("Content-Length", str(len(body))),
-            ("Cache-Control", "no-store"),
+            ("Cache-Control", cache_control),
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),
             ("X-Frame-Options", "DENY"),
@@ -47,6 +59,9 @@ class Handler(BaseHTTPRequestHandler):
              "form-action 'none'; frame-ancestors 'none'"),
         ]:
             self.send_header(header, value)
+        if encoded:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.end_headers()
         self.wfile.write(body)
 
@@ -92,12 +107,16 @@ class Handler(BaseHTTPRequestHandler):
             if not self.authorized():
                 self.respond(401, {"ok": False, "erro": "Acesso não autorizado."})
                 return
-            result = snapshot(os.environ.get("CENTRAL_CONTAS_DB"),
-                              os.environ.get("CENTRAL_CONTROLES_DSN"))
+            result = cached_snapshot(os.environ.get("CENTRAL_CONTAS_DB"),
+                                     os.environ.get("CENTRAL_CONTROLES_DSN"),
+                                     snapshot)
             self.respond(200 if result["ok"] else 503, result)
         elif path in ASSETS:
             filename, mime = ASSETS[path]
-            self.respond(200, (STATIC / filename).read_bytes(), mime)
+            should_gzip = "gzip" in self.headers.get("Accept-Encoding", "").lower()
+            body, compressed = static_payload(filename, should_gzip)
+            cache = "private, max-age=60, must-revalidate" if filename != "index.html" else "no-store"
+            self.respond(200, body, mime, cache_control=cache, encoded=compressed)
         else:
             self.respond(404, {"ok": False, "erro": "Rota inexistente."})
 
