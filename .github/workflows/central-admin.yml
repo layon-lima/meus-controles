@@ -11,6 +11,7 @@ on:
       - "tests/test_central_entry_ui.js"
       - "tests/test_central_recebimentos_ui.js"
       - "tests/test_central_native_recebimentos.py"
+      - "tests/test_central_contas_batch_ui.js"
       - ".github/workflows/central-admin.yml"
   push:
     branches: [main]
@@ -46,6 +47,7 @@ jobs:
           node --check central_admin/static/entry-preflight.js
           node --check central_admin/static/recebimentos.js
           node --check central_admin/static/recebimentos_imports.js
+          node --check central_admin/static/contas_batch.js
           node --check tests/test_central_modulos_ui.js
           node tests/test_central_modulos_ui.js
           node --check tests/test_central_launcher_ui.js
@@ -54,6 +56,8 @@ jobs:
           node tests/test_central_entry_ui.js
           node --check tests/test_central_recebimentos_ui.js
           node tests/test_central_recebimentos_ui.js
+          node --check tests/test_central_contas_batch_ui.js
+          node tests/test_central_contas_batch_ui.js
       - name: Conferir instalador da VPS
         run: |
           bash -n central_admin/deploy/INSTALAR_VPS.sh
