@@ -18,7 +18,7 @@
     intent:"skip",stopAfterCurrent:false,epoch:0,ticket:null
   };
   let dock=null,action=null,picker=null,observer=null,advanceTimer=null;
-  const busy=()=>["reading","review","error"].includes(state.phase);
+  const busy=()=>["waiting","reading","review","error"].includes(state.phase);
   const fileNow=()=>state.files[state.index]||null;
   const count=()=>state.files.length;
   const nextTick=fn=>window.setTimeout(fn,90);
