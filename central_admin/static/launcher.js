@@ -25,7 +25,8 @@
     file:[["path",{d:"M6 3h8l5 5v13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM14 3v6h5M8 14h8M8 18h6"}]],
     link:[["path",{d:"M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2"}]],
     chart:[["path",{d:"M4 20V4M4 20h17M8 15l4-4 3 2 5-7M17 6h3v3"}]],
-    grid:[["rect",{x:3,y:3,width:7,height:7,rx:1.6}],["rect",{x:14,y:3,width:7,height:7,rx:1.6}],["rect",{x:3,y:14,width:7,height:7,rx:1.6}],["rect",{x:14,y:14,width:7,height:7,rx:1.6}]]
+    grid:[["rect",{x:3,y:3,width:7,height:7,rx:1.6}],["rect",{x:14,y:3,width:7,height:7,rx:1.6}],["rect",{x:3,y:14,width:7,height:7,rx:1.6}],["rect",{x:14,y:14,width:7,height:7,rx:1.6}]],
+    expand:[["path",{d:"M8 3H3v5M3 3l7 7M16 3h5v5M21 3l-7 7M3 16v5h5M3 21l7-7M21 16v5h-5M21 21l-7-7"}]]
   };
   const NAMESPACE = "http://www.w3.org/2000/svg";
   let fab, menu, search, tiles, emptyText;
@@ -131,14 +132,28 @@
     menu.setAttribute("aria-label","Menu Iniciar da Central Novo Horizonte");
 
     const top = node("div","nh-start-top");
-    const mark = node("span","nh-start-mark","NH");
-    const brand = node("div","nh-start-brand");
-    brand.append(node("strong","", "Novo Horizonte"),node("small","", "Central Administrativa"));
+    // Expansão REAL: anima a superfície do menu antes de navegar à
+    // página inicial independente; nunca monta um app dentro de outro.
+    const expand = node("a","nh-start-expand");
+    expand.id = "nh-start-expand";
+    expand.href = "/central/";
+    expand.title = "Expandir para a tela inicial";
+    expand.setAttribute("aria-label","Expandir menu para tela inicial da Central");
+    expand.appendChild(icon("expand"));
+    expand.addEventListener("click", event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (menu.classList.contains("nh-start-expanding")) return;
+      menu.classList.add("nh-start-expanding");
+      const reduced = window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.setTimeout(() => window.location.assign(expand.href), reduced ? 0 : 220);
+    });
     const close = node("button","nh-start-close","×");
     close.type = "button";
     close.setAttribute("aria-label","Fechar menu Iniciar");
     close.addEventListener("click",() => closeMenu());
-    top.append(mark,brand,close);
+    top.append(expand,close);
 
     const searchBox = node("div","nh-start-search");
     searchBox.appendChild(icon("grid"));
@@ -160,13 +175,7 @@
     emptyText.hidden = true;
     scroll.append(head,tiles,emptyText);
 
-    const bottom = node("div","nh-start-bottom");
-    const overview = node("a","nh-start-overview");
-    overview.href = "/central/";
-    overview.append(icon("grid"),node("span","", "Abrir painel completo"));
-    const hint = node("span","nh-start-hint","Central de gestão");
-    bottom.append(overview,hint);
-    menu.append(top,searchBox,scroll,bottom);
+    menu.append(top,searchBox,scroll);
 
     document.body.append(menu,fab);
     document.addEventListener("pointerdown",event => {
