@@ -69,7 +69,7 @@ body.central-operational.nh-scope-contas #nh-contas-batch-action:disabled{
   .nh-batch-dock{
     left:8px!important;bottom:8px!important;
     width:min(365px,calc(100vw - 16px))!important;
-    padding:12px 13px!important;max-height:180px!important;
+    padding:12px 13px!important;max-height:calc(100dvh - 16px)!important;
   }
   body.central-operational.nh-scope-contas #nh-contas-batch-action{
     font-size:11px!important;padding:8px 10px!important
