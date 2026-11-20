@@ -50,6 +50,10 @@ class MockElement {
     this.dataset={};
     this.textContent="";
     this.isConnected=true;
+    this.style={props:{},translate:"",
+      setProperty(name,value){this.props[name]=value;},
+      getPropertyValue(name){return this.props[name]||"";}};
+    this.capture=null;
     const classes=new Set();
     this.classList={
       add:(...names)=>names.forEach(name=>classes.add(name)),
@@ -62,6 +66,25 @@ class MockElement {
   setAttribute(name,value){this.attributes[name]=String(value)}
   getAttribute(name){return this.attributes[name]}
   addEventListener(name,fn){this.listeners[name]=fn}
+  getBoundingClientRect(){
+    if(this.id==="nh-dashboard-launcher"){
+      const x=Number.parseFloat(this.style.props["--nh-fab-x"]||"0");
+      const y=Number.parseFloat(this.style.props["--nh-fab-y"]||"0");
+      const size=Number.parseFloat(this.style.props["--nh-fab-size"]||"58");
+      return {left:x,top:y,width:size,height:size,right:x+size,bottom:y+size};
+    }
+    if(this.id==="nh-start-menu"){
+      const width=Math.min(600,context.window.innerWidth-(context.window.innerWidth<=700?20:44));
+      const height=Math.min(460,Number.parseFloat(this.style.props["--nh-menu-limit"]||"620"));
+      const x=Number.parseFloat(this.style.props["--nh-menu-x"]||"0");
+      const y=Number.parseFloat(this.style.props["--nh-menu-y"]||"0");
+      return {left:x,top:y,width,height,right:x+width,bottom:y+height};
+    }
+    return {left:0,top:0,width:10,height:10,right:10,bottom:10};
+  }
+  setPointerCapture(id){this.capture=id;}
+  hasPointerCapture(id){return this.capture===id;}
+  releasePointerCapture(id){if(this.capture===id)this.capture=null;}
   focus(){doc.activeElement=this}
   contains(element){
     return this===element||this.children.some(child=>child.contains?.(element));
@@ -98,10 +121,24 @@ const getAllClass=(root,name)=>{
 };
 const location={pathname:"/central/modules/contas/",href:"https://controles.fazendanovohorizonte.com/central/modules/contas/"};
 const navigations=[];
+const storage=new Map(),windowListeners={};
+const animationQueue=[];
+const fakeWindow={
+  location,innerWidth:1280,innerHeight:800,
+  localStorage:{
+    getItem:key=>storage.get(key)||null,
+    setItem:(key,value)=>storage.set(key,String(value))
+  },
+  addEventListener:(name,fn)=>windowListeners[name]=fn,
+  requestAnimationFrame:fn=>{animationQueue.push(fn);return animationQueue.length;},
+  cancelAnimationFrame:()=>{},
+  setTimeout:fn=>{fn();return 1;},
+  matchMedia:()=>({matches:false})
+};
+const flushDrag=()=>{while(animationQueue.length)animationQueue.shift()()};
 location.assign=url=>navigations.push(url);
 doc.startViewTransition=()=>({});
-const context={document:doc,location,CSS:{supports:()=>true},
-  window:{location,matchMedia:()=>({matches:false})}};
+const context={document:doc,location,CSS:{supports:()=>true},window:fakeWindow};
 vm.runInNewContext(source,context);
 assert.equal(body.children.length,2,"Apenas menu pequeno e ícone flutuante são montados");
 const menu=doc.getElementById("nh-start-menu");
@@ -111,6 +148,9 @@ assert.equal(menu.getAttribute("aria-modal"),"false");
 assert.equal(menu.getAttribute("aria-hidden"),"true");
 assert.equal(fab.getAttribute("aria-expanded"),"false");
 assert.equal(menu.classList.contains("nh-start-open"),false);
+assert.equal(fab.style.getPropertyValue("--nh-fab-size"),"58px");
+assert.ok(Number.parseFloat(fab.style.getPropertyValue("--nh-fab-x"))>1000);
+assert.ok(Number.parseFloat(fab.style.getPropertyValue("--nh-fab-y"))>650);
 
 const head = findClass(menu,"nh-start-top");
 assert.equal(head.children.length,2,"Topo contém somente expandir e fechar");
@@ -152,6 +192,59 @@ assert.equal(menu.classList.contains("nh-start-open"),true);
 const otherTarget=new MockElement("input");
 doc.listeners.pointerdown({target:otherTarget});
 assert.equal(menu.classList.contains("nh-start-open"),false,"Clique fora fecha menu");
+
+// Arrastar não pode disparar click ao soltar e não pode abrir um segundo app.
+const startRect=fab.getBoundingClientRect();
+fab.listeners.pointerdown({pointerId:1,button:0,isPrimary:true,
+  clientX:startRect.left+20,clientY:startRect.top+20});
+fab.listeners.pointermove({pointerId:1,clientX:startRect.left-210,
+  clientY:startRect.top-240});
+flushDrag();
+assert.ok(fab.classList.contains("nh-fab-dragging"),"Arraste deve começar depois do limiar");
+assert.ok(fab.style.translate.includes("-230px"),"Mover por translate compositor");
+fab.listeners.pointerup({pointerId:1});
+assert.equal(fab.style.translate,"","Depois de soltar, sem transform acumulado");
+assert.equal(menu.classList.contains("nh-start-open"),false,"Arrastar não abre menu");
+const movedX=Number.parseFloat(fab.style.getPropertyValue("--nh-fab-x"));
+assert.ok(movedX<startRect.left-200,"Posição do ícone mudou sem alterar a página");
+const draggedClick={detail:1,preventDefault(){this.prevented=true;}};
+fab.listeners.click(draggedClick);
+assert.equal(draggedClick.prevented,true,"Clique sintético após drag é ignorado");
+assert.equal(menu.classList.contains("nh-start-open"),false);
+assert.equal(JSON.parse(storage.get("nh-central-launcher-geometry-v1")).x,Math.round(movedX));
+
+// Botão direito alterna tamanhos, sem menu nativo e sem formulário.
+for(const expected of [70,82,94,58]){
+  const event={preventDefault(){this.prevented=true;}};
+  fab.listeners.contextmenu(event);
+  assert.equal(event.prevented,true);
+  assert.equal(fab.style.getPropertyValue("--nh-fab-size"),expected+"px");
+}
+assert.equal(JSON.parse(storage.get("nh-central-launcher-geometry-v1")).sizeIndex,0);
+assert.equal(body.children.length,2,"Mudar tamanho não cria popup nem formulário");
+
+// Reposicionar no topo: popup deve abrir embaixo do lançador.
+const topRect=fab.getBoundingClientRect();
+fab.listeners.pointerdown({pointerId:2,button:0,isPrimary:true,
+  clientX:topRect.left+10,clientY:topRect.top+10});
+fab.listeners.pointermove({pointerId:2,clientX:topRect.left-1800,
+  clientY:topRect.top-1800});
+flushDrag();fab.listeners.pointerup({pointerId:2});
+fab.click();
+assert.equal(menu.classList.contains("nh-start-open"),true);
+assert.ok(Number.parseFloat(menu.style.getPropertyValue("--nh-menu-y"))>
+          fab.getBoundingClientRect().bottom,
+  "No topo, popup precisa abrir abaixo do ícone");
+fab.click();
+
+// Ao redimensionar a janela, tamanho e posição ficam dentro da tela.
+fakeWindow.innerWidth=390;fakeWindow.innerHeight=300;
+windowListeners.resize();
+const narrow=fab.getBoundingClientRect();
+assert.ok(narrow.left>=0&&narrow.top>=0&&narrow.right<=390&&narrow.bottom<=300,
+  "Não deixar ícone fora da tela após resize");
+fakeWindow.innerWidth=1280;fakeWindow.innerHeight=800;
+windowListeners.resize();
 
 fab.click();
 const own=tileList.find(tile=>tile.dataset.module==="contas");
