@@ -25,8 +25,12 @@ for(const id of ["#aiConnect","#mobileBtn","#pdfImport"]){
 }
 assert.ok(!source.includes("nh-contas-batch-action"),"Botão antigo foi removido");
 assert.ok(!source.includes('picker.multiple=true'),"Não criar seletor de lote");
-assert.ok(source.includes('document.addEventListener("drop",event=>'),
-  "Usar drop real para importar a fila");
+assert.ok(source.includes('window.addEventListener("drop",event=>'),
+  "Capturar drop na janela antes dos eventos do sistema antigo");
+assert.ok(source.includes('window.addEventListener("dragover",event=>'),
+  "Permitir explicitamente soltar PDFs no navegador");
+assert.ok(source.includes('event.stopImmediatePropagation()'),
+  "Evitar que o importador antigo processe o mesmo PDF novamente");
 assert.ok(source.includes('importDroppedReceipt(file)'),"Não mudar tratamento de comprovantes");
 assert.ok(source.includes('importNewPDF(file)'),"Um PDF deve usar o importador original");
 
@@ -64,6 +68,12 @@ elements.set("pdfImport",pdfImport);elements.set("backdrop",backdrop);
 const body=new E("body","body");
 const document={
   readyState:"complete",body,listeners:{},
+  documentElement:{classList:{
+    names:new Set(),
+    add(name){this.names.add(name)},
+    remove(name){this.names.delete(name)},
+    contains(name){return this.names.has(name)}
+  }},
   createElement(tag){return new E(tag)},
   getElementById(id){return elements.get(id)||null},
   addEventListener(type,fn){this.listeners[type]=fn}
@@ -95,8 +105,9 @@ class MutationObserver {
 }
 const timers=[];
 const win={
+  listeners:{},
   setTimeout(fn,ms){timers.push({fn,ms});return timers.length},
-  addEventListener(){},
+  addEventListener(type,fn){this.listeners[type]=fn},
   alert(text){alerts.push(text);}
 };
 const location={pathname:"/central/modules/contas/"};
@@ -120,7 +131,7 @@ const drop=(files)=> {
     preventDefault(){this.prevented=true;},
     stopImmediatePropagation(){this.stopped=true;}
   };
-  document.listeners.drop(event);
+  win.listeners.drop(event);
   assert.equal(event.prevented,true,"Drop deve ser tratado pela Central");
   assert.equal(event.stopped,true,"Motor antigo não pode processar de novo");
   return event;
@@ -129,9 +140,24 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
 
 (async()=>{
   // A entrada deve ser detectada ainda no dragenter (sem botão).
-  const entering={dataTransfer:{types:["Files"]}};
-  document.listeners.dragenter(entering);
+  const entering={
+    dataTransfer:{types:["Files"]},
+    preventDefault(){this.prevented=true}
+  };
+  win.listeners.dragenter(entering);
+  assert.equal(entering.prevented,true);
+  assert.equal(document.documentElement.classList.contains("nh-contas-dragging-files"),true,
+    "Deve sinalizar visualmente que a página aceita PDFs");
+  const over={
+    dataTransfer:{types:["Files"],dropEffect:"none"},
+    preventDefault(){this.prevented=true}
+  };
+  win.listeners.dragover(over);
+  assert.equal(over.prevented,true,"dragover precisa liberar o evento drop");
+  assert.equal(over.dataTransfer.dropEffect,"copy");
   drop([pdf("boleto-simples.pdf")]);await flush();
+  assert.equal(document.documentElement.classList.contains("nh-contas-dragging-files"),false,
+    "Sinal de arraste desaparece após soltar");
   assert.deepEqual(single,["boleto-simples.pdf"],"PDF único é importado normalmente");
   assert.equal(calls.length,0,"Um arquivo não cria fila");
   drop([pdf("comprovante-de-pagamento.pdf")]);await flush();
