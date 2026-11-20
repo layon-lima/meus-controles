@@ -187,7 +187,7 @@ body.central-operational .nh-start-search-input{
   .nh-start-search{margin:10px 13px 6px;height:42px;min-height:42px}
   .nh-start-scroll{padding:5px 12px 13px}
   .nh-start-grid{grid-template-columns:repeat(3,minmax(0,1fr));
-    grid-template-rows:repeat(3,114px);gap:8px}
+    grid-template-rows:repeat(3,108px);gap:8px}
   .nh-start-section-title{height:40px;min-height:40px}
   .nh-start-tile{padding:12px 6px 8px}
   .nh-start-tile-icon{width:36px;height:36px;margin-bottom:8px}
