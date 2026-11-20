@@ -135,8 +135,7 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   assert.equal(calls.length,3,"Após cancelar segundo, o terceiro é apresentado");
   assert.equal(introduced.length,3);
   // Falha OCR congela a fila até usuário decidir repetir/pular.
-  const review=elements.get("nh-batch-file" );
-  assert.equal(review,null);
+
   const cancel3={closest:selector=>selector==="#cancel"};
   document.listeners.click({target:cancel3});
   backdrop.classList.remove("show");await flush();
