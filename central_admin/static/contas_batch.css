@@ -1,20 +1,10 @@
-/* Botão de lote nativo da Central, preservando o formulário do CONTAS 4. */
-body.central-operational.nh-scope-contas #nh-contas-batch-action{
-  display:inline-flex!important;align-items:center;justify-content:center;
-  gap:7px;min-height:37px!important;
-  padding:9px 13px!important;border-radius:11px!important;
-  border:1px solid rgba(135,179,224,.62)!important;
-  background:linear-gradient(140deg,rgba(249,253,255,.97),rgba(217,234,254,.91))!important;
-  color:#2c679f!important;font-size:12px!important;font-weight:770!important;
-  box-shadow:0 3px 10px rgba(35,84,138,.08),inset 0 1px 0 white!important;
-  white-space:nowrap;cursor:pointer;
-}
-body.central-operational.nh-scope-contas #nh-contas-batch-action:hover{
-  background:linear-gradient(140deg,#fff,#dcecff)!important;
-  border-color:#a7c9ef!important
-}
-body.central-operational.nh-scope-contas #nh-contas-batch-action:disabled{
-  opacity:.55!important;cursor:not-allowed!important
+/* Cabeçalho enxuto: as ações escondidas continuam no DOM exclusivamente
+ * para os eventos e a sessão do CONTAS 4. A interface não as apresenta.
+ * ChatGPT conectado permanece autenticado; não fazer logout. */
+body.central-operational.nh-scope-contas #aiConnect,
+body.central-operational.nh-scope-contas #mobileBtn,
+body.central-operational.nh-scope-contas #pdfImport{
+  display:none!important;
 }
 .nh-batch-dock{
   position:fixed!important;left:20px!important;bottom:20px!important;
@@ -70,9 +60,6 @@ body.central-operational.nh-scope-contas #nh-contas-batch-action:disabled{
     left:8px!important;bottom:8px!important;
     width:min(365px,calc(100vw - 16px))!important;
     padding:12px 13px!important;max-height:calc(100dvh - 16px)!important;
-  }
-  body.central-operational.nh-scope-contas #nh-contas-batch-action{
-    font-size:11px!important;padding:8px 10px!important
   }
 }
 @media(prefers-reduced-motion:reduce){
