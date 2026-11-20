@@ -90,8 +90,12 @@ const context={
 };
 vm.runInNewContext(core,context);
 const test=async()=>{
-  // Permite que Promise.all() e microtasks terminem sem qualquer DOM legado.
-  for(let i=0;i<12;i++)await Promise.resolve();
+  // Aguarda a conclusão do fetch assíncrono e de Promise.all, não um
+  // número arbitrário de microtasks que pode variar conforme o Node.
+  for(let i=0;i<20;i++){
+    await new Promise(resolve=>setImmediate(resolve));
+    if(get("#rx-results").innerHTML.includes("KCL"))break;
+  }
   const control=get("#rx-control"),results=get("#rx-results");
   assert.ok(requested.some(x=>x.endsWith("/api/state")));
   assert.ok(requested.some(x=>x.endsWith("/api/controls/7/receiving")));
@@ -100,7 +104,7 @@ const test=async()=>{
   assert.ok(control.innerHTML.includes("Recebimentos Reais"));
   assert.ok(!control.innerHTML.includes("FRETES"));
   assert.ok(!control.innerHTML.includes("FINANCEIRO"));
-  assert.ok(results.innerHTML.includes("Agrex"),"Pedidos nativos renderizados");
+  assert.ok(results.innerHTML.includes("Agrex"),"Pedidos nativos renderizados: "+results.innerHTML.slice(0,200));
   assert.ok(results.innerHTML.includes("KCL"));
   assert.ok(results.innerHTML.includes("Mosaic"));
   assert.ok(!results.innerHTML.includes("FRETES"));
