@@ -211,6 +211,19 @@ for asset in contas_batch.js contas_batch.css; do
 done
 grep -Fq 'startDetectedHolerite(result)' "$APP/static/contas_batch.js" \
   || fail "Importação em lote não reutiliza conferência e holerites originais."
+# Confere a versão EFETIVA do frontend original servida na Central.
+# Se funções de OCR, contas ou Windows tiverem mudado, não instalar fila
+# incompatível e não deixar o usuário perder documentos no meio do lote.
+HTTP="$(curl -sS --max-time 10 -H "Cookie: $COOKIE" \
+  -o "$TMP/contas-engine-js" -w '%{http_code}' \
+  http://127.0.0.1:18771/modules/contas/app.js)"
+[[ "$HTTP" == 200 ]] || fail "Frontend operacional de Contas não respondeu."
+for contract in 'async function postPDF(' 'function startDetectedHolerite(' \
+                'function accountModal(' 'function closeModal(' \
+                'let pendingImportPDF='; do
+  grep -Fq "$contract" "$TMP/contas-engine-js" \
+    || fail "Contrato do CONTAS 4 alterado ($contract); fila recusada com segurança."
+done
 grep -Fq 'postPDF("/central/modules/contas/api/import/preview"' "$APP/static/contas_batch.js" \
   || fail "Importação em lote não está usando o gateway autenticado."
 grep -Fq '"X-Pdf-Name", "X-Ocr-Mode"' "$APP/operations_gateway.py" \
