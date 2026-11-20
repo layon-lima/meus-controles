@@ -31,6 +31,7 @@
   const NAMESPACE = "http://www.w3.org/2000/svg";
   let fab, menu, search, tiles, emptyText;
   let open = false;
+  let expanding = false;
 
   function icon(type) {
     const svg = document.createElementNS(NAMESPACE,"svg");
@@ -103,13 +104,59 @@
     search.focus({preventScroll:true});
   }
   function closeMenu(restoreFocus=true) {
-    if (!open) return;
+    if (!open || expanding) return;
     open = false;
     menu.classList.remove("nh-start-open");
     menu.setAttribute("aria-hidden","true");
     fab.setAttribute("aria-expanded","false");
     if (restoreFocus) fab.focus({preventScroll:true});
   }
+  function expandToHome(targetUrl) {
+    if (expanding) return;
+    expanding = true;
+    // O nome permite que Edge/Chrome animem as duas páginas REAIS através
+    // da navegação. Não cresce largura/altura do DOM da aplicação antiga.
+    menu.classList.add("nh-start-expanding");
+    const navigate = () => window.location.assign(targetUrl);
+    const reduceMotion = typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) { navigate(); return; }
+
+    // Chrome/Edge modernos: cross-document View Transition nativa.
+    // O navegador só muda para /central/ quando a nova página está pronta,
+    // preservando a continuidade visual sem timers de navegação.
+    if (typeof document.startViewTransition === "function" &&
+        typeof CSS !== "undefined" &&
+        typeof CSS.supports === "function" &&
+        CSS.supports("view-transition-name: nh-central-expand")) {
+      navigate();
+      return;
+    }
+
+    // Fallback: uma ÚNICA superfície decorativa, animada apenas com
+    // transform e opacity no compositor. Sem iframe, fetch ou reflow da UI.
+    if (typeof menu.getBoundingClientRect !== "function") { navigate(); return; }
+    const rect = menu.getBoundingClientRect();
+    const width = Math.max(window.innerWidth || 1, 1);
+    const height = Math.max(window.innerHeight || 1, 1);
+    const layer = node("div", "nh-expand-surface");
+    layer.setAttribute("aria-hidden", "true");
+    document.body.appendChild(layer);
+    if (typeof layer.animate !== "function") { navigate(); return; }
+    const start = "translate3d(" + rect.left + "px," + rect.top + "px,0) scale(" +
+      (rect.width / width) + "," + (rect.height / height) + ")";
+    try {
+      const animation = layer.animate([
+        {transform:start, opacity:0.96},
+        {transform:"translate3d(0,0,0) scale(1,1)", opacity:1}
+      ], {duration:360, easing:"cubic-bezier(.22,.85,.24,1)",
+          fill:"forwards"});
+      animation.finished.then(navigate, navigate);
+    } catch (_) {
+      navigate();
+    }
+  }
+
   function build() {
     // Não iniciar duas vezes se o motor original reexecutar o JS.
     if (document.getElementById("nh-dashboard-launcher")) return;
@@ -143,11 +190,7 @@
     expand.addEventListener("click", event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      if (menu.classList.contains("nh-start-expanding")) return;
-      menu.classList.add("nh-start-expanding");
-      const reduced = window.matchMedia &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.setTimeout(() => window.location.assign(expand.href), reduced ? 0 : 220);
+      expandToHome(expand.href);
     });
     const close = node("button","nh-start-close","×");
     close.type = "button";
