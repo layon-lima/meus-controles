@@ -337,6 +337,36 @@ Atualizar somente a Central com `deploy/ATUALIZAR_VPS.sh`. Os motores,
 bancos e aplicativos legados permanecem ativos.
 
 
+## Interface enxuta de Contas — importação por arrastar (20/11/2026)
+
+A área de ações do módulo CONTAS mostra apenas **Pasta boletos** e
+**+ Nova conta**. "ChatGPT conectado", "Acesso mobile", "Importar PDF"
+e "Enviar várias contas" não são apresentados na Central. Os elementos
+de compatibilidade com o CONTAS 4 permanecem carregados mas invisíveis,
+para não quebrar os eventos do motor original.
+
+**Entrada universal por drag & drop:** ao arrastar um ou mais PDFs para
+a página Contas, a área de soltura os identifica. Ao soltar:
+
+- **Um PDF:** abre o importador normal, com OCR e conferência. Se for
+  comprovante, mantém o fluxo de conferência de pagamento existente.
+- **Dois ou mais PDFs:** monta automaticamente a fila em memória;
+  somente o primeiro é lido, os seguintes aguardam a confirmação ou
+  cancelamento do documento anterior. O painel de fila aparece só nesse
+  caso, sem botão no cabeçalho.
+- Arquivos que não são PDF, acima de 30 MB, ou arrastados enquanto a
+  fila está ocupada são recusados com aviso, sem envio parcial.
+- Há botões **Tentar de novo** e **Pular arquivo** apenas quando um
+  arquivo apresenta erro.
+
+A conexão SIWC com ChatGPT **não é desligada**: o backend mantém a
+configuração e a renovação de token existentes. O botão de conexão
+fica oculto na Central. Erros de importação são comunicados na página;
+o SIWC atual é uma integração para análise de documentos e NÃO tem
+endpoint de publicação automática de mensagens em conversas do ChatGPT.
+Não afirmar que uma mensagem foi entregue ao chat sem serviço de
+mensageria integrado e confirmação da entrega.
+
 ## Importar várias contas — uma de cada vez (20/11/2026)
 
 No módulo **Contas a pagar** da Central, próximo a “Importar PDF”,
