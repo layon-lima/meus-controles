@@ -59,8 +59,12 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 [[ -f "$SOURCE/central_admin/static/index.html" && -f "$SOURCE/central_admin/static/app.js" &&
     -f "$SOURCE/central_admin/static/launcher.js" &&
     -f "$SOURCE/central_admin/static/entry-preflight.js" &&
-    -f "$SOURCE/central_admin/static/launcher.css" ]] \
-  || fail "Interface ou animacao em duas fases nao encontrados no pacote."
+    -f "$SOURCE/central_admin/static/launcher.css" &&
+    -f "$SOURCE/central_admin/static/recebimentos.html" &&
+    -f "$SOURCE/central_admin/static/recebimentos.js" &&
+    -f "$SOURCE/central_admin/static/recebimentos_imports.js" &&
+    -f "$SOURCE/central_admin/static/recebimentos.css" ]] \
+  || fail "Arquivos da nova Central ou do Recebimentos nativo ausentes."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
 cp -a "$SOURCE/central_admin/." "$APP/"
@@ -95,6 +99,8 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/operations.js"
   node --check "$APP/static/launcher.js"
   node --check "$APP/static/entry-preflight.js"
+  node --check "$APP/static/recebimentos.js"
+  node --check "$APP/static/recebimentos_imports.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -130,10 +136,22 @@ for entry in 'api/resumo' \
   if [[ "$entry" == 'api/resumo' ]]; then
     cp "$TMP/response" "$TMP/resumo.json"
   else
-    grep -Fq '/central/operations.css' "$TMP/response" \
-      || fail "Tema comum nao encontrado em $entry."
+    if [[ "$entry" == 'modules/recebimentos/' ]]; then
+      # O módulo próprio já é entregue pronto pelo servidor. NUNCA carregar
+      # o HTML de Controles para depois substituí-lo por JavaScript.
+      grep -Fq '/central/recebimentos.js' "$TMP/response" \
+        || fail "Tela nativa de Recebimentos ausente."
+      grep -Fq '/central/recebimentos_imports.js' "$TMP/response" \
+        || fail "Importadores nativos não foram carregados."
+      if grep -Fq '/central/modules/recebimentos/static/app.js' "$TMP/response"; then
+        fail "Recebimentos ainda esta carregando o frontend antigo."
+      fi
+    else
+      grep -Fq '/central/operations.css' "$TMP/response" \
+        || fail "Tema comum nao encontrado em $entry."
+    fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
-      || fail "Botao flutuante nao foi injetado em $entry."
+      || fail "Botao flutuante nao encontrado em $entry."
     grep -Fq '/central/launcher.css' "$TMP/response" \
       || fail "Estilo da animacao ausente em $entry."
     grep -Fq 'central-operational' "$TMP/response" \
@@ -147,6 +165,25 @@ for key in ("contas","controles"):
     if not report.get("fontes",{}).get(key,{}).get("disponivel"):
         raise SystemExit("ERRO: fonte "+key+" indisponivel. Aplicacao anterior sera restaurada.")
 print("OK: os dois bancos de dados estao conectados sem nenhuma escrita.")
+PY
+# O novo módulo deve acessar os contratos reais do motor, sem sessão falsa.
+# Os arquivos devem existir antes de qualquer publicação.
+for asset in recebimentos.js recebimentos_imports.js recebimentos.css; do
+  HTTP="$(curl -sS --max-time 8 -o "$TMP/native-asset" -w '%{http_code}' \
+    "http://127.0.0.1:18771/$asset")"
+  [[ "$HTTP" == 200 ]] || fail "Recurso nativo $asset indisponível."
+done
+# Verifica se o motor de origem continua a responder no mesmo banco.
+HTTP="$(curl -sS --max-time 25 -o "$TMP/receiving-state" -w '%{http_code}' \
+  -H "Cookie: $COOKIE" \
+  "http://127.0.0.1:18771/modules/recebimentos/api/state")"
+[[ "$HTTP" == 200 ]] || fail "Motor de Recebimentos nao respondeu em /api/state."
+python3 - "$TMP/receiving-state" <<'PY'
+import json,sys
+with open(sys.argv[1],encoding="utf-8") as f: payload=json.load(f)
+if not isinstance(payload.get("boards"),list) or not isinstance(payload.get("controls"),list):
+    raise SystemExit("ERRO: contrato de dados de Recebimentos incompleto.")
+print("OK: modulo nativo acessa os controles reais, sem trocar o banco.")
 PY
 # Confere se os arquivos da animacao realmente estao no container.
 for asset in launcher.js launcher.css; do
@@ -209,7 +246,8 @@ echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
 echo "LAYOUT: expandir primeiro o fundo, revelar cards somente apos a transicao."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
-echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
+echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
+echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
 echo "ACESSO: sem sessao pareada, nao e possivel consultar ou alterar dados financeiros."
