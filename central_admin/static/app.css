@@ -87,7 +87,7 @@ html.nh-start-revealing #nh-entry-surface {
   border:1px solid rgba(255,255,255,.96);
 }
 html.nh-start-arriving #nh-entry-surface {
-  view-transition-name:nh-central-expand;
+  view-transition-name: nh-central-expand;
 }
 html.nh-start-arriving .page {opacity:0!important}
 html.nh-start-revealing #nh-entry-surface {
