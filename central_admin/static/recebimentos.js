@@ -414,6 +414,7 @@
     const openItems=items().filter(p=>!p.closed&&Number(p.remaining_qty)>0);
     if(!openItems.length){toast("Cadastre pedidos com saldo disponível antes de registrar a NF-e.",true);return}
     const rows=[];
+    let nextLineId=0;
     const first=openItems[0];
     const opts=openItems.map(p=>[p.id,p.order_number+" · "+p.supplier+" · "+p.product+" ("+p.unit+")"]);
     const common='<div class="rx-form-grid">'+
@@ -441,7 +442,7 @@
           access_key:f.get("access_key"),fornecedor:f.get("fornecedor"),
           documento_fornecedor:f.get("documento_fornecedor"),serie:f.get("serie"),
           data_emissao:f.get("data_emissao"),origem_arquivo:origemArquivo,notes:f.get("notes"),
-          items:rows.map((_,i)=>({
+          items:rows.map(i=>({
             item_id:Number(f.get("item_id_"+i)),
             quantity:dec(f.get("quantity_"+i)),
             valor_unitario:String(f.get("valor_unitario_"+i)||"").trim().replace(",","."),
@@ -455,6 +456,8 @@
       },"Confirmar NF-e");
     const place=ctx.mask.querySelector("#rx-invoice-lines");
     const lineHtml=i=>'<div class="rx-preview-item" data-line="'+i+'">'+
+      '<div class="rx-overlay-actions"><strong>Produto da NF-e</strong>'+
+      '<button type="button" class="rx-button rx-button-small rx-button-danger" data-remove-line="'+i+'">Remover</button></div>'+
       '<div class="rx-form-grid">'+
       select("Produto/pedido","item_id_"+i,opts,first.id,true)+
       field("Quantidade","quantity_"+i,"",'required inputmode="decimal"')+
@@ -467,7 +470,18 @@
       '</div></div>';
     ctx.mask.querySelector("#rx-add-line").addEventListener("click",()=>{
       if(rows.length>=150){toast("Limite de 150 produtos por NF-e.",true);return}
-      const i=rows.length;rows.push(i);place.insertAdjacentHTML("beforeend",lineHtml(i));
+      const i=nextLineId++;rows.push(i);
+      place.insertAdjacentHTML("beforeend",lineHtml(i));
+    });
+    place.addEventListener("click",event=>{
+      const remove=event.target.closest("[data-remove-line]");
+      if(!remove)return;
+      if(rows.length===1)return toast("A NF-e precisa ter pelo menos um produto.",true);
+      const id=Number(remove.dataset.removeLine);
+      const position=rows.indexOf(id);
+      if(position<0)return;
+      rows.splice(position,1);
+      remove.closest("[data-line]")?.remove();
     });
     ctx.mask.querySelector("#rx-add-line").click();
     ctx.mask.querySelector("#rx-nfe-pdf").addEventListener("change",async e=>{
@@ -482,7 +496,7 @@
           if(report[key]&&input)input.value=String(report[key]);
         }
         const f=new FormData(ctx.form);
-        rows.forEach((_,i)=>{
+        rows.forEach(i=>{
           const item=items().find(p=>p.id===Number(f.get("item_id_"+i)));
           if(!item)return;
           const match=(report.products||[]).filter(p=>
