@@ -226,6 +226,15 @@ for contract in 'async function postPDF(' 'function startDetectedHolerite(' \
 done
 grep -Fq 'postPDF("/central/modules/contas/api/import/preview"' "$APP/static/contas_batch.js" \
   || fail "Importação em lote não está usando o gateway autenticado."
+grep -Fq 'document.addEventListener("drop",event=>' "$APP/static/contas_batch.js" \
+  || fail "Importação por arrastar PDFs para a tela não encontrada."
+if grep -Fq 'nh-contas-batch-action' "$APP/static/contas_batch.js"; then
+  fail "Botão extra antigo permanece no módulo Contas."
+fi
+for hidden in '#aiConnect' '#mobileBtn' '#pdfImport'; do
+  grep -Fq "$hidden" "$APP/static/contas_batch.css" \
+    || fail "Cabeçalho Contas não removeu a ação $hidden."
+done
 grep -Fq '"X-Pdf-Name", "X-Ocr-Mode"' "$APP/operations_gateway.py" \
   || fail "Gateway não repassa os cabeçalhos de OCR originais."
 # Verifica a entrada em duas fases antes de publicar:
