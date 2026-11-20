@@ -271,5 +271,16 @@ assert.deepEqual(navigations,["/central/"],
   "Navegação real deve iniciar imediatamente; o navegador cuida da expansão suave");
 expand.listeners.click({preventDefault(){},ctrlKey:false,metaKey:false,shiftKey:false,altKey:false});
 assert.equal(navigations.length,1,"Clique repetido não pode iniciar duas navegações");
+
+// Simula outro módulo carregando a Central: a geometria deve persistir.
+const savedGeometry=JSON.parse(storage.get("nh-central-launcher-geometry-v1"));
+body.children.length=0;
+vm.runInNewContext(source,context);
+const restored=doc.getElementById("nh-dashboard-launcher");
+assert.ok(restored,"O ícone deve reaparecer no segundo módulo");
+assert.equal(restored.style.getPropertyValue("--nh-fab-x"),savedGeometry.x+"px");
+assert.equal(restored.style.getPropertyValue("--nh-fab-y"),savedGeometry.y+"px");
+assert.equal(restored.style.getPropertyValue("--nh-fab-size"),"58px");
+assert.equal(body.children.length,2,"Recarregar outro módulo não cria novos elementos");
 console.log("OK: ícone à direita, popup sem marca/rodapé e expansão para home real");
 console.log("OK: 8 módulos, busca, Esc, clique fora e nenhum reload ao abrir/fechar");
