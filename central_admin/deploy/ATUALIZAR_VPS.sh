@@ -226,8 +226,12 @@ for contract in 'async function postPDF(' 'function startDetectedHolerite(' \
 done
 grep -Fq 'postPDF("/central/modules/contas/api/import/preview"' "$APP/static/contas_batch.js" \
   || fail "Importação em lote não está usando o gateway autenticado."
-grep -Fq 'document.addEventListener("drop",event=>' "$APP/static/contas_batch.js" \
-  || fail "Importação por arrastar PDFs para a tela não encontrada."
+grep -Fq 'window.addEventListener("dragover",event=>' "$APP/static/contas_batch.js" \
+  || fail "O navegador não foi configurado para aceitar soltar PDFs."
+grep -Fq 'window.addEventListener("drop",event=>' "$APP/static/contas_batch.js" \
+  || fail "Importação por arrastar PDFs não foi instalada no nível da janela."
+grep -Fq 'nh-contas-dragging-files' "$APP/static/contas_batch.css" \
+  || fail "Feedback visual do arraste de PDFs ausente."
 if grep -Fq 'nh-contas-batch-action' "$APP/static/contas_batch.js"; then
   fail "Botão extra antigo permanece no módulo Contas."
 fi
@@ -279,6 +283,11 @@ grep -Fq 'animateMorph(' "$APP/static/launcher.js" \
   || fail "A animação de transformação do mesmo elemento não foi encontrada."
 grep -Fq 'fitPanel(' "$APP/static/launcher.js" \
   || fail "Janela sem limitação às bordas do monitor."
+if grep -Fq 'search.focus({preventScroll:true})' "$APP/static/launcher.js"; then
+  fail "Busca do launcher ainda está aplicando foco e contorno azul automático."
+fi
+grep -Fq 'body.central-operational .nh-start-search .nh-start-search-input:focus-visible' "$APP/static/launcher.css" \
+  || fail "Correção do contorno de busca não foi aplicada."
 grep -Fq '@view-transition' "$APP/static/launcher.css" \
   || fail "Expansao suave nativa nao encontrada no menu."
 grep -Fq 'view-transition-name: nh-central-expand' "$APP/static/app.css" \
