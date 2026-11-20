@@ -24,6 +24,10 @@ ASSETS = {
     "/launcher.css": ("launcher.css", "text/css; charset=utf-8"),
     "/launcher.js": ("launcher.js", "text/javascript; charset=utf-8"),
     "/entry-preflight.js": ("entry-preflight.js", "text/javascript; charset=utf-8"),
+    "/recebimentos.html": ("recebimentos.html", "text/html; charset=utf-8"),
+    "/recebimentos.css": ("recebimentos.css", "text/css; charset=utf-8"),
+    "/recebimentos.js": ("recebimentos.js", "text/javascript; charset=utf-8"),
+    "/recebimentos_imports.js": ("recebimentos_imports.js", "text/javascript; charset=utf-8"),
 }
 
 @lru_cache(maxsize=16)
@@ -43,7 +47,7 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def respond(self, status, payload, mime="application/json; charset=utf-8",
-                cache_control="no-store", encoded=False):
+                cache_control="no-store", encoded=False, csp=None):
         body = (json.dumps(payload, ensure_ascii=False).encode("utf-8")
                 if isinstance(payload, dict) else payload)
         self.send_response(status)
@@ -55,9 +59,9 @@ class Handler(BaseHTTPRequestHandler):
             ("Referrer-Policy", "no-referrer"),
             ("X-Frame-Options", "DENY"),
             ("Content-Security-Policy",
-             "default-src 'none'; script-src 'self'; style-src 'self'; "
-             "connect-src 'self'; img-src 'self'; base-uri 'none'; "
-             "form-action 'none'; frame-ancestors 'none'"),
+             csp or ("default-src 'none'; script-src 'self'; style-src 'self'; "
+                     "connect-src 'self'; img-src 'self'; base-uri 'none'; "
+                     "form-action 'none'; frame-ancestors 'none'")),
         ]:
             self.send_header(header, value)
         if encoded:
@@ -99,9 +103,24 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        path = urlsplit(self.path).path
+        if path in ("/modules/recebimentos", "/modules/recebimentos/"):
+            # Página autoral da Central. Nenhum HTML ou script do app antigo é
+            # carregado: o módulo já nasce em Recebimentos, sem flash.
+            if not self.authorized():
+                self.respond(401, {"ok": False, "erro": "Sessão não autorizada."})
+                return
+            body, compressed = static_payload(
+                "recebimentos.html", "gzip" in self.headers.get("Accept-Encoding", "").lower()
+            )
+            self.respond(200, body, "text/html; charset=utf-8",
+                         cache_control="no-store", encoded=compressed,
+                         csp=("default-src 'none'; script-src 'self'; style-src 'self'; "
+                              "connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; "
+                              "form-action 'none'; frame-ancestors 'none'"))
+            return
         if proxy(self):
             return
-        path = urlsplit(self.path).path
         if path == "/health":
             self.respond(200, {"ok": True, "servico": "central-administrativa"})
         elif path == "/api/resumo":
