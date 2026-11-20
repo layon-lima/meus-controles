@@ -85,6 +85,13 @@ def save_asset(key, content_type, data):
         _assets_size += len(data)
 
 
+def invalidate_summary():
+    """Lança nova consulta após uma gravação confirmada num dos motores."""
+    global _summary_value, _summary_expiry, _summary_key
+    with _summary_lock:
+        _summary_value, _summary_expiry, _summary_key = None, 0.0, None
+
+
 def reset_caches():
     """Uso em testes, sem efeito nos bancos ou em arquivos de produção."""
     global _summary_value, _summary_expiry, _summary_key, _assets_size
