@@ -87,6 +87,11 @@ def rewrite_text(text, prefix, kind):
                '<link rel="stylesheet" href="/central/launcher.css?v=20261120f">')
         js = ('<script defer src="/central/operations.js"></script>'
               '<script defer src="/central/launcher.js?v=20261120f"></script>')
+        if module == "contas":
+            # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
+            # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
+            css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120g">'
+            js += '<script defer src="/central/contas_batch.js?v=20261120g"></script>'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
     return text
@@ -228,7 +233,7 @@ def proxy(handler):
         for name in ("Content-Type", "Accept", "User-Agent", "X-Local-Token",
                      "X-Agent-Token", "X-Paid-Date", "X-Receipt-Manual-Confirmed",
                      "X-Receipt-Auto-Verified", "X-Receipt-Eligible-Confirmed",
-                     "X-Requested-With"):
+                     "X-Pdf-Name", "X-Ocr-Mode", "X-Requested-With"):
             value = handler.headers.get(name)
             if value:
                 request_headers[name] = value
