@@ -6,6 +6,7 @@ const vm = require("node:vm");
 const source = fs.readFileSync("central_admin/static/launcher.js","utf8");
 const operations = fs.readFileSync("central_admin/static/operations.js","utf8");
 const css = fs.readFileSync("central_admin/static/launcher.css","utf8");
+const homeCss = fs.readFileSync("central_admin/static/app.css","utf8");
 
 assert.ok(!source.includes("DOMParser"),"Não pode copiar a página da Central");
 assert.ok(!source.includes("fetch("),"O menu Iniciar não precisa consultar a rede para abrir");
@@ -17,6 +18,9 @@ assert.ok(!compactRule.includes("width:100vw"),"Menu fechado/aberto precisa ser 
 assert.ok(css.includes(".nh-start-menu.nh-start-expanding"),
   "A transição só acontece após clicar em expandir");
 assert.ok(css.includes("@view-transition"),"Navegação deve usar transição nativa");
+assert.ok(homeCss.includes("@view-transition"),"A home também precisa optar pela transição nativa");
+assert.ok(homeCss.includes("view-transition-name: nh-central-expand"),
+  "Menu e página real compartilham o mesmo nome da transição");
 assert.ok(css.includes("view-transition-name: nh-central-expand"),
   "O menu deve ser capturado como um único elemento");
 assert.ok(!css.includes("transition:width"),"Não animar largura, que trava a UI");
