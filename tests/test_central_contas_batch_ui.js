@@ -1,6 +1,6 @@
 "use strict";
-/* Teste de integração da fila: nunca envia 2 arquivos simultâneos, revisão
- * do CONTAS permanece soberana, cancelamentos não criam contas.
+/* Drag & drop: um PDF segue o importador normal; vários PDFs passam
+ * pela fila sequencial, sem botões adicionais nem importação paralela.
  */
 const assert=require("node:assert/strict");
 const fs=require("node:fs");
@@ -20,6 +20,15 @@ assert.ok(gateway.includes('"X-Pdf-Name", "X-Ocr-Mode"'),
   "Proxy deve preservar nome e modo de OCR");
 assert.ok(gateway.includes("contas_batch.js?v="),"Carregar extensão somente na área Contas");
 assert.ok(style.includes(".nh-batch-dock"),"Mostrar progresso");
+for(const id of ["#aiConnect","#mobileBtn","#pdfImport"]){
+  assert.ok(style.includes(id),"Esconder ação do cabeçalho: "+id);
+}
+assert.ok(!source.includes("nh-contas-batch-action"),"Botão antigo foi removido");
+assert.ok(!source.includes('picker.multiple=true'),"Não criar seletor de lote");
+assert.ok(source.includes('document.addEventListener("drop",event=>'),
+  "Usar drop real para importar a fila");
+assert.ok(source.includes('importDroppedReceipt(file)'),"Não mudar tratamento de comprovantes");
+assert.ok(source.includes('importNewPDF(file)'),"Um PDF deve usar o importador original");
 
 let context;
 class E {
@@ -59,7 +68,7 @@ const document={
   getElementById(id){return elements.get(id)||null},
   addEventListener(type,fn){this.listeners[type]=fn}
 };
-const calls=[],cancelled=[],introduced=[];
+const calls=[],cancelled=[],introduced=[],single=[],receipts=[],dropCleared=[];
 let pending=0,maxSimultaneous=0,failNext=false;
 const postPDF=async(path,file,headers)=>{
   pending++;maxSimultaneous=Math.max(maxSimultaneous,pending);
@@ -74,6 +83,10 @@ const startDetectedHolerite=result=>{
   backdrop.classList.add("show");
 };
 const api=async(path,method,data)=>{cancelled.push({path,method,data});return {ok:true}};
+const importNewPDF=file=>single.push(file.name);
+const importDroppedReceipt=file=>receipts.push(file.name);
+const isReceiptFilename=name=>/comprovante/i.test(name);
+const hideDropZone=()=>dropCleared.push(true);
 let pendingImportPDF=null;
 class MutationObserver {
   constructor(fn){this.fn=fn}
@@ -87,6 +100,7 @@ const win={
 };
 const location={pathname:"/central/modules/contas/"};
 context={document,window:win,location,postPDF,startDetectedHolerite,api,
+  importNewPDF,importDroppedReceipt,isReceiptFilename,hideDropZone,
   MutationObserver,console,alert(){},pendingImportPDF,Date};
 vm.runInNewContext(source,context);
 const flush=async()=>{for(let i=0;i<15;i++)await Promise.resolve()};
@@ -97,21 +111,37 @@ const next=async()=>{
   task.fn();await flush();
 };
 const pdf=(name)=>({name,size:1000,lastModified:12});
-const picker=elements.get("nh-contas-batch-files");
-const button=elements.get("nh-contas-batch-action");
-assert.ok(picker&&button,"Botão novo junto de Importar PDF");
-assert.equal(picker.multiple,true);
+assert.equal(elements.has("nh-contas-batch-files"),false,"Não há input extra");
+assert.equal(elements.has("nh-contas-batch-action"),false,"Não há botão de lote");
+const drop=(files)=> {
+  const event={
+    dataTransfer:{types:["Files"],files},
+    preventDefault(){this.prevented=true;},
+    stopImmediatePropagation(){this.stopped=true;}
+  };
+  document.listeners.drop(event);
+  assert.equal(event.prevented,true,"Drop deve ser tratado pela Central");
+  assert.equal(event.stopped,true,"Motor antigo não pode processar de novo");
+  return event;
+};
 const errorStatus=()=>elements.get("nh-batch-message").textContent;
 
 (async()=>{
-  picker.files=[pdf("conta-01.pdf"),pdf("holerite-02.pdf"),pdf("conta-03.pdf")];
-  picker.listeners.change();await flush();
+  drop([pdf("boleto-simples.pdf")]);await flush();
+  assert.deepEqual(single,["boleto-simples.pdf"],"PDF único é importado normalmente");
+  assert.equal(calls.length,0,"Um arquivo não cria fila");
+  drop([pdf("comprovante-de-pagamento.pdf")]);await flush();
+  assert.deepEqual(receipts,["comprovante-de-pagamento.pdf"],
+    "Comprovante único continua no fluxo de pagamento");
+  assert.equal(calls.length,0);
+  drop([pdf("conta-01.pdf"),pdf("holerite-02.pdf"),pdf("conta-03.pdf")]);
+  await flush();
   assert.equal(calls.length,1,"Selecionar 3 arquivos só processa o primeiro");
   assert.equal(calls[0].path,"/central/modules/contas/api/import/preview");
   assert.equal(calls[0].headers["X-Ocr-Mode"],"hybrid");
   assert.equal(introduced[0],"T-conta-01.pdf");
   assert.equal(backdrop.classList.contains("show"),true);
-  assert.equal(button.disabled,true);
+  assert.equal(pdfImport.disabled,true);
   assert.ok(errorStatus().includes("Confira"),"Pedir conferência manual");
   // Clicar Salvar sem a janela fechar NÃO pode avançar.
   const save={closest:selector=>selector==="#save"};
@@ -143,12 +173,11 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   assert.equal(calls.length,3);
   assert.equal(maxSimultaneous,1);
   assert.equal(elements.get("nh-batch-close").hidden,false);
-  assert.equal(button.disabled,false);
+  assert.equal(pdfImport.disabled,false);
 
   // Nova fila com OCR falhando no primeiro arquivo: não pula sozinha.
   failNext=true;
-  picker.files=[pdf("com-erro.pdf"),pdf("seguinte.pdf")];
-  picker.listeners.change();await flush();
+  drop([pdf("com-erro.pdf"),pdf("seguinte.pdf")]);await flush();
   assert.equal(calls.length,4);
   assert.equal(elements.get("nh-batch-state").dataset.phase,"error");
   assert.ok(errorStatus().includes("Falha simulada OCR"));
@@ -164,6 +193,9 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   assert.equal(elements.get("nh-batch-state").dataset.phase,"complete");
   assert.equal(maxSimultaneous,1,"Nunca existem duas análises simultâneas");
   assert.equal(cancelled.length,0,"Nenhuma prévia válida foi descartada por erro de fluxo");
+  assert.equal(dropCleared.length,4,"Área de arrastar precisa fechar a cada importação");
+  assert.equal(elements.has("nh-contas-batch-action"),false);
+  assert.equal(elements.has("nh-contas-batch-files"),false);
   console.log("OK: 3 PDFs selecionados; OCR sequencial, revisão, holerite e cancelamento");
   console.log("OK: erro pausa a fila, permite tentar novamente, não salva automaticamente");
 })().catch(error=>{console.error(error);process.exitCode=1});
