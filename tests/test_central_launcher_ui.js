@@ -132,7 +132,8 @@ async function run(){
   assert.ok(root.lastAnimation.frames[0].transform.includes("scale("));
   fits(root);
   const search=panel.querySelectorAll().find(e=>e.tagName==="input");
-  assert.equal(doc.activeElement,search);
+  assert.notEqual(doc.activeElement,search,"A busca não deve receber foco automático (sem anel azul)");
+  assert.ok(css.includes(".nh-start-search-input:focus-visible"),"Estilo da busca precisa neutralizar contorno global");
   search.value="hOlerÍTe";
   search.listeners.input();
   assert.equal(tileLinks.filter(t=>!t.hidden).length,1);
