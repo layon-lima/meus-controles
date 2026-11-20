@@ -33,6 +33,9 @@ body.central-operational.nh-scope-contas #nh-contas-batch-action:disabled{
   -webkit-backdrop-filter:blur(18px) saturate(145%);
 }
 .nh-batch-dock[hidden]{display:none!important}
+/* Durante a revisão, o formulário de Contas fica acima da fila.
+ * Nunca esconder os botões Salvar/Cancelar nem o conteúdo do PDF. */
+.nh-batch-dock[data-phase="review"]{z-index:50!important}
 .nh-batch-head{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
 }
