@@ -153,7 +153,8 @@
       if(mode!=="open")return;
       root.classList.add("nh-start-ready");
       search.value="";filter();
-      search.focus({preventScroll:true});
+      // Não focar automaticamente: o foco programático acionava um anel
+      // azul do tema global ao abrir o menu e dava aparência de duas bordas.
       busy=false;
     });
   }
