@@ -14,8 +14,16 @@ assert.ok(!operations.includes('className = "central-shell-bar"'),
   "As abas superiores antigas não podem voltar");
 const compactRule = css.split(".nh-start-menu{")[1]?.split(".nh-start-menu.nh-start-open{")[0] || "";
 assert.ok(!compactRule.includes("width:100vw"),"Menu fechado/aberto precisa ser compacto");
-assert.ok(css.includes(".nh-start-menu.nh-start-expanding{"),
-  "A transição fullscreen acontece somente ao clicar no botão expandir");
+assert.ok(css.includes(".nh-start-menu.nh-start-expanding"),
+  "A transição só acontece após clicar em expandir");
+assert.ok(css.includes("@view-transition"),"Navegação deve usar transição nativa");
+assert.ok(css.includes("view-transition-name: nh-central-expand"),
+  "O menu deve ser capturado como um único elemento");
+assert.ok(!css.includes("transition:width"),"Não animar largura, que trava a UI");
+assert.ok(!css.includes("height:100dvh!important"),"Menu real não deve aumentar de altura");
+assert.ok(source.includes("layer.animate"),"Fallback precisa usar animador do compositor");
+assert.ok(!source.includes("setTimeout(() => window.location.assign"),
+  "Navegação não pode depender de timer arbitrário");
 assert.ok(css.includes("width:min(600px"),"O painel flutuante deve ter largura compacta");
 assert.ok(css.includes("right:22px!important"),"Ícone e popup devem ficar no lado direito");
 assert.ok(!css.includes("left:22px!important"),"Ícone não pode continuar no canto esquerdo");
@@ -86,11 +94,10 @@ const getAllClass=(root,name)=>{
 };
 const location={pathname:"/central/modules/contas/",href:"https://controles.fazendanovohorizonte.com/central/modules/contas/"};
 const navigations=[];
-const pendingTimers=[];
 location.assign=url=>navigations.push(url);
-const context={document:doc,location,window:{location,
-  setTimeout:callback=>{pendingTimers.push(callback);return pendingTimers.length}
-}};
+doc.startViewTransition=()=>({});
+const context={document:doc,location,CSS:{supports:()=>true},
+  window:{location,matchMedia:()=>({matches:false})}};
 vm.runInNewContext(source,context);
 assert.equal(body.children.length,2,"Apenas menu pequeno e ícone flutuante são montados");
 const menu=doc.getElementById("nh-start-menu");
@@ -156,9 +163,9 @@ expand.listeners.click(expandClick);
 assert.equal(expandClick.prevented,true,"Expandir deve fazer transição controlada");
 assert.equal(menu.classList.contains("nh-start-expanding"),true,
   "Menu deve expandir visualmente antes de navegar");
-assert.equal(navigations.length,0,"Não pode trocar de página antes da expansão");
-pendingTimers.forEach(callback=>callback());
 assert.deepEqual(navigations,["/central/"],
-  "Somente o botão de expandir navega à página inicial real");
+  "Navegação real deve iniciar imediatamente; o navegador cuida da expansão suave");
+expand.listeners.click({preventDefault(){},ctrlKey:false,metaKey:false,shiftKey:false,altKey:false});
+assert.equal(navigations.length,1,"Clique repetido não pode iniciar duas navegações");
 console.log("OK: ícone à direita, popup sem marca/rodapé e expansão para home real");
 console.log("OK: 8 módulos, busca, Esc, clique fora e nenhum reload ao abrir/fechar");
