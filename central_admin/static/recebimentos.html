@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f1f6fc">
+  <meta name="color-scheme" content="light">
+  <title>Recebimentos · Central Novo Horizonte</title>
+  <link rel="stylesheet" href="/central/recebimentos.css?v=1">
+  <link rel="stylesheet" href="/central/launcher.css?v=20261120d">
+  <script src="/central/recebimentos.js?v=1" defer></script>
+  <script src="/central/launcher.js?v=20261120d" defer></script>
+</head>
+<body class="central-operational nh-scope-recebimentos nh-native-screen">
+  <main id="rx-app" class="rx-app">
+    <header class="rx-page-header">
+      <div class="rx-title">
+        <span class="rx-eyebrow">CENTRAL NOVO HORIZONTE</span>
+        <h1>Recebimentos</h1>
+        <p>Pedidos, fornecedores, notas fiscais e entregas em um único módulo.</p>
+      </div>
+      <div class="rx-header-actions">
+        <label class="rx-control-picker" for="rx-control">
+          <span>Controle de recebimentos</span>
+          <select id="rx-control" disabled><option>Carregando…</option></select>
+        </label>
+        <button type="button" id="rx-refresh" class="rx-button rx-button-ghost">Atualizar</button>
+      </div>
+    </header>
+
+    <section id="rx-status" class="rx-status" role="status" aria-live="polite">Carregando recebimentos…</section>
+    <section id="rx-content" hidden>
+      <div id="rx-metrics" class="rx-metrics" aria-label="Indicadores de recebimentos"></div>
+      <div class="rx-toolbar">
+        <div class="rx-actions">
+          <button type="button" data-action="new-item" class="rx-button rx-button-primary">+ Produto / pedido</button>
+          <button type="button" data-action="pdf" class="rx-button">Importar pedido PDF</button>
+          <button type="button" data-action="xml" class="rx-button">Conferir NF-e XML</button>
+          <button type="button" data-action="manual" class="rx-button">NF-e manual</button>
+          <button type="button" data-action="export" class="rx-button">Exportar Excel</button>
+        </div>
+        <div class="rx-filters">
+          <label class="rx-search-label" for="rx-search">Pesquisar pedidos, notas e fornecedores</label>
+          <input id="rx-search" type="search" placeholder="Pesquisar neste módulo…" autocomplete="off">
+        </div>
+      </div>
+      <nav class="rx-tabs" aria-label="Áreas de recebimentos">
+        <button type="button" data-tab="pedidos" class="rx-tab is-active" aria-current="page">Pedidos e produtos</button>
+        <button type="button" data-tab="notas" class="rx-tab">Notas recebidas</button>
+        <button type="button" data-tab="pendentes" class="rx-tab">Sem pedido (XML)</button>
+      </nav>
+      <section id="rx-results" class="rx-results" aria-live="off"></section>
+    </section>
+  </main>
+  <div id="rx-notifications" class="rx-notifications" aria-live="polite"></div>
+  <div id="rx-dialog-layer"></div>
+</body>
+</html>
