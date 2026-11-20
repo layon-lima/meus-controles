@@ -12,8 +12,10 @@ assert.ok(!source.includes("fetch("),"O menu Iniciar não precisa consultar a re
 assert.ok(!source.includes('createElement("iframe")'),"A navegação não pode usar iframe");
 assert.ok(!operations.includes('className = "central-shell-bar"'),
   "As abas superiores antigas não podem voltar");
-assert.ok(!css.includes("width:100vw!important;height:100dvh"),
-  "O menu não pode ser uma tela cheia");
+const compactRule = css.split(".nh-start-menu{")[1]?.split(".nh-start-menu.nh-start-open{")[0] || "";
+assert.ok(!compactRule.includes("width:100vw"),"Menu fechado/aberto precisa ser compacto");
+assert.ok(css.includes(".nh-start-menu.nh-start-expanding{"),
+  "A transição fullscreen acontece somente ao clicar no botão expandir");
 assert.ok(css.includes("width:min(600px"),"O painel flutuante deve ter largura compacta");
 assert.ok(css.includes("right:22px!important"),"Ícone e popup devem ficar no lado direito");
 assert.ok(!css.includes("left:22px!important"),"Ícone não pode continuar no canto esquerdo");
