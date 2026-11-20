@@ -190,8 +190,8 @@ for asset in launcher.js launcher.css; do
   HTTP="$(curl -sS --max-time 6 -o "$TMP/asset" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Recurso $asset nao respondeu (HTTP $HTTP)."
-  grep -Fq 'nh-hub-' "$TMP/asset" \
-    || fail "Recurso $asset nao corresponde ao painel expansivel."
+  grep -Fq 'nh-start-menu' "$TMP/asset" \
+    || fail "Recurso $asset nao corresponde ao lançador unificado."
 done
 # Verifica a entrada em duas fases antes de publicar:
 # primeiro fundo e, somente depois, os cards.
@@ -216,18 +216,25 @@ grep -qi '^Cache-Control: private, max-age=60' "$TMP/asset-headers" \
 # Impede retorno da antiga abertura de pagina em tela cheia.
 grep -Fq 'nh-start-menu' "$APP/static/launcher.js" \
   || fail "Menu Iniciar nao encontrado. Aplicacao anterior sera restaurada."
-grep -Fq 'width:min(600px' "$APP/static/launcher.css" \
-  || fail "O lancador nao tem a largura compacta esperada."
+grep -Fq 'root.append(trigger,panel)' "$APP/static/launcher.js" \
+  || fail "Icone e janela ainda nao são a mesma superficie."
+grep -Fq 'pointerEvents(header,"open")' "$APP/static/launcher.js" \
+  || fail "Arraste da janela aberta nao está ativado."
+if grep -Fq 'document.body.append(menu,fab)' "$APP/static/launcher.js"; then
+  fail "Codigo antigo abre segunda janela solta; versao recusada."
+fi
+grep -Fq 'DESKTOP={w:600,h:455}' "$APP/static/launcher.js" \
+  || fail "Janela desktop sem tamanho fixo esperado."
 grep -Fq 'nh-start-expand' "$APP/static/launcher.js" \
   || fail "Botao de expandir nao encontrado no popup."
-grep -Fq 'fab.addEventListener("pointerdown",dragStart)' "$APP/static/launcher.js" \
-  || fail "Arraste do lançador não encontrado."
-grep -Fq 'fab.addEventListener("contextmenu"' "$APP/static/launcher.js" \
+grep -Fq 'pointerEvents(trigger,"closed")' "$APP/static/launcher.js" \
+  || fail "Arraste do ícone não encontrado."
+grep -Fq 'trigger.addEventListener("contextmenu"' "$APP/static/launcher.js" \
   || fail "Ciclo de tamanho por botão direito não encontrado."
-grep -Fq 'nh-fab-positioned' "$APP/static/launcher.css" \
-  || fail "Posicionamento livre do lançador não encontrado."
-grep -Fq -- '--nh-menu-x' "$APP/static/launcher.css" \
-  || fail "Menu não acompanha posição livre do botão."
+grep -Fq 'animateMorph(' "$APP/static/launcher.js" \
+  || fail "A animação de transformação do mesmo elemento não foi encontrada."
+grep -Fq 'fitPanel(' "$APP/static/launcher.js" \
+  || fail "Janela sem limitação às bordas do monitor."
 grep -Fq '@view-transition' "$APP/static/launcher.css" \
   || fail "Expansao suave nativa nao encontrada no menu."
 grep -Fq 'view-transition-name: nh-central-expand' "$APP/static/app.css" \
@@ -235,8 +242,8 @@ grep -Fq 'view-transition-name: nh-central-expand' "$APP/static/app.css" \
 if grep -Fq 'transition:width .22s' "$APP/static/launcher.css"; then
   fail "Animacao antiga de largura ainda presente; atualizacao cancelada."
 fi
-grep -Fq 'right:22px!important' "$APP/static/launcher.css" \
-  || fail "Icone flutuante nao foi movido para o canto direito."
+grep -Fq 'overflow:hidden!important' "$APP/static/launcher.css" \
+  || fail "Janela sem limite de rolagem fixa."
 if grep -Fq 'nh-start-bottom' "$APP/static/launcher.js"; then
   fail "O rodape antigo ainda aparece no popup."
 fi
@@ -252,8 +259,8 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: lançador arrastável em qualquer módulo, botão direito alterna 58/70/82/94 px."
-echo "PERSISTÊNCIA: posição e tamanho salvos no navegador, popup acompanha o ícone."
+echo "LAYOUT: icone se transforma na MESMA janela; ambos arrastaveis, sem popup separado."
+echo "GEOMETRIA: janela fixa, ajustada à tela por escala; sempre completa sem scroll."
 echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a transição."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
