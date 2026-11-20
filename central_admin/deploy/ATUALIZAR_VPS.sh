@@ -167,6 +167,13 @@ grep -Fq 'nh-start-menu' "$APP/static/launcher.js" \
   || fail "Menu Iniciar nao encontrado. Aplicacao anterior sera restaurada."
 grep -Fq 'width:min(600px' "$APP/static/launcher.css" \
   || fail "O lancador nao tem a largura compacta esperada."
+grep -Fq 'nh-start-expand' "$APP/static/launcher.js" \
+  || fail "Botao de expandir nao encontrado no popup."
+grep -Fq 'right:22px!important' "$APP/static/launcher.css" \
+  || fail "Icone flutuante nao foi movido para o canto direito."
+if grep -Fq 'nh-start-bottom' "$APP/static/launcher.js"; then
+  fail "O rodape antigo ainda aparece no popup."
+fi
 if grep -Fq 'DOMParser' "$APP/static/launcher.js"; then
   fail "Lancador ainda tenta copiar a pagina inteira para dentro do app."
 fi
@@ -179,7 +186,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: menu Iniciar compacto Liquid Glass, flutuante e sem tela cheia."
+echo "LAYOUT: popup limpo, expandir no canto e icone no lado direito."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
