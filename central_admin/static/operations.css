@@ -217,3 +217,48 @@ body.central-operational .nh-document-action:disabled{opacity:.35;cursor:not-all
 body.central-operational.nh-scope-recebimentos .topbar .search-wrap,
 body.central-operational.nh-scope-transportadoras .topbar .search-wrap,
 body.central-operational.nh-scope-controles .topbar .search-wrap{display:none!important}
+
+
+/* === Performance: Liquid Glass preservado, pintura muito mais leve ===
+ * Blur só nas camadas grandes e menus. Em listas e tabelas a transparência,
+ * reflexo e borda são visuais equivalentes, sem uma textura GPU por linha.
+ */
+body.central-operational {
+  background-attachment:scroll!important;
+}
+body.central-operational :is(
+  .control-card,.board-card,.payroll-person,.payroll-person-head,
+  .receipt-confirm-summary>div,.receipt-eligible-option,.receipt-check,
+  .truck-stat,.truck-card,.receiving-card,.receiving-summary-card,
+  .debt-card,.pair-card,.kpi,.info-card,.summary-card,
+  .form-row-card,.field-card,.config-card,.nh-document-card
+) {
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  box-shadow:0 3px 13px rgba(31,70,119,.055),inset 0 1px 0 rgba(255,255,255,.96)!important;
+}
+body.central-operational :is(input,select,textarea) {
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+body.central-operational :is(.nh-filtered-results,.nh-documents-list) > * {
+  content-visibility:auto;
+  contain-intrinsic-size:auto 182px;
+}
+body.central-operational :is(.control-card,.board-card,.nh-document-card):hover {
+  box-shadow:0 8px 23px rgba(39,78,129,.085),inset 0 1px 0 #fff!important;
+}
+@media(max-width:760px){
+  body.central-operational :is(.panel,.surface,.topbar,.filters,.section-header,.payroll-head){
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  body.central-operational :is(.control-card,.board-card,.nh-document-card,.panel,.surface){
+    box-shadow:0 2px 8px rgba(24,62,114,.04),inset 0 1px 0 #fff!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body.central-operational :is(.control-card,.board-card,.nh-document-card,.receipt-eligible-option){
+    transition:none!important;
+  }
+}
