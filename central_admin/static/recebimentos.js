@@ -215,7 +215,11 @@
   function render(){
     renderControlSelect();
     $("#rx-content").hidden=!store.data;
-    if(!store.data)return;
+    if(!store.data){
+      document.querySelectorAll(".rx-actions [data-action]").forEach(button=>button.disabled=true);
+      return;
+    }
+    document.querySelectorAll(".rx-actions [data-action]").forEach(button=>button.disabled=false);
     renderMetrics();
     document.querySelectorAll("[data-tab]").forEach(button=>{
       const selected=button.dataset.tab===store.tab;
@@ -244,6 +248,7 @@
         $("#rx-results").innerHTML=blank("Cadastre o primeiro recebimento","Crie o controle e comece a registrar pedidos.");
         $("#rx-content").hidden=false;
         $("#rx-metrics").replaceChildren();
+        document.querySelectorAll(".rx-actions [data-action]").forEach(button=>button.disabled=true);
         $("#rx-results").innerHTML='<div class="rx-blank"><strong>Primeiro acesso</strong>'+
           '<p>Crie um controle de Recebimentos para começar.</p>'+
           '<button type="button" data-action="create-control" class="rx-button rx-button-primary">Criar Recebimentos</button></div>';
