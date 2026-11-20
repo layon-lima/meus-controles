@@ -128,7 +128,7 @@ window.NHReceivingImports=(()=>{
       '">Corrigir leitura pela área</button></div>'+
       '<div class="rx-preview">'+doc.items.map((item,ri)=>'<div class="rx-grid-row" data-pdf-row="'+fi+'-'+ri+'">'+
       '<label><span>Importar</span><input type="checkbox" name="enabled_'+fi+'_'+ri+'" '+(item.enabled?"checked":"")+'></label>'+
-      '<label class="rx-col-span-2"><span>Pedido</span><input name="order_'+fi+'_'+ri+'" value="'+esc(item.order_number)+'" required></label>'+
+      '<label class="rx-col-span-2"><span>Pedido</span><input name="order_'+fi+'_'+ri+'" value="'+esc(item.order_number)+'"></label>'+
       '<label class="rx-col-span-3"><span>Fornecedor</span><input name="supplier_'+fi+'_'+ri+'" value="'+esc(item.supplier)+'" required></label>'+
       '<label class="rx-col-span-3"><span>Produto</span><input name="product_'+fi+'_'+ri+'" value="'+esc(item.product)+'" required></label>'+
       '<label><span>Quantidade</span><input name="qty_'+fi+'_'+ri+'" value="'+esc(item.ordered_qty)+'" inputmode="decimal" required></label>'+
