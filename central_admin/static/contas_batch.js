@@ -305,6 +305,12 @@
         }else message("Motor de importação individual indisponível.");
         return;
       }
+      // A rotina existente trata comprovantes com elegibilidade de pagamento.
+      // Não os inserir num lote de NOVAS contas, sob risco de duplicidade.
+      if(typeof isReceiptFilename==="function" &&
+         files.some(file=>isReceiptFilename(file.name))){
+        message("Comprovantes de pagamento devem ser arrastados individualmente. O lote é para boletos e contas.");return;
+      }
       begin(files);
     },true);
     // Detecta intenção de salvar/cancelar SEM modificar o frontend original.
