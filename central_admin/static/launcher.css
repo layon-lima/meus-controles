@@ -122,16 +122,59 @@ body.central-operational .nh-start-search-input:focus{box-shadow:none!important;
 .nh-start-tile-name{font-size:11.5px;font-weight:750;line-height:1.35;color:#28486b;overflow-wrap:anywhere}
 .nh-start-tile-subtitle{display:block;margin-top:5px;font-size:10px;line-height:1.3;color:#8a9eb2;overflow-wrap:anywhere}
 .nh-start-empty{margin:14px 4px;padding:18px 12px;text-align:center;font-size:12px;color:#7c91a8}
-/* Expandir é uma transição curta até a página inicial real, não uma home interna. */
-.nh-start-menu.nh-start-expanding{
-  right:0!important;left:auto!important;bottom:0!important;top:auto!important;
-  width:100vw!important;height:100dvh!important;max-height:100dvh!important;
-  border-radius:0!important;opacity:1!important;visibility:visible!important;
-  transform:none!important;pointer-events:none!important;
-  transition:width .22s ease,height .22s ease,border-radius .22s ease,
-             bottom .22s ease,right .22s ease!important;
+/* O navegador anima a TROCA REAL de documentos com uma transição nativa.
+ * Transform/opacity da captura são compositados na GPU, sem recalcular
+ * width/height/bottom/right de uma grade com 8 cards.
+ */
+@view-transition {
+  navigation: auto;
 }
-.nh-start-menu.nh-start-expanding > *{opacity:0!important;transition:opacity .12s ease!important}
+.nh-start-menu.nh-start-expanding {
+  view-transition-name: nh-central-expand;
+  pointer-events:none!important;
+}
+::view-transition-group(nh-central-expand) {
+  animation-duration:420ms;
+  animation-timing-function:cubic-bezier(.22,.84,.23,1);
+}
+::view-transition-old(nh-central-expand) {
+  animation:nh-central-menu-fade-out 200ms ease-in both;
+}
+::view-transition-new(nh-central-expand) {
+  animation:nh-central-home-fade-in 370ms cubic-bezier(.21,.85,.26,1) both;
+}
+::view-transition-old(root) {
+  animation:nh-central-root-out 190ms ease-in both;
+}
+::view-transition-new(root) {
+  animation:nh-central-root-in 350ms ease-out both;
+}
+@keyframes nh-central-menu-fade-out {
+  0%{opacity:1}100%{opacity:0}
+}
+@keyframes nh-central-home-fade-in {
+  0%{opacity:0}35%{opacity:.48}100%{opacity:1}
+}
+@keyframes nh-central-root-out {
+  from{opacity:1}to{opacity:0}
+}
+@keyframes nh-central-root-in {
+  from{opacity:0}to{opacity:1}
+}
+/* Fallback para navegadores sem View Transitions: superfície gráfica
+ * independente do layout do menu. Somente transform e opacity animam.
+ */
+.nh-expand-surface {
+  position:fixed!important;inset:0!important;z-index:50000!important;
+  pointer-events:none!important;border-radius:22px;
+  transform-origin:top left;
+  background:
+    radial-gradient(ellipse 50% 54% at 0% 0%,#cde3fa,transparent 85%),
+    radial-gradient(ellipse 38% 48% at 100% 11%,#e0edfd,transparent 82%),
+    linear-gradient(140deg,#f1f6fd,#f8fafe 50%,#edf3fb);
+  box-shadow:0 20px 48px rgba(29,71,121,.13);
+  will-change:transform,opacity;
+}
 @media(max-width:700px){
   body.central-operational .nh-hub-fab{
     right:14px!important;left:auto!important;bottom:calc(14px + env(safe-area-inset-bottom,0px))!important;
@@ -153,6 +196,11 @@ body.central-operational .nh-start-search-input:focus{box-shadow:none!important;
 }
 @media(max-width:380px){.nh-start-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){
+  ::view-transition-group(nh-central-expand),
+  ::view-transition-old(nh-central-expand),
+  ::view-transition-new(nh-central-expand),
+  ::view-transition-old(root),
+  ::view-transition-new(root){animation-duration:0.01ms!important;}
   .nh-start-menu{transition-duration:0.01ms!important}
   body.central-operational .nh-hub-fab{transition-duration:0.01ms!important}
   .nh-start-tile{transition-duration:0.01ms!important}
