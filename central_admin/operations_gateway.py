@@ -11,7 +11,7 @@ import os
 import re
 from urllib.parse import urlsplit
 
-from .performance import cached_asset, safe_static_path, save_asset
+from .performance import cached_asset, invalidate_summary, safe_static_path, save_asset
 
 MODULES = {
     "controles": "controles",
@@ -253,6 +253,10 @@ def proxy(handler):
             if _stream_large_download(handler, response, content_type, method):
                 return True
             data = response.read()
+            if method in ("POST", "PUT", "PATCH", "DELETE") and 200 <= response.status < 400:
+                # Atualiza os indicadores na próxima consulta sem criar novo
+                # lançamento ou interromper a resposta de pagamento/upload.
+                invalidate_summary()
             content_lower = content_type.lower()
             is_html = "text/html" in content_lower
             is_js = "javascript" in content_lower or upstream_uri.split("?")[0].endswith(".js")
