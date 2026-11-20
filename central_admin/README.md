@@ -335,3 +335,45 @@ popup que surgia ao lado. Foi **substituída**, não escondida com CSS.
 
 Atualizar somente a Central com `deploy/ATUALIZAR_VPS.sh`. Os motores,
 bancos e aplicativos legados permanecem ativos.
+
+
+## Importar várias contas — uma de cada vez (20/11/2026)
+
+No módulo **Contas a pagar** da Central, próximo a “Importar PDF”,
+existe o novo botão **“Enviar várias contas”**.
+
+1. Selecione até 100 documentos PDF na mesma janela do navegador.
+   Os arquivos são colocados numa fila local da aba; ainda não são
+   cadastrados, nem enviados ao servidor em paralelo.
+2. O primeiro PDF é submetido ao mesmo OCR híbrido do CONTAS 4,
+   com o nome original do arquivo e as rotinas de renovação de sessão.
+   A fila mostra número do arquivo, nome, progresso e estado.
+3. A tela de conferência original surge automaticamente, com todos os
+   campos identificados e validações de fornecedor, valor, vencimento e
+   holerites. **Só grava mediante clique em Salvar**.
+   O cadastro preserva R2 e cópia/reconciliação no Windows.
+4. Ao Salvar ou Cancelar e **fechar efetivamente** a janela, a fila
+   aguarda brevemente e passa ao PDF seguinte. Uma validação malsucedida
+   deixa o formulário aberto, sem avançar ou perder informações.
+5. Erro de OCR para a fila naquele documento; há “Tentar de novo”
+   e “Pular arquivo”. Também é possível parar após o documento atual.
+6. Ao fim, um resumo informa confirmados, ignorados e erros.
+   Nenhum documento pendente é enviado sem passar por sua vez.
+
+Proteção: enquanto a fila está ativa, novas importações isoladas e
+o arrastar-soltar de PDFs ficam bloqueados. A aba alerta antes de ser
+fechada para evitar perda da lista pendente. Durante a conferência, o
+formulário original fica acima do painel da fila para preservar os
+botões Salvar/Cancelar (inclusive em celular).
+
+**Arquitetura:** `static/contas_batch.js` apenas coordena as funções
+existentes `postPDF`, `startDetectedHolerite` e os formulários originais.
+Nenhum segundo motor de OCR, pagamento, funcionário ou armazenamento é
+introduzido. O gateway repassa os cabeçalhos `X-Pdf-Name` e
+`X-Ocr-Mode` para que a análise mantenha o nome original e o mesmo
+modo de leitura. Os scripts são carregados somente na rota Contas,
+não nos módulos independentes de Funcionários ou Documentos.
+
+A fila é mantida somente em memória nesta aba. Para evitar duplicação,
+nenhum PDF é salvo automaticamente; o usuário confirma cada conta.
+A Central e os aplicativos originais continuam independentes.
