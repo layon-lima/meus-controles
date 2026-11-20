@@ -129,9 +129,9 @@ window.NHReceivingImports=(()=>{
       '<div class="rx-preview">'+doc.items.map((item,ri)=>'<div class="rx-grid-row" data-pdf-row="'+fi+'-'+ri+'">'+
       '<label><span>Importar</span><input type="checkbox" name="enabled_'+fi+'_'+ri+'" '+(item.enabled?"checked":"")+'></label>'+
       '<label class="rx-col-span-2"><span>Pedido</span><input name="order_'+fi+'_'+ri+'" value="'+esc(item.order_number)+'"></label>'+
-      '<label class="rx-col-span-3"><span>Fornecedor</span><input name="supplier_'+fi+'_'+ri+'" value="'+esc(item.supplier)+'" required></label>'+
-      '<label class="rx-col-span-3"><span>Produto</span><input name="product_'+fi+'_'+ri+'" value="'+esc(item.product)+'" required></label>'+
-      '<label><span>Quantidade</span><input name="qty_'+fi+'_'+ri+'" value="'+esc(item.ordered_qty)+'" inputmode="decimal" required></label>'+
+      '<label class="rx-col-span-3"><span>Fornecedor</span><input name="supplier_'+fi+'_'+ri+'" value="'+esc(item.supplier)+'"></label>'+
+      '<label class="rx-col-span-3"><span>Produto</span><input name="product_'+fi+'_'+ri+'" value="'+esc(item.product)+'"></label>'+
+      '<label><span>Quantidade</span><input name="qty_'+fi+'_'+ri+'" value="'+esc(item.ordered_qty)+'" inputmode="decimal"></label>'+
       '<label class="rx-col-span-2"><span>Unidade</span><select name="unit_'+fi+'_'+ri+'">'+
       units.map(u=>'<option value="'+esc(u)+'" '+(u===item.unit?"selected":"")+'>'+esc(u)+'</option>').join("")+
       '</select></label></div>').join("")+'</div>'+
@@ -156,6 +156,8 @@ window.NHReceivingImports=(()=>{
           }).filter(Boolean)
         })).filter(x=>x.items.length);
         if(!files.length)throw new Error("Selecione pelo menos um produto para importar.");
+        if(files.some(file=>file.items.some(item=>!item.order_number||!item.supplier||!item.product)))
+          throw new Error("Confira pedido, fornecedor e produto de todas as linhas selecionadas.");
         const result=await api(route("/pdf/confirm"),"POST",{files});
         closeDialog();await refresh();
         toast((result.imported||0)+" produto(s) importado(s) de "+files.length+" PDF(s).");
