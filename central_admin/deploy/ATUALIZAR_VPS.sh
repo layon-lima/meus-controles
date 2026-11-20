@@ -57,8 +57,10 @@ tar -xzf "$TMP/central.tgz" -C "$TMP/extract"
 SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 [[ -n "$SOURCE" && -f "$SOURCE/central_admin/server.py" ]] || fail "Download incompleto."
 [[ -f "$SOURCE/central_admin/static/index.html" && -f "$SOURCE/central_admin/static/app.js" &&
-    -f "$SOURCE/central_admin/static/launcher.js" && -f "$SOURCE/central_admin/static/launcher.css" ]] \
-  || fail "Interface ou lançador flutuante não encontrados no pacote."
+    -f "$SOURCE/central_admin/static/launcher.js" &&
+    -f "$SOURCE/central_admin/static/entry-preflight.js" &&
+    -f "$SOURCE/central_admin/static/launcher.css" ]] \
+  || fail "Interface ou animacao em duas fases nao encontrados no pacote."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
 cp -a "$SOURCE/central_admin/." "$APP/"
@@ -92,6 +94,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/app.js"
   node --check "$APP/static/operations.js"
   node --check "$APP/static/launcher.js"
+  node --check "$APP/static/entry-preflight.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -153,6 +156,17 @@ for asset in launcher.js launcher.css; do
   grep -Fq 'nh-hub-' "$TMP/asset" \
     || fail "Recurso $asset nao corresponde ao painel expansivel."
 done
+# Verifica a entrada em duas fases antes de publicar:
+# primeiro fundo e, somente depois, os cards.
+HTTP="$(curl -sS --max-time 8 -o "$TMP/entry-script" -w '%{http_code}' \
+  http://127.0.0.1:18771/entry-preflight.js)"
+[[ "$HTTP" == 200 ]] || fail "Script de revelacao pos-expansao nao esta disponivel."
+grep -Fq 'nh-start-arriving' "$TMP/entry-script" \
+  || fail "Entrada em duas fases nao esta configurada."
+grep -Fq 'id="nh-entry-surface"' "$APP/static/index.html" \
+  || fail "Fundo expansivel independente do dashboard nao encontrado."
+grep -Fq 'html.nh-start-arriving .page {opacity:0!important}' "$APP/static/app.css" \
+  || fail "A home mostraria os cards antes de expandir."
 # Checa compressao de assets na VPS sem expor tokens ou dados de usuarios.
 HTTP="$(curl -sS --max-time 8 -D "$TMP/asset-headers" -o "$TMP/asset-gzip" \
   -w '%{http_code}' -H 'Accept-Encoding: gzip' \
@@ -193,7 +207,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: menu Iniciar à direita e expansao suave por transicao nativa sem reflow."
+echo "LAYOUT: expandir primeiro o fundo, revelar cards somente apos a transicao."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
