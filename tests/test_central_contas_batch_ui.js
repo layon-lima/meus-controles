@@ -68,7 +68,7 @@ const document={
   getElementById(id){return elements.get(id)||null},
   addEventListener(type,fn){this.listeners[type]=fn}
 };
-const calls=[],cancelled=[],introduced=[],single=[],receipts=[],dropCleared=[];
+const calls=[],cancelled=[],introduced=[],single=[],receipts=[],dropCleared=[],alerts=[];
 let pending=0,maxSimultaneous=0,failNext=false;
 const postPDF=async(path,file,headers)=>{
   pending++;maxSimultaneous=Math.max(maxSimultaneous,pending);
@@ -97,6 +97,7 @@ const timers=[];
 const win={
   setTimeout(fn,ms){timers.push({fn,ms});return timers.length},
   addEventListener(){},
+  alert(text){alerts.push(text);}
 };
 const location={pathname:"/central/modules/contas/"};
 context={document,window:win,location,postPDF,startDetectedHolerite,api,
@@ -127,6 +128,9 @@ const drop=(files)=> {
 const errorStatus=()=>elements.get("nh-batch-message").textContent;
 
 (async()=>{
+  // A entrada deve ser detectada ainda no dragenter (sem botão).
+  const entering={dataTransfer:{types:["Files"]}};
+  document.listeners.dragenter(entering);
   drop([pdf("boleto-simples.pdf")]);await flush();
   assert.deepEqual(single,["boleto-simples.pdf"],"PDF único é importado normalmente");
   assert.equal(calls.length,0,"Um arquivo não cria fila");
@@ -134,6 +138,9 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   assert.deepEqual(receipts,["comprovante-de-pagamento.pdf"],
     "Comprovante único continua no fluxo de pagamento");
   assert.equal(calls.length,0);
+  drop([pdf("conta.pdf"),pdf("comprovante.pdf")]);
+  assert.equal(calls.length,0,"Não misturar comprovantes e novas contas");
+  assert.ok(alerts.at(-1).includes("Comprovantes de pagamento"));
   drop([pdf("conta-01.pdf"),pdf("holerite-02.pdf"),pdf("conta-03.pdf")]);
   await flush();
   assert.equal(calls.length,1,"Selecionar 3 arquivos só processa o primeiro");
@@ -193,7 +200,7 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   assert.equal(elements.get("nh-batch-state").dataset.phase,"complete");
   assert.equal(maxSimultaneous,1,"Nunca existem duas análises simultâneas");
   assert.equal(cancelled.length,0,"Nenhuma prévia válida foi descartada por erro de fluxo");
-  assert.equal(dropCleared.length,4,"Área de arrastar precisa fechar a cada importação");
+  assert.equal(dropCleared.length,5,"Área de arrastar fecha após cada tentativa");
   assert.equal(elements.has("nh-contas-batch-action"),false);
   assert.equal(elements.has("nh-contas-batch-files"),false);
   console.log("OK: 3 PDFs selecionados; OCR sequencial, revisão, holerite e cancelamento");
