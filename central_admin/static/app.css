@@ -68,8 +68,39 @@ body{
 @view-transition {
   navigation: auto;
 }
-.page {
-  view-transition-name: nh-central-expand;
+/* Somente a superfície sem conteúdo participa da expansão nativa.
+ * Os cards do dashboard permanecem no DOM mas escondidos da captura.
+ */
+#nh-entry-surface {display:none}
+.page {view-transition-name:none}
+html.nh-start-arriving #nh-entry-surface,
+html.nh-start-revealing #nh-entry-surface {
+  display:block;
+  position:fixed;
+  inset:0;
+  z-index:2000;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse 48% 50% at 3% 4%,rgba(176,213,248,.51),transparent 85%),
+    radial-gradient(ellipse 38% 54% at 99% 19%,rgba(204,224,249,.56),transparent 83%),
+    linear-gradient(132deg,#eff5fc,#f8fafe 48%,#edf3fc);
+  border:1px solid rgba(255,255,255,.96);
+}
+html.nh-start-arriving #nh-entry-surface {
+  view-transition-name:nh-central-expand;
+}
+html.nh-start-arriving .page {opacity:0!important}
+html.nh-start-revealing #nh-entry-surface {
+  opacity:0;
+  transition:opacity .18s ease;
+}
+html.nh-start-revealing .page {
+  opacity:1;
+  animation:nh-show-dashboard .21s cubic-bezier(.22,.8,.3,1) both;
+}
+@keyframes nh-show-dashboard {
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:translateY(0)}
 }
 ::view-transition-group(nh-central-expand) {
   animation-duration:420ms;
