@@ -120,7 +120,7 @@
     if(!ticket)return;
     state.ticket=null;
     try {
-      if(typeof api==="function")await api("/api/import/cancel","POST",{ticket});
+      if(typeof api==="function")await api("/central/modules/contas/api/import/cancel","POST",{ticket});
     } catch(err) {
       console.warn("A prévia rejeitada expirará no servidor.",err);
     }
@@ -149,7 +149,7 @@
     render("Analisando "+file.name+" ("+(state.index+1)+" de "+count()+")…");
     try {
       // Uma chamada por vez e sem a próxima antes de fechar a conferência.
-      const response=await postPDF("/api/import/preview",file,{
+      const response=await postPDF("/central/modules/contas/api/import/preview",file,{
         "X-Pdf-Name":encodeURIComponent(file.name),
         "X-Ocr-Mode":"hybrid"
       });
@@ -170,9 +170,10 @@
       render();
     }catch(error){
       if(currentEpoch!==state.epoch)return;
+      const failedTicket=state.ticket;
       await cancelTicket();
       if(typeof pendingImportPDF!=="undefined" &&
-         pendingImportPDF?.ticket===state.ticket)pendingImportPDF=null;
+         pendingImportPDF?.ticket===failedTicket)pendingImportPDF=null;
       state.phase="error";
       render("Não foi possível analisar "+file.name+": "+(error.message||String(error)));
     }
