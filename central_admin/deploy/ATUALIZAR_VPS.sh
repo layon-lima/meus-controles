@@ -63,8 +63,10 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
     -f "$SOURCE/central_admin/static/recebimentos.html" &&
     -f "$SOURCE/central_admin/static/recebimentos.js" &&
     -f "$SOURCE/central_admin/static/recebimentos_imports.js" &&
-    -f "$SOURCE/central_admin/static/recebimentos.css" ]] \
-  || fail "Arquivos da nova Central ou do Recebimentos nativo ausentes."
+    -f "$SOURCE/central_admin/static/recebimentos.css" &&
+    -f "$SOURCE/central_admin/static/contas_batch.js" &&
+    -f "$SOURCE/central_admin/static/contas_batch.css" ]] \
+  || fail "Arquivos da Central, Recebimentos ou fila de Contas ausentes."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
 cp -a "$SOURCE/central_admin/." "$APP/"
@@ -101,6 +103,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/entry-preflight.js"
   node --check "$APP/static/recebimentos.js"
   node --check "$APP/static/recebimentos_imports.js"
+  node --check "$APP/static/contas_batch.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -136,6 +139,12 @@ for entry in 'api/resumo' \
   if [[ "$entry" == 'api/resumo' ]]; then
     cp "$TMP/response" "$TMP/resumo.json"
   else
+    if [[ "$entry" == 'modules/contas/' ]]; then
+      grep -Fq '/central/contas_batch.js' "$TMP/response" \
+        || fail "Fila de Contas não foi incluída no módulo."
+      grep -Fq '/central/contas_batch.css' "$TMP/response" \
+        || fail "Estilo da fila de Contas não foi incluído."
+    fi
     if [[ "$entry" == 'modules/recebimentos/' ]]; then
       # O módulo próprio já é entregue pronto pelo servidor. NUNCA carregar
       # o HTML de Controles para depois substituí-lo por JavaScript.
@@ -193,6 +202,19 @@ for asset in launcher.js launcher.css; do
   grep -Fq 'nh-start-menu' "$TMP/asset" \
     || fail "Recurso $asset nao corresponde ao lançador unificado."
 done
+# Testa recursos da importação de contas em lote, sem cadastrar nem
+# modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
+for asset in contas_batch.js contas_batch.css; do
+  HTTP="$(curl -sS --max-time 8 -o "$TMP/contas-lote" -w '%{http_code}' \
+    "http://127.0.0.1:18771/$asset")"
+  [[ "$HTTP" == 200 ]] || fail "Arquivo $asset da fila de Contas ausente."
+done
+grep -Fq 'startDetectedHolerite(result)' "$APP/static/contas_batch.js" \
+  || fail "Importação em lote não reutiliza conferência e holerites originais."
+grep -Fq 'postPDF("/central/modules/contas/api/import/preview"' "$APP/static/contas_batch.js" \
+  || fail "Importação em lote não está usando o gateway autenticado."
+grep -Fq '"X-Pdf-Name", "X-Ocr-Mode"' "$APP/operations_gateway.py" \
+  || fail "Gateway não repassa os cabeçalhos de OCR originais."
 # Verifica a entrada em duas fases antes de publicar:
 # primeiro fundo e, somente depois, os cards.
 HTTP="$(curl -sS --max-time 8 -o "$TMP/entry-script" -w '%{http_code}' \
@@ -264,6 +286,7 @@ echo "GEOMETRIA: janela fixa, ajustada à tela por escala; sempre completa sem s
 echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a transição."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
+echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
 echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
