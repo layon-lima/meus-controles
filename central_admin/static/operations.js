@@ -73,15 +73,17 @@
     const heading = titles[active] || "Controles";
     if (pageTitle) pageTitle.textContent = heading;
     if (crumb) crumb.textContent = "NOVO HORIZONTE / "+heading.toUpperCase();
-    const all = (state.controls || []).filter(modeFilters[active] || (() => true));
-    const matched = all.filter(control => {
-      const inBoard = selectedBoard === "all" || String(control.board_id) === selectedBoard;
-      const comparable = String(control.name || "").normalize("NFD")
-        .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
-      const q = typedSearch.normalize("NFD")
-        .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim();
-      return inBoard && comparable.includes(q);
-    });
+    const normalize = value => String(value || "").normalize("NFD")
+      .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+    // Indexa texto uma só vez a cada carga do motor original. A busca não
+    // refaz normalização Unicode de centenas de cards a cada tecla.
+    const all = (state.controls || [])
+      .filter(modeFilters[active] || (() => true))
+      .map(control => ({
+        control,
+        nameSearch: normalize(control.name),
+        board: String(control.board_id)
+      }));
     main.replaceChildren();
     const head = document.createElement("section");
     head.className = "nh-module-head";
@@ -132,18 +134,18 @@
     if (board.value !== selectedBoard) selectedBoard = "all";
     const counter = document.createElement("span");
     counter.className = "nh-module-count";
-    counter.textContent = matched.length + (matched.length===1 ? " controle" : " controles");
+    counter.textContent = all.length + (all.length===1 ? " controle" : " controles");
     toolbar.append(search,board,counter);
     main.append(toolbar);
 
     const results = document.createElement("div");
     results.className = "control-grid nh-filtered-results";
     function renderResults() {
-      const query = typedSearch.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-        .toLocaleLowerCase("pt-BR").trim();
-      const visible = all.filter(c => (selectedBoard==="all" || String(c.board_id)===selectedBoard)
-        && String(c.name || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-          .toLocaleLowerCase("pt-BR").includes(query));
+      const query = normalize(typedSearch).trim();
+      const visible = all.filter(item =>
+        (selectedBoard === "all" || item.board === selectedBoard)
+        && item.nameSearch.includes(query)
+      ).map(item => item.control);
       counter.textContent = visible.length + (visible.length === 1 ? " controle" : " controles");
       if (typeof controlCard !== "function") {
         results.textContent = "Componentes do motor de Controles indisponíveis.";
@@ -158,8 +160,20 @@
         results.replaceChildren(empty);
       }
     }
-    search.addEventListener("input",()=>{typedSearch=search.value;renderResults();});
-    board.addEventListener("change",()=>{selectedBoard=board.value;renderResults();});
+    let scheduled = false;
+    function scheduleResults() {
+      if (scheduled) return;
+      scheduled = true;
+      const nextFrame = typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame : callback => callback();
+      nextFrame(() => {
+        scheduled = false;
+        // O motor pode ter navegado para outra tela durante a digitação.
+        if (results.isConnected !== false) renderResults();
+      });
+    }
+    search.addEventListener("input",()=>{typedSearch=search.value;scheduleResults();});
+    board.addEventListener("change",()=>{selectedBoard=board.value;scheduleResults();});
     main.append(results);
     renderResults();
   }
@@ -334,11 +348,24 @@
         list.append(card);
       });
     }
-    search.addEventListener("input",renderDocuments);
-    status.addEventListener("change",renderDocuments);
+    // Atualizações de filtros, tabela e carregamento de dados são agrupadas
+    // num único frame, evitando recriar dezenas de cards várias vezes.
+    let pending = false;
+    function scheduleDocuments() {
+      if (pending) return;
+      pending = true;
+      const nextFrame = typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame : callback => callback();
+      nextFrame(() => {
+        pending = false;
+        if (view.isConnected !== false) renderDocuments();
+      });
+    }
+    search.addEventListener("input",scheduleDocuments);
+    status.addEventListener("change",scheduleDocuments);
     const tableRows=document.getElementById("rows");
     if(tableRows && typeof MutationObserver === "function"){
-      const observer=new MutationObserver(()=>renderDocuments());
+      const observer=new MutationObserver(scheduleDocuments);
       observer.observe(tableRows,{childList:true});
     }
     renderDocuments();
