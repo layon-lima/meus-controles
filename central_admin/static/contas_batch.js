@@ -193,6 +193,9 @@
     if($("backdrop")?.classList.contains("show")){
       alert("Conclua a conta aberta antes de iniciar um lote.");return;
     }
+    if($("pdfImport")?.disabled){
+      alert("Aguarde a importação individual em andamento antes de iniciar o lote.");return;
+    }
     reset();
     state.files=files.slice();
     state.phase="waiting";
