@@ -290,6 +290,12 @@
     if (!pointer || event.pointerId!==pointer.id) return;
     if (dragFrame) {window.cancelAnimationFrame(dragFrame);dragFrame=0;}
     const moved=pointer.dragging;
+    if (moved && Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
+      const last=clampPosition(pointer.x+event.clientX-pointer.startX,
+                               pointer.y+event.clientY-pointer.startY);
+      pointer.dx=last.x-pointer.x;
+      pointer.dy=last.y-pointer.y;
+    }
     if (moved) {
       const final=clampPosition(pointer.x+pointer.dx,pointer.y+pointer.dy);
       position=final;
@@ -302,10 +308,12 @@
     }
     fab.style.translate="";
     fab.classList.remove("nh-fab-dragging");
+    // Limpar o gesto antes de liberar capture; lostpointercapture não deve
+    // finalizar duas vezes e regravar uma posição antiga.
+    pointer=null;
     if (typeof fab.hasPointerCapture==="function" &&
         event.pointerId!=null && fab.hasPointerCapture(event.pointerId))
       fab.releasePointerCapture(event.pointerId);
-    pointer=null;
     if (open) placeMenu();
   }
   function viewportChanged() {
@@ -345,6 +353,7 @@
     });
     fab.addEventListener("contextmenu",event => {
       event.preventDefault();
+      if (event.pointerType==="touch") return;
       if (!pointer?.dragging) resizeFab();
     });
     fab.title="Clique: abrir · Segure e arraste: mover · Botão direito: tamanho";
