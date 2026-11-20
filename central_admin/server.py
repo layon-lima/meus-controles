@@ -23,6 +23,7 @@ ASSETS = {
     "/operations.js": ("operations.js", "text/javascript; charset=utf-8"),
     "/launcher.css": ("launcher.css", "text/css; charset=utf-8"),
     "/launcher.js": ("launcher.js", "text/javascript; charset=utf-8"),
+    "/entry-preflight.js": ("entry-preflight.js", "text/javascript; charset=utf-8"),
 }
 
 @lru_cache(maxsize=16)
