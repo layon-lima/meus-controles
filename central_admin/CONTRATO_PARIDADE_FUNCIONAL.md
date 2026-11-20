@@ -18,7 +18,7 @@ Os sites antigos serão redirecionados e os seus frontends aposentados **somente
 | Domínio | Motor original | Funções que devem ser incorporadas ao frontend único | Estado na Central |
 |---|---|---|---|
 | Controles personalizados | meus-controles/app.py, control_types.py e static/ | pastas, modelos, fórmulas, cálculos, editar, duplicar, tipo, histórico, importação e exportação | **NÃO MIGRADO** |
-| Recebimentos | receiving.py, receiving_import.py, receiving_xml.py, receiving_pdf.py, receiving_gfarm.py | pedidos, fornecedores, produtos, XML, PDFs, OCR/região, parcial, saldo, aprovação GFARM, Excel, agrupamento e conferência | **NÃO MIGRADO** |
+| Recebimentos | receiving.py, receiving_import.py, receiving_xml.py, receiving_pdf.py, receiving_gfarm.py | pedidos, fornecedores, produtos, XML, PDFs, OCR/região, parcial, saldo, aprovação GFARM, Excel, agrupamento e conferência | **TELA NATIVA IMPLEMENTADA — HOMOLOGAÇÃO PENDENTE** |
 | Transportadoras | truck.py, truck_workflow.py, vales.py | fretes, comissão, vales, fechamento, conferência, despesas, históricos e relatórios | **NÃO MIGRADO** |
 | Contas a pagar | controle-de-contas/portable_app/server.py, app.js e index.html | cadastrar/editar, parcelas, vencer/pagar, enviar para pagamento, comprovantes, PDF, pesquisa, exportação, acesso desktop/mobile | **NÃO MIGRADO** |
 | Funcionários / Holerites | controle-de-contas/portable_app/holerites.py | reconhecer pelo conteúdo do documento, cadastrar funcionário, PIX/chave e competência, vincular pagamentos | **NÃO MIGRADO** |
@@ -49,3 +49,16 @@ Os sites antigos serão redirecionados e os seus frontends aposentados **somente
 A aplicação em /central/ é apenas um **protótipo de visualização**. Seu menu de cards e indicadores **não** satisfazem a entrega funcional e não autorizam aposentar os sistemas originais.
 
 Na migração, funcionalidades só serão marcadas concluídas depois de entregar a mesma operação dentro da Central e aprovar testes com dados de homologação e dados de produção reconciliados.
+
+
+## Início da migração real — Recebimentos (20/11/2026)
+
+A rota /central/modules/recebimentos/ deixa de carregar static/index.html e static/app.js do Meus Controles. O servidor da Central entrega HTML próprio, CSS próprio e JavaScript próprio. Não há App.renderMain, iframe nem operações de DOM do aplicativo anterior nessa página.
+
+No primeiro carregamento a tela já é Recebimentos; os dados são obtidos das APIs existentes e controles são filtrados por mode=recebimento. Não há flash de outra categoria. O frontend novo disponibiliza cadastro de pedidos, entregas parciais, NF-e com vários itens, PDF/OCR por região, XML, JSON, DANFE, GFARM por todos os itens da nota, importação, Excel e conferências.
+
+A tela precisa ser homologada na VPS com casos reais, em especial NF-e fiscal, XML de várias linhas, PDF OCR, GFARM e histórico com dados fechados, antes de marcar paridade total. O backend antigo continua sendo fonte de verdade e não foi modificado.
+
+Os demais módulos ainda usam o gateway legado e precisam passar pelo mesmo processo de reconstrução, não apenas estilização ou ocultação de telas iniciais.
+
+**Regra incondicional:** Meus Controles e CONTAS 4 não podem ser aposentados, desativados ou redirecionados sem autorização explícita do usuário.
