@@ -169,6 +169,13 @@ grep -Fq 'width:min(600px' "$APP/static/launcher.css" \
   || fail "O lancador nao tem a largura compacta esperada."
 grep -Fq 'nh-start-expand' "$APP/static/launcher.js" \
   || fail "Botao de expandir nao encontrado no popup."
+grep -Fq '@view-transition' "$APP/static/launcher.css" \
+  || fail "Expansao suave nativa nao encontrada no menu."
+grep -Fq 'view-transition-name: nh-central-expand' "$APP/static/app.css" \
+  || fail "Pagina inicial nao configurada para a expansao suave."
+if grep -Fq 'transition:width .22s' "$APP/static/launcher.css"; then
+  fail "Animacao antiga de largura ainda presente; atualizacao cancelada."
+fi
 grep -Fq 'right:22px!important' "$APP/static/launcher.css" \
   || fail "Icone flutuante nao foi movido para o canto direito."
 if grep -Fq 'nh-start-bottom' "$APP/static/launcher.js"; then
@@ -186,7 +193,7 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: popup limpo, expandir no canto e icone no lado direito."
+echo "LAYOUT: menu Iniciar à direita e expansao suave por transicao nativa sem reflow."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
