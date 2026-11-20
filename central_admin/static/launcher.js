@@ -117,6 +117,12 @@
     // O nome permite que Edge/Chrome animem as duas páginas REAIS através
     // da navegação. Não cresce largura/altura do DOM da aplicação antiga.
     menu.classList.add("nh-start-expanding");
+    // Marcador da navegação, nunca dados privados. A home usa-o para
+    // exibir apenas o fundo de vidro durante a expansão e revelar os
+    // cards DEPOIS da animação. Expira imediatamente se a navegação falhar.
+    try {
+      window.sessionStorage.setItem("nh-central-expand-entry", String(Date.now()));
+    } catch (_) {}
     const navigate = () => window.location.assign(targetUrl);
     const reduceMotion = typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
