@@ -113,6 +113,23 @@ body.central-operational .nh-start-expand:hover{
   border-radius:11px;box-shadow:inset 0 1px 0 #fff;
 }
 .nh-start-search>.nh-start-icon{width:17px;height:17px;color:#7392b4}
+/* Input do menu sem anéis sobrepostos do tema de Contas/Controles.
+ * Uma única borda leve e contínua permanece mesmo ao digitar. */
+body.central-operational .nh-start-search,
+body.central-operational .nh-start-search:focus-within{
+  border:1px solid rgba(171,196,221,.65)!important;
+  outline:0!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9)!important;
+  background:rgba(255,255,255,.77)!important;
+}
+body.central-operational .nh-start-search .nh-start-search-input,
+body.central-operational .nh-start-search .nh-start-search-input:focus,
+body.central-operational .nh-start-search .nh-start-search-input:focus-visible{
+  border:0!important;outline:0!important;outline-offset:0!important;
+  box-shadow:none!important;background:transparent!important;
+  -webkit-appearance:none;appearance:none;
+}
+
 body.central-operational .nh-start-search-input{
   border:none!important;outline:0!important;box-shadow:none!important;
   background:transparent!important;color:#27496a!important;
