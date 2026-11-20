@@ -115,6 +115,48 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(rewrite_location("/mobile/", "/central/modules/contas"),
                          "/central/modules/contas/mobile/")
 
+    def test_contas_batch_only_in_contas_module_not_other_pages(self):
+        original = '<html><head></head><body></body></html>'
+        accounts = rewrite_text(original, "/central/modules/contas", "html")
+        employees = rewrite_text(original, "/central/modules/funcionarios", "html")
+        documents = rewrite_text(original, "/central/modules/documentos", "html")
+        self.assertIn("/central/contas_batch.js", accounts)
+        self.assertIn("/central/contas_batch.css", accounts)
+        self.assertNotIn("/central/contas_batch.js", employees)
+        self.assertNotIn("/central/contas_batch.js", documents)
+
+    def test_contas_pdf_import_headers_preserved_in_private_gateway(self):
+        contents = b"%PDF-1.4\\n"
+        name = "Boleto%20Agrex.pdf"
+        origin = "https://controles.fazendanovohorizonte.com"
+        handler = _Handler(
+            "/modules/contas/api/import/preview", "POST", {
+                "Content-Length": str(len(contents)),
+                "Content-Type": "application/pdf",
+                "Origin": origin,
+                "X-Local-Token": "private-session",
+                "X-Pdf-Name": name,
+                "X-Ocr-Mode": "hybrid",
+            }, contents,
+        )
+        with patch.dict(os.environ, {
+            "CENTRAL_OPERATIONS_ENABLED": "1",
+            "CENTRAL_PUBLIC_ORIGIN": origin,
+            "CENTRAL_CONTAS_UPSTREAM": "http://contas-web:8767"
+        }):
+            with patch("central_admin.operations_gateway.http.client.HTTPConnection", _Connection):
+                self.assertTrue(proxy(handler))
+        self.assertEqual(handler.status, 200)
+        self.assertEqual(_Connection.last.method, "POST")
+        self.assertEqual(_Connection.last.uri, "/api/import/preview")
+        self.assertEqual(_Connection.last.body, contents)
+        self.assertEqual(_Connection.last.headers["X-Pdf-Name"], name)
+        self.assertEqual(_Connection.last.headers["X-Ocr-Mode"], "hybrid")
+        self.assertEqual(_Connection.last.headers["X-Local-Token"], "private-session")
+        self.assertEqual(_Connection.last.headers["Origin"], _Connection.last.headers["Host"].join(
+            ("https://", "")
+        ))
+
     def test_native_desktop_operates_on_mobile_only_inside_central(self):
         original = ('if(!window.matchMedia("(max-width: 820px), '
                     '(hover: none) and (pointer: coarse)").matches){App.load();}')
