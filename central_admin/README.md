@@ -215,3 +215,41 @@ comportamento de abrir/fechar, pesquisa e preservação do módulo.
 
 O mesmo atualizador deploy/ATUALIZAR_VPS.sh aplica a correção,
 validando o menu compacto em vez da antiga sobreposição de tela cheia.
+
+
+## Otimização de fluidez (20/11/2026)
+
+Sem migrar os bancos nem modificar as APIs originais:
+
+- **Gateway:** scripts/estilos dos módulos são reescritos uma vez, mantidos num
+  cache LRU em memória por até 75 s, até 12 MB e 2 MB por item. Não inclui
+  dados financeiros, API, PDFs, XML, Excel, uploads ou cookies de autenticação.
+- **Rede:** HTML, JS e CSS são enviados com gzip quando o navegador suporta,
+  reduzindo bytes transmitidos. Evita ETag inválido de arquivo reescrito.
+- **Downloads:** PDF/Excel/ZIP binários acima de 1 MB são enviados em blocos de
+  64 KB, sem carregar o arquivo inteiro na memória da Central.
+- **Dashboard:** consultas cruzadas PostgreSQL + SQLite reutilizam um resumo
+  válido por até 10 segundos, evitando várias consultas simultâneas.
+  Após uma gravação bem-sucedida, o cache do resumo é invalidado. Se uma base
+  falhar, o resultado indisponível **não fica em cache**.
+- **Frontend:** busca em controles normaliza os nomes uma só vez; filtros e
+  atualização da lista de documentos são agrupados em um quadro de animação.
+- **Liquid Glass:** fundos, bordas e reflexos permanecem, mas centenas de cards
+  e inputs não aplicam desfoque individual (custoso na GPU). O navegador
+  deixa de pintar itens fora da área visível nas listas longas.
+  O menu Iniciar continua com desfoque real.
+- **Segurança/compatibilidade:** testes separados garantem cache apenas de
+  recursos estáticos, restrição de sessão, PDF transmitido corretamente,
+  ausência de duplicação de módulos, e nenhum dado alterado por essas rotinas.
+
+O cache de assets do servidor é automaticamente limpo ao recriar o container
+na atualização. O navegador revalida JS/CSS após no máximo 75 s no gateway
+e 60 s nos assets da própria Central; após atualizar, Ctrl+F5 força
+a versão nova imediatamente.
+
+Aplicar usando o instalador existente deploy/ATUALIZAR_VPS.sh. Ele
+reconstrói **somente** a Central com verificação dos bancos e rotas,
+sem parar ou aposentar os aplicativos antigos.
+
+Os ganhos reais de tempo e memória dependem do tamanho das bases e do
+navegador; não declarar porcentagens de melhora sem medições na VPS.
