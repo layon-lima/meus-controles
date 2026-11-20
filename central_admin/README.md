@@ -203,8 +203,12 @@ cópia de HTML, API financeira nem nova página dentro do módulo.
 - Clique fora, Esc ou segundo clique no botão fecham o menu.
 - Clicar no módulo em uso apenas fecha; não recarrega o formulário.
 - Clicar em outro módulo navega para sua rota interna própria.
-- "Abrir painel completo" é uma opção **explícita** que abre a página inicial
-  verdadeira (/central/) e não a incorpora ao módulo.
+- O cabeçalho do popup mostra **apenas expandir e fechar (X)**, sem marca.
+- O rodapé com "Abrir painel completo" e "Central de gestão" foi removido.
+- O ícone flutuante fica no **canto inferior direito**, e o popup abre acima,
+  ancorado ao mesmo lado.
+- O símbolo de expandir faz uma transição breve e navega para a página inicial
+  verdadeira (/central/), sem incorporar uma segunda página no módulo.
 - O menu tem atalhos de teclado, pesquisa de módulos, Liquid Glass,
   dimensões compactas em desktop e layout responsivo no celular.
 
