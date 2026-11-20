@@ -200,6 +200,41 @@ body.central-operational .nh-start-search-input:focus{box-shadow:none!important;
   .nh-start-tile-subtitle{font-size:9px}
 }
 @media(max-width:380px){.nh-start-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Geometria controlada por um único lançador. Apenas o botão se move:
+ * o popup é reposicionado perto dele, sem ser arrastado nem recarregado. */
+body.central-operational .nh-hub-fab.nh-fab-positioned{
+  left:var(--nh-fab-x)!important;
+  top:var(--nh-fab-y)!important;
+  right:auto!important;bottom:auto!important;
+  width:var(--nh-fab-size,58px)!important;
+  height:var(--nh-fab-size,58px)!important;
+  min-width:var(--nh-fab-size,58px)!important;
+  border-radius:calc(var(--nh-fab-size,58px) * .31)!important;
+  touch-action:none!important;
+  user-select:none!important;-webkit-user-select:none!important;
+  transition:background .16s ease,box-shadow .16s ease,
+    width .15s cubic-bezier(.2,.8,.2,1),height .15s cubic-bezier(.2,.8,.2,1),
+    border-radius .15s ease!important;
+}
+body.central-operational .nh-hub-fab.nh-fab-positioned .nh-start-icon {
+  width:calc(var(--nh-fab-size,58px) * .39)!important;
+  height:calc(var(--nh-fab-size,58px) * .39)!important;
+}
+body.central-operational .nh-hub-fab.nh-fab-dragging,
+body.central-operational .nh-hub-fab.nh-fab-dragging:hover,
+body.central-operational .nh-hub-fab.nh-fab-dragging:active {
+  cursor:grabbing!important;
+  transform:none!important;
+  transition:none!important;
+  box-shadow:0 12px 28px rgba(29,67,112,.19),inset 0 1px 0 #fff!important;
+}
+.nh-start-menu{
+  left:var(--nh-menu-x,auto)!important;
+  top:var(--nh-menu-y,auto)!important;
+  right:auto!important;bottom:auto!important;
+  max-height:var(--nh-menu-limit,620px)!important;
+  transform-origin:var(--nh-menu-origin-x,center) var(--nh-menu-origin-y,center)!important;
+}
 @media(prefers-reduced-motion:reduce){
   ::view-transition-group(nh-central-expand),
   ::view-transition-old(nh-central-expand),
