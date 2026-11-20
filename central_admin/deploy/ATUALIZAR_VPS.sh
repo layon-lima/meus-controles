@@ -220,6 +220,14 @@ grep -Fq 'width:min(600px' "$APP/static/launcher.css" \
   || fail "O lancador nao tem a largura compacta esperada."
 grep -Fq 'nh-start-expand' "$APP/static/launcher.js" \
   || fail "Botao de expandir nao encontrado no popup."
+grep -Fq 'fab.addEventListener("pointerdown",dragStart)' "$APP/static/launcher.js" \
+  || fail "Arraste do lançador não encontrado."
+grep -Fq 'fab.addEventListener("contextmenu"' "$APP/static/launcher.js" \
+  || fail "Ciclo de tamanho por botão direito não encontrado."
+grep -Fq 'nh-fab-positioned' "$APP/static/launcher.css" \
+  || fail "Posicionamento livre do lançador não encontrado."
+grep -Fq -- '--nh-menu-x' "$APP/static/launcher.css" \
+  || fail "Menu não acompanha posição livre do botão."
 grep -Fq '@view-transition' "$APP/static/launcher.css" \
   || fail "Expansao suave nativa nao encontrada no menu."
 grep -Fq 'view-transition-name: nh-central-expand' "$APP/static/app.css" \
@@ -244,7 +252,9 @@ SUCCESS=1
 echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
-echo "LAYOUT: expandir primeiro o fundo, revelar cards somente apos a transicao."
+echo "LAYOUT: lançador arrastável em qualquer módulo, botão direito alterna 58/70/82/94 px."
+echo "PERSISTÊNCIA: posição e tamanho salvos no navegador, popup acompanha o ícone."
+echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a transição."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
