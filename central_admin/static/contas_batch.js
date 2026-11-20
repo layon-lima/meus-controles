@@ -258,61 +258,98 @@
     // O arquivo é detectado SOMENTE quando o usuário arrasta para a página.
     // Captura antes do handler antigo, que exigia um único PDF, para evitar
     // a mensagem "arraste apenas um PDF" e o duplo processamento.
-    const hasFiles=event=>Array.from(event.dataTransfer?.types||[]).includes("Files");
+    // Eventos de DROP capturados na JANELA, antes dos listeners legados
+    // e de qualquer componente sobreposto. O browser só entrega "drop"
+    // sobre uma superfície que aceitou "dragover" com preventDefault().
+    // O código antigo tratava vários PDFs como erro; nunca deve receber
+    // o mesmo evento após o coordenador da Central.
+    const hasFiles=event=>{
+      const data=event.dataTransfer;
+      if(!data)return false;
+      return Array.from(data.types||[]).includes("Files") ||
+        (event.type==="drop" && Number(data.files?.length)>0);
+    };
     const message=(value,error=true)=>{
       if(typeof notice==="function")notice(value,error,7500);
       else window.alert(value);
     };
     const clearDrop=()=>{
+      document.documentElement.classList.remove("nh-contas-dragging-files");
       if(typeof hideDropZone==="function")hideDropZone();
       else $("dropZone")?.classList.remove("visible");
     };
     const validateFiles=files=>
       files.every(file=>/\.pdf$/i.test(file.name||"") &&
                        file.size>=5 && file.size<=MAX_PDF);
-    document.addEventListener("dragenter",event=>{
-      if(!hasFiles(event))return;
-      // O overlay do CONTAS 4 é somente visual; o novo coordenador
-      // decide o destino depois de conhecer a quantidade de arquivos.
+    const setDropCue=()=>{
+      document.documentElement.classList.add("nh-contas-dragging-files");
       const description=$("dropZone")?.querySelector(".drop-zone-content span");
       if(description)description.textContent=
-        "Um PDF abre a conferência; vários PDFs iniciam uma fila, um por vez.";
+        "Solte os PDFs aqui. Um arquivo: conferência normal. Vários: fila individual.";
+    };
+    let dragDepth=0;
+    window.addEventListener("dragenter",event=>{
+      if(!hasFiles(event))return;
+      event.preventDefault();
+      dragDepth++;
+      setDropCue();
     },true);
-    document.addEventListener("drop",event=>{
+    window.addEventListener("dragover",event=>{
+      if(!hasFiles(event))return;
+      event.preventDefault();
+      if(event.dataTransfer)event.dataTransfer.dropEffect=
+        busy()?"none":"copy";
+      setDropCue();
+    },true);
+    window.addEventListener("dragleave",event=>{
+      if(!hasFiles(event))return;
+      if(--dragDepth<=0){
+        dragDepth=0;
+        // Oculta a marcação após sair do navegador, não após trocar de
+        // elemento interno. O legado também mantém sua própria contagem.
+        if(!event.relatedTarget)clearDrop();
+      }
+    },true);
+    window.addEventListener("drop",event=>{
       if(!hasFiles(event))return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      dragDepth=0;
       const files=Array.from(event.dataTransfer?.files||[]);
       clearDrop();
       if(busy()){
         message("Finalize a conferência atual antes de arrastar mais arquivos.");return;
       }
-      if(!files.length)return;
+      if(!files.length){
+        message("Nenhum arquivo foi recebido. Arraste os PDFs do Explorador do Windows.");return;
+      }
       if(!validateFiles(files)){
         message("Arraste somente PDFs válidos, com até 30 MB cada.");return;
       }
       if(files.length===1){
         const file=files[0];
-        // Preserva o tratamento ORIGINAL de comprovantes de pagamento,
-        // que nunca devem ser cadastrados como novas contas pelo lote.
+        // Comprovante mantém o vínculo ao pagamento original; não criar
+        // conta duplicada por engano.
         if(typeof isReceiptFilename==="function" &&
            isReceiptFilename(file.name)){
           if(typeof importDroppedReceipt==="function")
-            importDroppedReceipt(file);
+            Promise.resolve(importDroppedReceipt(file)).catch(e=>message(e.message));
           else message("Conferência de comprovante indisponível.");
         }else if(typeof importNewPDF==="function"){
-          importNewPDF(file);
+          Promise.resolve(importNewPDF(file)).catch(e=>message(e.message));
         }else message("Motor de importação individual indisponível.");
         return;
       }
-      // A rotina existente trata comprovantes com elegibilidade de pagamento.
-      // Não os inserir num lote de NOVAS contas, sob risco de duplicidade.
       if(typeof isReceiptFilename==="function" &&
          files.some(file=>isReceiptFilename(file.name))){
         message("Comprovantes de pagamento devem ser arrastados individualmente. O lote é para boletos e contas.");return;
       }
       begin(files);
     },true);
+    // Ao voltar para o navegador, não deixar o feedback de arraste preso.
+    window.addEventListener("blur",()=>{
+      dragDepth=0;clearDrop();
+    });
     // Detecta intenção de salvar/cancelar SEM modificar o frontend original.
     // O avanço ocorre SOMENTE quando a janela realmente fecha.
     document.addEventListener("click",event=>{
