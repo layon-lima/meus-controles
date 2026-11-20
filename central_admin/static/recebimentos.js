@@ -425,16 +425,22 @@
       field("Série","serie","",'maxlength="20"')+
       field("Data de emissão","data_emissao",today(),'type="date" required')+
       field("Observação","notes","",'maxlength="1200"',true)+
+      '</div>'+
+      '<div class="rx-file-control">'+
+      '<label class="rx-field"><span>Importar DANFE PDF para preencher os dados desta nota (opcional)</span>'+
+      '<input id="rx-nfe-pdf" type="file" accept=".pdf,application/pdf"></label>'+
+      '<p class="rx-help">Os campos identificados serão preenchidos para conferência antes de salvar. Nenhuma NF-e é lançada automaticamente.</p>'+
       '</div><hr><h3>Produtos da mesma nota</h3>'+
       '<div id="rx-invoice-lines"></div>'+
       '<button type="button" id="rx-add-line" class="rx-button">+ Adicionar produto</button>';
+    let origemArquivo="manual";
     const ctx=dialog("Lançar NF-e manual","É possível incluir vários produtos da mesma nota numa única confirmação.",
       common,async f=>{
         const payload={
           date:f.get("date"),invoice_number:f.get("invoice_number"),
           access_key:f.get("access_key"),fornecedor:f.get("fornecedor"),
           documento_fornecedor:f.get("documento_fornecedor"),serie:f.get("serie"),
-          data_emissao:f.get("data_emissao"),origem_arquivo:"manual",notes:f.get("notes"),
+          data_emissao:f.get("data_emissao"),origem_arquivo:origemArquivo,notes:f.get("notes"),
           items:rows.map((_,i)=>({
             item_id:Number(f.get("item_id_"+i)),
             quantity:dec(f.get("quantity_"+i)),
@@ -464,6 +470,35 @@
       const i=rows.length;rows.push(i);place.insertAdjacentHTML("beforeend",lineHtml(i));
     });
     ctx.mask.querySelector("#rx-add-line").click();
+    ctx.mask.querySelector("#rx-nfe-pdf").addEventListener("change",async e=>{
+      const file=e.currentTarget.files?.[0];
+      if(!file)return;
+      try{
+        if(file.size>7*1024*1024)throw new Error("O DANFE PDF deve ter no máximo 7 MB.");
+        const report=await window.NHReceivingImports.readFiscalPDF(ui,file);
+        for(const key of ["invoice_number","serie","data_emissao","access_key",
+                          "fornecedor","documento_fornecedor"]){
+          const input=ctx.form.elements.namedItem(key);
+          if(report[key]&&input)input.value=String(report[key]);
+        }
+        const f=new FormData(ctx.form);
+        rows.forEach((_,i)=>{
+          const item=items().find(p=>p.id===Number(f.get("item_id_"+i)));
+          if(!item)return;
+          const match=(report.products||[]).filter(p=>
+            normal(p.produto)===normal(item.product)&&normal(p.unidade)===normal(item.unit));
+          if(match.length!==1)return;
+          for(const [key,col] of [["valor_unitario","valor_unitario"],["codigo_produto","codigo_produto"],
+                                   ["cfop","cfop"],["ncm","ncm"]]){
+            const input=ctx.form.elements.namedItem(key+"_"+i);
+            if(input&&!input.value&&match[0][col])input.value=String(match[0][col]);
+          }
+        });
+        origemArquivo="pdf";
+        toast("DANFE lido. Revise os dados da nota e dos produtos antes de confirmar.");
+        if(report.warnings?.length)toast(report.warnings.join(" | "),true);
+      }catch(error){toast("Falha ao ler DANFE: "+error.message,true)}
+    });
   }
   async function sendGFARM(id){
     const target=receipts().find(r=>Number(r.id)===Number(id));
@@ -484,6 +519,40 @@
       await refresh();toast("NF-e enviada ao GFARM com "+ids.length+" item(ns).");
     }catch(e){toast(e.message,true)}
   }
+  function quickSummary(){
+    const received=items().filter(item=>Number(item.received_qty)>0);
+    if(!received.length)return toast("Ainda não há produtos com recebimento registrado.",true);
+    // Nunca somar quantidades de unidades diferentes em um total falso.
+    const groups=new Map();
+    for(const item of received){
+      const key=normal(item.supplier)+"|"+item.order_number;
+      if(!groups.has(key))groups.set(key,{supplier:item.supplier,order:item.order_number,items:[]});
+      groups.get(key).items.push(item);
+    }
+    const blocks=[...groups.values()].map(g=>
+      '<section class="rx-preview-item"><strong>'+esc(g.supplier)+' · Pedido '+esc(g.order)+'</strong>'+
+      '<div class="rx-group-table"><table class="rx-table"><thead><tr>'+
+      '<th>Produto</th><th>Pedido</th><th>Recebido</th><th>Falta receber</th></tr></thead><tbody>'+
+      g.items.map(p=>'<tr><td>'+esc(p.product)+'</td>'+
+        '<td>'+qty(p.ordered_qty)+' '+esc(p.unit)+'</td>'+
+        '<td>'+qty(p.received_qty)+' '+esc(p.unit)+'</td>'+
+        '<td>'+qty(p.remaining_qty)+' '+esc(p.unit)+'</td></tr>').join("")+
+      '</tbody></table></div></section>').join("");
+    dialog("Resumo rápido dos recebimentos",
+      "Somente produtos com entrega registrada. Cada unidade é apresentada separadamente.",
+      '<div class="rx-preview">'+blocks+'</div>');
+  }
+  function renameControl(){
+    const current=currentControl();
+    if(!current)return toast("Selecione um controle.",true);
+    dialog("Renomear controle","Os pedidos, notas e históricos permanecem vinculados ao mesmo controle.",
+      field("Nome do controle","name",current.name,'required maxlength="150"',true),
+      async f=>{
+        await api("/api/controls/"+current.id+"/rename","PATCH",{name:String(f.get("name")||"").trim()});
+        await loadAll(current.id);toast("Nome atualizado, sem alterar os lançamentos.");
+      },"Salvar nome");
+  }
+
   async function exportExcel(){
     if(!cid()){toast("Selecione um controle.",true);return}
     try{
@@ -508,6 +577,10 @@
     if(action==="assign")return openAssign(store.pending.find(x=>x.id===id));
     if(action==="create-control")return openControlCreation();
     if(action==="manual")return openManualInvoice();
+    if(action==="import-json")return window.NHReceivingImports.openJSON(ui);
+    if(action==="restore-issuer")return window.NHReceivingImports.restoreIssuer(ui);
+    if(action==="quick-summary")return quickSummary();
+    if(action==="rename-control")return renameControl();
     if(action==="gfarm")return sendGFARM(id);
     if(action==="export")return exportExcel();
     if(action==="xml")return window.NHReceivingImports.openXML(ui);
