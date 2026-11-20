@@ -90,8 +90,8 @@ def rewrite_text(text, prefix, kind):
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
             # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
-            css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120g">'
-            js += '<script defer src="/central/contas_batch.js?v=20261120g"></script>'
+            css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120h">'
+            js += '<script defer src="/central/contas_batch.js?v=20261120h"></script>'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
     return text
