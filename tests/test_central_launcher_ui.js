@@ -30,6 +30,10 @@ assert.ok(!source.includes("setTimeout(() => window.location.assign"),
   "Navegação não pode depender de timer arbitrário");
 assert.ok(css.includes("width:min(600px"),"O painel flutuante deve ter largura compacta");
 assert.ok(css.includes("right:22px!important"),"Ícone e popup devem ficar no lado direito");
+assert.ok(css.includes(".nh-hub-fab.nh-fab-positioned"),"FAB precisa de posição individual");
+assert.ok(css.includes("touch-action:none!important"),"Arraste touch precisa impedir scroll");
+assert.ok(css.includes("--nh-menu-x"),"Popup precisa acompanhar o FAB");
+assert.ok(css.includes("--nh-fab-size"),"Tamanho precisa ser parametrizado");
 assert.ok(!css.includes("left:22px!important"),"Ícone não pode continuar no canto esquerdo");
 assert.ok(!source.includes("nh-start-bottom"),"Rodapé antigo foi removido do popup");
 assert.ok(!source.includes("nh-start-brand"),"Marca do cabeçalho foi removida");
@@ -122,7 +126,7 @@ const getAllClass=(root,name)=>{
 const location={pathname:"/central/modules/contas/",href:"https://controles.fazendanovohorizonte.com/central/modules/contas/"};
 const navigations=[];
 const storage=new Map(),windowListeners={};
-const animationQueue=[];
+const animationQueue=[],timeouts=[];
 const fakeWindow={
   location,innerWidth:1280,innerHeight:800,
   localStorage:{
@@ -132,10 +136,11 @@ const fakeWindow={
   addEventListener:(name,fn)=>windowListeners[name]=fn,
   requestAnimationFrame:fn=>{animationQueue.push(fn);return animationQueue.length;},
   cancelAnimationFrame:()=>{},
-  setTimeout:fn=>{fn();return 1;},
+  setTimeout:fn=>{timeouts.push(fn);return timeouts.length;},
   matchMedia:()=>({matches:false})
 };
 const flushDrag=()=>{while(animationQueue.length)animationQueue.shift()()};
+const flushTimers=()=>{while(timeouts.length)timeouts.shift()()};
 location.assign=url=>navigations.push(url);
 doc.startViewTransition=()=>({});
 const context={document:doc,location,CSS:{supports:()=>true},window:fakeWindow};
@@ -212,6 +217,7 @@ fab.listeners.click(draggedClick);
 assert.equal(draggedClick.prevented,true,"Clique sintético após drag é ignorado");
 assert.equal(menu.classList.contains("nh-start-open"),false);
 assert.equal(JSON.parse(storage.get("nh-central-launcher-geometry-v1")).x,Math.round(movedX));
+flushTimers();
 
 // Botão direito alterna tamanhos, sem menu nativo e sem formulário.
 for(const expected of [70,82,94,58]){
@@ -230,6 +236,7 @@ fab.listeners.pointerdown({pointerId:2,button:0,isPrimary:true,
 fab.listeners.pointermove({pointerId:2,clientX:topRect.left-1800,
   clientY:topRect.top-1800});
 flushDrag();fab.listeners.pointerup({pointerId:2});
+flushTimers();
 fab.click();
 assert.equal(menu.classList.contains("nh-start-open"),true);
 assert.ok(Number.parseFloat(menu.style.getPropertyValue("--nh-menu-y"))>
