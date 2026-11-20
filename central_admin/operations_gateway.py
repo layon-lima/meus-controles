@@ -5,10 +5,13 @@ Este módulo não deve ser exposto sem controle de acesso ao domínio.
 """
 from __future__ import annotations
 
+import gzip
 import http.client
 import os
 import re
 from urllib.parse import urlsplit
+
+from .performance import cached_asset, safe_static_path, save_asset
 
 MODULES = {
     "controles": "controles",
@@ -121,6 +124,55 @@ def _incoming_origin_allowed(origin):
     ).rstrip("/")
 
 
+def _send_asset(handler, status, mime, content, max_age=75):
+    """Entrega JS/CSS sem recriar suas rotinas a cada troca de aba."""
+    accepts = "gzip" in handler.headers.get("Accept-Encoding", "").lower()
+    compressed = accepts and len(content) >= 1024
+    body = gzip.compress(content, compresslevel=5) if compressed else content
+    handler.send_response(status)
+    handler.send_header("Content-Type", mime)
+    handler.send_header("Cache-Control", f"private, max-age={max_age}, must-revalidate")
+    handler.send_header("Content-Length", str(len(body)))
+    if compressed:
+        handler.send_header("Content-Encoding", "gzip")
+        handler.send_header("Vary", "Accept-Encoding")
+    handler.send_header("X-Content-Type-Options", "nosniff")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("X-Frame-Options", "DENY")
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def _stream_large_download(handler, response, content_type, method):
+    """Stream de PDFs/Excel/ZIP grandes em blocos, sem guardar tudo na RAM."""
+    raw = response.getheader("Content-Length", "")
+    if method != "GET" or response.status != 200:
+        return False
+    if not str(raw).isdigit() or int(raw) < 1024 * 1024:
+        return False
+    mime = content_type.lower()
+    if any(word in mime for word in ("text/", "javascript", "json", "xml", "css", "html")):
+        return False
+    if response.getheader("Content-Encoding", "identity").lower() not in ("identity", ""):
+        return False
+    handler.send_response(response.status)
+    for header in ("Content-Type", "Content-Disposition", "Cache-Control",
+                   "Last-Modified", "Set-Cookie"):
+        for value in response.headers.get_all(header, []):
+            handler.send_header(header, value)
+    handler.send_header("Content-Length", raw)
+    handler.send_header("X-Content-Type-Options", "nosniff")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.send_header("X-Frame-Options", "DENY")
+    handler.end_headers()
+    while True:
+        chunk = response.read(64 * 1024)
+        if not chunk:
+            break
+        handler.wfile.write(chunk)
+    return True
+
+
 def proxy(handler):
     """Atende as rotas operacionais dentro da Central; retorna True se tratou."""
     uri = urlsplit(handler.path)
@@ -156,6 +208,15 @@ def proxy(handler):
     if method in ("POST", "PUT", "PATCH", "DELETE") and not handler.headers.get("Content-Length"):
         handler.respond(411, {"ok": False, "erro": "Envie Content-Length."})
         return True
+    # JS/CSS já transformados são reutilizados durante a navegação.
+    # Nunca guardar HTML, PDFs, faturas, API ou respostas de pagamentos.
+    cached_key = (backend, module, target_path)
+    is_asset = method == "GET" and not uri.query and safe_static_path(target_path)
+    cache_hit = cached_asset(cached_key) if is_asset and         "no-cache" not in handler.headers.get("Cache-Control", "").lower() else None
+    if cache_hit is not None:
+        mime, content = cache_hit
+        _send_asset(handler, 200, mime, content, max_age=75)
+        return True
     try:
         host, port = _upstream(backend)
         origin_upstream = _requested_origin(backend)
@@ -188,8 +249,10 @@ def proxy(handler):
         try:
             connection.request(method, upstream_uri, body=body, headers=request_headers)
             response = connection.getresponse()
-            data = response.read()
             content_type = response.getheader("Content-Type", "application/octet-stream")
+            if _stream_large_download(handler, response, content_type, method):
+                return True
+            data = response.read()
             content_lower = content_type.lower()
             is_html = "text/html" in content_lower
             is_js = "javascript" in content_lower or upstream_uri.split("?")[0].endswith(".js")
@@ -207,6 +270,18 @@ def proxy(handler):
                     prefix,
                     "html" if is_html else "js" if is_js else "css",
                 ).encode("utf-8")
+            # Compressão dos assets reescritos: reduz tráfego e evita reconstruir
+            # as folhas e scripts a cada aba. Só código estático, nunca dados.
+            asset_cacheable = (
+                is_asset and response.status == 200 and (is_js or is_css)
+                and response.getheader("Set-Cookie") is None
+                and response.getheader("Content-Encoding", "identity").lower() == "identity"
+                and len(data) <= 2 * 1024 * 1024
+            )
+            if asset_cacheable:
+                save_asset(cached_key, content_type, data)
+                _send_asset(handler, response.status, content_type, data, max_age=75)
+                return True
             handler.send_response(response.status)
             forward = (
                 "Content-Type", "Content-Disposition", "Cache-Control",
