@@ -15,6 +15,7 @@
   const html = document.documentElement;
   html.classList.add("nh-start-arriving");
   let revealed = false;
+  let receivedPageReveal = false;
   const reveal = () => {
     if (revealed) return;
     revealed = true;
@@ -26,6 +27,7 @@
   // O navegador informa a conclusão da expansão. Não depender de uma
   // duração aproximada que possa terminar antes em máquinas mais lentas.
   window.addEventListener("pagereveal", event => {
+    receivedPageReveal = true;
     const transition = event.viewTransition;
     if (transition && transition.finished && typeof transition.finished.then === "function") {
       transition.finished.then(
@@ -40,7 +42,9 @@
 
   // Compatibilidade com navegadores que não disparam pagereveal.
   window.addEventListener("pageshow", () => {
-    if (!("onpagereveal" in window)) window.setTimeout(reveal, 110);
+    window.setTimeout(() => {
+      if (!receivedPageReveal) reveal();
+    }, 110);
   }, {once:true});
 
   // Segurança: a página nunca permanece invisível caso a transição falhe.
