@@ -17,8 +17,8 @@ assert.ok(!html.includes("<iframe"),"Sem iframe");
 assert.ok(!core.includes("window.App"),"Sem objeto do app legado");
 assert.ok(!core.includes("renderReceivingView"),"Sem renderizador legado");
 assert.ok(core.includes('c.mode==="recebimento"'),"Filtro obrigatório por modelo");
-assert.ok(core.includes('route("/pdf'),"Rotas PDF próprias");
-assert.ok(core.includes('route("/xml'),"Rotas XML próprias");
+assert.ok(core.includes("NHReceivingImports.openPDF"),"Fluxo PDF nasce no módulo próprio");
+assert.ok(core.includes("NHReceivingImports.openXML"),"Fluxo XML nasce no módulo próprio");
 assert.ok(imports.includes('route("/pdf/region")'),"Correção por região de PDF preservada");
 assert.ok(imports.includes('route("/xml/confirm")'),"Confirmação XML preservada");
 
