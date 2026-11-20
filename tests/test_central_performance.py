@@ -53,6 +53,21 @@ class PerformanceTests(unittest.TestCase):
         performance.cached_snapshot("another.db", "postgres://private", source)
         self.assertEqual(len(calls), 2)
 
+    def test_invalidate_summary_after_write(self):
+        count = []
+        def source(*args):
+            count.append(1)
+            return {"fontes":{
+                "contas":{"disponivel":True},
+                "controles":{"disponivel":True}
+            }}
+        performance.cached_snapshot("test.db","postgres://private",source)
+        performance.cached_snapshot("test.db","postgres://private",source)
+        self.assertEqual(len(count),1)
+        performance.invalidate_summary()
+        performance.cached_snapshot("test.db","postgres://private",source)
+        self.assertEqual(len(count),2)
+
     def test_failure_never_stale_caches(self):
         calls = []
         def source(*args):
