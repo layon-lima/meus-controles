@@ -84,14 +84,14 @@ def rewrite_text(text, prefix, kind):
             text = text.replace("<body>", '<body class="central-operational nh-scope-' + module + '">', 1)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
         css = ('<link rel="stylesheet" href="/central/operations.css">'
-               '<link rel="stylesheet" href="/central/launcher.css?v=20261120f">')
+               '<link rel="stylesheet" href="/central/launcher.css?v=20261120g">')
         js = ('<script defer src="/central/operations.js"></script>'
-              '<script defer src="/central/launcher.js?v=20261120f"></script>')
+              '<script defer src="/central/launcher.js?v=20261120g"></script>')
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
             # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
-            css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120h">'
-            js += '<script defer src="/central/contas_batch.js?v=20261120h"></script>'
+            css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120i">'
+            js += '<script defer src="/central/contas_batch.js?v=20261120i"></script>'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
     return text
