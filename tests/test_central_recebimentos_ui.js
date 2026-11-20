@@ -49,6 +49,7 @@ const document={
   addEventListener(name,fn){this.listeners[name]=fn}
 };
 const requested=[];
+const posted=[];
 const backend={
   boards:[{id:1,name:"FINANCEIRO"},{id:2,name:"RECEBIMENTOS"}],
   controls:[
@@ -67,13 +68,21 @@ const orders={
       ordered_qty:"29",received_qty:"0",remaining_qty:"29",status:"pending",closed:false}
   ],
   receipts:[{
-    id:51,item_id:11,order_number:"1001",product:"KCL",supplier:"Agrex",
+    gfarm_note_key:"NF-2402",id:51,item_id:11,order_number:"1001",product:"KCL",supplier:"Agrex",
     received_date:"2026-11-19",invoice_number:"2402",access_key:"1".repeat(44),
     received_qty:"10",unit:"t",gfarm_status:"NAO_ENVIADO"
+  },{
+    gfarm_note_key:"NF-2402",id:52,item_id:12,order_number:"1002",product:"S9",supplier:"Agrex",
+    received_date:"2026-11-19",invoice_number:"2402",access_key:"1".repeat(44),
+    received_qty:"5",unit:"t",gfarm_status:"NAO_ENVIADO"
   }]
 };
-async function fetchMock(path){
+async function fetchMock(path,options={}){
   requested.push(path);
+  if(path.endsWith("/receiving/gfarm/send")){
+    posted.push(JSON.parse(options.body));
+    return {ok:true,json:async()=>({ok:true})};
+  }
   let json;
   if(path.endsWith("/api/state"))json=backend;
   else if(path.includes("/receiving/xml/pending"))json={items:[]};
@@ -86,7 +95,7 @@ const context={
   fetch:fetchMock,
   setTimeout:()=>0,
   requestAnimationFrame:callback=>callback(),
-  Date,Number,String,Array,Map,Set,Intl,Promise,console,
+  Date,Number,String,Array,Map,Set,Intl,Promise,console,confirm:()=>true,
 };
 vm.runInNewContext(core,context);
 const test=async()=>{
@@ -110,6 +119,21 @@ const test=async()=>{
   assert.ok(!results.innerHTML.includes("FRETES"));
   assert.equal(get("#rx-content").hidden,false);
   assert.equal(get("#rx-status").hidden,true);
+  // Mesmo com vários produtos na NF-e, apenas uma solicitação agrupada
+  // deve ser enviada, utilizando as regras do motor de estoque.
+  const clicked={
+    dataset:{action:"gfarm",id:"51"}
+  };
+  document.listeners.click({target:{closest:selector=>
+    selector==="[data-action]"?clicked:null}});
+  for(let i=0;i<20;i++){
+    await new Promise(resolve=>setImmediate(resolve));
+    if(posted.length)break;
+  }
+  assert.equal(posted.length,1,"GFARM deve receber uma única solicitação por nota");
+  assert.deepEqual(posted[0].receipt_ids,[51,52],
+    "Todos os itens da mesma NF-e precisam ir ao GFARM");
   console.log("OK: Recebimentos aparece diretamente, sem renderizar outros modelos antes");
+  console.log("OK: envio ao GFARM agrupa os dois itens da mesma nota fiscal");
 };
 test().catch(error=>{console.error(error);process.exitCode=1});
