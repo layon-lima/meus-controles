@@ -133,6 +133,11 @@ body.central-operational .nh-start-search-input:focus{box-shadow:none!important;
   view-transition-name: nh-central-expand;
   pointer-events:none!important;
 }
+.nh-start-menu.nh-start-expanding > * {
+  /* Nenhuma lista é esticada durante a expansão — só o vidro. */
+  opacity:0!important;
+  transition:none!important;
+}
 ::view-transition-group(nh-central-expand) {
   animation-duration:420ms;
   animation-timing-function:cubic-bezier(.22,.84,.23,1);
