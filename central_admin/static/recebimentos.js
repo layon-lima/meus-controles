@@ -507,7 +507,12 @@
     const tab=e.target.closest("[data-tab]");
     if(tab){store.tab=tab.dataset.tab;render();return}
     const action=e.target.closest("[data-action]");
-    if(action)handleAction(action).catch?.(err=>toast(err.message,true));
+    if(action){
+      try{
+        const task=handleAction(action);
+        if(task && typeof task.catch==="function")task.catch(e=>toast(e.message,true));
+      }catch(e){toast(e.message,true)}
+    }
   });
   $("#rx-search").addEventListener("input",e=>{
     store.search=e.target.value;
