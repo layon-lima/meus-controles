@@ -303,3 +303,35 @@ e a posição é consolidada no término do gesto.
 
 Os aplicativos antigos continuam ativos; somente os arquivos
 de interface do lançador da Central foram alterados.
+
+
+## Correção estrutural do lançador — ícone e janela são a mesma superfície (20/11/2026)
+
+A versão anterior montava dois elementos independentes: botão flutuante e
+popup que surgia ao lado. Foi **substituída**, não escondida com CSS.
+
+- Agora o componente raiz `#nh-start-menu` é **único**. Fechado, ele próprio
+  é o ícone. Aberto, o mesmo elemento se expande para a janela de módulos.
+- A transformação é FLIP, baseada em `transform` acelerado por compositor,
+  com os cards aparecendo após a expansão. No fechamento, a animação retorna
+  ao ícone. Não há segunda janela nem iframes.
+- A janela tem tamanho **fixo de 600 × 455 px no desktop**, **360 × 510 px no
+  celular**, independentemente de onde o usuário tenha movido o ícone.
+  Em telas pequenas ou de baixa altura, o conjunto é proporcionalmente
+  reduzido com `scale` para ficar totalmente visível.
+- Não existe rolagem interna: a grade tem medidas fechadas para caber
+  integralmente dentro da superfície. A janela também é reposicionada até
+  estar dentro das quatro bordas da tela.
+- Fechado: segurar o botão e arrastar reposiciona o ícone. Clique direito
+  alterna 58 → 70 → 82 → 94 → 58 px, sem formulário.
+- Aberto: **arrastar pela faixa superior** move a própria janela;
+  os botões expandir e fechar continuam independentes. Ao recolher,
+  o ícone acompanha o deslocamento.
+- Posição do ícone e tamanho ficam apenas no localStorage do navegador.
+  A navegação entre módulos não altera esses valores.
+- Os testes automatizados cobrem cinco posições extremas/centrais,
+  janela no modo mobile reduzido, drag nas duas formas, abertura,
+  fechamento, ciclo de tamanhos e persistência.
+
+Atualizar somente a Central com `deploy/ATUALIZAR_VPS.sh`. Os motores,
+bancos e aplicativos legados permanecem ativos.
