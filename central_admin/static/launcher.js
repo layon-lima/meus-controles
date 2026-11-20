@@ -32,6 +32,15 @@
   let fab, menu, search, tiles, emptyText;
   let open = false;
   let expanding = false;
+  // Geometria por navegador: todos os módulos compartilham a mesma posição.
+  const SETTINGS_KEY = "nh-central-launcher-geometry-v1";
+  const SIZES = [58,70,82,94];
+  let sizeIndex = 0;
+  let position = null;
+  let pointer = null;
+  let suppressDragClick = false;
+  let dragFrame = 0;
+  const EDGE = 9;
 
   function icon(type) {
     const svg = document.createElementNS(NAMESPACE,"svg");
@@ -98,6 +107,7 @@
     open = true;
     search.value = "";
     showFiltered();
+    placeMenu();
     menu.classList.add("nh-start-open");
     menu.setAttribute("aria-hidden","false");
     fab.setAttribute("aria-expanded","true");
@@ -167,6 +177,144 @@
     }
   }
 
+  function viewport() {
+    return {width:Math.max(1,window.innerWidth || document.documentElement.clientWidth || 1280),
+            height:Math.max(1,window.innerHeight || document.documentElement.clientHeight || 800)};
+  }
+  function limit(value,min,max) {
+    return Math.max(min,Math.min(max,value));
+  }
+  function clampPosition(x,y) {
+    const {width,height}=viewport(),size=SIZES[sizeIndex];
+    return {
+      x:limit(Number.isFinite(x)?x:width-size-22,EDGE,Math.max(EDGE,width-size-EDGE)),
+      y:limit(Number.isFinite(y)?y:height-size-20,EDGE,Math.max(EDGE,height-size-EDGE))
+    };
+  }
+  function rememberPosition() {
+    try {
+      window.localStorage.setItem(SETTINGS_KEY,JSON.stringify({
+        x:Math.round(position.x),y:Math.round(position.y),sizeIndex
+      }));
+    } catch (_) { /* Safari privado/armazenamento bloqueado: sessão continua. */ }
+  }
+  function restorePosition() {
+    try {
+      const saved=JSON.parse(window.localStorage.getItem(SETTINGS_KEY)||"null");
+      if (saved && SIZES[saved.sizeIndex] &&
+          Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+        sizeIndex=saved.sizeIndex;
+        position=clampPosition(saved.x,saved.y);
+      }
+    } catch (_) { /* Primeira visita ou dado antigo: usar posição padrão. */ }
+    if (!position) {
+      const {width,height}=viewport();
+      const mobile=typeof window.matchMedia==="function" &&
+        window.matchMedia("(max-width:700px)").matches;
+      const size=SIZES[sizeIndex];
+      position=clampPosition(width-size-(mobile?14:22),height-size-(mobile?14:20));
+    }
+    paintPosition();
+  }
+  function paintPosition() {
+    if (!fab || !position) return;
+    fab.style.setProperty("--nh-fab-x",position.x+"px");
+    fab.style.setProperty("--nh-fab-y",position.y+"px");
+    fab.style.setProperty("--nh-fab-size",SIZES[sizeIndex]+"px");
+    fab.classList.add("nh-fab-positioned");
+  }
+  function placeMenu() {
+    if (!fab || !menu) return;
+    const bounds=fab.getBoundingClientRect();
+    const {width,height}=viewport(),gap=12,margin=10;
+    const above=Math.max(0,bounds.top-gap-margin);
+    const below=Math.max(0,height-bounds.bottom-gap-margin);
+    const putAbove=above>=below;
+    const room=Math.max(100,putAbove?above:below);
+    menu.style.setProperty("--nh-menu-limit",Math.min(620,room)+"px");
+    const dimensions=menu.getBoundingClientRect();
+    const left=limit(bounds.left+bounds.width/2-dimensions.width/2,
+                     margin,Math.max(margin,width-dimensions.width-margin));
+    const idealTop=putAbove?bounds.top-gap-dimensions.height:bounds.bottom+gap;
+    const top=limit(idealTop,margin,Math.max(margin,height-dimensions.height-margin));
+    menu.style.setProperty("--nh-menu-x",left+"px");
+    menu.style.setProperty("--nh-menu-y",top+"px");
+    menu.style.setProperty("--nh-menu-origin-x",
+      limit(bounds.left+bounds.width/2-left,0,dimensions.width)+"px");
+    menu.style.setProperty("--nh-menu-origin-y",
+      (putAbove?dimensions.height+gap:-gap)+"px");
+  }
+  function resizeFab() {
+    const size=SIZES[sizeIndex],nextIndex=(sizeIndex+1)%SIZES.length;
+    const nextSize=SIZES[nextIndex];
+    // Manter o centro no mesmo lugar enquanto muda de tamanho.
+    position=clampPosition(position.x+(size-nextSize)/2,
+                           position.y+(size-nextSize)/2);
+    sizeIndex=nextIndex;
+    position=clampPosition(position.x,position.y);
+    paintPosition();
+    rememberPosition();
+    if (open) placeMenu();
+  }
+  function dragStart(event) {
+    if (event.button!==0 || event.isPrimary===false) return;
+    if (pointer) return;
+    const rect=fab.getBoundingClientRect();
+    pointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,
+             x:rect.left,y:rect.top,dragging:false,dx:0,dy:0};
+    if (typeof fab.setPointerCapture==="function" && event.pointerId!=null)
+      fab.setPointerCapture(event.pointerId);
+  }
+  function drawDrag() {
+    dragFrame=0;
+    if (!pointer || !pointer.dragging) return;
+    // translate é uma camada própria no compositor; não reposiciona o DOM
+    // nem recalcula o efeito Liquid Glass quadro a quadro.
+    fab.style.translate=pointer.dx+"px "+pointer.dy+"px";
+  }
+  function dragMove(event) {
+    if (!pointer || event.pointerId!==pointer.id) return;
+    const dx=event.clientX-pointer.startX,dy=event.clientY-pointer.startY;
+    if (!pointer.dragging && Math.hypot(dx,dy)<6) return;
+    if (!pointer.dragging) {
+      pointer.dragging=true;
+      fab.classList.add("nh-fab-dragging");
+      if (open) closeMenu(false);
+    }
+    const bounds=clampPosition(pointer.x+dx,pointer.y+dy);
+    pointer.dx=bounds.x-pointer.x;
+    pointer.dy=bounds.y-pointer.y;
+    if (!dragFrame) dragFrame=window.requestAnimationFrame(drawDrag);
+  }
+  function dragEnd(event) {
+    if (!pointer || event.pointerId!==pointer.id) return;
+    if (dragFrame) {window.cancelAnimationFrame(dragFrame);dragFrame=0;}
+    const moved=pointer.dragging;
+    if (moved) {
+      const final=clampPosition(pointer.x+pointer.dx,pointer.y+pointer.dy);
+      position=final;
+      paintPosition();
+      suppressDragClick=true;
+      // A sequência pointerup -> click é síncrona. Não engolir o próximo
+      // clique legítimo caso o navegador decida não emitir click após drag.
+      window.setTimeout(()=>{suppressDragClick=false},0);
+      rememberPosition();
+    }
+    fab.style.translate="";
+    fab.classList.remove("nh-fab-dragging");
+    if (typeof fab.hasPointerCapture==="function" &&
+        event.pointerId!=null && fab.hasPointerCapture(event.pointerId))
+      fab.releasePointerCapture(event.pointerId);
+    pointer=null;
+    if (open) placeMenu();
+  }
+  function viewportChanged() {
+    if (!position) return;
+    position=clampPosition(position.x,position.y);
+    paintPosition();
+    if (open) placeMenu();
+  }
+
   function build() {
     // Não iniciar duas vezes se o motor original reexecutar o JS.
     if (document.getElementById("nh-dashboard-launcher")) return;
@@ -179,7 +327,29 @@
     fab.setAttribute("aria-controls","nh-start-menu");
     fab.setAttribute("aria-expanded","false");
     fab.appendChild(icon("grid"));
-    fab.addEventListener("click",() => open ? closeMenu() : openMenu());
+    fab.addEventListener("click",event => {
+      if (suppressDragClick && event.detail!==0) {
+        event.preventDefault();
+        suppressDragClick=false;
+        return;
+      }
+      if (expanding) return;
+      open ? closeMenu() : openMenu();
+    });
+    fab.addEventListener("pointerdown",dragStart);
+    fab.addEventListener("pointermove",dragMove);
+    fab.addEventListener("pointerup",dragEnd);
+    fab.addEventListener("pointercancel",dragEnd);
+    fab.addEventListener("lostpointercapture",event => {
+      if (pointer && event.pointerId===pointer.id) dragEnd(event);
+    });
+    fab.addEventListener("contextmenu",event => {
+      event.preventDefault();
+      if (!pointer?.dragging) resizeFab();
+    });
+    fab.title="Clique: abrir · Segure e arraste: mover · Botão direito: tamanho";
+    fab.setAttribute("aria-description",
+      "Arraste para mover. Clique com botão direito para aumentar. Após o maior tamanho, volta ao inicial.");
 
     menu = node("section","nh-start-menu");
     menu.id = "nh-start-menu";
@@ -230,7 +400,9 @@
 
     menu.append(top,searchBox,scroll);
 
+    restorePosition();
     document.body.append(menu,fab);
+    window.addEventListener("resize",viewportChanged,{passive:true});
     document.addEventListener("pointerdown",event => {
       if (open && !fab.contains(event.target) && !menu.contains(event.target)) closeMenu(false);
     },true);
