@@ -6,6 +6,17 @@ body.central-operational.nh-scope-contas #mobileBtn,
 body.central-operational.nh-scope-contas #pdfImport{
   display:none!important;
 }
+/* Feedback nativo: aparece quando PDFs entram no navegador, mesmo
+ * quando o painel flutuante está aberto. Não captura ponteiros, para o
+ * evento alcançar o coordenador de arquivos na janela. */
+html.nh-contas-dragging-files body.central-operational.nh-scope-contas #dropZone{
+  display:flex!important;pointer-events:none!important;
+  z-index:50000!important;
+  border:2px dashed rgba(69,135,206,.8)!important;
+  background:rgba(231,243,255,.91)!important;
+  backdrop-filter:blur(9px)!important;
+  -webkit-backdrop-filter:blur(9px)!important;
+}
 .nh-batch-dock{
   position:fixed!important;left:20px!important;bottom:20px!important;
   right:auto!important;top:auto!important;z-index:72!important;
