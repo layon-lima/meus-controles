@@ -153,6 +153,15 @@ for asset in launcher.js launcher.css; do
   grep -Fq 'nh-hub-' "$TMP/asset" \
     || fail "Recurso $asset nao corresponde ao painel expansivel."
 done
+# Checa compressao de assets na VPS sem expor tokens ou dados de usuarios.
+HTTP="$(curl -sS --max-time 8 -D "$TMP/asset-headers" -o "$TMP/asset-gzip" \
+  -w '%{http_code}' -H 'Accept-Encoding: gzip' \
+  http://127.0.0.1:18771/launcher.js)"
+[[ "$HTTP" == 200 ]] || fail "Launcher JS indisponivel apos otimizar."
+grep -qi '^Content-Encoding: gzip' "$TMP/asset-headers" \
+  || fail "Compressao gzip nao foi ativada para a Central."
+grep -qi '^Cache-Control: private, max-age=60' "$TMP/asset-headers" \
+  || fail "Cache de recursos estaticos da Central esta inativo."
 # Impede retorno da antiga abertura de pagina em tela cheia.
 grep -Fq 'nh-start-menu' "$APP/static/launcher.js" \
   || fail "Menu Iniciar nao encontrado. Aplicacao anterior sera restaurada."
@@ -171,6 +180,7 @@ echo
 echo "CENTRAL ATUALIZADA COM SUCESSO."
 echo "ACESSO: https://controles.fazendanovohorizonte.com/central/"
 echo "LAYOUT: menu Iniciar compacto Liquid Glass, flutuante e sem tela cheia."
+echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "INTEGRACAO: formularios nativos de Contas, Recebimentos, Controles, Transportadoras e Funcionarios dentro da Central."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
