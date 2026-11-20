@@ -15,6 +15,11 @@ assert.ok(!operations.includes('className = "central-shell-bar"'),
 assert.ok(!css.includes("width:100vw!important;height:100dvh"),
   "O menu não pode ser uma tela cheia");
 assert.ok(css.includes("width:min(600px"),"O painel flutuante deve ter largura compacta");
+assert.ok(css.includes("right:22px!important"),"Ícone e popup devem ficar no lado direito");
+assert.ok(!css.includes("left:22px!important"),"Ícone não pode continuar no canto esquerdo");
+assert.ok(!source.includes("nh-start-bottom"),"Rodapé antigo foi removido do popup");
+assert.ok(!source.includes("nh-start-brand"),"Marca do cabeçalho foi removida");
+assert.ok(source.includes('expand.href = "/central/"'),"Expandir leva à página inicial real");
 
 let doc;
 class MockElement {
@@ -78,7 +83,12 @@ const getAllClass=(root,name)=>{
   return result;
 };
 const location={pathname:"/central/modules/contas/",href:"https://controles.fazendanovohorizonte.com/central/modules/contas/"};
-const context={document:doc,location,window:{location}};
+const navigations=[];
+const pendingTimers=[];
+location.assign=url=>navigations.push(url);
+const context={document:doc,location,window:{location,
+  setTimeout:callback=>{pendingTimers.push(callback);return pendingTimers.length}
+}};
 vm.runInNewContext(source,context);
 assert.equal(body.children.length,2,"Apenas menu pequeno e ícone flutuante são montados");
 const menu=doc.getElementById("nh-start-menu");
@@ -89,6 +99,14 @@ assert.equal(menu.getAttribute("aria-hidden"),"true");
 assert.equal(fab.getAttribute("aria-expanded"),"false");
 assert.equal(menu.classList.contains("nh-start-open"),false);
 
+const head = findClass(menu,"nh-start-top");
+assert.equal(head.children.length,2,"Topo contém somente expandir e fechar");
+assert.equal(getAllClass(menu,"nh-start-bottom").length,0,"Popup sem rodapé");
+assert.equal(getAllClass(menu,"nh-start-brand").length,0,"Popup sem logomarca no topo");
+const expand = doc.getElementById("nh-start-expand");
+assert.ok(expand,"Expandir precisa existir no canto do popup");
+assert.equal(expand.href,"/central/");
+assert.equal(expand.getAttribute("aria-label"),"Expandir menu para tela inicial da Central");
 const tileList=getAllClass(menu,"nh-start-tile");
 assert.equal(tileList.length,8,"Exatamente oito módulos");
 assert.equal(tileList.find(tile=>tile.dataset.module==="contas").href,
@@ -130,4 +148,15 @@ assert.equal(click.prevented,true,"Módulo atual não deve recarregar");
 assert.equal(menu.classList.contains("nh-start-open"),false);
 assert.deepEqual(previousForm,{note:"Não perder a digitação",amount:200});
 
-console.log("OK: menu Iniciar flutuante, 8 módulos, busca, Esc, clique fora e nenhum reload");
+fab.click();
+const expandClick={prevented:false,preventDefault(){this.prevented=true}};
+expand.listeners.click(expandClick);
+assert.equal(expandClick.prevented,true,"Expandir deve fazer transição controlada");
+assert.equal(menu.classList.contains("nh-start-expanding"),true,
+  "Menu deve expandir visualmente antes de navegar");
+assert.equal(navigations.length,0,"Não pode trocar de página antes da expansão");
+pendingTimers.forEach(callback=>callback());
+assert.deepEqual(navigations,["/central/"],
+  "Somente o botão de expandir navega à página inicial real");
+console.log("OK: ícone à direita, popup sem marca/rodapé e expansão para home real");
+console.log("OK: 8 módulos, busca, Esc, clique fora e nenhum reload ao abrir/fechar");
