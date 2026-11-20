@@ -60,3 +60,41 @@ body{
   .site-header,.module-card,.summary-item,.intro-tag{background:#f9fcff!important}
 }
 @media(prefers-reduced-motion:reduce){.module-card{transition:none!important}.module-card:hover{transform:none}}
+
+
+/* Expansão nativa entre o menu Iniciar e ESTA página inicial real.
+ * Sem renderizar a página dentro do módulo nem recalcular dimensões do popup.
+ */
+@view-transition {
+  navigation: auto;
+}
+.page {
+  view-transition-name: nh-central-expand;
+}
+::view-transition-group(nh-central-expand) {
+  animation-duration:420ms;
+  animation-timing-function:cubic-bezier(.22,.84,.23,1);
+}
+::view-transition-old(nh-central-expand) {
+  animation:nh-home-from-menu-old 200ms ease-in both;
+}
+::view-transition-new(nh-central-expand) {
+  animation:nh-home-from-menu-new 370ms cubic-bezier(.21,.85,.26,1) both;
+}
+::view-transition-old(root) {
+  animation:nh-home-root-out 190ms ease-in both;
+}
+::view-transition-new(root) {
+  animation:nh-home-root-in 350ms ease-out both;
+}
+@keyframes nh-home-from-menu-old {from{opacity:1}to{opacity:0}}
+@keyframes nh-home-from-menu-new {0%{opacity:0}35%{opacity:.48}100%{opacity:1}}
+@keyframes nh-home-root-out {from{opacity:1}to{opacity:0}}
+@keyframes nh-home-root-in {from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce) {
+  ::view-transition-group(nh-central-expand),
+  ::view-transition-old(nh-central-expand),
+  ::view-transition-new(nh-central-expand),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {animation-duration:0.01ms!important}
+}
