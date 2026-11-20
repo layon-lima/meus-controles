@@ -466,10 +466,22 @@
     ctx.mask.querySelector("#rx-add-line").click();
   }
   async function sendGFARM(id){
-    if(!confirm("Enviar esta nota para aprovação no GFARM?"))return;
+    const target=receipts().find(r=>Number(r.id)===Number(id));
+    if(!target)return toast("Nota fiscal não encontrada.",true);
+    if(target.gfarm_status!=="NAO_ENVIADO")
+      return toast("Esta nota já possui solicitação no GFARM.",true);
+    // O motor agrupa os itens pela chave exata da NF-e. Enviar um só ID
+    // poderia deixar os demais produtos da mesma nota fora do GFARM.
+    const group=target.gfarm_note_key
+      ? receipts().filter(r=>r.gfarm_note_key===target.gfarm_note_key &&
+                             r.gfarm_status==="NAO_ENVIADO")
+      : [target];
+    const ids=[...new Set(group.map(r=>Number(r.id)))].filter(Number.isSafeInteger);
+    if(!ids.length)return toast("Nenhum produto disponível para envio.",true);
+    if(!confirm("Enviar "+ids.length+" item(ns) desta NF-e para aprovação no GFARM?"))return;
     try{
-      await api(route("/gfarm/send"),"POST",{receipt_ids:[Number(id)]});
-      await refresh();toast("Solicitação enviada ao GFARM.");
+      await api(route("/gfarm/send"),"POST",{receipt_ids:ids});
+      await refresh();toast("NF-e enviada ao GFARM com "+ids.length+" item(ns).");
     }catch(e){toast(e.message,true)}
   }
   async function exportExcel(){
