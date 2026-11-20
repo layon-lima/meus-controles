@@ -25,6 +25,7 @@
           <span>Controle de recebimentos</span>
           <select id="rx-control" disabled><option>Carregando…</option></select>
         </label>
+        <button type="button" data-action="rename-control" class="rx-button rx-button-ghost">Renomear</button>
         <button type="button" id="rx-refresh" class="rx-button rx-button-ghost">Atualizar</button>
       </div>
     </header>
@@ -38,6 +39,9 @@
           <button type="button" data-action="pdf" class="rx-button">Importar pedido PDF</button>
           <button type="button" data-action="xml" class="rx-button">Conferir NF-e XML</button>
           <button type="button" data-action="manual" class="rx-button">NF-e manual</button>
+          <button type="button" data-action="import-json" class="rx-button">Importar JSON</button>
+          <button type="button" data-action="restore-issuer" class="rx-button">Recuperar emitente</button>
+          <button type="button" data-action="quick-summary" class="rx-button">Resumo rápido</button>
           <button type="button" data-action="export" class="rx-button">Exportar Excel</button>
         </div>
         <div class="rx-filters">
