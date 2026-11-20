@@ -294,5 +294,75 @@ window.NHReceivingImports=(()=>{
     try{await open()}catch(e){toast(e.message,true);renderPDFReview(app,docs)}
   }
 
-  return {openXML,openPDF};
+  async function readFiscalPDF(app,file) {
+    if(!file||!file.name.toLowerCase().endsWith(".pdf")||file.size>7*1024*1024)
+      throw new Error("Selecione um PDF DANFE com até 7 MB.");
+    return app.api(app.route("/fiscal/pdf/preview"),"POST",{pdf:await readFile(file)});
+  }
+
+  async function restoreIssuer(app) {
+    const {api,route,toast,refresh}=app;
+    selectFiles(".xml,text/xml",true,async files=>{
+      if(files.length>20)return toast("Selecione no máximo 20 XMLs por vez.",true);
+      let updated=0,failed=0;
+      for(const file of files){
+        if(file.size>2_000_000||!file.name.toLowerCase().endsWith(".xml")){
+          failed++;continue;
+        }
+        try{
+          const result=await api(route("/xml/issuer"),"POST",{xml:await readFile(file)});
+          updated+=Number(result.updated||0);
+        }catch(e){failed++;toast(file.name+": "+e.message,true)}
+      }
+      await refresh();
+      toast(updated+" registro(s) de emitente recuperado(s)"+
+        (failed?". Arquivos sem correspondência: "+failed+".":"."));
+    });
+  }
+
+  async function openJSON(app) {
+    const {api,route,dialog,toast,refresh,esc,closeDialog}=app;
+    selectFiles(".json,application/json",false,async files=>{
+      const file=files[0];
+      if(file.size>512*1024||!file.name.toLowerCase().endsWith(".json"))
+        return toast("Selecione um JSON de pedidos com até 512 KB.",true);
+      let documentData;
+      try{documentData=JSON.parse(await file.text())}
+      catch{throw new Error("Arquivo JSON inválido.")}
+      const report=await api(route("/import/preview"),"POST",{document:documentData});
+      const examples=(report.preview_items||[]).map(item=>
+        '<div class="rx-preview-item"><strong>'+esc(item.product)+'</strong>'+
+        '<small>Pedido '+esc(item.order_number)+' · '+esc(item.supplier||"Sem fornecedor")+
+        ' · '+esc(item.ordered_qty)+' '+esc(item.unit)+'</small></div>').join("");
+      const count=Number(report.already_imported?report.repeat_count:report.new_count)||0;
+      const warnings=[];
+      if(report.already_imported)warnings.push("O lote já foi importado anteriormente.");
+      if(report.matched)warnings.push(report.matched+" produto(s) coincidem com registros existentes.");
+      if(report.unknown_suppliers)warnings.push(report.unknown_suppliers+" linha(s) sem fornecedor.");
+      const html='<div class="rx-preview">'+
+        '<div class="rx-preview-item"><strong>'+esc(report.source||file.name)+'</strong>'+
+        '<small>'+esc(report.count||0)+' linhas · '+count+' possíveis produtos novos</small></div>'+
+        (warnings.length?'<p class="rx-help">'+esc(warnings.join(" "))+'</p>':"")+
+        (report.requires_duplicate_consent?
+          '<label class="rx-field"><span><input type="checkbox" name="confirm_duplicates"> Confirmo que este é um novo lote, mesmo com produtos repetidos.</span></label>':"")+
+        examples+'</div>';
+      dialog("Importar pedidos JSON","A prévia não cria recebimentos nem notas fiscais.",
+        html,async f=>{
+          if(report.requires_duplicate_consent&&!f.has("confirm_duplicates"))
+            throw new Error("Confirme o novo lote antes de cadastrar produtos repetidos.");
+          const result=await api(route("/import/confirm"),"POST",{
+            document:documentData,fingerprint:report.fingerprint,
+            allow_duplicates:f.has("confirm_duplicates"),
+            repeat_batch:!!report.already_imported,
+            confirmation_token:report.confirmation_token
+          });
+          closeDialog();await refresh();
+          toast(result.already_imported?
+            "Este lote já estava importado; nenhum registro foi duplicado.":
+            result.imported+" produto(s) cadastrados.");
+        },"Confirmar importação");
+    });
+  }
+
+  return {openXML,openPDF,openJSON,restoreIssuer,readFiscalPDF};
 })();
