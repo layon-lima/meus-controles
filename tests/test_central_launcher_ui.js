@@ -104,7 +104,7 @@ function boot(path="/central/modules/recebimentos/"){
     panel:doc.getElementById("nh-start-panel")};
 }
 const evt=(id,x,y,button=0)=>({pointerId:id,clientX:x,clientY:y,button,isPrimary:true,
-  target:null,preventDefault(){this.prevented=true;}});
+  target:{closest:()=>null},preventDefault(){this.prevented=true;}});
 function fits(root){
   const b=root.getBoundingClientRect();
   assert.ok(b.left>=0 && b.top>=0 && b.right<=win.innerWidth+.1 &&
