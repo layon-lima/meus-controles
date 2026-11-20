@@ -2,11 +2,12 @@
 /*
  * Central Novo Horizonte | Envio sequencial de contas
  *
- * O usuário escolhe todos os PDFs de uma só vez. Somente UM PDF é enviado
+ * O usuário ARRASTA PDFs para a página. Somente UM PDF é enviado
  * para OCR/preview por vez. A conferência, o salvamento, o R2, o Windows e
  * o tratamento de holerites são executados pelas MESMAS funções do CONTAS 4:
  * postPDF, startDetectedHolerite, accountModal e closeModal.
  *
+ * Um PDF usa a importação normal, dois ou mais usam uma fila.
  * Nenhum envio paralelo, nenhum salvamento automático ou segunda implementação
  * de regras financeiras. A fila reside apenas na memória da aba.
  */
@@ -17,7 +18,7 @@
     files:[],index:0,phase:"idle",saved:0,skipped:0,failed:0,
     intent:"skip",stopAfterCurrent:false,epoch:0,ticket:null
   };
-  let dock=null,action=null,picker=null,observer=null,advanceTimer=null;
+  let dock=null,observer=null,advanceTimer=null;
   const busy=()=>["waiting","reading","review","error"].includes(state.phase);
   const fileNow=()=>state.files[state.index]||null;
   const count=()=>state.files.length;
@@ -37,12 +38,8 @@
   function render(message){
     const current=fileNow(),total=count();
     const running=busy();
-    if(action){
-      action.disabled=running;
-      action.setAttribute("aria-disabled",String(running));
-    }
-    // A fila precisa ser a ÚNICA fonte de previews em andamento: evita que
-    // o usuário inicie outro PDF (ou um cadastro paralelo) entre dois OCRs.
+    // Apenas impedir ações concorrentes. Os botões de importação são
+    // ocultos no layout da Central, mas o motor antigo permanece ativo.
     for(const id of ["pdfImport","newAccount","payrollNew"]){
       const button=$(id);
       if(button)button.disabled=running;
@@ -84,7 +81,7 @@
     state.phase="complete";state.index=state.files.length;
     state.ticket=null;
     render(message||("Lote finalizado. "+state.saved+" conta(s) confirmada(s)."));
-    if(action)action.disabled=false;
+
   }
   function advance(saved){
     if(state.phase!=="review")return;
@@ -229,23 +226,10 @@
     // A integração só existe no módulo Contas, nunca nos holerites separados.
     if(!location.pathname.startsWith("/central/modules/contas/"))return;
     const upload=$("pdfImport"),backdrop=$("backdrop");
-    if(!upload||!backdrop||$("nh-contas-batch-action"))return;
+    if(!upload||!backdrop||$("nh-batch-dock"))return;
 
-    action=element("button","nh-batch-action","Enviar várias contas");
-    action.type="button";action.id="nh-contas-batch-action";
-    action.title="Selecionar diversos PDFs e conferir uma conta por vez";
-    picker=element("input");picker.type="file";
-    picker.id="nh-contas-batch-files";
-    picker.accept=".pdf,application/pdf";picker.multiple=true;picker.hidden=true;
-    action.addEventListener("click",()=>picker.click());
-    picker.addEventListener("change",()=>{
-      const files=Array.from(picker.files||[]);
-      picker.value="";
-      begin(files);
-    });
-    upload.insertAdjacentElement("afterend",action);
-    document.body.appendChild(picker);
-
+    // Não criar botão de envio ou seletor paralelo. O motor original do
+    // CONTAS 4 continua disponível em funções, não como ação extra no topo.
     dock=element("aside","nh-batch-dock");dock.id="nh-batch-dock";
     dock.setAttribute("aria-label","Fila de envio de contas");
     dock.innerHTML=
@@ -261,6 +245,8 @@
       '<button type="button" id="nh-batch-stop" hidden>Parar após este</button>'+
       '<button type="button" id="nh-batch-close" hidden>Fechar</button></div>';
     dock.hidden=true;document.body.appendChild(dock);
+    // O indicador só é exibido quando um lote de verdade começa; solte um
+    // único PDF e o formulário usual aparece sem janela de fila.
     $("nh-batch-retry").addEventListener("click",()=>{
       if(state.phase!=="error")return;
       state.phase="waiting";processCurrent();
@@ -269,14 +255,57 @@
     $("nh-batch-stop").addEventListener("click",stop);
     $("nh-batch-close").addEventListener("click",reset);
 
-    // Bloqueia o arrastar-soltar do importador simples durante o lote.
-    // Contas antigas continuam com seu comportamento quando a fila termina.
+    // O arquivo é detectado SOMENTE quando o usuário arrasta para a página.
+    // Captura antes do handler antigo, que exigia um único PDF, para evitar
+    // a mensagem "arraste apenas um PDF" e o duplo processamento.
+    const hasFiles=event=>Array.from(event.dataTransfer?.types||[]).includes("Files");
+    const message=(value,error=true)=>{
+      if(typeof notice==="function")notice(value,error,7500);
+      else window.alert(value);
+    };
+    const clearDrop=()=>{
+      if(typeof hideDropZone==="function")hideDropZone();
+      else $("dropZone")?.classList.remove("visible");
+    };
+    const validateFiles=files=>
+      files.every(file=>/\.pdf$/i.test(file.name||"") &&
+                       file.size>=5 && file.size<=MAX_PDF);
+    document.addEventListener("dragenter",event=>{
+      if(!hasFiles(event))return;
+      // O overlay do CONTAS 4 é somente visual; o novo coordenador
+      // decide o destino depois de conhecer a quantidade de arquivos.
+      const description=$("dropZone")?.querySelector(".drop-zone-content span");
+      if(description)description.textContent=
+        "Um PDF abre a conferência; vários PDFs iniciam uma fila, um por vez.";
+    },true);
     document.addEventListener("drop",event=>{
-      if(!busy())return;
+      if(!hasFiles(event))return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      if(typeof notice==="function")
-        notice("Conclua o PDF atual do lote antes de arrastar outro.",true,6500);
+      const files=Array.from(event.dataTransfer?.files||[]);
+      clearDrop();
+      if(busy()){
+        message("Finalize a conferência atual antes de arrastar mais arquivos.");return;
+      }
+      if(!files.length)return;
+      if(!validateFiles(files)){
+        message("Arraste somente PDFs válidos, com até 30 MB cada.");return;
+      }
+      if(files.length===1){
+        const file=files[0];
+        // Preserva o tratamento ORIGINAL de comprovantes de pagamento,
+        // que nunca devem ser cadastrados como novas contas pelo lote.
+        if(typeof isReceiptFilename==="function" &&
+           isReceiptFilename(file.name)){
+          if(typeof importDroppedReceipt==="function")
+            importDroppedReceipt(file);
+          else message("Conferência de comprovante indisponível.");
+        }else if(typeof importNewPDF==="function"){
+          importNewPDF(file);
+        }else message("Motor de importação individual indisponível.");
+        return;
+      }
+      begin(files);
     },true);
     // Detecta intenção de salvar/cancelar SEM modificar o frontend original.
     // O avanço ocorre SOMENTE quando a janela realmente fecha.
