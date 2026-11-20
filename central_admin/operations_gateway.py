@@ -228,7 +228,7 @@ def proxy(handler):
         for name in ("Content-Type", "Accept", "User-Agent", "X-Local-Token",
                      "X-Agent-Token", "X-Paid-Date", "X-Receipt-Manual-Confirmed",
                      "X-Receipt-Auto-Verified", "X-Receipt-Eligible-Confirmed",
-                     "X-Requested-With", "If-None-Match"):
+                     "X-Requested-With"):
             value = handler.headers.get(name)
             if value:
                 request_headers[name] = value
@@ -282,11 +282,26 @@ def proxy(handler):
                 save_asset(cached_key, content_type, data)
                 _send_asset(handler, response.status, content_type, data, max_age=75)
                 return True
-            handler.send_response(response.status)
-            forward = (
-                "Content-Type", "Content-Disposition", "Cache-Control",
-                "ETag", "Last-Modified", "Set-Cookie", "Content-Security-Policy"
+            rewritten = is_html or is_js or is_css
+            compress = (
+                rewritten and response.status == 200 and len(data) >= 1024
+                and "gzip" in handler.headers.get("Accept-Encoding", "").lower()
+                and response.getheader("Content-Encoding", "identity").lower() == "identity"
             )
+            if compress:
+                data = gzip.compress(data, compresslevel=5)
+            handler.send_response(response.status)
+            forward = [
+                "Content-Type", "Content-Disposition", "Cache-Control",
+                "Last-Modified", "Set-Cookie", "Content-Security-Policy"
+            ]
+            # O ETag do servidor legado identifica bytes ANTES de reescrever
+            # as URLs. Não enviar esse validador para HTML/JS/CSS transformados.
+            if not rewritten:
+                forward.append("ETag")
+            if compress:
+                handler.send_header("Content-Encoding", "gzip")
+                handler.send_header("Vary", "Accept-Encoding")
             for name in forward:
                 for value in response.headers.get_all(name, []):
                     handler.send_header(name, value)
