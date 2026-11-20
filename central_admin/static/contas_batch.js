@@ -41,6 +41,12 @@
       action.disabled=running;
       action.setAttribute("aria-disabled",String(running));
     }
+    // A fila precisa ser a ÚNICA fonte de previews em andamento: evita que
+    // o usuário inicie outro PDF (ou um cadastro paralelo) entre dois OCRs.
+    for(const id of ["pdfImport","newAccount","payrollNew"]){
+      const button=$(id);
+      if(button)button.disabled=running;
+    }
     if(!total){
       dock.hidden=true;return;
     }
@@ -254,6 +260,15 @@
     $("nh-batch-stop").addEventListener("click",stop);
     $("nh-batch-close").addEventListener("click",reset);
 
+    // Bloqueia o arrastar-soltar do importador simples durante o lote.
+    // Contas antigas continuam com seu comportamento quando a fila termina.
+    document.addEventListener("drop",event=>{
+      if(!busy())return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if(typeof notice==="function")
+        notice("Conclua o PDF atual do lote antes de arrastar outro.",true,6500);
+    },true);
     // Detecta intenção de salvar/cancelar SEM modificar o frontend original.
     // O avanço ocorre SOMENTE quando a janela realmente fecha.
     document.addEventListener("click",event=>{
