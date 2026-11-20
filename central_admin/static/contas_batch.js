@@ -69,6 +69,7 @@
     $("nh-batch-stop").hidden=!running||state.stopAfterCurrent;
     $("nh-batch-close").hidden=state.phase!=="complete";
     $("nh-batch-state").dataset.phase=state.phase;
+    dock.dataset.phase=state.phase;
   }
   function reset(){
     state.files=[];state.index=0;state.phase="idle";
@@ -168,6 +169,11 @@
       // REAPROVEITA INTEGRALMENTE os formulários originais: OCR, revisão,
       // holerites, funcionários/Pix, R2, Windows e validações de duplicidade.
       startDetectedHolerite(result);
+      // Identificação do lote aparece dentro do próprio formulário antigo,
+      // enquanto o painel flutuante fica atrás para não bloquear Salvar.
+      const intro=$("dialogIntro");
+      if(intro)intro.textContent=
+        "Arquivo "+(state.index+1)+" de "+count()+" — "+file.name+". "+intro.textContent;
       if(!backdrop?.classList.contains("show"))
         throw new Error("A conferência não foi aberta pelo Contas.");
       state.phase="review";
