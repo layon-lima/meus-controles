@@ -279,3 +279,27 @@ Essa técnica foi removida.
   versionados para não reutilizar o estilo anterior do cache.
 - O instalador recusa a CSS antiga que animava dimensões.
   Não há alteração em bancos, pagamentos, documentos ou motores originais.
+
+
+## Ícone flutuante livre (20/11/2026)
+
+O botão da Central em todos os módulos pode ser arrastado com o botão
+esquerdo pressionado (inclusive toque no celular). Soltar após mover
+não abre o menu. Um clique normal continua abrindo/fechando o menu
+independente sem recarregar o módulo.
+
+O clique com botão direito sobre o botão alterna os tamanhos,
+sem diálogo, na ordem **58 → 70 → 82 → 94 → 58 px**.
+A posição e o índice do tamanho ficam somente no localStorage
+do navegador (nenhuma informação financeira, sem banco de dados).
+No próximo módulo ou recarregamento, a mesma geometria é restaurada,
+limitada às bordas da tela visível.
+
+O popover calcula espaço acima e abaixo e abre no lado com maior
+área disponível, centralizado horizontalmente perto do ícone e sem
+sair dos limites da tela. Arrastar não recalcula o Liquid Glass: apenas
+a propriedade CSS translate do botão é atualizada por requestAnimationFrame,
+e a posição é consolidada no término do gesto.
+
+Os aplicativos antigos continuam ativos; somente os arquivos
+de interface do lançador da Central foram alterados.
