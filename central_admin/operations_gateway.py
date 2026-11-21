@@ -95,6 +95,8 @@ def rewrite_text(text, prefix, kind):
             js += '<script defer src="/central/contas_batch.js?v=20261121b"></script>'
             css += '<link rel="stylesheet" href="/central/contas_pdf_review.css?v=20261121a">'
             js += '<script defer src="/central/contas_pdf_review.js?v=20261121a"></script>'
+            css += '<link rel="stylesheet" href="/central/vales_holerites.css?v=20261121b">'
+            js += '<script defer src="/central/vales_holerites.js?v=20261121b"></script>'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
     return text
