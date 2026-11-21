@@ -79,7 +79,7 @@ def redirect_navigation(handler, module):
     """
     accepted = handler.headers.get("Accept", "").lower()
     mode = handler.headers.get("Sec-Fetch-Mode", "").lower()
-    if (handler.command != "GET" or "text/html" not in accepted
+    if (getattr(handler, "command", "GET") != "GET" or "text/html" not in accepted
             or mode not in ("", "navigate")
             or module not in {
                 "contas", "funcionarios", "documentos",
