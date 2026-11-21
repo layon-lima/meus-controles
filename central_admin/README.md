@@ -539,3 +539,50 @@ Os testes automatizados incluem vínculos, competência, valores em
 centavos, reserva sem baixa antecipada, bloqueio de duplicidade,
 idempotência e reconciliação após erro de rede. A implantação não
 desliga os aplicativos antigos e exige homologação com PDFs reais.
+
+
+## Módulo nativo de Funcionários — painel consolidado (21/11/2026)
+
+O card Funcionários na Home consulta indicadores reais da competência atual:
+pessoas com pagamentos em aberto, holerites pendentes, total a pagar e
+vales ainda a descontar. A atualização é paralela ao resumo da Home.
+
+A rota /central/modules/funcionarios/ serve página própria da Central:
+static/funcionarios.html, funcionarios.css e funcionarios.js.
+Não carrega o aplicativo antigo, iframe nem recorta telas. Para manter
+a fluidez, cada detalhe só é construído quando o usuário expande o card.
+
+GET /central/api/funcionarios/painel?competencia=AAAA-MM consulta em modo
+somente leitura o banco CONTAS (funcionários, Pix, holerites, contas e
+pagamentos), o motor de Vales (parcelas e baixas) e o journal privado
+da Central (vínculos e reservas).
+
+- Resumo por competência: funcionários a receber, holerites abertos e
+  pagos, vales previstos não reservados, total efetivo a pagar.
+- Por pessoa: Pix oculto por padrão com opção Mostrar/Copiar, holerites
+  atuais e históricos, outras contas vinculadas, parcelas da competência
+  e descontos reservados, baixados e com erro de conciliação.
+- Vales sem vínculo aparecem separadamente e só são associados ao
+  funcionário do CONTAS depois de confirmação manual.
+- Outras contas de fornecedor com nome igual são somente SUGESTÕES;
+  não entram no total até o usuário confirmar a associação.
+- Uma busca de outras contas por nome/número, inclusive fornecedores
+  diferentes do funcionário, está disponível na própria ficha.
+  GET /central/api/funcionarios/buscar-contas?q=... e
+  POST /central/api/funcionarios/vincular-conta gravam exclusivamente
+  IDs no journal independente da Central, nunca nos bancos originais.
+
+REGRA FINANCEIRA: o total a pagar soma holerites pendentes da competência
+(já com os descontos efetivamente reservados no líquido) e contas
+confirmadas que ainda não foram pagas. Vales ainda previstos e NÃO
+reservados são mostrados separadamente, evitando dedução dupla.
+Contas sugeridas por nome não alteram a dívida confirmada.
+
+Esta página é de consulta, auditoria e vínculo. Ela não emite pagamentos,
+não cria documentos e não altera os valores originais dos holerites.
+Os links Abrir no Contas conduzem ao fluxo de pagamentos existente.
+
+O atualizador da VPS testa que Funcionários é nativo, os assets estão
+disponíveis, os dois bancos respondem, e o acesso requer sessão.
+Os testes test_central_funcionarios.py e test_central_funcionarios_ui.js
+cobrem saldos, vínculo, segurança, filtros e renderização sob demanda.
