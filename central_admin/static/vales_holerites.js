@@ -242,7 +242,14 @@
     const title=String($("dialogTitle")?.textContent||"");
     const editing=/^(Editar conta|Revisar cadastro pelo PDF)/.test(title);
     const accountId=editing && typeof selected!=="undefined"?Number(selected):0;
-    if(editing && Number.isSafeInteger(accountId) && accountId>0){
+    // Não reutilizar o ID de uma linha anteriormente selecionada quando
+    // o holerite atual foi aberto pelo cadastro do funcionário.
+    const record=typeof accounts!=="undefined"&&Array.isArray(accounts)?
+      accounts.find(x=>Number(x.id)===accountId):null;
+    const sameAccount=record&&
+      cents(record.valor)===cents(field("valor")?.value)&&
+      norm(record.fornecedor)===norm(field("fornecedor")?.value);
+    if(editing && sameAccount && Number.isSafeInteger(accountId) && accountId>0){
       const serial=++model.serial;
       req("conta?account_id="+accountId).then(data=>{
         if(serial!==model.serial||!model.form?.isConnected)return;
