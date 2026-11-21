@@ -6,6 +6,10 @@
 body.central-operational.nh-scope-contas.nh-pdf-review-open {
   overflow:hidden!important;
 }
+/* Na conferência, não sobrepor o documento com o menu Iniciar flutuante. */
+body.central-operational.nh-scope-contas.nh-pdf-review-open #nh-start-menu {
+  display:none!important;
+}
 body.central-operational.nh-scope-contas #backdrop.nh-pdf-review-split {
   position:fixed!important;
   inset:0!important;
