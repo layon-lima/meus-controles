@@ -139,6 +139,15 @@ context={document,window:win,location,postPDF,startDetectedHolerite,api,
   MutationObserver,console,alert(){},pendingImportPDF,Date,Uint8Array};
 vm.runInNewContext(source,context);
 const flush=async()=>{for(let i=0;i<160;i++)await new Promise(resolve=>setImmediate(resolve))};
+const waitUntil=async(predicate,label)=>{
+  const until=Date.now()+2500;
+  while(Date.now()<until){
+    if(predicate())return;
+    await new Promise(resolve=>setTimeout(resolve,5));
+  }
+  throw new Error("Timeout aguardando "+label+"; alertas="+JSON.stringify(alerts)+
+    "; fase="+(elements.get("nh-batch-state")?.dataset?.phase||"?"));
+};
 const next=async()=>{
   const task=timers.find(item=>item.ms===90);
   assert.ok(task,"Uma etapa terminou e agendou exatamente um próximo PDF");
@@ -265,7 +274,7 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   const countBefore=calls.length;
   drop([r2File,pdf("novo-documento.pdf","BYTES-IGUAIS"),
         pdf("copia-com-outro-nome.pdf","BYTES-IGUAIS")]);
-  await flush();
+  await waitUntil(()=>calls.length===countBefore+1,"remoção de SHA-256 repetido");
   assert.equal(calls.length,countBefore+1,"Só o PDF realmente novo chega ao OCR");
   assert.equal(calls.at(-1).file,"novo-documento.pdf");
   assert.ok(elements.get("nh-batch-summary").textContent.includes("Duplicados excluídos: 2"),
@@ -277,7 +286,8 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   // Se TODOS forem duplicados, não deve existir uma fila a ser processada.
   const noNew=calls.length;
   drop([r2File,pdf("mesmo-r2-renomeado.pdf","ja-cadastrado.pdf")]);
-  await flush();
+  await waitUntil(()=>elements.get("nh-batch-state").dataset.phase==="complete",
+    "filtragem completa quando ambos os PDFs já estão no R2");
   assert.equal(calls.length,noNew);
   assert.equal(elements.get("nh-batch-state").dataset.phase,"complete");
   assert.ok(errorStatus().includes("Nenhum entrou na fila"));
@@ -287,7 +297,7 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
     fornecedor:"Fornecedor X",valor:250,vencimento:"2026-11-22"});
   const forms=introduced.length,prevCalls=calls.length;
   drop([pdf("duplicado-codigo.pdf"),pdf("mesmo-fornecedor-valor.pdf")]);
-  await flush();
+  await waitUntil(()=>calls.length===prevCalls+1,"OCR do primeiro PDF após SHA-256");
   assert.equal(calls.length,prevCalls+1,"Primeiro PDF passa pelo OCR somente uma vez");
   assert.equal(introduced.length,forms,"Cobrança repetida não deve abrir formulário");
   assert.equal(cancelled.length,1,"Ticket do OCR duplicado deve ser cancelado");
