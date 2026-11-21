@@ -144,6 +144,23 @@ CODE="$(curl -sS -D "$TMP/headers" -o "$TMP/pair.json" -w '%{http_code}' \
 COOKIE="$(sed -n 's/^[Ss]et-[Cc]ookie: *\(central_nh_session=[^;]*\).*/\1/p' \
   "$TMP/headers" | tr -d '\r' | head -1)"
 [[ -n "$COOKIE" ]] || fail "Cookie da sessao nao emitido."
+# Links da Central enviados por outros aplicativos precisam funcionar
+# no primeiro clique; a validação de Origem continua protegendo escritas.
+grep -Ei '^[Ss]et-[Cc]ookie:' "$TMP/headers" | grep -Fq 'SameSite=Lax' \
+  || fail "Cookie da Central não aceita navegação por links externos."
+# Numa sessão Strict antiga o primeiro GET externo pode chegar sem cookie.
+# Navegação HTML vai à Home; chamadas de API continuam retornando 401.
+CODE="$(curl -sS --max-time 6 -D "$TMP/external-headers" -o /dev/null \
+  -w '%{http_code}' -H 'Accept: text/html,application/xhtml+xml' \
+  -H 'Sec-Fetch-Mode: navigate' \
+  'http://127.0.0.1:18771/modules/funcionarios/?utm_source=chatgpt.com')"
+[[ "$CODE" == 303 ]] || fail "Link externo não recupera navegação por sessão (HTTP $CODE)."
+grep -Ei '^Location: /central/\?abrir=funcionarios' "$TMP/external-headers" >/dev/null \
+  || fail "A Central não retorna ao módulo Funcionários após validar a sessão."
+CODE="$(curl -sS --max-time 6 -o /dev/null -w '%{http_code}' \
+  -H 'Accept: application/json' \
+  http://127.0.0.1:18771/modules/contas/api/accounts)"
+[[ "$CODE" == 401 ]] || fail "API de Contas poderia ser consultada sem sessão (HTTP $CODE)."
 for entry in 'api/resumo' \
              'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' \
              'modules/controles/' 'modules/recebimentos/' \
