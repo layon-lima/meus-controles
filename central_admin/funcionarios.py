@@ -276,6 +276,34 @@ def dashboard(month=None):
     }
 
 
+def find_account_candidates(query):
+    """Busca contas não vinculadas, sem criar novas obrigações por nome."""
+    query=str(query or "").strip()
+    if len(query)<2 or len(query)>90:
+        raise bridge.BridgeError("Pesquise pelo menos 2 caracteres do fornecedor ou o número da conta.")
+    with bridge.LOCK, closing(bridge.journal()) as con:
+        confirmed=set(account_links(con))
+    with closing(bridge.sqlite_accounts()) as con:
+        found=[dict(r) for r in con.execute("""
+            SELECT c.id,c.fornecedor,c.documento,c.valor,c.vencimento,
+              CASE WHEN EXISTS (SELECT 1 FROM pagamentos p
+                WHERE p.conta_id=c.id AND p.data_pagamento IS NOT NULL
+                AND TRIM(p.data_pagamento)!='') THEN 1 ELSE 0 END AS paga
+            FROM contas c
+            WHERE (LOWER(c.fornecedor) LIKE '%' || LOWER(?) || '%'
+                   OR CAST(c.id AS TEXT)=?)
+              AND NOT EXISTS (SELECT 1 FROM holerite_lancamentos h
+                              WHERE h.conta_id=c.id)
+            ORDER BY c.vencimento DESC,c.id DESC LIMIT 45
+        """,(query,query))]
+    return {"ok":True,"contas":[{
+        "id":int(a["id"]),"fornecedor":str(a["fornecedor"] or ""),
+        "documento":str(a["documento"] or ""),
+        "valor":serial(amount(a["valor"])),"vencimento":str(a["vencimento"] or ""),
+        "paga":bool(a["paga"])
+    } for a in found if int(a["id"]) not in confirmed][:25]}
+
+
 def assign_account(payload):
     account_id=bridge.positive_id(payload.get("conta_id"))
     employee_id=bridge.positive_id(payload.get("funcionario_id"))
@@ -320,6 +348,9 @@ def handle(handler):
         if handler.command=="GET" and path=="/api/funcionarios/painel":
             month=parse_qs(uri.query).get("competencia",[""])[0]
             result=dashboard(month)
+        elif handler.command=="GET" and path=="/api/funcionarios/buscar-contas":
+            query=parse_qs(uri.query).get("q",[""])[0]
+            result=find_account_candidates(query)
         elif handler.command=="POST" and path=="/api/funcionarios/vincular-conta":
             result=assign_account(bridge.read_body(handler))
         else:
