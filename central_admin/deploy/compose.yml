@@ -1,0 +1,60 @@
+name: central-novo-horizonte
+
+services:
+  painel:
+    build:
+      context: ../..
+      dockerfile: central_admin/deploy/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      CENTRAL_BIND: "0.0.0.0"
+      CENTRAL_ALLOW_CONTAINER_BIND: "1"
+      CENTRAL_PORT: "18771"
+      CENTRAL_CONTROLES_UPSTREAM: "http://central-controles-api:18765"
+      CENTRAL_CONTAS_UPSTREAM: "http://contas-web:8767"
+      CENTRAL_CONTROLES_ORIGIN: "https://controles.fazendanovohorizonte.com"
+      CENTRAL_PUBLIC_ORIGIN: "https://controles.fazendanovohorizonte.com"
+      CENTRAL_CONTAS_DB: "/contas-data/controle_contas.db"
+      CENTRAL_VALES_DB: "/central-data/vales_holerites.db"
+    volumes:
+      - type: bind
+        source: /opt/apps/central-novo-horizonte/data
+        target: /central-data
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/apps/contas-runtime/data
+        target: /contas-data
+        read_only: true
+        bind:
+          create_host_path: false
+    # O banco do CONTAS pode ter permissoes root-only. O bind e RO,
+    # o filesystem do container e RO e todas as capabilities sao removidas.
+    user: "0:0"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "127.0.0.1:18771:18771"
+    networks:
+      controles_db: {}
+      contas_privada: {}
+      interface_web:
+        aliases:
+          - central-nh
+
+networks:
+  contas_privada:
+    external: true
+    name: contas-web-original_default
+  controles_db:
+    external: true
+    name: meus-controles_banco_privado
+  interface_web:
+    external: true
+    name: meus-controles_interface_web
