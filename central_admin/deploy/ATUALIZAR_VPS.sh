@@ -286,8 +286,7 @@ grep -Fq 'frame-src' "$APP/operations_gateway.py" \
 # Teste real da API ORIGINAL dos Vales. Não basta responder HTTP 200:
 # comparar funcionários e parcelas do controle com a tradução da Central.
 # Não requer CENTRAL_CONTROLES_DSN, não abre SQL e NÃO grava baixas.
-docker exec -i central-novo-horizonte-painel-1 python - <<'PY' \
-  || fail "Central não leu os vales verdadeiros do Meus Controles."
+docker exec -i central-novo-horizonte-painel-1 python - <<'PY' || fail "Central não leu os vales verdadeiros do Meus Controles."
 from central_admin.vales_holerites import read_controls, _control_request
 catalog=_control_request("GET","/api/state")
 ids=[int(c["id"]) for c in catalog["controls"]
