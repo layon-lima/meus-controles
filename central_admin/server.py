@@ -14,6 +14,7 @@ from .core import snapshot
 from .performance import cached_snapshot
 from .operations_gateway import proxy
 from .vales_holerites import handle as handle_vales_holerites
+from .funcionarios import handle as handle_funcionarios
 
 STATIC = Path(__file__).with_name("static")
 ASSETS = {
@@ -35,6 +36,9 @@ ASSETS = {
     "/contas_pdf_review.js": ("contas_pdf_review.js", "text/javascript; charset=utf-8"),
     "/vales_holerites.js": ("vales_holerites.js", "text/javascript; charset=utf-8"),
     "/vales_holerites.css": ("vales_holerites.css", "text/css; charset=utf-8"),
+    "/funcionarios.html": ("funcionarios.html", "text/html; charset=utf-8"),
+    "/funcionarios.js": ("funcionarios.js", "text/javascript; charset=utf-8"),
+    "/funcionarios.css": ("funcionarios.css", "text/css; charset=utf-8"),
 }
 
 @lru_cache(maxsize=16)
@@ -111,6 +115,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path in ("/modules/funcionarios", "/modules/funcionarios/"):
+            # Módulo nativo da Central: nenhum HTML, JS ou tela do Contas 4.
+            if not self.authorized():
+                self.respond(401, {"ok":False,"erro":"Sessão não autorizada."})
+                return
+            body, compressed=static_payload("funcionarios.html",
+                "gzip" in self.headers.get("Accept-Encoding","").lower())
+            self.respond(200,body,"text/html; charset=utf-8",
+                cache_control="no-store",encoded=compressed,
+                csp=("default-src 'none'; script-src 'self'; style-src 'self'; "
+                     "connect-src 'self'; img-src 'self' data:; "
+                     "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"))
+            return
         if path in ("/modules/recebimentos", "/modules/recebimentos/"):
             # Página autoral da Central. Nenhum HTML ou script do app antigo é
             # carregado: o módulo já nasce em Recebimentos, sem flash.
@@ -125,6 +142,8 @@ class Handler(BaseHTTPRequestHandler):
                          csp=("default-src 'none'; script-src 'self'; style-src 'self'; "
                               "connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; "
                               "form-action 'none'; frame-ancestors 'none'"))
+            return
+        if handle_funcionarios(self):
             return
         if handle_vales_holerites(self):
             return
@@ -152,6 +171,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.command == "POST" and urlsplit(self.path).path == "/api/pair":
             return self.pair()
+        if handle_funcionarios(self):
+            return
         if handle_vales_holerites(self):
             return
         if proxy(self):
