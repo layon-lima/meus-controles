@@ -316,6 +316,8 @@ def prepare_submission(payload,account_id=None):
         existing=discounts_for_account(account_id)
         if existing:
             current=read_account(positive_id(account_id))
+            if str(payload.get("holerite"))!="sim":
+                raise BridgeError("Não é permitido desvincular um holerite com vales reservados.")
             if (dec(payload.get("valor"))!=dec(current["valor"]) or
                 str(payload.get("competencia"))!=str(current["competencia"]) or
                 str(payload.get("funcionario_id") or "")!=str(current["funcionario_id"] or "")):
