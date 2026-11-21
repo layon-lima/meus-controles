@@ -256,11 +256,14 @@ def proxy(handler):
                  or re.fullmatch(r"/api/accounts/\d+/edit",target_path))
             and (request_headers.get("Content-Type","").split(";")[0] == "application/json")
         )
-        if integration_enabled and body and b'"nh_vales"' in body:
+        if integration_enabled and body:
             try:
                 from .vales_holerites import prepare_submission, BridgeError
                 payload = json.loads(body)
-                plan = prepare_submission(payload)
+                account_edit=re.fullmatch(r"/api/accounts/(\d+)/edit",target_path)
+                if payload.get("holerite")=="sim" or payload.get("nh_vales") or account_edit:
+                    plan = prepare_submission(
+                        payload,account_id=int(account_edit[1]) if account_edit else None)
             except (BridgeError,ValueError,UnicodeError,TypeError) as exc:
                 handler.respond(409,{"ok":False,"error":str(exc)})
                 return True
@@ -298,6 +301,7 @@ def proxy(handler):
                         original["aviso_integracao_vales"]=(
                             "Holerite salvo no CONTAS, mas a reserva dos vales precisa "
                             "de conferência. Não envie o mesmo PDF novamente.")
+                        original["warning"]=original.get("warning") or original["aviso_integracao_vales"]
                         data=json.dumps(original,ensure_ascii=False).encode()
                 payment_match=re.fullmatch(r"/api/accounts/(\d+)/(?:pay|pay-with-receipt)",target_path)
                 if payment_match:
