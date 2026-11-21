@@ -31,3 +31,14 @@ body.central-operational.nh-scope-contas .nh-vales-payroll{
 .nh-vales-message[data-kind="warning"]{color:#96712a}
 #accountForm [name="valor"]:read-only{background:#eff6fd!important;cursor:default}
 @media(max-width:700px){.nh-vales-payroll{padding:12px}.nh-vales-row{padding:9px}}
+.nh-vales-choice{
+  width:100%;min-height:40px!important;padding:8px!important;
+  border-radius:10px!important;border:1px solid #b8d2e9!important;
+  background:#ffffffd9!important;color:#315b83!important;
+}
+.nh-vales-reconcile-warning{
+  position:fixed;bottom:16px;left:16px;z-index:13000;
+  max-width:min(410px,calc(100vw - 32px));padding:12px 15px;
+  border:1px solid #ffd59a;border-radius:13px;background:#fff8e8;
+  color:#866029;font-size:12px;box-shadow:0 9px 25px #6d6d4e22;
+}
