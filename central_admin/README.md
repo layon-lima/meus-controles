@@ -407,3 +407,40 @@ não nos módulos independentes de Funcionários ou Documentos.
 A fila é mantida somente em memória nesta aba. Para evitar duplicação,
 nenhum PDF é salvo automaticamente; o usuário confirma cada conta.
 A Central e os aplicativos originais continuam independentes.
+
+
+## Conferência de Contas em tela cheia com PDF ao lado (21/11/2026)
+
+A conferência de um PDF em Contas abre uma **única tela de trabalho**:
+o formulário editável à esquerda (39% da largura no desktop) e o
+visualizador do PDF à direita (61%), com toolbar nativa do Edge/Chrome
+(zoom, páginas, pesquisa). O modal ocupa toda a área disponível,
+sem abrir outra janela. Os botões originais de Salvar e Cancelar ficam
+visíveis na barra inferior esquerda; somente o formulário tem rolagem
+independente. Para telas estreitas, o formulário e o visualizador
+ficam empilhados para manter os controles acessíveis.
+
+- A prévia de um PDF arrastado cria uma URL temporária **diretamente do
+  File que o motor OCR já recebeu**. Não duplica upload nem escreve outra
+  cópia no R2; o objeto é liberado quando a revisão fecha.
+- O próximo PDF de uma fila substitui o documento exibido, após a
+  conclusão do anterior.
+- Em edição de conta com PDF já cadastrado, a versão existente é obtida
+  pelo endpoint autenticado de Contas, com token local e verificação
+  de sessão. Nunca monta URLs remotas públicas.
+- O layout só é ativado se o diálogo exibir `#accountForm` e houver
+  PDF conhecido. Cadastros sem PDF e outras confirmações do CONTAS 4
+  mantêm o comportamento atual.
+- Todo o motor de OCR, holerites, salvamento, R2, cópia Windows,
+  importação em lote e validações do backend permanece inalterado.
+- A política CSP do gateway **apenas em Contas** acrescenta
+  `frame-src 'self' blob:` para o visualizador do arquivo local.
+  `frame-ancestors 'none'` e `object-src 'none'` continuam ativos.
+- A tela de conferência oculta temporariamente o lançador flutuante,
+  evitando que ele cubra o PDF. Ele volta ao fechar.
+- Os arquivos são `static/contas_pdf_review.js` e
+  `static/contas_pdf_review.css`, servidos somente pela Central.
+
+Os arquivos originais e o banco não são migrados nem alterados.
+A atualização `deploy/ATUALIZAR_VPS.sh` verifica a inclusão dos
+assets e a política CSP real antes de concluir.
