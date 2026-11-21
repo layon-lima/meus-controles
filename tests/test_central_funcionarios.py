@@ -186,6 +186,24 @@ class NativeRouteTest(unittest.TestCase):
             Handler.do_GET(handler)
         self.assertEqual(out[0][0][0],401)
 
+    def test_direct_browser_link_recovers_from_cross_site_cookie(self):
+        handler=object.__new__(Handler)
+        handler.path="/modules/funcionarios/?utm_source=chatgpt.com"
+        handler.command="GET"
+        handler.headers={"Accept":"text/html,application/xhtml+xml",
+                         "Sec-Fetch-Mode":"navigate"}
+        handler.authorized=lambda:False
+        out=[]
+        handler.respond=lambda *args,**kwargs:out.append(("json",args,kwargs))
+        handler.send_response=lambda status:out.append(("status",status))
+        handler.send_header=lambda key,value:out.append(("header",key,value))
+        handler.end_headers=lambda:None
+        with patch("central_admin.server.proxy",side_effect=AssertionError("legacy loaded")):
+            Handler.do_GET(handler)
+        self.assertIn(("status",303),out)
+        self.assertIn(("header","Location","/central/?abrir=funcionarios"),out)
+        self.assertFalse(any(row[0]=="json" for row in out))
+
     def test_data_endpoint_needs_session(self):
         class H:
             path="/api/funcionarios/painel?competencia=2026-11"
