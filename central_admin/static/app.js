@@ -137,7 +137,8 @@ async function refreshEmployeesHome() {
       " a receber · "+k.holerites_pendentes_mes+" holerite(s) pendente(s)");
     setText("moduleEmployeeMoney",money(k.total_a_pagar)+" a pagar");
     setText("moduleEmployeeVales",money(k.vales_a_descontar)+
-      " em vales ainda a descontar");
+      " em vales ainda a descontar"+
+      (k.vales_sem_vinculo?" · "+k.vales_sem_vinculo+" sem vínculo":""));
   } catch(error) {
     setText("moduleEmployees","Consultar situação dos funcionários");
     setText("moduleEmployeeMoney","—");
