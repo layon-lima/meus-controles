@@ -586,3 +586,47 @@ O atualizador da VPS testa que Funcionários é nativo, os assets estão
 disponíveis, os dois bancos respondem, e o acesso requer sessão.
 Os testes test_central_funcionarios.py e test_central_funcionarios_ui.js
 cobrem saldos, vínculo, segurança, filtros e renderização sob demanda.
+
+
+## Vales visíveis DENTRO da aba Holerites do CONTAS (21/11/2026)
+
+O frontend original CONTAS 4 monta a aba Holerites por meio da rotina
+renderPayroll() e antes não mostrava parcelas de vale, mesmo que a Central
+já tivesse registros e vínculos. A Central passa a carregar, **somente
+no módulo Contas**, os assets /central/holerites_vales.js e
+/central/holerites_vales.css, sem alterar o app original.
+
+- Cada card da lista Holerites ganha um resumo inline: **Vales a
+  descontar**, **já reservados em holerites**, **total em aberto**,
+  e **parcelas atrasadas**, quando houver.
+- "Ver vales, descontos e outras contas" expande os detalhes na MESMA
+  tela: parcelas, competência, valor, saldo disponível, descontos
+  reservados ou baixados e contas relacionadas ao funcionário.
+- Holerites com desconto mostram abaixo do líquido atual a referência
+  do **líquido original do PDF** e o total de vales já reservado.
+- Se houver parcela disponível e o holerite em aberto ainda não tiver
+  desconto aplicado, aparece **Conferir desconto**, que abre o fluxo
+  original de ações da conta para revisar o lançamento. O sistema
+  não desconta automaticamente um holerite já cadastrado.
+- Se um funcionário ainda não estiver vinculado ao cadastro de Vales,
+  a própria lista mostra o cadastro sugerido (inclusive com o total de
+  vales) ou permite escolher outro cadastro, com **confirmação
+  explícita**. A associação é registrada no journal da Central.
+- A tela NÃO cria lançamentos, NÃO marca pagamentos, NÃO grava
+  descontos na origem e NÃO modifica valores em HTML. Os totais
+  são derivados da API autenticada de Funcionários, com a regra de
+  que vales reservados já foram abatidos do valor do holerite.
+- A busca de Holerites, botões de Pix, edição, histórico e Ações do
+  CONTAS 4 permanecem funcionando. O código observa somente a troca
+  dos cards pelo próprio aplicativo, sem observar os elementos que
+  ele adiciona e sem duplicar renderizações. Resumo de dados cacheado
+  por 12 segundos, atualizado após confirmar vínculo.
+- Se a fonte de Vales estiver indisponível, a tela exibe um erro
+  explícito e mantém o Contas em funcionamento; não exibe
+  falsamente valor zero nem tenta descontar algo desconhecido.
+
+Arquivo de regressão: tests/test_central_holerites_vales_ui.js.
+O instalador exige os assets e sua injeção no HTML efetivamente
+servido do módulo Contas antes de concluir a atualização. A alteração
+**não é aplicada ao site original** do CONTAS 4 nem substitui seu
+backend; só funciona quando Holerites é acessado pela Central.
