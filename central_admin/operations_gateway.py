@@ -317,6 +317,25 @@ def proxy(handler):
                             "de conferência. Não envie o mesmo PDF novamente.")
                         original["warning"]=original.get("warning") or original["aviso_integracao_vales"]
                         data=json.dumps(original,ensure_ascii=False).encode()
+                # O CONTAS também permite pagar várias contas no mesmo
+                # clique. Concilia somente as efetivamente confirmadas;
+                # o restante fica pendente para a próxima abertura da Central.
+                if target_path=="/api/batch/pay":
+                    try:
+                        from .vales_holerites import settle_account
+                        batch=json.loads(data)
+                        failed=[]
+                        for account_id in (batch.get("paid") or [])[:20]:
+                            result=settle_account(int(account_id))
+                            if not result.get("ok"):failed.append(account_id)
+                        if failed:
+                            batch["aviso_integracao_vales"]=(
+                                "Pagamentos efetuados, mas alguns descontos de vales "
+                                "aguardam reconciliação. NÃO repita pagamentos.")
+                            data=json.dumps(batch,ensure_ascii=False).encode()
+                    except Exception:
+                        # Não alterar resultado financeiro que já foi confirmado.
+                        pass
                 payment_match=re.fullmatch(r"/api/accounts/(\d+)/(?:pay|pay-with-receipt)",target_path)
                 if payment_match:
                     try:
