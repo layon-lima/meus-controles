@@ -274,6 +274,9 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
     for item in installments:
         eid=int(item["employee_id"])
         if eid not in vales_ids:continue
+        # Parcela reservada por outro holerite não é oferecida duas vezes.
+        if reserved.get(int(item["id"]),Decimal("0"))>0 and int(item["id"]) not in own:
+            continue
         remain=dec(item["amount"])-dec(item["paid"])-reserved.get(int(item["id"]),Decimal("0"))+own.get(int(item["id"]),Decimal("0"))
         if remain<=0:continue
         entry={
@@ -310,7 +313,14 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
 def prepare_submission(payload):
     """Valida contrato extra sem alterar o formato normal do CONTAS 4."""
     raw=payload.get("nh_vales")
-    if not raw:return None
+    if not raw:
+        if str(payload.get("holerite"))=="sim":
+            employee=payload.get("funcionario_id")
+            if employee not in ("",None):
+                existing=quote(positive_id(employee),payload.get("competencia"),payload.get("valor"))
+                if existing["parcelas"]:
+                    raise BridgeError("Há vales vinculados nesta competência. Confira os descontos antes de salvar.")
+        return None
     if not isinstance(raw,str) or len(raw)>8192:
         raise BridgeError("Dados de conciliação dos Vales inválidos.")
     try:data=json.loads(raw)
@@ -330,7 +340,7 @@ def prepare_submission(payload):
             raise BridgeError("Nome do novo funcionário do holerite não foi confirmado.")
     chosen=data.get("selecionadas")
     if not isinstance(chosen,list) or not chosen:
-        return None
+        raise BridgeError("Selecione as parcelas dos Vales antes de salvar.")
     q=quote(emp_id, payload.get("competencia"), data.get("original"),
             selected=chosen,vale_employee_id=data.get("vale_employee_id"))
     if dec(payload.get("valor"))!=dec(q["valor_pagar"]):
