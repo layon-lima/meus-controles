@@ -1,8 +1,9 @@
 """Integração auditável de vales de funcionários com holerites da Central.
 
-Bancos originais nunca são alterados diretamente. Consultas ao SQLite do
-CONTAS e PostgreSQL do Meus Controles são RO; desconto efetivo no vale usa
-o endpoint original após o pagamento estar confirmado no CONTAS.
+Bancos originais nunca são alterados diretamente. CONTAS é consultado
+por SQLite somente-leitura e Vales exclusivamente pela API original da rede
+Docker privada, sem senha de PostgreSQL nem CENTRAL_CONTROLES_DSN. A baixa
+efetiva usa a API de Vales após pagamento confirmado no CONTAS.
 
 O journal SQLite da CENTRAL é independente. Se uma das APIs falhar, a
 pendência fica reconciliável, sem repetir pagamentos no CONTAS.
