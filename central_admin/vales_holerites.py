@@ -331,6 +331,29 @@ def prepare_submission(payload,account_id=None):
                 existing=quote(positive_id(employee),payload.get("competencia"),payload.get("valor"))
                 if existing["parcelas"]:
                     raise BridgeError("Há vales vinculados nesta competência. Confira os descontos antes de salvar.")
+            # Funcionário ainda sem vínculo, mas encontrado pelo nome no
+            # Meus Controles: exigir confirmação explícita antes de gravar
+            # o valor INTEGRAL do holerite e deixar o vale de fora.
+            candidate_name=payload.get("funcionario_nome") or payload.get("fornecedor")
+            if employee not in ("",None):
+                target=positive_id(employee)
+                candidate_name=next((p["nome"] for p in read_staff()
+                    if int(p["id"])==target),candidate_name)
+            normalized=name_key(candidate_name)
+            if normalized:
+                source_staff,source_installments=read_controls()
+                matching={int(e["id"]) for e in source_staff
+                          if name_key(e["name"])==normalized}
+                due=payload.get("competencia")
+                if matching and any(
+                    int(i["employee_id"]) in matching
+                    and i["due_month"]==due
+                    and dec(i["amount"])>dec(i["paid"])
+                    for i in source_installments
+                ):
+                    raise BridgeError(
+                        "O funcionário tem vales nesta competência. Confirme o vínculo "
+                        "e o desconto no formulário antes de salvar.")
         return None
     if not isinstance(raw,str) or len(raw)>8192:
         raise BridgeError("Dados de conciliação dos Vales inválidos.")
