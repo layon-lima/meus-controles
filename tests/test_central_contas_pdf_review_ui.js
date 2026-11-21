@@ -68,6 +68,7 @@ const env={
     revokeObjectURL:u=>revoked.push(u)
   },
   Blob,console,
+  window:{addEventListener(){}},
   pendingImportPDF:null,selected:null,accounts:[],token:"session",
   fetch:async(url,options)=>{
     fetched.push({url,options});
