@@ -9,7 +9,7 @@
   const amount=v=>(v/100).toFixed(2);
   const br=v=>(v/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
   const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().replace(/\s+/g," ").toUpperCase();
-  const model={form:null,box:null,staff:null,quote:null,selected:new Set(),original:0,valeId:null,serial:0,busy:false};
+  const model={form:null,box:null,staff:null,quote:null,selected:new Set(),original:0,valeId:null,serial:0,busy:false,existing:false};
   async function req(path,payload){
     const res=await fetch(BASE+path,{
       method:payload===undefined?"GET":"POST",credentials:"same-origin",cache:"no-store",
@@ -113,6 +113,7 @@
     }
   }
   async function refresh(){
+    if(model.existing)return;
     const serial=++model.serial,form=model.form;
     if(!form?.isConnected||!model.box)return;
     const payroll=$("isHolerite")?.value==="sim";
@@ -201,7 +202,7 @@
     }
   }
   function attach(form){
-    model.form=form;model.staff=null;model.quote=null;model.serial++;
+    model.form=form;model.staff=null;model.quote=null;model.serial++;model.existing=false;
     model.original=cents(field("valor")?.value)??0;model.selected=new Set();model.valeId=null;
     const section=el("section","nh-vales-payroll");section.id="nh-vales-payroll";
     const head=el("header","nh-vales-heading");
@@ -212,6 +213,7 @@
     const input=el("input");input.type="number";input.step="0.01";input.min="0";
     input.value=amount(model.original);
     input.addEventListener("input",()=>{
+      if(model.existing)return;
       const val=cents(input.value);
       if(val===null){notice("Valor original inválido.","error");return}
       model.original=val;
@@ -237,7 +239,38 @@
         if(val!==null){model.original=val;input.value=amount(val);refresh()}
       }
     });
-    refresh();
+    const title=String($("dialogTitle")?.textContent||"");
+    const editing=/^(Editar conta|Revisar cadastro pelo PDF)/.test(title);
+    const accountId=editing && typeof selected!=="undefined"?Number(selected):0;
+    if(editing && Number.isSafeInteger(accountId) && accountId>0){
+      const serial=++model.serial;
+      req("conta?account_id="+accountId).then(data=>{
+        if(serial!==model.serial||!model.form?.isConnected)return;
+        if(!data.descontos?.length){refresh();return}
+        model.existing=true;
+        model.original=cents(data.descontos[0].original_amount);
+        input.value=amount(model.original);input.readOnly=true;
+        field("valor").readOnly=true;
+        const list=section.querySelector(".nh-vales-installments");
+        list.replaceChildren();
+        for(const row of data.descontos){
+          list.append(el("p","nh-vales-muted",
+            "Parcela "+row.vale_installment_id+" · −"+br(cents(row.amount))+
+            " · "+(row.status==="settled"?"Baixada":"Reservada / conciliar")));
+        }
+        const total=data.descontos.reduce((sum,row)=>sum+cents(row.amount),0);
+        section.querySelector(".nh-vales-total").textContent=
+          "Original "+br(model.original)+" − vales "+br(total)+
+          " = "+br(model.original-total);
+        section.querySelector(".nh-vales-bind").replaceChildren(
+          el("p","nh-vales-muted",
+            "Descontos deste holerite já vinculados. O valor e a competência estão protegidos."));
+        section.querySelector(".nh-vales-warning").textContent=
+          "Para alterar descontos já reservados, revise a conciliação antes de editar a conta.";
+      }).catch(e=>{
+        if(serial===model.serial)notice(e.message,"error");
+      });
+    }else refresh();
   }
   function inspect(){
     const form=$("accountForm"),visible=$("backdrop")?.classList.contains("show");
@@ -249,4 +282,18 @@
     attributes:true,attributeFilter:["class"],childList:true,subtree:true
   });
   inspect();
+  // Pagamentos lançados no aplicativo original continuam conciliáveis.
+  // A chamada verifica primeiro o banco CONTAS e só então grava o desconto.
+  window.setTimeout(()=>{
+    req("reconciliar",{todos:true}).then(result=>{
+      const problems=(result.pendentes||[]).filter(p=>p.status==="precisa_conferencia"||
+        (p.erros||[]).length);
+      if(!problems.length)return;
+      const banner=el("aside","nh-vales-reconcile-warning",
+        "Algumas baixas de vales precisam de conferência. Abra o holerite "+
+        "e consulte o histórico de descontos.");
+      banner.setAttribute("role","status");
+      document.body.append(banner);
+    }).catch(()=>{ /* Não impedir acesso à tela nem emitir pagamentos duplicados. */ });
+  },1300);
 })();
