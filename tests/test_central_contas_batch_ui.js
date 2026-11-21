@@ -138,7 +138,7 @@ context={document,window:win,location,postPDF,startDetectedHolerite,api,
   importNewPDF,importDroppedReceipt,isReceiptFilename,hideDropZone,
   MutationObserver,console,alert(){},pendingImportPDF,Date,Uint8Array};
 vm.runInNewContext(source,context);
-const flush=async()=>{for(let i=0;i<20;i++)await new Promise(resolve=>setImmediate(resolve))};
+const flush=async()=>{for(let i=0;i<160;i++)await new Promise(resolve=>setImmediate(resolve))};
 const next=async()=>{
   const task=timers.find(item=>item.ms===90);
   assert.ok(task,"Uma etapa terminou e agendou exatamente um próximo PDF");
@@ -198,7 +198,7 @@ const errorStatus=()=>elements.get("nh-batch-message").textContent;
   assert.ok(alerts.at(-1).includes("Comprovantes de pagamento"));
   drop([pdf("conta-01.pdf"),pdf("holerite-02.pdf"),pdf("conta-03.pdf")]);
   await flush();
-  assert.equal(calls.length,1,"Selecionar 3 arquivos só processa o primeiro");
+  assert.equal(calls.length,1,"Selecionar 3 arquivos só processa o primeiro. Alertas: "+JSON.stringify(alerts)+"; status: "+errorStatus());
   assert.equal(calls[0].path,"/central/modules/contas/api/import/preview");
   assert.equal(calls[0].headers["X-Ocr-Mode"],"hybrid");
   assert.equal(introduced[0],"T-conta-01.pdf");
