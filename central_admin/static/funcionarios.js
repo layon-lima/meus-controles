@@ -46,7 +46,7 @@
   }
   function actionButton(text,callback,cls="nhf-mini"){
     const button=e("button",cls,text);button.type="button";
-    button.addEventListener("click",callback);
+    if(typeof callback==="function")button.addEventListener("click",callback);
     return button;
   }
   function initials(name){
@@ -209,6 +209,52 @@
     }
     return section;
   }
+  function renderAccountFinder(staff){
+    const section=block("Vincular outra conta existente","Busca segura",true);
+    section.append(e("p","nhf-note",
+      "A conta não precisa ter o nome do funcionário como fornecedor. "+
+      "Pesquise o lançamento existente no Contas e confirme a associação."));
+    const controls=e("div","nhf-actions");
+    const search=e("input","nhf-link-select");
+    search.type="search";search.placeholder="Fornecedor ou número da conta…";
+    search.autocomplete="off";
+    search.setAttribute("aria-label","Buscar contas para vincular a "+staff.nome);
+    const button=actionButton("Buscar contas");
+    const result=e("div","nhf-account-search-results");
+    button.addEventListener("click",async()=>{
+      const query=search.value.trim();
+      if(query.length<2)return toast("Digite ao menos 2 caracteres para buscar.",true);
+      button.disabled=true;
+      result.replaceChildren(e("p","nhf-muted","Buscando contas existentes…"));
+      try{
+        const found=await json("/central/api/funcionarios/buscar-contas?q="+
+          encodeURIComponent(query));
+        result.replaceChildren();
+        if(!found.contas?.length){
+          result.append(e("p","nhf-muted","Nenhuma conta disponível para vínculo."));
+          return;
+        }
+        for(const acc of found.contas){
+          const row=e("div","nhf-suggest");
+          const line=e("div","nhf-suggest-row");
+          const info=e("div","nhf-suggest-details");
+          info.append(e("strong","",acc.fornecedor+" · "+br(acc.valor)),
+            e("small","","Conta #"+acc.id+" · "+safeDate(acc.vencimento)+
+              (acc.paga?" · Paga":" · Pendente")));
+          const confirm=actionButton("Vincular");
+          confirm.addEventListener("click",()=>approveAccount(acc,staff.id,confirm));
+          line.append(info,confirm);row.append(line);result.append(row);
+        }
+      }catch(err){
+        result.replaceChildren(e("p","nhf-failed",err.message));
+      }finally{button.disabled=false}
+    });
+    search.addEventListener("keydown",event=>{
+      if(event.key==="Enter"){event.preventDefault();button.click()}
+    });
+    controls.append(search,button);section.append(controls,result);
+    return section;
+  }
   function createStaffCard(person,month){
     const card=e("article","nhf-staff");card.dataset.personId=String(person.id);
     card.dataset.name=norm(person.nome);
@@ -242,7 +288,7 @@
     appendPayInfo(details,person);
     const grid=e("div","nhf-detail-grid");
     grid.append(renderPayroll(person,month),renderVales(person,month),
-      renderOther(person),renderSuggested(person));
+      renderOther(person),renderSuggested(person),renderAccountFinder(person));
     details.append(grid);
     card.append(header,details);
     if(person.id===state.openId){
