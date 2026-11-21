@@ -50,12 +50,15 @@ const document={
   body:new Element("body"),entries:new Map(),createElement:tag=>new Element(tag),
   getElementById(id){
     if(id==="accountForm")return this.entries.get("accountForm")||null;
+    if(id==="dialogTitle")return dialogTitle;
     if(id==="backdrop")return backdrop;
     const find=n=>n.id===id?n:(n.children.map(find).find(Boolean)||null);
     return find(backdrop)||find(this.body);
   }
 };
 const backdrop=new Element("div","backdrop");
+const dialogTitle=new Element("h3","dialogTitle");
+dialogTitle.textContent="Conferir leitura do PDF";
 const dialog=new Element("section");dialog.className="dialog";
 backdrop.append(dialog);
 const revoked=[],created=[],fetched=[];
@@ -115,8 +118,14 @@ document.entries.set("accountForm",new Element("form"));
 backdrop.classList.add("show");callback();
 assert.equal(viewer(),null,"Manual account without a PDF is not forced into split view");
 assert.equal(backdrop.classList.contains("nh-pdf-review-split"),false);
-// Existing account should load its current PDF through the authenticated origin.
+// Mesmo que uma conta continue selecionada na tabela, a criação manual
+// nunca pode mostrar o PDF dessa conta sem relação com o formulário.
 env.accounts=[{id:123,has_pdf:true,observacoes:"BOLETO PAGO"}];env.selected=123;
+dialogTitle.textContent="Nova conta";
+callback();
+assert.equal(viewer(),null,"Não mostrar PDF alheio ao criar nova conta");
+// Existing account should load its current PDF through the authenticated origin.
+dialogTitle.textContent="Editar conta";
 callback();
 const sleep=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
