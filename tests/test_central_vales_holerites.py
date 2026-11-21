@@ -64,8 +64,11 @@ class IntegrationTest(unittest.TestCase):
     def test_link_proposal_and_exact_month_quote(self):
         suggestions=v.staff_view()
         source=suggestions["funcionarios_vales"]
-        self.assertEqual(source[0]["suggested_contas_employee_id"],1)
-        self.assertEqual(source[1]["suggested_contas_employee_id"],2)
+        self.assertEqual(source[0]["contas_employee_id"],1)
+        self.assertEqual(source[1]["contas_employee_id"],2)
+        self.assertTrue(source[0]["vinculo_automatico"])
+        self.assertTrue(source[1]["vinculo_automatico"])
+        self.assertIsNone(source[0]["suggested_contas_employee_id"])
         self.link()
         quoted=v.quote(1,"2026-11","3000.00")
         self.assertEqual(quoted["desconto"],"450.00")
