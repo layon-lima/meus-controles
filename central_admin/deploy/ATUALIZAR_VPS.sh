@@ -73,7 +73,11 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
     -f "$SOURCE/central_admin/static/contas_pdf_review.js" &&
     -f "$SOURCE/central_admin/vales_holerites.py" &&
     -f "$SOURCE/central_admin/static/vales_holerites.css" &&
-    -f "$SOURCE/central_admin/static/vales_holerites.js" ]] \
+    -f "$SOURCE/central_admin/static/vales_holerites.js" &&
+    -f "$SOURCE/central_admin/funcionarios.py" &&
+    -f "$SOURCE/central_admin/static/funcionarios.html" &&
+    -f "$SOURCE/central_admin/static/funcionarios.js" &&
+    -f "$SOURCE/central_admin/static/funcionarios.css" ]] \
   || fail "Arquivos da Central, Recebimentos ou fila de Contas ausentes."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
@@ -114,6 +118,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/contas_batch.js"
   node --check "$APP/static/contas_pdf_review.js"
   node --check "$APP/static/vales_holerites.js"
+  node --check "$APP/static/funcionarios.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -172,6 +177,16 @@ for entry in 'api/resumo' \
         | grep -Fq "frame-ancestors 'none'" \
         || fail "Proteção contra incorporação externa foi alterada."
     fi
+    if [[ "$entry" == 'modules/funcionarios/' ]]; then
+      # Página AUTORAL: não deve carregar o frontend de Contas por baixo.
+      grep -Fq '/central/funcionarios.js' "$TMP/response" \
+        || fail "A tela nativa de Funcionários não foi carregada."
+      grep -Fq 'id="staffList"' "$TMP/response" \
+        || fail "Lista consolidada de funcionários ausente."
+      if grep -Fq '/central/modules/funcionarios/app.js' "$TMP/response"; then
+        fail "Funcionários continua abrindo a interface antiga do Contas."
+      fi
+    fi
     if [[ "$entry" == 'modules/recebimentos/' ]]; then
       # O módulo próprio já é entregue pronto pelo servidor. NUNCA carregar
       # o HTML de Controles para depois substituí-lo por JavaScript.
@@ -182,7 +197,7 @@ for entry in 'api/resumo' \
       if grep -Fq '/central/modules/recebimentos/static/app.js' "$TMP/response"; then
         fail "Recebimentos ainda esta carregando o frontend antigo."
       fi
-    else
+    elif [[ "$entry" != 'modules/funcionarios/' ]]; then
       grep -Fq '/central/operations.css' "$TMP/response" \
         || fail "Tema comum nao encontrado em $entry."
     fi
@@ -204,7 +219,7 @@ print("OK: os dois bancos de dados estao conectados sem nenhuma escrita.")
 PY
 # O novo módulo deve acessar os contratos reais do motor, sem sessão falsa.
 # Os arquivos devem existir antes de qualquer publicação.
-for asset in recebimentos.js recebimentos_imports.js recebimentos.css; do
+for asset in recebimentos.js recebimentos_imports.js recebimentos.css funcionarios.html funcionarios.js funcionarios.css; do
   HTTP="$(curl -sS --max-time 8 -o "$TMP/native-asset" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Recurso nativo $asset indisponível."
@@ -255,6 +270,26 @@ if not isinstance(data.get("funcionarios_contas"),list) or not isinstance(data.g
     raise SystemExit("Contrato de funcionários não corresponde ao esperado.")
 print("OK: vínculo de funcionários pronto, bancos originais somente leitura.")
 PY
+# Reúne contas, holerites, vales e pagamentos sem criar nenhum deles.
+MONTH="$(date +%Y-%m)"
+HTTP="$(curl -sS --max-time 20 -o "$TMP/funcionarios-painel" -w '%{http_code}' \
+  -H "Cookie: $COOKIE" "http://127.0.0.1:18771/api/funcionarios/painel?competencia=$MONTH")"
+[[ "$HTTP" == 200 ]] || fail "Painel de Funcionários não consolidou as duas bases (HTTP $HTTP)."
+python3 - "$TMP/funcionarios-painel" <<'PY'
+import json,sys
+with open(sys.argv[1],encoding="utf-8") as file: data=json.load(file)
+if not isinstance(data.get("funcionarios"),list):
+    raise SystemExit("Funcionários não retornou lista de pessoas.")
+metrics=data.get("indicadores",{})
+for key in ("funcionarios_com_pagamentos","total_a_pagar","vales_a_descontar",
+            "holerites_pendentes_mes"):
+    if key not in metrics:
+        raise SystemExit("Indicador não encontrado: "+key)
+print("OK: Funcionários reúne holerites, contas e vales no modo leitura.")
+PY
+CODE="$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' \
+  "http://127.0.0.1:18771/api/funcionarios/painel?competencia=$MONTH")"
+[[ "$CODE" == 401 ]] || fail "Painel de Funcionários permite consulta sem sessão."
 docker exec central-novo-horizonte-painel-1 python -c \
   'from central_admin.vales_holerites import journal; journal().close()' \
   || fail "Banco independente de conciliação não está gravável."
@@ -371,6 +406,7 @@ echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a trans
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
+echo "FUNCIONÁRIOS: painel nativo com holerites, Pix, contas a pagar, vales e vínculos confirmados."
 echo "DUPLICIDADES: PDFs idênticos do R2/no lote são filtrados antes de entrar na fila; cobrança repetida não abre formulário."
 echo "CONFERÊNCIA: formulário tela inteira à esquerda + PDF com zoom/páginas à direita."
 echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
