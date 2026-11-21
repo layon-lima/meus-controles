@@ -79,7 +79,8 @@ def dashboard(month=None):
     employees,accounts=read_contas()
     staff,installments=bridge.read_controls()
     with bridge.LOCK, closing(bridge.journal()) as con:
-        links=bridge.linked(con)
+        explicit=bridge.linked(con)
+        links=bridge.unique_name_links(staff,employees,explicit)
         manual_links=account_links(con)
         discounts=[dict(r) for r in con.execute(
             """SELECT account_id,vale_installment_id,competence,original_amount,
@@ -243,14 +244,21 @@ def dashboard(month=None):
         related=pending_by_employee.get(int(vale["id"]),[])
         remaining=sum((max(ZERO,amount(p["amount"])-amount(p["paid"]))
                        for p in related if p["due_month"]==month),ZERO)
+        suggestions=bridge.name_suggestions(vale["name"],employees)
+        # Primeiro nome repetido em vários Vales jamais vira sugestão
+        # única para associação sem conferir a identidade.
+        if any(other["id"]!=vale["id"] and
+               bridge.name_key(other["name"]).split()[:1]==
+               bridge.name_key(vale["name"]).split()[:1]
+               for other in staff):
+            suggestions=[]
         unlinked.append({
           "vale_employee_id":int(vale["id"]),
           "control_id":int(vale["control_id"]),
           "nome":str(vale["name"]),
           "vales_previstos":serial(remaining),
           "sugestao_funcionario_id":(
-             exact[bridge.name_key(vale["name"])][0]
-             if len(exact.get(bridge.name_key(vale["name"]),[]))==1 else None
+              suggestions[0] if len(suggestions)==1 else None
           ),
         })
     return {
