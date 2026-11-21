@@ -482,3 +482,60 @@ com aviso claro para o usuário tentar novamente.
 Nenhum endpoint de gravação é criado e nenhuma regra de duplicidade do
 CONTAS 4 foi substituída; sua confirmação continua a executar a
 verificação de duplicidade do banco antes de qualquer cadastro.
+
+
+## Integração Vales de funcionários ↔ Holerites (21/11/2026)
+
+A Central reconhece o funcionário do holerite, associa seu ID do CONTAS
+ao ID do cadastro de Vales, consulta as parcelas do mês e calcula:
+
+    LÍQUIDO ORIGINAL DO PDF − PARCELAS DE VALE = VALOR A PAGAR
+
+Exemplo: R$ 3.000,00 − R$ 450,00 = R$ 2.550,00.
+
+### Uso
+
+No formulário de holerite, a seção Vales do funcionário mostra o
+líquido original, o controle de vínculo, as parcelas da competência e
+o valor final. Nomes iguais são sugeridos, mas o usuário precisa
+confirmar o vínculo. Para nomes diferentes, selecione manualmente o
+funcionário correto no cadastro de Vales. O vínculo fica associado aos
+IDs permanentes, não ao nome.
+
+Desmarcar uma parcela recalcula o líquido. Parcelas atrasadas ficam
+visíveis, mas não são cobradas automaticamente. Se o total exceder o
+líquido do holerite, selecione menos parcelas: pagamento negativo
+não é permitido. O documento PDF não sofre alterações.
+
+### Gravação e baixa
+
+- Salvar o holerite grava a conta pelo mecanismo original do CONTAS 4,
+  incluindo OCR, R2, Windows, Pix e regras de duplicidade. A Central
+  guarda a reserva das parcelas num arquivo SQLite privado.
+- Só depois que o pagamento consta na tabela original de pagamentos
+  do CONTAS a Central registra a baixa no motor original dos Vales.
+- Antes de registrar a baixa, procura o marcador único
+  CENTRAL-NH/HOLERITE:conta_id:parcela_id nos pagamentos do Vale.
+  Uma falha de rede depois da primeira gravação não cria outro desconto.
+- Pagamentos confirmados diretamente no Contas original podem ser
+  reconciliados ao abrir a Central. Pendências de erro permanecem
+  identificáveis e não causam outro pagamento ao funcionário.
+- Alterar valor, competência, funcionário ou excluir holerite com vales
+  reservados é bloqueado até revisão da conciliação.
+
+### Segurança e isolamento
+
+O registro da integração fica em
+/opt/apps/central-novo-horizonte/data/vales_holerites.db, num volume
+gravável privativo da Central. Os bancos dos apps originais são
+consultados via SQL somente-leitura; as baixas dos Vales acontecem
+exclusivamente pelas APIs originais do motor na rede Docker privada.
+
+A sessão da Central é exigida em toda consulta ou escrita. Escritas
+exigem a origem HTTPS correta. O valor e as parcelas selecionadas são
+recalculados pelo servidor no momento de salvar.
+
+Os testes automatizados incluem vínculos, competência, valores em
+centavos, reserva sem baixa antecipada, bloqueio de duplicidade,
+idempotência e reconciliação após erro de rede. A implantação não
+desliga os aplicativos antigos e exige homologação com PDFs reais.
