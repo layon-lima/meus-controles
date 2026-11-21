@@ -121,6 +121,19 @@ function render(data) {
   if (currentSection !== "inicio") renderDetails();
 }
 
+function openRequestedModuleAfterAuth() {
+  // Link externo sem cookie Strict? A Home já está no mesmo domínio e
+  // acabou de verificar a sessão no backend. Reabre o módulo de destino.
+  const params = new URLSearchParams(window.location.search || "");
+  const module = params.get("abrir");
+  const valid = new Set([
+    "funcionarios", "recebimentos", "contas", "documentos",
+    "controles", "transportadoras", "relatorios"
+  ]);
+  if (!valid.has(module)) return;
+  window.location.replace("/central/modules/" + module + "/");
+}
+
 async function refreshEmployeesHome() {
   try {
     const today=new Date();
@@ -161,11 +174,17 @@ async function refresh() {
       headers: {Accept: "application/json"}
     });
     if (response.status === 401 || response.status === 403) {
-      throw new Error("Acesso aos dados bloqueado na configuração do servidor.");
+      throw new Error(
+        "Este navegador precisa estar pareado com a Central. Abra o link privado "+
+        "gerado na VPS para autorizar este navegador; depois entre em Funcionários."
+      );
     }
     const data = await response.json();
     if (!data || !data.fontes) throw new Error("A API não retornou um resumo válido.");
     render(data);
+    // Não redirecionar antes da confirmação de sessão. Sem pareamento,
+    // permanece na Home com a explicação, em vez de repetir 401 infinitos.
+    openRequestedModuleAfterAuth();
   } catch (error) {
     setFeedback(error.message || "Falha ao atualizar os dados da Central.");
     if (!currentData) render({fontes:{contas:{disponivel:false},controles:{disponivel:false}},
