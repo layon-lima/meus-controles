@@ -17,7 +17,14 @@ services:
       CENTRAL_CONTROLES_ORIGIN: "https://controles.fazendanovohorizonte.com"
       CENTRAL_PUBLIC_ORIGIN: "https://controles.fazendanovohorizonte.com"
       CENTRAL_CONTAS_DB: "/contas-data/controle_contas.db"
+      CENTRAL_VALES_DB: "/central-data/vales_holerites.db"
     volumes:
+      - type: bind
+        source: /opt/apps/central-novo-horizonte/data
+        target: /central-data
+        read_only: false
+        bind:
+          create_host_path: false
       - type: bind
         source: /opt/apps/contas-runtime/data
         target: /contas-data
