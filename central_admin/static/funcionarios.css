@@ -177,3 +177,12 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{
  scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+.nhf-vale-more{margin-top:8px;border:1px solid #e5f0fa;
+ border-radius:11px;padding:7px 11px;background:#f6faff}
+.nhf-vale-more summary{cursor:pointer;font-weight:700;list-style:revert}
+.nhf-vale-more .nhf-record{margin-top:4px}
+.nhf-account-search-results{display:grid;gap:3px;margin-top:9px}
+.nhf-history{margin-top:9px;border-top:1px solid #edf3fa;padding-top:7px}
+.nhf-history summary{cursor:pointer;font-weight:720}
+.nhf-pix-reveal{font-size:11px;color:#315c85;overflow-wrap:anywhere}
