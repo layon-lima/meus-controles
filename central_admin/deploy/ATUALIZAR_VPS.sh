@@ -283,6 +283,34 @@ grep -Fq 'URL.revokeObjectURL' "$APP/static/contas_pdf_review.js" \
   || fail "Visualizador não libera o PDF ao fechar a revisão."
 grep -Fq 'frame-src' "$APP/operations_gateway.py" \
   || fail "Visualizador de PDF pode estar bloqueado pela CSP do navegador."
+# Teste real da API ORIGINAL dos Vales. Não basta responder HTTP 200:
+# comparar funcionários e parcelas do controle com a tradução da Central.
+# Não requer CENTRAL_CONTROLES_DSN, não abre SQL e NÃO grava baixas.
+docker exec -i central-novo-horizonte-painel-1 python - <<'PY' \
+  || fail "Central não leu os vales verdadeiros do Meus Controles."
+from central_admin.vales_holerites import read_controls, _control_request
+catalog=_control_request("GET","/api/state")
+ids=[int(c["id"]) for c in catalog["controls"]
+     if c.get("mode")=="vale_funcionarios"]
+expected_people=0
+expected_installments=0
+for cid in ids:
+    summary=_control_request("GET",f"/api/controls/{cid}/vales")
+    employees=summary["employees"]
+    expected_people+=len(employees)
+    expected_installments+=sum(
+        len(debt["installments"])
+        for employee in employees
+        for debt in employee["debts"]
+    )
+people,installments=read_controls()
+if len(people)!=expected_people or len(installments)!=expected_installments:
+    raise SystemExit("API de Vales diverge do painel de Funcionários.")
+if ids and expected_people==0:
+    raise SystemExit("Controle de Vales existe, mas não retornou os funcionários.")
+print(f"OK: {len(ids)} controle(s) de Vales, {len(people)} funcionário(s), "
+      f"{len(installments)} parcela(s) reais lidas via API privada.")
+PY
 # Teste somente-leitura dos cadastros que serão vinculados.
 HTTP="$(curl -sS --max-time 15 -o "$TMP/vales-staff" -w '%{http_code}' \
   -H "Cookie: $COOKIE" http://127.0.0.1:18771/api/vales-holerites/funcionarios)"
