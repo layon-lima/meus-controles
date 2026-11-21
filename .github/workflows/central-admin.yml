@@ -12,6 +12,7 @@ on:
       - "tests/test_central_recebimentos_ui.js"
       - "tests/test_central_native_recebimentos.py"
       - "tests/test_central_vales_holerites.py"
+      - "tests/test_central_vales_holerites_ui.js"
       - "tests/test_central_contas_batch_ui.js"
       - "tests/test_central_contas_pdf_review_ui.js"
       - ".github/workflows/central-admin.yml"
@@ -53,6 +54,8 @@ jobs:
           node --check central_admin/static/contas_batch.js
           node --check central_admin/static/contas_pdf_review.js
           node --check central_admin/static/vales_holerites.js
+          node --check tests/test_central_vales_holerites_ui.js
+          node tests/test_central_vales_holerites_ui.js
           node --check tests/test_central_modulos_ui.js
           node tests/test_central_modulos_ui.js
           node --check tests/test_central_launcher_ui.js
