@@ -257,6 +257,17 @@ def dashboard(month=None):
           "control_id":int(vale["control_id"]),
           "nome":str(vale["name"]),
           "vales_previstos":serial(remaining),
+          # Exibe os vales existentes ANTES do vínculo, mas jamais os
+          # transforma em desconto do salário até a identidade estar ligada.
+          "parcelas_pendentes":[{
+              "id":int(p["id"]),"titulo":str(p["title"] or "Vale"),
+              "competencia":str(p["due_month"]),
+              "parcela":int(p["installment_number"]),
+              "valor":serial(amount(p["amount"])),
+              "ja_descontado":serial(amount(p["paid"])),
+              "saldo":serial(max(ZERO,
+                  amount(p["amount"])-amount(p["paid"]))),
+          } for p in related if amount(p["amount"])>amount(p["paid"])],
           "sugestao_funcionario_id":(
               suggestions[0] if len(suggestions)==1 else None
           ),
