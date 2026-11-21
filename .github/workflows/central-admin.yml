@@ -14,6 +14,7 @@ on:
       - "tests/test_central_vales_holerites.py"
       - "tests/test_central_funcionarios.py"
       - "tests/test_central_funcionarios_ui.js"
+      - "tests/test_central_holerites_vales_ui.js"
       - "tests/test_central_vales_holerites_ui.js"
       - "tests/test_central_contas_batch_ui.js"
       - "tests/test_central_contas_pdf_review_ui.js"
@@ -58,6 +59,9 @@ jobs:
           node --check central_admin/static/contas_pdf_review.js
           node --check central_admin/static/vales_holerites.js
           node --check central_admin/static/funcionarios.js
+          node --check central_admin/static/holerites_vales.js
+          node --check tests/test_central_holerites_vales_ui.js
+          node tests/test_central_holerites_vales_ui.js
           node --check tests/test_central_funcionarios_ui.js
           node tests/test_central_funcionarios_ui.js
           node --check tests/test_central_vales_holerites_ui.js
