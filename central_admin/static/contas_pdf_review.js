@@ -23,6 +23,12 @@
         typeof file.size === "number" && file.size >= 5)
       return {kind:"file", identity:file, file, name:file.name};
 
+    // Não reutilizar o PDF de uma linha que ficou selecionada na tabela
+    // quando o usuário abre "Nova conta" manualmente. A conta selecionada
+    // só é fonte válida quando o formulário é de edição/releitura.
+    const heading = String($("dialogTitle")?.textContent || "").trim();
+    if (heading !== "Editar conta" && heading !== "Revisar cadastro pelo PDF")
+      return null;
     // Na edição/releitura de uma conta existente, ler a versão atual
     // (R2/VPS) pelo endpoint já protegido do próprio CONTAS 4.
     const accountId = typeof selected === "undefined" ? null : Number(selected);
