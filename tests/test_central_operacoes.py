@@ -125,6 +125,46 @@ class GatewayTests(unittest.TestCase):
         self.assertNotIn("/central/contas_batch.js", employees)
         self.assertNotIn("/central/contas_batch.js", documents)
 
+    def test_contas_pdf_embed_csp_retains_security(self):
+        class CSPConnection(_Connection):
+            def getresponse(self):
+                class Response:
+                    status = 200
+                    def read(self):
+                        return b"<html><head></head><body></body></html>"
+                    def getheader(self, name, default=None):
+                        return ("text/html; charset=utf-8"
+                                if name == "Content-Type" else default)
+                    @property
+                    def headers(self):
+                        class Headers:
+                            def get_all(self, name, default):
+                                if name == "Content-Security-Policy":
+                                    return ["default-src 'self'; script-src 'self'; "
+                                            "object-src 'none'; frame-ancestors 'none'"]
+                                return []
+                        return Headers()
+                return Response()
+
+        with patch.dict(os.environ, {
+            "CENTRAL_OPERATIONS_ENABLED": "1",
+            "CENTRAL_CONTAS_UPSTREAM": "http://contas-web:8767",
+        }):
+            with patch("central_admin.operations_gateway.http.client.HTTPConnection",
+                       CSPConnection):
+                handler = _Handler("/modules/contas/")
+                self.assertTrue(proxy(handler))
+                policy = handler.response_headers["Content-Security-Policy"]
+                self.assertIn("frame-src 'self' blob:", policy)
+                self.assertIn("frame-ancestors 'none'", policy)
+                self.assertIn("object-src 'none'", policy)
+                self.assertIn("script-src 'self'", policy)
+                # Outras áreas NÃO ganham autorização para embutir PDF blob.
+                other = _Handler("/modules/funcionarios/")
+                self.assertTrue(proxy(other))
+                self.assertNotIn("frame-src", other.response_headers[
+                    "Content-Security-Policy"])
+
     def test_contas_pdf_import_headers_preserved_in_private_gateway(self):
         contents = b"%PDF-1.4\\n"
         name = "Boleto%20Agrex.pdf"
