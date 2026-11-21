@@ -65,7 +65,9 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
     -f "$SOURCE/central_admin/static/recebimentos_imports.js" &&
     -f "$SOURCE/central_admin/static/recebimentos.css" &&
     -f "$SOURCE/central_admin/static/contas_batch.js" &&
-    -f "$SOURCE/central_admin/static/contas_batch.css" ]] \
+    -f "$SOURCE/central_admin/static/contas_batch.css" &&
+    -f "$SOURCE/central_admin/static/contas_pdf_review.css" &&
+    -f "$SOURCE/central_admin/static/contas_pdf_review.js" ]] \
   || fail "Arquivos da Central, Recebimentos ou fila de Contas ausentes."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
@@ -104,6 +106,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/recebimentos.js"
   node --check "$APP/static/recebimentos_imports.js"
   node --check "$APP/static/contas_batch.js"
+  node --check "$APP/static/contas_pdf_review.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -144,6 +147,10 @@ for entry in 'api/resumo' \
         || fail "Fila de Contas não foi incluída no módulo."
       grep -Fq '/central/contas_batch.css' "$TMP/response" \
         || fail "Estilo da fila de Contas não foi incluído."
+      grep -Fq '/central/contas_pdf_review.css' "$TMP/response" \
+        || fail "Layout de revisão de PDF lado a lado não carregado."
+      grep -Fq '/central/contas_pdf_review.js' "$TMP/response" \
+        || fail "Visualizador de PDF da Central não carregado."
     fi
     if [[ "$entry" == 'modules/recebimentos/' ]]; then
       # O módulo próprio já é entregue pronto pelo servidor. NUNCA carregar
@@ -204,13 +211,19 @@ for asset in launcher.js launcher.css; do
 done
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
-for asset in contas_batch.js contas_batch.css; do
+for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css; do
   HTTP="$(curl -sS --max-time 8 -o "$TMP/contas-lote" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Arquivo $asset da fila de Contas ausente."
 done
 grep -Fq 'startDetectedHolerite(result)' "$APP/static/contas_batch.js" \
   || fail "Importação em lote não reutiliza conferência e holerites originais."
+grep -Fq 'source.kind === "file"' "$APP/static/contas_pdf_review.js" \
+  || fail "Visualizador não aproveita o PDF original do formulário."
+grep -Fq 'URL.revokeObjectURL' "$APP/static/contas_pdf_review.js" \
+  || fail "Visualizador não libera o PDF ao fechar a revisão."
+grep -Fq 'frame-src' "$APP/operations_gateway.py" \
+  || fail "Visualizador de PDF pode estar bloqueado pela CSP do navegador."
 # Confere a versão EFETIVA do frontend original servida na Central.
 # Se funções de OCR, contas ou Windows tiverem mudado, não instalar fila
 # incompatível e não deixar o usuário perder documentos no meio do lote.
@@ -318,6 +331,7 @@ echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a trans
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
+echo "CONFERÊNCIA: formulário tela inteira à esquerda + PDF com zoom/páginas à direita."
 echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
 echo "Apos parear, nao e necessario digitar chaves: a sessao fica salva com cookie seguro."
