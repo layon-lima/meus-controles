@@ -92,6 +92,8 @@ def rewrite_text(text, prefix, kind):
             # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
             css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120i">'
             js += '<script defer src="/central/contas_batch.js?v=20261120i"></script>'
+            css += '<link rel="stylesheet" href="/central/contas_pdf_review.css?v=20261121a">'
+            js += '<script defer src="/central/contas_pdf_review.js?v=20261121a"></script>'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
     return text
@@ -313,6 +315,17 @@ def proxy(handler):
                 handler.send_header("Vary", "Accept-Encoding")
             for name in forward:
                 for value in response.headers.get_all(name, []):
+                    if name == "Content-Security-Policy" and is_html and module == "contas":
+                        # Apenas o módulo Contas pode mostrar PDF blob: dentro
+                        # do próprio site. Manter frame-ancestors none e todas
+                        # as demais restrições CSP originais intactas.
+                        value = re.sub(
+                            r"(?:^|;)\\s*frame-src\\s+[^;]*",
+                            "",
+                            value,
+                            flags=re.IGNORECASE,
+                        ).strip().strip(";")
+                        value += "; frame-src 'self' blob:"
                     handler.send_header(name, value)
             location = response.getheader("Location")
             if location:
