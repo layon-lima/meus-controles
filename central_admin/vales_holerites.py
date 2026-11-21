@@ -229,6 +229,10 @@ def assign_link(payload):
         con.execute("BEGIN IMMEDIATE")
         former=con.execute("SELECT contas_employee_id FROM staff_links WHERE vale_employee_id=?",
                            (vale_id,)).fetchone()
+        if former and former[0]!=contas_id and con.execute(
+            "SELECT 1 FROM discounts WHERE employee_id=? LIMIT 1",(int(former[0]),)
+        ).fetchone():
+            raise BridgeError("Vínculo já utilizado em holerites; revisão administrativa necessária.")
         con.execute("""INSERT INTO staff_links(vale_employee_id,contas_employee_id)
           VALUES(?,?) ON CONFLICT(vale_employee_id) DO UPDATE SET
           contas_employee_id=excluded.contas_employee_id,
@@ -283,6 +287,10 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
     # Vales passados são informativos: nunca incluir atrasados automaticamente.
     if selected is None:
         selected={int(x["id"]) for x in rows}
+        # Mostra todas as parcelas mesmo quando excedem o salário;
+        # o usuário escolhe manualmente as que cabem no líquido.
+        if sum((dec(x["amount"]) for x in rows),Decimal("0"))>original:
+            selected=set()
     else:
         if not isinstance(selected,list) or len(selected)>120:
             raise BridgeError("Seleção de parcelas inválida.")
