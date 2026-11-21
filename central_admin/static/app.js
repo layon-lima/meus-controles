@@ -121,9 +121,35 @@ function render(data) {
   if (currentSection !== "inicio") renderDetails();
 }
 
+async function refreshEmployeesHome() {
+  try {
+    const today=new Date();
+    const month=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0");
+    const response=await fetch("api/funcionarios/painel?competencia="+month,{
+      credentials:"same-origin",cache:"no-store",
+      headers:{"Accept":"application/json"}
+    });
+    if (!response.ok) throw new Error("Funcionários indisponíveis");
+    const data=await response.json();
+    const k=data.indicadores;
+    if(!k)throw new Error("Resumo inválido");
+    setText("moduleEmployees",k.funcionarios_com_pagamentos+
+      " a receber · "+k.holerites_pendentes_mes+" holerite(s) pendente(s)");
+    setText("moduleEmployeeMoney",money(k.total_a_pagar)+" a pagar");
+    setText("moduleEmployeeVales",money(k.vales_a_descontar)+
+      " em vales ainda a descontar");
+  } catch(error) {
+    setText("moduleEmployees","Consultar situação dos funcionários");
+    setText("moduleEmployeeMoney","—");
+    setText("moduleEmployeeVales","Não foi possível consultar as duas bases");
+  }
+}
+
 async function refresh() {
   if (loading) return;
   loading = true;
+  // Não bloquear o restante do dashboard esperando a consolidação mensal.
+  void refreshEmployeesHome();
   const button = el("refreshData");
   button.disabled = true;
   button.textContent = "Atualizando…";
