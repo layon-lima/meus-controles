@@ -137,6 +137,7 @@
   function renderVales(staff,month){
     const current=staff.parcelas.filter(x=>x.competencia===month);
     const late=staff.parcelas.filter(x=>x.competencia<month&&number(x.saldo_a_descontar)>0);
+    const future=staff.parcelas.filter(x=>x.competencia>month&&number(x.saldo_a_descontar)>0);
     const section=block("Vales do funcionário",
       current.length+" parcela(s) na competência");
     if(!staff.vales_ids.length)
@@ -158,8 +159,19 @@
       part.append(info,money);list.append(part);
     }
     section.append(list);
-    if(late.length)section.append(e("p","nhf-note",
-      late.length+" parcela(s) de meses anteriores em aberto. Não somadas automaticamente ao holerite."));
+    for(const [title,group] of [
+      ["Parcelas atrasadas",late],["Próximas parcelas",future]
+    ]){
+      if(!group.length)continue;
+      const accordion=e("details","nhf-vale-more");
+      accordion.append(e("summary","nhf-note",
+        title+" · "+group.length+" parcela(s) — não descontadas nesta competência"));
+      for(const val of group)
+        accordion.append(record(val.titulo,
+          "Parcela "+val.parcela+" · "+val.competencia,
+          val.saldo_a_descontar,"Em aberto"));
+      section.append(accordion);
+    }
     if(staff.descontos.some(x=>x.status==="error"))
       section.append(label("Conciliação pendente","warn"));
     return section;
