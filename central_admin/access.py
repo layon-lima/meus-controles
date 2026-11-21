@@ -37,7 +37,7 @@ def issue_cookie(now=None):
     payload = str(expiry) + "." + secrets.token_urlsafe(18)
     signature = hmac.new(_secret().encode(), payload.encode(), hashlib.sha256).hexdigest()
     return (f"{COOKIE_NAME}={payload}.{signature}; Path=/central; "
-            f"Max-Age={MAX_AGE}; Secure; HttpOnly; SameSite=Strict")
+            f"Max-Age={MAX_AGE}; Secure; HttpOnly; SameSite=Lax")
 
 
 def authenticated(headers, now=None):
@@ -68,3 +68,29 @@ def trusted_origin(origin):
         "CENTRAL_PUBLIC_ORIGIN", "https://controles.fazendanovohorizonte.com"
     ).rstrip("/")
     return bool(origin) and hmac.compare_digest(origin.rstrip("/"), expected)
+
+
+def redirect_navigation(handler, module):
+    """Uma entrada por link externo é navegação, não uma chamada financeira.
+
+    Redireciona para a Home (que verifica a sessão em mesmo domínio e
+    reabre o módulo). Não transforma endpoints JSON ou requisições de
+    escrita em redirecionamentos.
+    """
+    accepted = handler.headers.get("Accept", "").lower()
+    mode = handler.headers.get("Sec-Fetch-Mode", "").lower()
+    if (handler.command != "GET" or "text/html" not in accepted
+            or mode not in ("", "navigate")
+            or module not in {
+                "contas", "funcionarios", "documentos",
+                "controles", "recebimentos", "transportadoras", "relatorios"
+            }):
+        return False
+    handler.send_response(303)
+    handler.send_header("Location", "/central/?abrir=" + module)
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", "0")
+    handler.send_header("X-Content-Type-Options", "nosniff")
+    handler.send_header("Referrer-Policy", "no-referrer")
+    handler.end_headers()
+    return True
