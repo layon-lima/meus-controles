@@ -195,6 +195,31 @@
             "É possível vincular um cadastro de Vales, inclusive com nome diferente.":
             "Nenhum vale identificado para este funcionário."));
     section.append(heading);
+    // Mesmo sem vínculo gravado, mostrar os Vales REAIS do funcionário
+    // sugerido para que não sumam da lista de holerites. Não descontar
+    // nada antes da confirmação de identidade.
+    if(candidates.length===1){
+      const candidate=candidates[0];
+      const preview=el("details","nhp-vales-details nhp-prelink-preview");
+      const rows=candidate.parcelas_pendentes||[];
+      const current=rows.filter(x=>x.competencia===report.competencia);
+      preview.append(el("summary","",
+        current.length+" vale(s) de "+report.competencia+
+        " · "+fmt(candidate.vales_previstos)+
+        " — identificação ainda não confirmada"));
+      const body=el("div","nhp-vales-body");
+      const group=el("div","nhp-vales-group");
+      group.append(el("h4","","Vales identificados em Meus Controles"));
+      for(const item of rows){
+        group.append(info(item.titulo,
+          "Parcela "+item.parcela+" · Descontar em "+item.competencia+
+          " · já pago "+fmt(item.ja_descontado),
+          item.saldo,item.competencia<report.competencia?"late":""));
+      }
+      if(!rows.length)
+        group.append(el("p","nhp-empty","Sem parcelas ainda pendentes."));
+      body.append(group);preview.append(body);section.append(preview);
+    }
     if(!allUnlinked.length)return section;
     const controls=el("div","nhp-link-controls");
     const select=el("select","nhp-link-select");
