@@ -169,8 +169,35 @@
       binding.append(button);
     }else{
       binding.append(el("p","nh-vales-muted",
-        "Sem vínculo com os Vales. Utilize o cadastro do mesmo funcionário "+
-        "ou confira os nomes nos dois módulos."));
+        "Sem vínculo confirmado. Escolha o funcionário correspondente no controle de Vales."));
+      if(ctx.employeeId){
+        const available=model.staff.funcionarios_vales.filter(x=>!x.contas_employee_id);
+        if(available.length){
+          const select=el("select","nh-vales-choice");
+          select.setAttribute("aria-label","Funcionário do controle de Vales");
+          const choose=el("option","","Escolher funcionário de Vales…");
+          choose.value="";select.append(choose);
+          for(const person of available){
+            const option=el("option","",person.name+" · controle "+person.control_id);
+            option.value=String(person.id);select.append(option);
+          }
+          const btn=el("button","nh-vales-action","Confirmar vínculo");
+          btn.type="button";
+          btn.addEventListener("click",async()=>{
+            const valeId=Number(select.value||0);
+            if(!valeId)return notice("Selecione um funcionário dos Vales.","warning");
+            const chosen=available.find(x=>Number(x.id)===valeId);
+            if(!window.confirm("Confirmar que "+chosen.name+
+              " (Vales) é a mesma pessoa do holerite?"))return;
+            try{
+              await req("vincular",{vale_employee_id:valeId,
+                contas_employee_id:ctx.employeeId});
+              model.staff=null;refresh();
+            }catch(e){notice(e.message,"error")}
+          });
+          binding.append(select,btn);
+        }
+      }
     }
   }
   function attach(form){
