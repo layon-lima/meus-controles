@@ -30,6 +30,8 @@ ASSETS = {
     "/recebimentos_imports.js": ("recebimentos_imports.js", "text/javascript; charset=utf-8"),
     "/contas_batch.css": ("contas_batch.css", "text/css; charset=utf-8"),
     "/contas_batch.js": ("contas_batch.js", "text/javascript; charset=utf-8"),
+    "/contas_pdf_review.css": ("contas_pdf_review.css", "text/css; charset=utf-8"),
+    "/contas_pdf_review.js": ("contas_pdf_review.js", "text/javascript; charset=utf-8"),
 }
 
 @lru_cache(maxsize=16)
