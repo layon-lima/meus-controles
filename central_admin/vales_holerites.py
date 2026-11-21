@@ -470,6 +470,30 @@ def settle_account(account_id):
             "pendentes":len(errors),"erros":errors}
 
 
+def reconcile_paid_pending(limit=12):
+    """Recupera pagamentos feitos fora da Central e falhas transitórias.
+
+    Não modifica o CONTAS. A baixa no controle de Vales só ocorre após a
+    confirmação já existente no banco de pagamentos original.
+    """
+    with LOCK,closing(journal()) as con:
+        ids=[int(r[0]) for r in con.execute(
+            """SELECT DISTINCT account_id FROM discounts
+               WHERE status IN ('reserved','error') ORDER BY account_id LIMIT ?""",
+            (limit,))]
+    done=[];pending=[]
+    for account_id in ids:
+        try:
+            result=settle_account(account_id)
+            (done if result.get("ok") and result.get("baixados") else pending).append(
+                {"account_id":account_id,**result})
+        except Exception:
+            pending.append({"account_id":account_id,
+                            "status":"precisa_conferencia"})
+    return {"ok":True,"concluidos":done,"pendentes":pending,
+            "verificados":len(ids)}
+
+
 def discounts_for_account(account_id):
     account_id=positive_id(account_id)
     with closing(journal()) as con:
@@ -519,7 +543,8 @@ def handle(handler):
             result=assign_link(read_body(handler))
         elif method=="POST" and path=="/api/vales-holerites/reconciliar":
             data=read_body(handler)
-            result=settle_account(data.get("account_id"))
+            result=(reconcile_paid_pending() if data.get("todos") is True
+                    else settle_account(data.get("account_id")))
         else:
             handler.respond(404,{"ok":False,"erro":"Rota de integração inexistente."})
             return True
