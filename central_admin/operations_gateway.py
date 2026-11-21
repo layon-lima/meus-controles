@@ -197,7 +197,10 @@ def proxy(handler):
         return True
     # Nenhum dado ou operação financeira passa sem uma sessão do navegador.
     if not handler.authorized():
-        handler.respond(401, {"ok": False, "erro": "Sessão não autorizada. Abra a Central a partir do navegador pareado."})
+        from .access import redirect_navigation
+        if not redirect_navigation(handler, target[1]):
+            handler.respond(401, {"ok": False, "erro":
+                "Sessão não autorizada. Abra a Central a partir do navegador pareado."})
         return True
     backend, module, target_path = target
     prefix = "/central/modules/" + module
