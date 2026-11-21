@@ -244,6 +244,20 @@ def proxy(handler):
                 request_headers[name] = value
         if origin:
             request_headers["Origin"] = origin_upstream
+        # Holerite com descontos comprometidos não pode ser removido no
+        # CONTAS e deixar um vale reservado órfão na Central.
+        account_delete=re.fullmatch(r"/api/accounts/(\d+)/delete",target_path)
+        if backend=="contas" and method=="POST" and account_delete:
+            try:
+                from .vales_holerites import discounts_for_account
+                if discounts_for_account(int(account_delete[1])):
+                    handler.respond(409,{"ok":False,"error":
+                        "Holerite possui vales vinculados. Revise a conciliação antes de excluir."})
+                    return True
+            except Exception:
+                handler.respond(503,{"ok":False,"error":
+                    "Não foi possível conferir os vales antes de excluir. Nenhuma conta foi apagada."})
+                return True
         body = handler.rfile.read(length) if length else None
         if body is not None:
             request_headers["Content-Length"] = str(len(body))
