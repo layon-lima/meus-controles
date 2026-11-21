@@ -91,7 +91,7 @@ def rewrite_text(text, prefix, kind):
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
             # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
             css += '<link rel="stylesheet" href="/central/contas_batch.css?v=20261120i">'
-            js += '<script defer src="/central/contas_batch.js?v=20261120i"></script>'
+            js += '<script defer src="/central/contas_batch.js?v=20261121b"></script>'
             css += '<link rel="stylesheet" href="/central/contas_pdf_review.css?v=20261121a">'
             js += '<script defer src="/central/contas_pdf_review.js?v=20261121a"></script>'
         if "</head>" in text:
