@@ -47,7 +47,7 @@
   function duplicateByPayment(fields,records){
     const code=normalizedCode(fields?.codigo_pagamento);
     if(!code)return null;
-    const bank=/^\\d{44}$|^\\d{46}$|^\\d{47}$|^\\d{48}$/.test(code);
+    const bank=/^[0-9]{44}$|^[0-9]{46}$|^[0-9]{47}$|^[0-9]{48}$/.test(code);
     const emv=code.startsWith("000201")&&code.length>=50;
     if(!bank&&!emv)return null;
     const amount=normalizedAmount(fields?.valor);
