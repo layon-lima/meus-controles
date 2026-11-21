@@ -232,6 +232,37 @@ class GatewayTests(unittest.TestCase):
             self.assertTrue(proxy(handler))
         self.assertEqual(handler.status, 401)
 
+    def test_unauthorized_browser_get_redirects_but_api_stays_401(self):
+        origin = "https://controles.fazendanovohorizonte.com"
+        # Mesmo com cookie Strict antigo que não acompanha o link vindo
+        # do ChatGPT, o navegador volta à Home do mesmo domínio.
+        browser = _Handler("/modules/contas/?utm_source=chatgpt.com",
+                           headers={"Accept": "text/html,application/xhtml+xml",
+                                    "Sec-Fetch-Mode": "navigate"})
+        browser.authorized = lambda: False
+        with patch.dict(os.environ, {"CENTRAL_OPERATIONS_ENABLED": "1",
+                                     "CENTRAL_PUBLIC_ORIGIN": origin}):
+            self.assertTrue(proxy(browser))
+        self.assertEqual(browser.status, 303)
+        self.assertEqual(browser.response_headers["Location"], "/central/?abrir=contas")
+        self.assertEqual(browser.response_headers["Cache-Control"], "no-store")
+
+        api = _Handler("/modules/contas/api/accounts",
+                       headers={"Accept": "application/json"})
+        api.authorized = lambda: False
+        with patch.dict(os.environ, {"CENTRAL_OPERATIONS_ENABLED": "1"}):
+            self.assertTrue(proxy(api))
+        self.assertEqual(api.status, 401)
+
+        # A navegação não altera a barreira CSRF das escritas.
+        post = _Handler("/modules/contas/api/accounts", "POST",
+                        {"Accept": "text/html", "Sec-Fetch-Mode": "navigate",
+                         "Content-Length": "2", "Content-Type": "application/json"},b"{}")
+        post.authorized = lambda: False
+        with patch.dict(os.environ, {"CENTRAL_OPERATIONS_ENABLED": "1"}):
+            self.assertTrue(proxy(post))
+        self.assertEqual(post.status, 401)
+
     def test_session_pairing_cookie_and_expiration(self):
         from central_admin import access
         config = {
@@ -247,7 +278,7 @@ class GatewayTests(unittest.TestCase):
             cookie_header = access.issue_cookie(now=1000)
             self.assertIn("HttpOnly", cookie_header)
             self.assertIn("Secure", cookie_header)
-            self.assertIn("SameSite=Strict", cookie_header)
+            self.assertIn("SameSite=Lax", cookie_header)
             value = cookie_header.split(";",1)[0]
             self.assertTrue(access.authenticated({"Cookie": value}, now=1001))
             self.assertFalse(access.authenticated({"Cookie": value}, now=1000+access.MAX_AGE+1))
