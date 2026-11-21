@@ -12,6 +12,9 @@ log(){ printf '\n==> %s\n' "$*"; }
 
 [[ "$(id -u)" == "0" ]] || fail "Execute no terminal Ubuntu da VPS, como root."
 for cmd in curl tar docker python3 openssl; do command -v "$cmd" >/dev/null || fail "Programa ausente: $cmd"; done
+# Banco privativo da integração. Não modifica bancos originais.
+mkdir -p -m 0700 "$BASE/data"
+chmod 0700 "$BASE/data"
 [[ -s "$APP/deploy/.env.production" ]] || fail "Arquivo de configuracao da Central existente nao encontrado. Nao criar nova chave."
 [[ -f "$APP/server.py" && -f "$COMPOSE" ]] || fail "Central atual nao encontrada."
 docker compose version >/dev/null || fail "Docker Compose indisponivel."
@@ -67,7 +70,10 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
     -f "$SOURCE/central_admin/static/contas_batch.js" &&
     -f "$SOURCE/central_admin/static/contas_batch.css" &&
     -f "$SOURCE/central_admin/static/contas_pdf_review.css" &&
-    -f "$SOURCE/central_admin/static/contas_pdf_review.js" ]] \
+    -f "$SOURCE/central_admin/static/contas_pdf_review.js" &&
+    -f "$SOURCE/central_admin/vales_holerites.py" &&
+    -f "$SOURCE/central_admin/static/vales_holerites.css" &&
+    -f "$SOURCE/central_admin/static/vales_holerites.js" ]] \
   || fail "Arquivos da Central, Recebimentos ou fila de Contas ausentes."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
@@ -107,6 +113,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/recebimentos_imports.js"
   node --check "$APP/static/contas_batch.js"
   node --check "$APP/static/contas_pdf_review.js"
+  node --check "$APP/static/vales_holerites.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -151,6 +158,10 @@ for entry in 'api/resumo' \
         || fail "Layout de revisão de PDF lado a lado não carregado."
       grep -Fq '/central/contas_pdf_review.js' "$TMP/response" \
         || fail "Visualizador de PDF da Central não carregado."
+      grep -Fq '/central/vales_holerites.js' "$TMP/response" \
+        || fail "Cálculo de vales não incluído no holerite."
+      grep -Fq '/central/vales_holerites.css' "$TMP/response" \
+        || fail "Layout de vales não incluído no holerite."
       curl -fsS --max-time 8 -D "$TMP/contas-csp" -o /dev/null \
         -H "Cookie: $COOKIE" http://127.0.0.1:18771/modules/contas/ \
         || fail "Não foi possível conferir segurança do visualizador de PDF."
@@ -220,7 +231,7 @@ for asset in launcher.js launcher.css; do
 done
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
-for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css; do
+for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css vales_holerites.js vales_holerites.css; do
   HTTP="$(curl -sS --max-time 8 -o "$TMP/contas-lote" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Arquivo $asset da fila de Contas ausente."
@@ -233,6 +244,20 @@ grep -Fq 'URL.revokeObjectURL' "$APP/static/contas_pdf_review.js" \
   || fail "Visualizador não libera o PDF ao fechar a revisão."
 grep -Fq 'frame-src' "$APP/operations_gateway.py" \
   || fail "Visualizador de PDF pode estar bloqueado pela CSP do navegador."
+# Teste somente-leitura dos cadastros que serão vinculados.
+HTTP="$(curl -sS --max-time 15 -o "$TMP/vales-staff" -w '%{http_code}' \
+  -H "Cookie: $COOKIE" http://127.0.0.1:18771/api/vales-holerites/funcionarios)"
+[[ "$HTTP" == 200 ]] || fail "Integração não consulta funcionários dos dois módulos (HTTP $HTTP)."
+python3 - "$TMP/vales-staff" <<'PY'
+import json,sys
+with open(sys.argv[1],encoding="utf-8") as f: data=json.load(f)
+if not isinstance(data.get("funcionarios_contas"),list) or not isinstance(data.get("funcionarios_vales"),list):
+    raise SystemExit("Contrato de funcionários não corresponde ao esperado.")
+print("OK: vínculo de funcionários pronto, bancos originais somente leitura.")
+PY
+docker exec central-novo-horizonte-painel-1 python -c \
+  'from central_admin.vales_holerites import journal; journal().close()' \
+  || fail "Banco independente de conciliação não está gravável."
 # Confere a versão EFETIVA do frontend original servida na Central.
 # Se funções de OCR, contas ou Windows tiverem mudado, não instalar fila
 # incompatível e não deixar o usuário perder documentos no meio do lote.
