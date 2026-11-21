@@ -118,7 +118,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/modules/funcionarios", "/modules/funcionarios/"):
             # Módulo nativo da Central: nenhum HTML, JS ou tela do Contas 4.
             if not self.authorized():
-                self.respond(401, {"ok":False,"erro":"Sessão não autorizada."})
+                if not access.redirect_navigation(self, "funcionarios"):
+                    self.respond(401, {"ok":False,"erro":"Sessão não autorizada."})
                 return
             body, compressed=static_payload("funcionarios.html",
                 "gzip" in self.headers.get("Accept-Encoding","").lower())
@@ -132,7 +133,8 @@ class Handler(BaseHTTPRequestHandler):
             # Página autoral da Central. Nenhum HTML ou script do app antigo é
             # carregado: o módulo já nasce em Recebimentos, sem flash.
             if not self.authorized():
-                self.respond(401, {"ok": False, "erro": "Sessão não autorizada."})
+                if not access.redirect_navigation(self, "recebimentos"):
+                    self.respond(401, {"ok": False, "erro": "Sessão não autorizada."})
                 return
             body, compressed = static_payload(
                 "recebimentos.html", "gzip" in self.headers.get("Accept-Encoding", "").lower()
