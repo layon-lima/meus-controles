@@ -6,6 +6,7 @@ Este módulo não deve ser exposto sem controle de acesso ao domínio.
 from __future__ import annotations
 
 import gzip
+import json
 import http.client
 import os
 import re
@@ -244,6 +245,23 @@ def proxy(handler):
         body = handler.rfile.read(length) if length else None
         if body is not None:
             request_headers["Content-Length"] = str(len(body))
+        # O motor original recebe o MESMO JSON. A Central apenas valida a
+        # cotação e, após uma resposta OK, guarda o vínculo das parcelas.
+        plan = None
+        integration_enabled = (
+            backend == "contas" and method == "POST"
+            and (target_path in ("/api/accounts","/api/import/commit")
+                 or re.fullmatch(r"/api/accounts/\d+/edit",target_path))
+            and (request_headers.get("Content-Type","").split(";")[0] == "application/json")
+        )
+        if integration_enabled and body and b'"nh_vales"' in body:
+            try:
+                from .vales_holerites import prepare_submission, BridgeError
+                payload = json.loads(body)
+                plan = prepare_submission(payload)
+            except (BridgeError,ValueError,UnicodeError,TypeError) as exc:
+                handler.respond(409,{"ok":False,"error":str(exc)})
+                return True
         upstream_uri = target_path + (("?" + uri.query) if uri.query else "")
         if backend == "contas" and target_path == "/":
             # A versão web do CONTAS redireciona celulares para um painel
@@ -260,6 +278,42 @@ def proxy(handler):
             if _stream_large_download(handler, response, content_type, method):
                 return True
             data = response.read()
+            if backend=="contas" and method=="POST" and 200<=response.status<300:
+                # Associar vales somente DEPOIS que CONTAS confirmou a
+                # gravação real. Nunca refazer POST do holerite no erro.
+                if plan is not None:
+                    try:
+                        from .vales_holerites import after_submission
+                        original=json.loads(data)
+                        account_id=(int(target_path.split("/")[3])
+                            if re.fullmatch(r"/api/accounts/\d+/edit",target_path)
+                            else int(original.get("id") or original.get("account_id") or 0))
+                        after_submission(plan,account_id)
+                    except Exception:
+                        # O lançamento no CONTAS já ocorreu; não responder
+                        # "erro de cadastro", que levaria a reenviar o PDF.
+                        original=json.loads(data)
+                        original["aviso_integracao_vales"]=(
+                            "Holerite salvo no CONTAS, mas a reserva dos vales precisa "
+                            "de conferência. Não envie o mesmo PDF novamente.")
+                        data=json.dumps(original,ensure_ascii=False).encode()
+                payment_match=re.fullmatch(r"/api/accounts/(\d+)/(?:pay|pay-with-receipt)",target_path)
+                if payment_match:
+                    try:
+                        from .vales_holerites import settle_account
+                        result=settle_account(int(payment_match[1]))
+                        if not result.get("ok"):
+                            original=json.loads(data)
+                            original["aviso_integracao_vales"]=(
+                                "Pagamento registrado, mas a baixa dos vales está "
+                                "pendente de reconciliação. NÃO pague novamente.")
+                            data=json.dumps(original,ensure_ascii=False).encode()
+                    except Exception:
+                        original=json.loads(data)
+                        original["aviso_integracao_vales"]=(
+                            "Pagamento confirmado no CONTAS; não foi possível conciliar "
+                            "os vales. NÃO repita o pagamento.")
+                        data=json.dumps(original,ensure_ascii=False).encode()
             if method in ("POST", "PUT", "PATCH", "DELETE") and 200 <= response.status < 400:
                 # Atualiza os indicadores na próxima consulta sem criar novo
                 # lançamento ou interromper a resposta de pagamento/upload.
