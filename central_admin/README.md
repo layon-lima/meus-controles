@@ -630,3 +630,38 @@ O instalador exige os assets e sua injeção no HTML efetivamente
 servido do módulo Contas antes de concluir a atualização. A alteração
 **não é aplicada ao site original** do CONTAS 4 nem substitui seu
 backend; só funciona quando Holerites é acessado pela Central.
+
+
+## Correção da leitura de Vales que não apareciam em Holerites (21/11/2026)
+
+**Causa**: o primeiro código da integração dependia da variável
+CENTRAL_CONTROLES_DSN para ler diretamente o PostgreSQL dos Meus
+Controles, mas a configuração de deploy NÃO fornecia essa variável.
+Isso fazia a Central devolver um erro de leitura e deixar os
+vales ausentes da lista de Holerites.
+
+A correção definitiva elimina a configuração e consulta as APIs
+ORIGINAIS /api/state e /api/controls/<id>/vales, já acessíveis
+via serviço interno central-controles-api:18765 na rede privada Docker.
+São retornados os funcionários reais, todos os vales, parcelas,
+competências e pagamentos efetivos, sem recriar dados e sem modificar
+a aplicação original.
+
+A correspondência usa os IDs já confirmados, mas nomes COMPLETOS
+idênticos (normalizados sem acentos e sem diferenças de maiúsculas)
+também são vinculados automaticamente na consulta quando há exatamente
+uma pessoa de cada lado, sem colisões. Não é uma escrita de baixo
+ou alteração de valor; apenas uma associação de consulta.
+Nomes abreviados ou com um erro de escrita (como Albetiza x Albetizia)
+aparecem como sugestões, com a lista de parcelas e o valor pendente
+visíveis DENTRO da aba Holerites. É necessária uma confirmação explícita
+para usar essas sugestões no cálculo do pagamento.
+
+Se o controle de Vales estiver indisponível, a Central mostra erro
+claro e NUNCA apresenta zero como se a dívida tivesse desaparecido.
+O atualizador da VPS cruza as quantidades de funcionários e parcelas
+vistas pela API original e pela integração da Central, abortando a
+publicação se não coincidirem.
+
+Testes: tests/test_central_vales_api.py, testes de integração dos
+Holerites, consulta sem DSN, nomes abreviados e nenhum débito antecipado.
