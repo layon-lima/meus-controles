@@ -320,7 +320,7 @@ def proxy(handler):
                         # do próprio site. Manter frame-ancestors none e todas
                         # as demais restrições CSP originais intactas.
                         value = re.sub(
-                            r"(?:^|;)\\s*frame-src\\s+[^;]*",
+                            r"(?:^|;)\s*frame-src\s+[^;]*",
                             "",
                             value,
                             flags=re.IGNORECASE,
