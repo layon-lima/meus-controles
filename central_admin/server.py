@@ -13,6 +13,7 @@ from . import access
 from .core import snapshot
 from .performance import cached_snapshot
 from .operations_gateway import proxy
+from .vales_holerites import handle as handle_vales_holerites
 
 STATIC = Path(__file__).with_name("static")
 ASSETS = {
@@ -123,6 +124,8 @@ class Handler(BaseHTTPRequestHandler):
                               "connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; "
                               "form-action 'none'; frame-ancestors 'none'"))
             return
+        if handle_vales_holerites(self):
+            return
         if proxy(self):
             return
         if path == "/health":
@@ -147,6 +150,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.command == "POST" and urlsplit(self.path).path == "/api/pair":
             return self.pair()
+        if handle_vales_holerites(self):
+            return
         if proxy(self):
             return
         self.respond(405, {"ok": False, "erro": "Rota de escrita não habilitada."})
