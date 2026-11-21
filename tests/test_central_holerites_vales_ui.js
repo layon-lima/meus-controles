@@ -129,7 +129,10 @@ const dashboard=()=>({
   ],
   vales_sem_vinculo:linked?[]:[
     {vale_employee_id:20,nome:"MARIA PEREIRA",vales_previstos:"95.00",
-      sugestao_funcionario_id:2}
+      sugestao_funcionario_id:2,parcelas_pendentes:[
+        {id:201,titulo:"Vale com Angelita",parcela:1,competencia:"2026-11",
+         valor:"95.00",ja_descontado:"0.00",saldo:"95.00"}
+      ]}
   ]
 });
 const visited=[];
@@ -176,6 +179,8 @@ vm.runInNewContext(source,env);
   const unlinked=maria.card.querySelector(".nhp-link-pending");
   assert.ok(unlinked,"Unlinked vale must be visible on Maria's payroll card");
   assert.ok(textOf(unlinked).includes("95,00"),"Link suggestion reveals the vale amount");
+  assert.ok(textOf(unlinked).includes("Vale com Angelita"),
+    "O vale real deve aparecer mesmo ANTES de confirmar vínculo do funcionário.");
   const button=maria.card.querySelector(".nhp-confirm-link");
   assert.ok(button,"Manual confirmation only");
   button.click();await flush();
