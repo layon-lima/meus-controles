@@ -77,7 +77,9 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
     -f "$SOURCE/central_admin/funcionarios.py" &&
     -f "$SOURCE/central_admin/static/funcionarios.html" &&
     -f "$SOURCE/central_admin/static/funcionarios.js" &&
-    -f "$SOURCE/central_admin/static/funcionarios.css" ]] \
+    -f "$SOURCE/central_admin/static/funcionarios.css" &&
+    -f "$SOURCE/central_admin/static/holerites_vales.js" &&
+    -f "$SOURCE/central_admin/static/holerites_vales.css" ]] \
   || fail "Arquivos da Central, Recebimentos ou fila de Contas ausentes."
 
 log "Atualizando apenas o codigo da Central; preservando a configuracao de acesso..."
@@ -119,6 +121,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/contas_pdf_review.js"
   node --check "$APP/static/vales_holerites.js"
   node --check "$APP/static/funcionarios.js"
+  node --check "$APP/static/holerites_vales.js"
 fi
 docker compose -f "$COMPOSE" config --quiet || fail "Docker Compose invalido."
 
@@ -184,6 +187,10 @@ for entry in 'api/resumo' \
         || fail "Cálculo de vales não incluído no holerite."
       grep -Fq '/central/vales_holerites.css' "$TMP/response" \
         || fail "Layout de vales não incluído no holerite."
+      grep -Fq '/central/holerites_vales.js' "$TMP/response" \
+        || fail "A lista de Holerites não carrega os vales."
+      grep -Fq '/central/holerites_vales.css' "$TMP/response" \
+        || fail "Estilo dos vales na lista de Holerites ausente."
       curl -fsS --max-time 8 -D "$TMP/contas-csp" -o /dev/null \
         -H "Cookie: $COOKIE" http://127.0.0.1:18771/modules/contas/ \
         || fail "Não foi possível conferir segurança do visualizador de PDF."
@@ -263,7 +270,7 @@ for asset in launcher.js launcher.css; do
 done
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
-for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css vales_holerites.js vales_holerites.css; do
+for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css vales_holerites.js vales_holerites.css holerites_vales.js holerites_vales.css; do
   HTTP="$(curl -sS --max-time 8 -o "$TMP/contas-lote" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Arquivo $asset da fila de Contas ausente."
@@ -424,6 +431,7 @@ echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads 
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
 echo "FUNCIONÁRIOS: painel nativo com holerites, Pix, contas a pagar, vales e vínculos confirmados."
+echo "HOLERITES CONTAS: vales e descontos aparecem diretamente na lista de funcionários."
 echo "DUPLICIDADES: PDFs idênticos do R2/no lote são filtrados antes de entrar na fila; cobrança repetida não abre formulário."
 echo "CONFERÊNCIA: formulário tela inteira à esquerda + PDF com zoom/páginas à direita."
 echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
