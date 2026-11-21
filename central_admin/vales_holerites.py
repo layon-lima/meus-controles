@@ -212,7 +212,8 @@ def name_suggestions(vale,people):
     if not tokens:
         return []
     first=tokens[0]
-    if len(first)<5:
+    two_names=len(tokens)>=2 and len(tokens[1])>=4
+    if len(first)<5 and not two_names:
         return []
     def distance_one(a,b):
         if abs(len(a)-len(b))>1:return False
@@ -230,8 +231,15 @@ def name_suggestions(vale,people):
     for item in people:
         other=name_key(item["nome"]).split()
         if not other:continue
-        if first==other[0] or (len(first)>=7 and len(other[0])>=7
-                              and distance_one(first,other[0])):
+        first_same=first==other[0]
+        if len(first)<5:
+            # "JOÃO PEDRO" só é sugestão de "João Pedro da Silva"
+            # se AMBOS os primeiros nomes coincidirem, nunca só João.
+            matches_pair=(two_names and len(other)>=2 and
+                          first_same and tokens[1]==other[1])
+            if matches_pair:matches.append(int(item["id"]))
+        elif first_same or (len(first)>=7 and len(other[0])>=7
+                             and distance_one(first,other[0])):
             matches.append(int(item["id"]))
     return matches
 
