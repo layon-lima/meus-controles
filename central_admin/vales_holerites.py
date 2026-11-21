@@ -106,35 +106,135 @@ def read_account(account_id):
 
 
 def read_controls():
-    dsn = os.environ.get("CENTRAL_CONTROLES_DSN", "")
-    if not dsn:
-        raise BridgeError("Banco dos Vales não configurado.")
+    """Lê o motor de Vales ORIGINAL pela rede Docker, sem DSN/credenciais.
+
+    O app Meus Controles já oferece os dados exatos de empregados, vales,
+    parcelas, saldo e baixas por /api/controls/<id>/vales. Nunca presumir
+    que 'sem resposta' significa 'sem vales'; erros interrompem o cálculo.
+    """
     try:
-        import psycopg
-        from psycopg.rows import dict_row
-        with psycopg.connect(
-            dsn, connect_timeout=6, options="-c default_transaction_read_only=on",
-            row_factory=dict_row
-        ) as con:
-            with con.cursor() as cur:
-                cur.execute("""SELECT e.id,e.control_id,e.name,e.active
-                  FROM vale_employees e JOIN controls c ON c.id=e.control_id
-                  WHERE c.mode='vale_funcionarios' ORDER BY e.name,e.id""")
-                staff = cur.fetchall()
-                cur.execute("""SELECT i.id,i.due_month,i.amount,d.control_id,
-                    d.employee_id,d.title,d.id AS debt_id,i.installment_number,
-                    COALESCE(SUM(p.amount::numeric),0) AS paid
-                  FROM vale_installments i
-                  JOIN vale_debts d ON d.id=i.debt_id
-                  JOIN controls c ON c.id=d.control_id AND c.mode='vale_funcionarios'
-                  LEFT JOIN vale_payments p ON p.installment_id=i.id
-                  GROUP BY i.id,i.due_month,i.amount,d.control_id,
-                    d.employee_id,d.title,d.id,i.installment_number
-                  ORDER BY i.due_month,i.id""")
-                plans = cur.fetchall()
-        return [dict(r) for r in staff], [dict(r) for r in plans]
+        catalog=_control_request("GET","/api/state")
+        controls=catalog.get("controls")
+        if not isinstance(controls,list):
+            raise BridgeError("A API Meus Controles não retornou os controles.")
+        staff=[]
+        installments=[]
+        employees_seen=set()
+        installments_seen=set()
+        for control in controls:
+            if control.get("mode")!="vale_funcionarios":
+                continue
+            cid=positive_id(control.get("id"))
+            summary=_control_request("GET",f"/api/controls/{cid}/vales")
+            people=summary.get("employees")
+            if not isinstance(people,list):
+                raise BridgeError("O controle de Vales não retornou os funcionários.")
+            for person in people:
+                eid=positive_id(person.get("id"))
+                if eid in employees_seen:
+                    raise BridgeError("IDs duplicados nos cadastros de Vales.")
+                employees_seen.add(eid)
+                staff.append({
+                    "id":eid,"control_id":cid,
+                    "name":str(person.get("name") or ""),
+                    "active":person.get("active",True)
+                })
+                debts=person.get("debts")
+                if not isinstance(debts,list):
+                    raise BridgeError("O controle de Vales não retornou as dívidas.")
+                for debt in debts:
+                    did=positive_id(debt.get("id"))
+                    plan=debt.get("installments")
+                    if not isinstance(plan,list):
+                        raise BridgeError("O controle de Vales não retornou as parcelas.")
+                    for row in plan:
+                        iid=positive_id(row.get("id"))
+                        if iid in installments_seen:
+                            raise BridgeError("IDs duplicados nas parcelas de Vales.")
+                        installments_seen.add(iid)
+                        value=dec(row.get("amount"))
+                        paid=dec(row.get("paid"))
+                        if paid>value:
+                            raise BridgeError("Saldo do Vale incompatível com descontos já registrados.")
+                        installments.append({
+                            "id":iid,"due_month":valid_month(row.get("due_month")),
+                            "amount":money(value),"paid":money(paid),
+                            "control_id":cid,"employee_id":eid,
+                            "title":str(debt.get("title") or "Vale"),
+                            "debt_id":did,
+                            "installment_number":positive_id(row.get("installment_number")),
+                        })
+        installments.sort(key=lambda row:(row["due_month"],row["id"]))
+        staff.sort(key=lambda row:(name_key(row["name"]),row["id"]))
+        return staff,installments
+    except BridgeError:
+        raise
     except Exception as exc:
-        raise BridgeError("Não foi possível consultar as parcelas de Vales.") from exc
+        raise BridgeError("Não foi possível consultar os Vales do Meus Controles pela API privada.") from exc
+
+
+def unique_name_links(staff,people,explicit):
+    """Inferência somente de nomes COMPLETOS exatamente iguais (sem acentos).
+
+    Uma pessoa tem exatamente um ID por nome em cada base. Não confirmar
+    apelidos, abreviações nem primeiro nome semelhante sem o usuário.
+    """
+    from collections import defaultdict
+    source=defaultdict(list)
+    target=defaultdict(list)
+    for val in staff:
+        key=name_key(val["name"])
+        if key:source[key].append(int(val["id"]))
+    for employee in people:
+        key=name_key(employee["nome"])
+        if key:target[key].append(int(employee["id"]))
+    links=dict(explicit)
+    used=set(links.values())
+    for key,ids in source.items():
+        if len(ids)!=1 or len(target.get(key,[]))!=1:
+            continue
+        eid=ids[0]
+        destination=target[key][0]
+        if eid not in links and destination not in used:
+            links[eid]=destination
+            used.add(destination)
+    return links
+
+
+def name_suggestions(vale,people):
+    """Oferece (NUNCA aplica) candidato de nome abreviado/erro simples.
+
+    Ex.: 'Albetiza' x 'ALBETIZIA ...'. Primeiro nome de Maria, João etc
+    só vira sugestão se único nas duas listas; pagamento nunca é alterado
+    em função de aproximação textual.
+    """
+    tokens=name_key(vale).split()
+    if not tokens:
+        return []
+    first=tokens[0]
+    if len(first)<5:
+        return []
+    def distance_one(a,b):
+        if abs(len(a)-len(b))>1:return False
+        if a==b:return True
+        if len(a)>len(b):a,b=b,a
+        i=j=edits=0
+        while i<len(a) and j<len(b):
+            if a[i]==b[j]:i+=1;j+=1;continue
+            edits+=1
+            if edits>1:return False
+            if len(a)==len(b):i+=1
+            j+=1
+        return edits+len(b)-j<=1
+    matches=[]
+    for item in people:
+        other=name_key(item["nome"]).split()
+        if not other:continue
+        if first==other[0] or (len(first)>=7 and len(other[0])>=7
+                              and distance_one(first,other[0])):
+            matches.append(int(item["id"]))
+    return matches
+
 
 
 def journal():
@@ -200,18 +300,20 @@ def staff_view():
     people, _ = read_controls()
     employees = read_staff()
     with closing(journal()) as con:
-        links=linked(con)
+        explicit=linked(con)
+        links=unique_name_links(people,employees,explicit)
     staff_ids={int(p["id"]) for p in employees}
     result=[]
     for val in people:
         cid=links.get(int(val["id"]))
         if cid not in staff_ids:
             cid=None
-        unique=[p for p in employees if name_key(p["nome"])==name_key(val["name"])]
+        candidates=name_suggestions(val["name"],employees) if cid is None else []
         result.append({
             "id":int(val["id"]),"name":val["name"],"control_id":int(val["control_id"]),
             "active":bool(val["active"]),"contas_employee_id":cid,
-            "suggested_contas_employee_id":unique[0]["id"] if len(unique)==1 and not cid else None
+            "vinculo_automatico":cid is not None and int(val["id"]) not in explicit,
+            "suggested_contas_employee_id":candidates[0] if len(candidates)==1 else None
         })
     return {"funcionarios_contas":employees,"funcionarios_vales":result}
 
@@ -252,7 +354,8 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
     staff,installments=read_controls()
     staff_by_id={int(x["id"]):x for x in staff}
     with closing(journal()) as con:
-        links=linked(con)
+        explicit=linked(con)
+        links=unique_name_links(staff,read_staff(),explicit)
         reserved=available_allocations(con)
         own={}
         if existing_id:
