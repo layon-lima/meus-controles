@@ -151,6 +151,15 @@ for entry in 'api/resumo' \
         || fail "Layout de revisão de PDF lado a lado não carregado."
       grep -Fq '/central/contas_pdf_review.js' "$TMP/response" \
         || fail "Visualizador de PDF da Central não carregado."
+      curl -fsS --max-time 8 -D "$TMP/contas-csp" -o /dev/null \
+        -H "Cookie: $COOKIE" http://127.0.0.1:18771/modules/contas/ \
+        || fail "Não foi possível conferir segurança do visualizador de PDF."
+      grep -Ei '^[Cc]ontent-[Ss]ecurity-[Pp]olicy:' "$TMP/contas-csp" \
+        | grep -Fq "frame-src 'self' blob:" \
+        || fail "Navegador bloquearia o PDF incorporado por causa da política CSP."
+      grep -Ei '^[Cc]ontent-[Ss]ecurity-[Pp]olicy:' "$TMP/contas-csp" \
+        | grep -Fq "frame-ancestors 'none'" \
+        || fail "Proteção contra incorporação externa foi alterada."
     fi
     if [[ "$entry" == 'modules/recebimentos/' ]]; then
       # O módulo próprio já é entregue pronto pelo servidor. NUNCA carregar
