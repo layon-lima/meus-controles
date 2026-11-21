@@ -89,7 +89,7 @@ def dashboard(month=None):
     accounts_by_id={int(x["id"]):x for x in accounts}
     # Numa competência específica, uma conta comum pode ter vencimento em
     # outro mês, mas só as contas ainda abertas entram no total de dívida.
-    for id_account,id_employee in manual_links.items():
+    for id_account,id_employee in list(manual_links.items()):
         a=accounts_by_id.get(id_account)
         if not a or id_employee not in employees_by_id or a["funcionario_id"]:
             manual_links.pop(id_account,None)
@@ -103,6 +103,7 @@ def dashboard(month=None):
         rows[eid]={
           "id":eid,"nome":person["nome"],
           "pix_cadastrado":bool(str(person.get("chave_pix") or "").strip()),
+          "chave_pix":str(person.get("chave_pix") or ""),
           "vales_ids":[],"holerites":[],"outras_contas":[],"sugestoes":[],
           "parcelas":[],"descontos":[],"totais":{},
         }
