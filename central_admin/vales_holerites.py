@@ -310,8 +310,19 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
         "account_id":existing_id}
 
 
-def prepare_submission(payload):
+def prepare_submission(payload,account_id=None):
     """Valida contrato extra sem alterar o formato normal do CONTAS 4."""
+    if account_id:
+        existing=discounts_for_account(account_id)
+        if existing:
+            current=read_account(positive_id(account_id))
+            if (dec(payload.get("valor"))!=dec(current["valor"]) or
+                str(payload.get("competencia"))!=str(current["competencia"]) or
+                str(payload.get("funcionario_id") or "")!=str(current["funcionario_id"] or "")):
+                raise BridgeError(
+                    "Holerite com vales reservados não pode alterar valor, competência "
+                    "ou funcionário sem estorno/revisão dos descontos.")
+            return None
     raw=payload.get("nh_vales")
     if not raw:
         if str(payload.get("holerite"))=="sim":
