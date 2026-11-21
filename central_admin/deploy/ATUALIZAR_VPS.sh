@@ -252,6 +252,12 @@ grep -Fq 'window.addEventListener("dragover",event=>' "$APP/static/contas_batch.
   || fail "O navegador não foi configurado para aceitar soltar PDFs."
 grep -Fq 'window.addEventListener("drop",event=>' "$APP/static/contas_batch.js" \
   || fail "Importação por arrastar PDFs não foi instalada no nível da janela."
+grep -Fq 'api(MANIFEST_API)' "$APP/static/contas_batch.js" \
+  || fail "Fila de Contas não consulta SHA-256 de PDFs cadastrados no R2."
+grep -Fq 'sha256(file)' "$APP/static/contas_batch.js" \
+  || fail "Fila de Contas não deduplica os PDFs arrastados por conteúdo."
+grep -Fq 'duplicateByPayment(result.fields,state.existingRecords)' "$APP/static/contas_batch.js" \
+  || fail "Fila de Contas não pula cobrança duplicada detectada pelo OCR."
 grep -Fq 'nh-contas-dragging-files' "$APP/static/contas_batch.css" \
   || fail "Feedback visual do arraste de PDFs ausente."
 if grep -Fq 'nh-contas-batch-action' "$APP/static/contas_batch.js"; then
@@ -340,6 +346,7 @@ echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a trans
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
+echo "DUPLICIDADES: PDFs idênticos do R2/no lote são filtrados antes de entrar na fila; cobrança repetida não abre formulário."
 echo "CONFERÊNCIA: formulário tela inteira à esquerda + PDF com zoom/páginas à direita."
 echo "TRANSICAO: demais modulos mantem os motores originais ate migracao e verificacao."
 echo "PAREAMENTO UNICO: execute cat /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt e abra a URL privada no navegador."
