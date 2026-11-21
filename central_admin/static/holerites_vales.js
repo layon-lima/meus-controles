@@ -185,11 +185,15 @@
     const allUnlinked=report.vales_sem_vinculo||[];
     const section=el("section","nhp-vales-inline nhp-link-pending");
     const heading=el("div","nhp-link-heading");
-    heading.append(el("strong","","Vales: vínculo pendente"),
+    heading.append(el("strong","",
+        candidates.length?"Vale encontrado — confirmar vínculo":"Vales ainda não vinculados"),
       el("small","",
         candidates.length?
-          "Há cadastro de Vales com o mesmo nome. Confirme a pessoa antes de descontar.":
-          "Nenhum cadastro de Vales vinculado a este funcionário."));
+          candidates.map(x=>x.nome+" · previsto "+fmt(x.vales_previstos)).join(" / ")+
+          ". Confirme a pessoa antes de descontar.":
+          allUnlinked.length?
+            "É possível vincular um cadastro de Vales, inclusive com nome diferente.":
+            "Nenhum vale identificado para este funcionário."));
     section.append(heading);
     if(!allUnlinked.length)return section;
     const controls=el("div","nhp-link-controls");
