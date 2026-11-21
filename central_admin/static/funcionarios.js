@@ -5,7 +5,8 @@
 (() => {
   if (!location.pathname.startsWith("/central/modules/funcionarios")) return;
   const $=id=>document.getElementById(id);
-  const state={data:null,openId:null,loading:false,filters:{q:"",status:"all"}};
+  const state={data:null,openId:null,loading:false,cards:new Map(),
+    filters:{q:"",status:"all"}};
   const fmt=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
   const number=value=>{const x=Number(value);return Number.isFinite(x)?x:0};
   const br=value=>fmt.format(number(value));
@@ -126,7 +127,7 @@
       const count=e("details","nhf-history");
       const summary=e("summary","nhf-muted","Ver histórico de "+historical.length+" holerite(s) de outros meses");
       count.append(summary);
-      for(const h of historical.slice(0,40))
+      for(const h of historical)
         count.append(record("Holerite "+(h.competencia||"—"),"Conta #"+h.id,
           h.valor,h.paga?"Pago":"Pendente"));
       section.append(count);
@@ -161,6 +162,25 @@
       late.length+" parcela(s) de meses anteriores em aberto. Não somadas automaticamente ao holerite."));
     if(staff.descontos.some(x=>x.status==="error"))
       section.append(label("Conciliação pendente","warn"));
+    return section;
+  }
+  function renderDiscounts(staff){
+    const section=block("Descontos vinculados aos holerites",
+      staff.descontos.length+" lançamento(s)",true);
+    if(!staff.descontos.length)
+      section.append(e("p","nhf-muted",
+        "Ainda não existem parcelas de vale vinculadas a holerites desta pessoa."));
+    for(const discount of staff.descontos){
+      const statuses={reserved:"Reservado · aguarda pagamento",
+        settled:"Baixado no controle de Vales",
+        error:"Conciliação pendente"};
+      section.append(record("Parcela #"+discount.parcela_id+
+        " · Holerite #"+discount.conta_id,
+        "Competência "+discount.competencia+" · Líquido original "+
+        br(discount.original_holerite)+
+        (discount.erro?" · "+discount.erro:""),
+        discount.valor,statuses[discount.status]||discount.status));
+    }
     return section;
   }
   function renderOther(staff){
@@ -279,22 +299,29 @@
       e("span","nhf-chevron","⌄")
     );
     const details=e("div","nhf-staff-details");details.hidden=true;
+    const loadDetails=()=>{
+      if(details.dataset.loaded==="1")return;
+      appendPayInfo(details,person);
+      const grid=e("div","nhf-detail-grid");
+      grid.append(renderPayroll(person,month),renderVales(person,month),
+        renderOther(person),renderSuggested(person),renderAccountFinder(person),
+        renderDiscounts(person));
+      details.append(grid);details.dataset.loaded="1";
+    };
     header.addEventListener("click",()=>{
-      const opened=details.hidden;details.hidden=!opened;
+      const opened=details.hidden;
+      if(opened)loadDetails();
+      details.hidden=!opened;
       header.setAttribute("aria-expanded",String(opened));
       card.classList.toggle("is-open",opened);
       state.openId=opened?person.id:null;
     });
-    appendPayInfo(details,person);
-    const grid=e("div","nhf-detail-grid");
-    grid.append(renderPayroll(person,month),renderVales(person,month),
-      renderOther(person),renderSuggested(person),renderAccountFinder(person));
-    details.append(grid);
     card.append(header,details);
     if(person.id===state.openId){
-      details.hidden=false;header.setAttribute("aria-expanded","true");
+      loadDetails();details.hidden=false;header.setAttribute("aria-expanded","true");
       card.classList.add("is-open");
     }
+    state.cards.set(person.id,card);
     return card;
   }
   function applyFilters(){
@@ -302,7 +329,7 @@
     const staff=state.data?.funcionarios||[];
     let shown=0;
     for(const item of staff){
-      const card=$("staffList").querySelector('[data-person-id="'+item.id+'"]');
+      const card=state.cards.get(item.id);
       if(!card)continue;
       const value=item.totais;
       const fits=!q||norm(item.nome).includes(q);
@@ -368,6 +395,7 @@
     setText("metricPaid",k.holerites_pagos_mes);
     setText("payrollSubtitle",k.holerites_mes+" cadastrado(s) na competência");
     const list=$("staffList");list.replaceChildren();
+    state.cards.clear();
     const ordered=data.funcionarios.slice().sort((a,b)=>
       number(b.totais.total_a_pagar)-number(a.totais.total_a_pagar)||
       a.nome.localeCompare(b.nome,"pt-BR"));
