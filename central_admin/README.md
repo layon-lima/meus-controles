@@ -444,3 +444,41 @@ ficam empilhados para manter os controles acessíveis.
 Os arquivos originais e o banco não são migrados nem alterados.
 A atualização `deploy/ATUALIZAR_VPS.sh` verifica a inclusão dos
 assets e a política CSP real antes de concluir.
+
+
+## Filtro de duplicidade ANTES da fila de contas (21/11/2026)
+
+Quando o usuário arrasta **vários PDFs** ao módulo Contas:
+
+1. Antes de inserir os documentos na fila de conferência, a Central
+   consulta somente para leitura `/api/windows/pdf-manifest` do CONTAS 4.
+   O manifesto contém SHA-256 dos PDFs guardados localmente ou no R2,
+   **incluindo documentos de contas já pagas**.
+2. Cada PDF arrastado é identificado pelo seu **conteúdo real (SHA-256)**
+   no navegador. Arquivos idênticos aos já cadastrados ou repetidos
+   dentro do próprio lote são retirados **antes de formar a fila**,
+   independentemente de terem nomes diferentes.
+3. A lista `/api/accounts` fornece os identificadores de pagamento
+   existentes. Cada PDF ainda não descartado segue para OCR, **um por vez**.
+   Se o resultado contiver uma linha digitável bancária idêntica de
+   44/46/47/48 dígitos, o documento é retirado sem mostrar o formulário.
+   Para PIX EMV dinâmico, também devem coincidir valor e vencimento,
+   igual à regra de duplicidade do motor original.
+4. A prévia de OCR descartada tem seu ticket cancelado, sem gravar conta
+   ou PDF no R2. O lote continua automaticamente para o próximo.
+5. Após uma confirmação, a Central atualiza a lista de contas antes de
+   conferir o próximo documento, para também identificar cobranças
+   recém-cadastradas.
+6. O resumo apresenta **Duplicados excluídos**, separados de erros e
+   de arquivos cancelados manualmente. Se todos os PDFs forem repetidos,
+   não abre nenhuma conferência nem forma fila.
+
+**Proteção contra falsos positivos:** não descartar somente por mesmo
+fornecedor, valor e vencimento. PDF de bytes diferentes e sem identificador
+forte permanece disponível para conferência. Falha na consulta ao
+inventário R2/banco ou ausência de WebCrypto aborta a formação da fila,
+com aviso claro para o usuário tentar novamente.
+
+Nenhum endpoint de gravação é criado e nenhuma regra de duplicidade do
+CONTAS 4 foi substituída; sua confirmação continua a executar a
+verificação de duplicidade do banco antes de qualquer cadastro.
