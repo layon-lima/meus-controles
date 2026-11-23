@@ -26,7 +26,7 @@ body.central-operational .app-shell{display:flex!important;width:100%!important;
 body.central-operational .workspace{display:block!important;flex:1 1 auto!important;min-width:0!important;width:100%!important;margin:0!important;padding:0!important}
 body.central-operational #mobileReceiving{display:none!important}
 body.central-operational :is(.app,.workspace,.app-shell){background:transparent!important}
-body.central-operational #main{max-width:1540px;margin:0 auto;width:100%;min-width:0}
+body.central-operational #main{max-width:none!important;margin:0!important;width:100%!important;min-width:0}
 /* Barra transparente fluida, continuamente igual em todos os módulos. */
 .central-shell-bar{
   position:sticky;top:0;z-index:9700;
@@ -34,7 +34,7 @@ body.central-operational #main{max-width:1540px;margin:0 auto;width:100%;min-wid
   border-bottom:1px solid rgba(255,255,255,.95);
   box-shadow:0 4px 26px rgba(27,66,102,.06),inset 0 1px 0 #fff;
   backdrop-filter:blur(24px) saturate(185%);-webkit-backdrop-filter:blur(24px) saturate(185%);
-  padding:0 max(16px,calc((100vw - 1460px)/2));
+  padding:0 clamp(14px,1.55vw,30px);
 }
 .central-shell-inner{display:flex;align-items:center;gap:22px;min-height:74px}
 .central-home{display:flex;align-items:center;gap:11px;color:var(--nh-ink)!important;text-decoration:none!important;white-space:nowrap;flex:none}
@@ -186,7 +186,7 @@ body.central-operational.nh-scope-transportadoras .model-advanced{display:none!i
 /* Arquivo documental: lista própria, mas ações e formulários são os originais. */
 body.central-operational.nh-scope-documentos #contasView{display:none!important}
 body.central-operational.nh-scope-documentos .topbar .kpis{display:none!important}
-.nh-documents{width:100%;max-width:1460px;padding:22px 16px 40px;margin:0 auto}
+.nh-documents{width:100%;max-width:none;min-width:0;padding:22px clamp(14px,1.55vw,30px) 40px;margin:0 auto}
 .nh-documents .nh-module-head{padding:0 2px 21px}
 .nh-documents-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
 .nh-document-card{
