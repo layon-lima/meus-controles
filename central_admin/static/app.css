@@ -130,6 +130,16 @@ html.nh-start-revealing .page {
   ::view-transition-new(root) {animation-duration:0.01ms!important}
 }
 
+/* Link externo sem cookie: confirmar a sessão sem piscar a Home.
+   Se a sessão falhar, o JavaScript desativa essa guarda e mostra o erro. */
+html.nh-module-redirect .page{visibility:hidden!important}
+html.nh-module-redirect body::before{
+  content:"Abrindo o módulo solicitado…";
+  position:fixed;inset:0;z-index:90000;display:flex;
+  align-items:center;justify-content:center;
+  background:linear-gradient(145deg,#f3f8ff,#e7f1fb);
+  color:#517495;font-size:14px;font-weight:700;
+}
 /* Funcionários — indicadores no próprio card de acesso à tela nativa. */
 .module-employees-metrics{display:grid;gap:4px;width:100%;margin:-4px 0 13px;min-height:55px;color:#7990a9;font-size:10px}
 .module-employees-metrics>strong{font-size:14px;color:#2e689d;font-weight:800;
