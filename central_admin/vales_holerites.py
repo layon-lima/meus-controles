@@ -437,7 +437,7 @@ def assign_link(payload):
     return {"ok":True,"vale_employee_id":vale_id,"contas_employee_id":contas_id}
 
 
-def quote(employee_id, competence, original, *, account_id=None, selected=None, vale_employee_id=None):
+def quote(employee_id, competence, original, *, account_id=None, selected=None, vale_employee_id=None, employee_name=None):
     competence=valid_month(competence)
     employee_id=positive_id(employee_id) if employee_id else None
     vale_employee_id=positive_id(vale_employee_id) if vale_employee_id else None
@@ -457,13 +457,25 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
     if vale_employee_id is not None:
         if vale_employee_id not in staff_by_id:
             raise BridgeError("Funcionário de Vales não encontrado.")
-        if employee_id is not None and links.get(vale_employee_id) not in (None,employee_id):
-            raise BridgeError("O vale está associado a outro funcionário do CONTAS.")
+        if employee_id is not None and links.get(vale_employee_id) != employee_id:
+            raise BridgeError("O vale não corresponde ao funcionário identificado no CONTAS.")
         # Se funcionário ainda não foi criado no CONTAS, sua identidade
         # será validada após o cadastro pelo nome completo confirmado.
         vales_ids={vale_employee_id}
     else:
         vales_ids={eid for eid,linked_id in links.items() if employee_id and linked_id==employee_id}
+        if employee_id is None and name_key(employee_name):
+            # Holerite novo: encontre o Vale pelo nome antes de cadastrar o
+            # funcionário no Contas. Só uma correspondência mútua e livre.
+            available=[p for p in staff if int(p["id"]) not in links]
+            proposed=unique_name_links(
+                available,[{"id":-1,"nome":employee_name}],{})
+            vales_ids={vid for vid,cid in proposed.items() if cid==-1}
+            if len(vales_ids)!=1:
+                vales_ids=set()
+                # Sem identificação única não criar desconto com base em nome.
+            else:
+                vale_employee_id=next(iter(vales_ids))
     rows=[]
     arrears=[]
     for item in installments:
@@ -604,8 +616,10 @@ def after_submission(plan,account_id):
             if not row:
                 # Novo funcionário já foi efetivamente criado no CONTAS.
                 vale=next((x for x in people if int(x["id"])==q["vale_employee_id"]),None)
-                if not vale or name_key(vale["name"])!=name_key(acc["fornecedor"]):
-                    raise BridgeError("Nome do funcionário não coincide com o cadastro do Vale.")
+                proposed=unique_name_links(people,read_staff(),linked(con))
+                if (not vale or
+                    proposed.get(int(q["vale_employee_id"]))!=employee_id):
+                    raise BridgeError("Identidade do funcionário não corresponde de forma única ao cadastro do Vale.")
                 con.execute("INSERT INTO staff_links(vale_employee_id,contas_employee_id) VALUES(?,?)",
                             (q["vale_employee_id"],employee_id))
         plan_rows={int(x["id"]):x for x in q["parcelas"]}
@@ -767,7 +781,8 @@ def handle(handler):
         elif method=="GET" and path=="/api/vales-holerites/cotacao":
             result=quote(param("funcionario_id"),param("competencia"),param("original"),
                   account_id=param("account_id") or None,
-                  vale_employee_id=param("vale_employee_id") or None)
+                  vale_employee_id=param("vale_employee_id") or None,
+                  employee_name=param("funcionario_nome") or None)
         elif method=="GET" and path=="/api/vales-holerites/conta":
             result={"ok":True,"descontos":discounts_for_account(param("account_id"))}
         elif method=="POST" and path=="/api/vales-holerites/vincular":
