@@ -263,6 +263,21 @@ if grep -Fq 'id="unlinkedSection"' "$APP/static/funcionarios.html"; then
   fail "Painel de Funcionários ainda tem lista manual de vínculos."
 fi
 echo "OK: Funcionários mostra somente saldos pendentes; sem busca de contas, vínculos ou histórico pago."
+# Todas as paginas da Central usam largura fluida; não publicar só
+# Recebimentos deixando as outras telas com faixas laterais vazias.
+grep -Fq '.rx-app{width:100%;max-width:none;' "$APP/static/recebimentos.css" \
+  || fail "Recebimentos ainda possui limite de largura fixo."
+grep -Fq '.nhf-main{width:100%;max-width:none;' "$APP/static/funcionarios.css" \
+  || fail "Funcionarios ainda possui limite de largura fixo."
+grep -Fq '.content{max-width:none;width:100%;' "$APP/static/app.css" \
+  || fail "Pagina inicial da Central ainda esta limitada em largura."
+grep -Fq 'body.central-operational #main{max-width:none!important;' "$APP/static/operations.css" \
+  || fail "Modulos operacionais continuam com largura limitada."
+grep -Fq '.nh-documents{width:100%;max-width:none;' "$APP/static/operations.css" \
+  || fail "Modulo Documentos ainda possui limite de largura fixo."
+grep -Fq 'operations.css?v=20261123full' "$APP/operations_gateway.py" \
+  || fail "Modulo legado nao recebe CSS atualizado de largura fluida."
+echo "OK: paginas da Central preparadas para ocupar a largura do monitor."
 # Verifica se o motor de origem continua a responder no mesmo banco.
 HTTP="$(curl -sS --max-time 25 -o "$TMP/receiving-state" -w '%{http_code}' \
   -H "Cookie: $COOKIE" \
