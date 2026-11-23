@@ -62,6 +62,7 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 [[ -f "$SOURCE/central_admin/static/index.html" && -f "$SOURCE/central_admin/static/app.js" &&
     -f "$SOURCE/central_admin/static/launcher.js" &&
     -f "$SOURCE/central_admin/static/entry-preflight.js" &&
+    -f "$SOURCE/central_admin/static/route-preflight.js" &&
     -f "$SOURCE/central_admin/static/launcher.css" &&
     -f "$SOURCE/central_admin/static/recebimentos.html" &&
     -f "$SOURCE/central_admin/static/recebimentos.js" &&
@@ -115,6 +116,7 @@ if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/operations.js"
   node --check "$APP/static/launcher.js"
   node --check "$APP/static/entry-preflight.js"
+  node --check "$APP/static/route-preflight.js"
   node --check "$APP/static/recebimentos.js"
   node --check "$APP/static/recebimentos_imports.js"
   node --check "$APP/static/contas_batch.js"
@@ -224,6 +226,12 @@ for entry in 'api/resumo' \
     elif [[ "$entry" != 'modules/funcionarios/' ]]; then
       grep -Fq '/central/operations.css' "$TMP/response" \
         || fail "Tema comum nao encontrado em $entry."
+      # Controles / Transportadoras / Relatorios / Contas / Documentos
+      # devem bloquear a Home intermediaria ANTES dos scripts do motor.
+      grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
+        || fail "Modulo $entry ainda monta Home antiga antes do controle."
+      grep -Fq '/central/operations.js?v=20261123route1' "$TMP/response" \
+        || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
       || fail "Botao flutuante nao encontrado em $entry."
@@ -248,6 +256,23 @@ for asset in recebimentos.js recebimentos_imports.js recebimentos.css funcionari
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Recurso nativo $asset indisponível."
 done
+# A navegação da Central nunca deve exibir a Home antiga ao abrir controle.
+grep -Fq 'function paintTargetWhileLoading(' "$APP/static/operations.js" \
+  || fail "Navegação ainda deixa a tela anterior visível ao abrir controle."
+grep -Fq 'function releaseEntryAfterRealRender(' "$APP/static/operations.js" \
+  || fail "Controle pode aparecer depois da Home por falta de hidratação de rota."
+grep -Fq 'nh-route-boot' "$APP/static/route-preflight.js" \
+  || fail "Bloqueio de primeira pintura não está instalado."
+grep -Fq 'html.nh-route-boot body :is(.app-shell,.app)' "$APP/static/operations.css" \
+  || fail "A Home antiga ainda pode ser pintada antes do controle."
+grep -Fq 'nh-module-redirect' "$APP/static/entry-preflight.js" \
+  || fail "Navegação por sessão ainda expõe página inicial intermediária."
+grep -Fq 'if (openRequestedModuleAfterAuth()) return;' "$APP/static/app.js" \
+  || fail "Redirecionamento pode montar a Home antes do módulo escolhido."
+HTTP="$(curl -sS --max-time 8 -o "$TMP/route-asset" -w '%{http_code}' \
+  "http://127.0.0.1:18771/route-preflight.js")"
+[[ "$HTTP" == 200 ]] || fail "Script de navegação direta não está acessível (HTTP $HTTP)."
+echo "OK: navegação direta com guarda de pintura e carregamento por destino."
 # Garante que a ficha de funcionários publicada é apenas de valores em
 # aberto. Não reintroduzir links de pagamento, busca de vínculo ou histórico.
 grep -Fq 'function openAmounts(person)' "$APP/static/funcionarios.js" \
