@@ -85,7 +85,7 @@ class DashboardTest(unittest.TestCase):
     def test_totals_no_double_discounts(self):
         report=f.dashboard("2026-11")
         k=report["indicadores"]
-        self.assertEqual(k["funcionarios"],2)
+        self.assertEqual(k["funcionarios"],3)
         self.assertEqual(k["funcionarios_com_pagamentos"],2)
         self.assertEqual(k["holerites_mes"],3)
         self.assertEqual(k["holerites_pendentes_mes"],2)
@@ -94,7 +94,7 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(k["total_holerites_pendentes"],"4650.00")
         self.assertEqual(k["total_outras_contas_pendentes"],"0.00")
         # Salário de João JÁ foi reduzido de R$ 3000 para R$ 2550.
-        self.assertEqual(k["vales_a_descontar"],"85.00")
+        self.assertEqual(k["vales_a_descontar"],"125.00")
         self.assertEqual(k["vales_ja_reservados"],"450.00")
         self.assertEqual(k["vales_sem_vinculo"],1)
         joao=next(x for x in report["funcionarios"] if x["id"]==1)
@@ -107,7 +107,14 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(joao["sugestoes"][0]["id"],4)
         self.assertEqual(len(joao["holerites"]),2)
         self.assertEqual(len(joao["descontos"]),2)
-        self.assertEqual(report["vales_sem_vinculo"][0]["nome"],"PEDRO SANTOS")
+        # Cadastro exclusivo de Vales não desaparece: vira ficha de
+        # consulta, sem criar um empregado nem um Pix no CONTAS original.
+        pedro=next(x for x in report["funcionarios"] if x["nome"]=="PEDRO SANTOS")
+        self.assertLess(pedro["id"],0)
+        self.assertEqual(pedro["origem_cadastro"],"vales")
+        self.assertEqual(pedro["vales_ids"],[12])
+        self.assertEqual(pedro["totais"]["vales_previstos"],"40.00")
+        self.assertFalse(report["vales_sem_vinculo"])
 
     def test_other_account_needs_confirmation(self):
         before=f.dashboard("2026-11")
