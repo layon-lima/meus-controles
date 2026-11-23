@@ -32,7 +32,7 @@ class CentralFullWidthTest(unittest.TestCase):
         for selector in ("content","site-footer"):
             self.check_selector("app.css",
                 r"\."+selector+r"\{[^}]*max-width:none;[^}]*width:100%;")
-        self.assertIn("app.css?v=20261123full",
+        self.assertIn("app.css?v=20261123route1",
             (ROOT/"static"/"index.html").read_text(encoding="utf-8"))
 
     def test_proxied_modules_and_documents_full_width(self):
@@ -42,7 +42,7 @@ class CentralFullWidthTest(unittest.TestCase):
         self.assertNotIn("max-width:1540px",css)
         self.assertIn("padding:0 clamp(14px,1.55vw,30px)",css)
         gateway=(ROOT/"operations_gateway.py").read_text(encoding="utf-8")
-        self.assertIn('operations.css?v=20261123full',gateway)
+        self.assertIn('operations.css?v=20261123route1',gateway)
         # Não modificar as páginas hospedadas fora do prefixo da Central.
         self.assertIn('body.central-operational',css)
 
