@@ -177,11 +177,50 @@
     main.append(results);
     renderResults();
   }
+  function releaseEntryAfterRealRender(app) {
+    // No primeiro carregamento, o HTML antigo existe, mas NÃO é o destino.
+    // Só revelar após o motor confirmar estado + rota + detalhe correto.
+    const state=app && app.s;
+    if (!state || !state.state) return;
+    if (state.route==="control" &&
+        (!state.detail?.control || Number(state.detail.control.id)!==Number(state.id))) return;
+    if (state.route==="board" &&
+        !(state.state.boards||[]).some(b=>Number(b.id)===Number(state.id))) return;
+    const main=document.getElementById("main");
+    if (main) main.setAttribute("aria-busy","false");
+    window.NHCentralRoute?.ready?.();
+  }
+  function paintTargetWhileLoading(app,route,id) {
+    // Troca a antiga lista/visão geral IMEDIATAMENTE antes do fetch.
+    // O motor continua responsável por estados, URLs, voltar e detalhes.
+    if (route!=="control" || !Number.isSafeInteger(Number(id)) || Number(id)<=0 ||
+        (app.s.route==="control" && Number(app.s.id)===Number(id) && app.s.detail)) return;
+    const main=document.getElementById("main");
+    if (!main) return;
+    const selected=(app.s.state?.controls||[]).find(c=>Number(c.id)===Number(id));
+    const heading=document.getElementById("pageTitle");
+    if (heading) heading.textContent=selected?.name||"Abrindo controle";
+    const crumb=document.getElementById("crumb");
+    if (crumb) crumb.textContent="NOVO HORIZONTE / CONTROLE";
+    const neutral=document.createElement("div");
+    neutral.className="nh-route-loading";
+    neutral.setAttribute("role","status");
+    neutral.setAttribute("aria-live","polite");
+    neutral.textContent="Abrindo "+(selected?.name||"o controle")+"…";
+    main.replaceChildren(neutral);
+    main.setAttribute("aria-busy","true");
+  }
   function configureOriginalControls() {
     const app = nativeApp();
     if (!app) return;
     const close = quietOldSidebar();
     app.toggleMenu = function () { close(); };
+    const originalNavigate=app.navigate;
+    app.navigate=function (route,id,options) {
+      // Vale também para Voltar/Avançar, que usam navigate(fromHistory).
+      paintTargetWhileLoading(this,route,id);
+      return originalNavigate.apply(this,arguments);
+    };
     if (!["controles","recebimentos","transportadoras"].includes(active)) {
       if (active === "relatorios") {
         const originalRender = app.renderMain;
@@ -197,7 +236,21 @@
           document.getElementById("nh-export-report").addEventListener("click",
             () => this.reportExcelOpen());
         };
+        const renderReport=app.render;
+        app.render=function () {
+          const result=renderReport.apply(this,arguments);
+          releaseEntryAfterRealRender(this);
+          return result;
+        };
         app.render();
+      } else {
+        const renderOther=app.render;
+        app.render=function () {
+          const result=renderOther.apply(this,arguments);
+          releaseEntryAfterRealRender(this);
+          return result;
+        };
+        if(app.s.state)app.render();
       }
       return;
     }
@@ -226,8 +279,10 @@
         this.navigate("home",null,{replace:true});
         return;
       }
-      originalRender.apply(this,arguments);
+      const rendered=originalRender.apply(this,arguments);
       close();
+      releaseEntryAfterRealRender(this);
+      return rendered;
     };
     if (app.s.state) app.render();
   }
@@ -383,7 +438,11 @@
     renderShell();
     if (["controles","recebimentos","transportadoras","relatorios"].includes(active))
       configureOriginalControls();
-    else
+    else {
       configureContas();
+      // CONTAS / Documentos não usam App do Meus Controles; a montagem da
+      // aba correta acontece em configureContas, não durante a primeira pintura.
+      window.NHCentralRoute?.ready?.();
+    }
   });
 })();
