@@ -262,3 +262,23 @@ body.central-operational :is(.control-card,.board-card,.nh-document-card):hover 
     transition:none!important;
   }
 }
+
+/* Entrada real dos módulos: a tela inicial legada não pode vazar antes do
+   destino ser renderizado. visibility preserva medidas/layout da aplicação. */
+html.nh-route-boot body :is(.app-shell,.app){visibility:hidden!important}
+html.nh-route-boot body::before{
+  content:"Abrindo a área solicitada…";
+  position:fixed;inset:0;z-index:90000;display:flex;
+  align-items:center;justify-content:center;
+  padding:20px;background:linear-gradient(145deg,#f3f8ff,#e7f1fb);
+  color:#517495;font-size:14px;font-weight:700;
+}
+.nh-route-loading{
+  display:flex;align-items:center;justify-content:center;min-height:180px;
+  padding:34px 18px;color:#6684a0;font-size:13px;font-weight:700;
+  border:1px solid rgba(255,255,255,.88);border-radius:18px;
+  background:rgba(255,255,255,.59);
+}
+@media(prefers-reduced-motion:reduce){
+  .nh-route-loading{transition:none!important}
+}
