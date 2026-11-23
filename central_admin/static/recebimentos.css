@@ -8,7 +8,7 @@ body.nh-native-screen{margin:0!important;min-height:100dvh!important;color:var(-
 button,input,select,textarea{font:inherit}button{cursor:pointer}
 button:disabled{opacity:.48;cursor:not-allowed}
 [hidden]{display:none!important}a{color:#296cab}
-.rx-app{max-width:1440px;margin:0 auto;padding:44px 28px 92px}
+.rx-app{width:100%;max-width:none;min-width:0;margin:0;padding:44px clamp(14px,1.55vw,30px) 92px}
 .rx-page-header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin:0 0 30px}
 .rx-eyebrow{display:block;font-size:10px;font-weight:850;letter-spacing:1.75px;color:#7594b5}
 .rx-title h1{font-size:clamp(25px,3vw,34px);line-height:1.2;letter-spacing:-1.2px;font-weight:790;margin:8px 0}
