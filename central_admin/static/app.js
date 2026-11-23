@@ -132,6 +132,7 @@ function openRequestedModuleAfterAuth() {
   ]);
   if (!valid.has(module)) return;
   window.location.replace("/central/modules/" + module + "/");
+  return true;
 }
 
 async function refreshEmployeesHome() {
