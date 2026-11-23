@@ -95,19 +95,49 @@ class LiveContractTest(unittest.TestCase):
         self.assertEqual(v.name_suggestions("ALBETIZA",
             [{"id":1,"nome":"ALBETIZIA CIRQUEIRA DE ANDRADE CARVALHO"}]),[1])
 
-    def test_payroll_list_displays_suggested_unlinked_vale(self):
+    def test_short_names_link_automatically_and_display_real_vales(self):
         report=f.dashboard("2026-11")
-        self.assertEqual(len(report["vales_sem_vinculo"]),3)
-        candidate=next(x for x in report["vales_sem_vinculo"] if x["nome"]=="ALBETIZA")
-        self.assertEqual(candidate["vales_previstos"],"500.00")
-        self.assertEqual(candidate["sugestao_funcionario_id"],1)
-        maria=next(x for x in report["vales_sem_vinculo"] if x["nome"]=="MARIA")
-        self.assertEqual(maria["sugestao_funcionario_id"],2)
+        self.assertFalse(report["vales_sem_vinculo"])
+        expected={1:20,2:21,3:22}
+        for conta_id,vale_id in expected.items():
+            person=next(x for x in report["funcionarios"] if x["id"]==conta_id)
+            self.assertEqual(person["vales_ids"],[vale_id])
+        albetiza=next(x for x in report["funcionarios"] if x["id"]==1)
+        self.assertEqual(albetiza["totais"]["vales_previstos"],"500.00")
+        maria=next(x for x in report["funcionarios"] if x["id"]==2)
+        self.assertEqual(maria["totais"]["vales_previstos"],"500.00")
         self.assertEqual(report["indicadores"]["total_a_pagar"],"1635.02")
-        # Requisitos: não alterar o valor do PDF sem confirmar o vínculo.
+        self.assertEqual(report["indicadores"]["vales_a_descontar"],"1000.00")
+        # Nenhuma associação de consulta altera o líquido ou o banco original.
         with sqlite3.connect(os.environ["CENTRAL_CONTAS_DB"]) as con:
             self.assertEqual(con.execute("SELECT valor FROM contas WHERE id=90").fetchone()[0],
                              "1635.02")
+        with sqlite3.connect(os.environ["CENTRAL_VALES_DB"]) as con:
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM staff_links").fetchone()[0],0)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM discounts").fetchone()[0],0)
+
+    def test_name_variants_only_match_when_unique(self):
+        source=[
+            {"id":10,"name":"Rafael"},
+            {"id":11,"name":"João Pedro (Jorge)"},
+            {"id":12,"name":"Dacilei Rocha"},
+        ]
+        targets=[
+            {"id":2,"nome":"RAPHAEL DA SILVA"},
+            {"id":3,"nome":"JOÃO PEDRO GOMES"},
+            {"id":4,"nome":"DARCILEI DA ROCHA OLIVEIRA"},
+        ]
+        self.assertEqual(v.unique_name_links(source,targets,{}),{10:2,11:3,12:4})
+        # Dois RAPHAELs: nunca escolher arbitrariamente.
+        ambiguous=targets+[{"id":5,"nome":"RAPHAEL DOS SANTOS"}]
+        self.assertNotIn(10,v.unique_name_links(source,ambiguous,{}))
+        # Dois Vales chamados Rafael: nenhum se apropria do mesmo holerite.
+        duplicate=source+[{"id":13,"name":"Rafael"}]
+        paired=v.unique_name_links(duplicate,targets,{})
+        self.assertNotIn(10,paired)
+        self.assertNotIn(13,paired)
+        # Associações antigas e confirmadas continuam prioritárias.
+        self.assertEqual(v.unique_name_links(source,targets,{10:4})[10],4)
 
     def test_api_fails_closed_instead_of_claiming_employee_has_no_vales(self):
         with patch.object(v,"_control_request",side_effect=OSError("upstream offline")):
