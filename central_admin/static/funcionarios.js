@@ -1,450 +1,213 @@
 "use strict";
-/* Funcionários — UI nativa única, sem reabrir o aplicativo de Contas.
- * Todos os pagamentos vêm do banco CONTAS por leitura. Os vínculos
- * confirmados são os únicos dados gravados no journal da Central. */
+/* Central / Funcionários: quadro exclusivamente de valores em aberto.
+ * Sem edição, vínculos, histórico pago, Pix ou botões para outras páginas.
+ * A consulta lê os motores originais e nunca cria descontos/pagamentos.
+ */
 (() => {
   if (!location.pathname.startsWith("/central/modules/funcionarios")) return;
   const $=id=>document.getElementById(id);
-  const state={data:null,openId:null,loading:false,cards:new Map(),
-    filters:{q:"",status:"all"}};
+  const state={data:null,cards:new Map(),openId:null,loading:false,
+    filters:{q:"",status:"pending"}};
   const fmt=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
-  const number=value=>{const x=Number(value);return Number.isFinite(x)?x:0};
+  const number=value=>{
+    const n=Number(value);
+    return Number.isFinite(n)&&n>0?n:0;
+  };
   const br=value=>fmt.format(number(value));
   const norm=value=>String(value||"").normalize("NFD")
     .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim();
-  function e(tag,cls,contents){
+  function e(tag,cls,text){
     const element=document.createElement(tag);
     if(cls)element.className=cls;
-    if(contents!==undefined)element.textContent=String(contents);
-    return element;
-  }
-  function label(value,kind=""){
-    const element=e("span","nhf-pill"+(kind?" "+kind:""),value);
+    if(text!==undefined)element.textContent=String(text);
     return element;
   }
   function setText(id,value){$(id).textContent=String(value??"—")}
-  function toast(message,error=false){
-    const el=$("toast");el.textContent=message;el.classList.toggle("error",error);
-    el.hidden=!message;
-    window.clearTimeout(toast.timer);
-    if(message)toast.timer=window.setTimeout(()=>{el.hidden=true},6000);
-  }
-  function loadingBusy(isBusy){
-    state.loading=isBusy;$("refresh").disabled=isBusy;
-    $("refresh").textContent=isBusy?"Consultando…":"Atualizar";
-  }
-  async function json(path,payload){
-    const response=await fetch(path,{
-      method:payload===undefined?"GET":"POST",
-      credentials:"same-origin",cache:"no-store",
-      headers:payload===undefined?{"Accept":"application/json"}:
-        {"Content-Type":"application/json","Accept":"application/json"},
-      body:payload===undefined?undefined:JSON.stringify(payload)
-    });
-    const data=await response.json().catch(()=>({erro:"Resposta inválida da Central."}));
-    if(!response.ok)throw new Error(data.erro||data.error||"Não foi possível consultar funcionários.");
-    return data;
-  }
-  function actionButton(text,callback,cls="nhf-mini"){
-    const button=e("button",cls,text);button.type="button";
-    if(typeof callback==="function")button.addEventListener("click",callback);
-    return button;
-  }
   function initials(name){
     const words=String(name||"").trim().split(/\s+/);
     return ((words[0]||"?")[0]+(words.length>1?words[words.length-1][0]:"")).toUpperCase();
   }
   function safeDate(value){
     const match=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return match?match[3]+"/"+match[2]+"/"+match[1]:"Não informado";
+    return match?match[3]+"/"+match[2]+"/"+match[1]:"—";
   }
-  function record(title,details,value,status,action){
-    const row=e("div","nhf-record");
-    if(status==="Pendente")row.setAttribute("aria-label","pendente");
-    const information=e("div","nhf-record-main");
-    information.append(e("strong","",title),e("small","",details));
-    const end=e("div","nhf-record-end");
-    end.append(e("b","",br(value)),e("small","",status));
-    if(action)end.append(action);
-    row.append(information,end);
-    return row;
+  function monthLabel(value){
+    const match=String(value||"").match(/^(\d{4})-(\d{2})$/);
+    return match?match[2]+"/"+match[1]:"—";
   }
-  function block(title,count,wide=false){
-    const section=e("section","nhf-detail-section"+(wide?" wide":""));
+  function openAmounts(person){
+    // Nunca trazer para a tela contas, holerites ou vales já quitados.
+    // Os descontos reservados já estão no líquido do holerite e não
+    // podem ser somados novamente a "Vales a descontar".
+    const holerites=(person.holerites||[]).filter(a=>!a.paga&&number(a.valor)>0);
+    const contas=(person.outras_contas||[]).filter(a=>!a.paga&&number(a.valor)>0);
+    const vales=(person.parcelas||[]).filter(v=>number(v.saldo_a_descontar)>0);
+    const pagar=[...holerites,...contas].reduce((s,a)=>s+number(a.valor),0);
+    const descontar=vales.reduce((s,v)=>s+number(v.saldo_a_descontar),0);
+    return {holerites,contas,vales,pagar,descontar};
+  }
+  function rows(person){
+    const open=openAmounts(person),result=[];
+    for(const h of open.holerites){
+      result.push({tipo:"Holerite",descricao:"Holerite · "+monthLabel(h.competencia),
+        referencia:"Venc. "+safeDate(h.vencimento),valor:number(h.valor),
+        order:h.vencimento||h.competencia||""});
+    }
+    for(const a of open.contas){
+      result.push({tipo:"Conta",descricao:a.documento||a.referencia||a.fornecedor||"Conta do funcionário",
+        referencia:"Venc. "+safeDate(a.vencimento),valor:number(a.valor),
+        order:a.vencimento||""});
+    }
+    for(const v of open.vales){
+      result.push({tipo:"Vale",descricao:v.titulo||"Vale do funcionário",
+        referencia:"Parcela "+v.parcela+" · "+monthLabel(v.competencia),
+        valor:number(v.saldo_a_descontar),order:v.competencia||""});
+    }
+    result.sort((a,b)=>a.order.localeCompare(b.order)||a.tipo.localeCompare(b.tipo,"pt-BR"));
+    return result;
+  }
+  function makeTable(person){
+    const data=rows(person);
+    const section=e("section","nhf-detail-section nhf-open-only");
     const head=e("div","nhf-detail-heading");
-    head.append(e("strong","",title),e("span","nhf-section-count",count));
+    head.append(e("strong","","Valores em aberto"),
+      e("span","nhf-section-count",data.length+" lançamento(s)"));
     section.append(head);
+    if(!data.length){
+      section.append(e("p","nhf-muted","Nenhum valor em aberto para este funcionário."));
+      return section;
+    }
+    const table=e("table","nhf-open-table"),thead=e("thead"),heading=e("tr");
+    for(const title of ["Tipo","Descrição","Competência / vencimento","Valor"]){
+      heading.append(e("th","",title));
+    }
+    thead.append(heading);table.append(thead);
+    const body=e("tbody");
+    for(const item of data){
+      const tr=e("tr");
+      tr.append(e("td","nhf-type",item.tipo),
+        e("td","",item.descricao),
+        e("td","nhf-reference",item.referencia),
+        e("td","nhf-value",br(item.valor)));
+      body.append(tr);
+    }
+    table.append(body);section.append(table);
     return section;
   }
-  function appendPayInfo(section,staff){
-    const tools=e("div","nhf-staff-tools");
-    const left=e("div","nhf-actions");
-    left.append(label(staff.origem_cadastro==="vales"?"Cadastro vindo dos Vales":
-      staff.pix_cadastrado?"Pix cadastrado":"Pix não cadastrado",
-      staff.origem_cadastro==="vales"?"good":staff.pix_cadastrado?"good":"warn"));
-    const count=staff.vales_ids.length;
-    left.append(label(count?count+" cadastro(s) de vales":"Sem vales vinculados",
-      count?"good":""));
-    tools.append(left);
-    if(staff.chave_pix){
-      const right=e("div","nhf-actions");
-      const reveal=actionButton("Mostrar Pix",()=>{
-        const visible=reveal.dataset.shown==="1";
-        reveal.dataset.shown=visible?"0":"1";
-        reveal.textContent=visible?"Mostrar Pix":"Ocultar Pix";
-        display.textContent=visible?"":staff.chave_pix;
-      });
-      const display=e("small","nhf-pix-reveal","");
-      const copy=actionButton("Copiar Pix",async()=>{
-        try{await navigator.clipboard.writeText(staff.chave_pix);toast("Chave Pix copiada.")}catch{
-          toast("Não foi possível copiar. Use Mostrar Pix.",true)}
-      });
-      right.append(display,reveal,copy);tools.append(right);
-    }
-    section.append(tools);
-  }
-  function renderPayroll(staff,month){
-    const selected=staff.holerites.filter(x=>x.competencia===month);
-    const section=block("Holerites da competência",selected.length+" registro(s)");
-    if(!selected.length)section.append(e("p","nhf-muted","Nenhum holerite cadastrado neste mês."));
-    for(const payroll of selected){
-      const linked=staff.descontos.filter(x=>Number(x.conta_id)===Number(payroll.id));
-      const discount=linked.reduce((sum,x)=>sum+number(x.valor),0);
-      const paid=payroll.paga;
-      const stateText=paid?"Pago":"Pendente";
-      const details=[
-        "Conta #"+payroll.id,
-        "Vencimento "+safeDate(payroll.vencimento),
-        linked.length?"Original "+br(linked[0].original_holerite)+" · Vales "+br(discount):
-          "Sem desconto vinculado"
-      ].join(" · ");
-      const btn=e("a","nhf-mini","Abrir no Contas");
-      btn.href="/central/modules/contas/";
-      btn.title="Acesse a aba Contas para conferir/pagar a conta #"+payroll.id;
-      section.append(record(payroll.fornecedor||"Holerite",details,payroll.valor,stateText,btn));
-    }
-    const historical=staff.holerites.filter(x=>x.competencia!==month);
-    if(historical.length){
-      const count=e("details","nhf-history");
-      const summary=e("summary","nhf-muted","Ver histórico de "+historical.length+" holerite(s) de outros meses");
-      count.append(summary);
-      for(const h of historical)
-        count.append(record("Holerite "+(h.competencia||"—"),"Conta #"+h.id,
-          h.valor,h.paga?"Pago":"Pendente"));
-      section.append(count);
-    }
-    return section;
-  }
-  function renderVales(staff,month){
-    const current=staff.parcelas.filter(x=>x.competencia===month);
-    const late=staff.parcelas.filter(x=>x.competencia<month&&number(x.saldo_a_descontar)>0);
-    const future=staff.parcelas.filter(x=>x.competencia>month&&number(x.saldo_a_descontar)>0);
-    const section=block("Vales do funcionário",
-      current.length+" parcela(s) na competência");
-    if(!staff.vales_ids.length)
-      section.append(e("p","nhf-muted","Nenhum controle de Vales vinculado a este funcionário."));
-    if(staff.vales_ids.length&&!current.length)
-      section.append(e("p","nhf-muted","Sem parcela prevista para este mês."));
-    const list=e("div","nhf-vales-table");
-    for(const val of current){
-      const part=e("div","nhf-vale");
-      const info=e("div");
-      info.append(e("b","",val.titulo),e("small","",
-        "Parcela "+val.parcela+" · saldo bruto "+br(number(val.valor)-number(val.ja_descontado))));
-      const money=e("div");
-      money.append(e("strong","",br(val.saldo_a_descontar)));
-      const committed=number(val.reservado);
-      money.append(e("small","",committed?
-        br(committed)+" já reservado em holerite":
-        number(val.saldo_a_descontar)?"A descontar":"Descontado/quitado"));
-      part.append(info,money);list.append(part);
-    }
-    section.append(list);
-    for(const [title,group] of [
-      ["Parcelas atrasadas",late],["Próximas parcelas",future]
-    ]){
-      if(!group.length)continue;
-      const accordion=e("details","nhf-vale-more");
-      accordion.append(e("summary","nhf-note",
-        title+" · "+group.length+" parcela(s) — não descontadas nesta competência"));
-      for(const val of group)
-        accordion.append(record(val.titulo,
-          "Parcela "+val.parcela+" · "+val.competencia,
-          val.saldo_a_descontar,"Em aberto"));
-      section.append(accordion);
-    }
-    if(staff.descontos.some(x=>x.status==="error"))
-      section.append(label("Conciliação pendente","warn"));
-    return section;
-  }
-  function renderDiscounts(staff){
-    const section=block("Descontos vinculados aos holerites",
-      staff.descontos.length+" lançamento(s)",true);
-    if(!staff.descontos.length)
-      section.append(e("p","nhf-muted",
-        "Ainda não existem parcelas de vale vinculadas a holerites desta pessoa."));
-    for(const discount of staff.descontos){
-      const statuses={reserved:"Reservado · aguarda pagamento",
-        settled:"Baixado no controle de Vales",
-        error:"Conciliação pendente"};
-      section.append(record("Parcela #"+discount.parcela_id+
-        " · Holerite #"+discount.conta_id,
-        "Competência "+discount.competencia+" · Líquido original "+
-        br(discount.original_holerite)+
-        (discount.erro?" · "+discount.erro:""),
-        discount.valor,statuses[discount.status]||discount.status));
-    }
-    return section;
-  }
-  function renderOther(staff){
-    const section=block("Outras contas vinculadas",staff.outras_contas.length+" registro(s)");
-    if(!staff.outras_contas.length)
-      section.append(e("p","nhf-muted","Nenhuma outra conta vinculada e confirmada."));
-    for(const acc of staff.outras_contas){
-      const btn=e("a","nhf-mini","Abrir no Contas");
-      btn.href="/central/modules/contas/";
-      btn.title="Localize a conta #"+acc.id+" no Contas";
-      section.append(record(acc.fornecedor||acc.documento||"Conta",
-        "Conta #"+acc.id+" · "+(acc.documento||acc.referencia||"")+
-        " · venc. "+safeDate(acc.vencimento),
-        acc.valor,acc.paga?"Paga":"Pendente",btn));
-    }
-    return section;
-  }
-  async function approveAccount(acc,employeeId,btn){
-    if(!window.confirm("Confirmar que a conta #"+acc.id+" de "+acc.fornecedor+
-        " pertence a este funcionário? O vínculo será usado no total a pagar."))return;
-    btn.disabled=true;
-    try{
-      await json("/central/api/funcionarios/vincular-conta",{
-        conta_id:acc.id,funcionario_id:employeeId
-      });
-      toast("Conta vinculada ao funcionário.");
-      await refresh();
-    }catch(error){toast(error.message,true);btn.disabled=false}
-  }
-  function renderSuggested(staff){
-    const section=block("Contas sugeridas pelo nome",
-      staff.sugestoes.length+" para conferir",true);
-    section.append(e("p","nhf-note",
-      "Estas contas ainda NÃO fazem parte do total a pagar. Confirme apenas se são realmente deste funcionário."));
-    if(!staff.sugestoes.length)section.append(e("p","nhf-muted","Nenhuma outra conta sugerida."));
-    for(const acc of staff.sugestoes){
-      const row=e("div","nhf-suggest");
-      const line=e("div","nhf-suggest-row");
-      const info=e("div","nhf-suggest-details");
-      info.append(e("strong","",acc.fornecedor+" · "+br(acc.valor)),
-        e("small","","Conta #"+acc.id+" · "+
-          safeDate(acc.vencimento)+(acc.paga?" · Paga":" · Pendente")));
-      const button=actionButton("Confirmar vínculo");
-      button.addEventListener("click",()=>approveAccount(acc,staff.id,button));
-      line.append(info,button);row.append(line);section.append(row);
-    }
-    return section;
-  }
-  function renderAccountFinder(staff){
-    const section=block("Vincular outra conta existente","Busca segura",true);
-    section.append(e("p","nhf-note",
-      "A conta não precisa ter o nome do funcionário como fornecedor. "+
-      "Pesquise o lançamento existente no Contas e confirme a associação."));
-    const controls=e("div","nhf-actions");
-    const search=e("input","nhf-link-select");
-    search.type="search";search.placeholder="Fornecedor ou número da conta…";
-    search.autocomplete="off";
-    search.setAttribute("aria-label","Buscar contas para vincular a "+staff.nome);
-    const button=actionButton("Buscar contas");
-    const result=e("div","nhf-account-search-results");
-    button.addEventListener("click",async()=>{
-      const query=search.value.trim();
-      if(query.length<2)return toast("Digite ao menos 2 caracteres para buscar.",true);
-      button.disabled=true;
-      result.replaceChildren(e("p","nhf-muted","Buscando contas existentes…"));
-      try{
-        const found=await json("/central/api/funcionarios/buscar-contas?q="+
-          encodeURIComponent(query));
-        result.replaceChildren();
-        if(!found.contas?.length){
-          result.append(e("p","nhf-muted","Nenhuma conta disponível para vínculo."));
-          return;
-        }
-        for(const acc of found.contas){
-          const row=e("div","nhf-suggest");
-          const line=e("div","nhf-suggest-row");
-          const info=e("div","nhf-suggest-details");
-          info.append(e("strong","",acc.fornecedor+" · "+br(acc.valor)),
-            e("small","","Conta #"+acc.id+" · "+safeDate(acc.vencimento)+
-              (acc.paga?" · Paga":" · Pendente")));
-          const confirm=actionButton("Vincular");
-          confirm.addEventListener("click",()=>approveAccount(acc,staff.id,confirm));
-          line.append(info,confirm);row.append(line);result.append(row);
-        }
-      }catch(err){
-        result.replaceChildren(e("p","nhf-failed",err.message));
-      }finally{button.disabled=false}
-    });
-    search.addEventListener("keydown",event=>{
-      if(event.key==="Enter"){event.preventDefault();button.click()}
-    });
-    controls.append(search,button);section.append(controls,result);
-    return section;
-  }
-  function createStaffCard(person,month){
-    const card=e("article","nhf-staff");card.dataset.personId=String(person.id);
+  function createStaffCard(person){
+    const balance=openAmounts(person);
+    const card=e("article","nhf-staff");
+    card.dataset.personId=String(person.id);
     card.dataset.name=norm(person.nome);
-    const total=person.totais;
     const header=e("button","nhf-staff-summary");
     header.type="button";header.setAttribute("aria-expanded","false");
-    const who=e("span","nhf-person");
-    const avatar=e("span","nhf-avatar",initials(person.nome));
+    const who=e("span","nhf-person"),avatar=e("span","nhf-avatar",initials(person.nome));
     const copy=e("span","nhf-person-text");
-    copy.append(e("strong","",person.nome),e("small","",
-      person.origem_cadastro==="vales"?
-        "Cadastro do Meus Controles · sem holerite no Contas":
-        person.totais.holerites_pendentes_mes+" holerite(s) aberto(s) · "+
-        (person.pix_cadastrado?"Pix cadastrado":"Pix pendente")));
+    const openCount=balance.holerites.length+balance.contas.length;
+    copy.append(e("strong","",person.nome),
+      e("small","",openCount+" valor(es) a pagar · "+
+        balance.vales.length+" parcela(s) de vale em aberto"));
     who.append(avatar,copy);header.append(who);
-    function cell(title,value,primary=false){
-      const block=e("span","nhf-stat"+(primary?" primary":""));
-      block.append(e("span","",title),e("strong","",value));return block;
+    function stat(title,value,kind){
+      const cell=e("span","nhf-stat "+kind);
+      cell.append(e("span","",title),e("strong","",br(value)));
+      return cell;
     }
     header.append(
-      cell("A pagar",br(total.total_a_pagar),true),
-      cell("Vales previstos",br(total.vales_previstos)),
-      cell("Vales já reservados",br(total.vales_reservados)),
+      stat("Saldo a pagar ao funcionário",balance.pagar,"primary"),
+      stat("Vales a descontar",balance.descontar,"deduct"),
       e("span","nhf-chevron","⌄")
     );
-    const details=e("div","nhf-staff-details");details.hidden=true;
+    const detail=e("div","nhf-staff-details");
+    detail.hidden=true;
     const loadDetails=()=>{
-      if(details.dataset.loaded==="1")return;
-      appendPayInfo(details,person);
-      const grid=e("div","nhf-detail-grid");
-      if(person.origem_cadastro==="vales"){
-        details.append(e("p","nhf-note",
-          "Cadastro identificado automaticamente no Meus Controles. Os vales já aparecem aqui. "+
-          "O holerite e a chave Pix serão exibidos quando o funcionário for cadastrado no Contas."));
-        grid.append(renderVales(person,month));
-      }else{
-        grid.append(renderPayroll(person,month),renderVales(person,month),
-          renderOther(person),renderSuggested(person),renderAccountFinder(person),
-          renderDiscounts(person));
-      }
-      details.append(grid);details.dataset.loaded="1";
+      if(detail.dataset.loaded==="1")return;
+      detail.append(makeTable(person));
+      detail.dataset.loaded="1";
     };
     header.addEventListener("click",()=>{
-      const opened=details.hidden;
-      if(opened)loadDetails();
-      details.hidden=!opened;
-      header.setAttribute("aria-expanded",String(opened));
-      card.classList.toggle("is-open",opened);
-      state.openId=opened?person.id:null;
+      const opening=detail.hidden;
+      if(opening)loadDetails();
+      detail.hidden=!opening;
+      header.setAttribute("aria-expanded",String(opening));
+      card.classList.toggle("is-open",opening);
+      state.openId=opening?person.id:null;
     });
-    card.append(header,details);
+    card.append(header,detail);
     if(person.id===state.openId){
-      loadDetails();details.hidden=false;header.setAttribute("aria-expanded","true");
+      loadDetails();detail.hidden=false;
+      header.setAttribute("aria-expanded","true");
       card.classList.add("is-open");
     }
+    card.dataset.pagar=String(balance.pagar);
+    card.dataset.vales=String(balance.descontar);
     state.cards.set(person.id,card);
     return card;
   }
   function applyFilters(){
-    const q=norm(state.filters.q),filter=state.filters.status;
-    const staff=state.data?.funcionarios||[];
+    const q=norm(state.filters.q),status=state.filters.status;
+    const people=state.data?.funcionarios||[];
     let shown=0;
-    for(const item of staff){
-      const card=state.cards.get(item.id);
+    for(const person of people){
+      const card=state.cards.get(person.id);
       if(!card)continue;
-      const value=item.totais;
-      const fits=!q||norm(item.nome).includes(q);
-      const status=filter==="all"||
-        (filter==="pending"&&number(value.total_a_pagar)>0)||
-        (filter==="vales"&&(item.vales_ids.length||number(value.vales_previstos)>0))||
-        (filter==="links"&&Number(value.sugestoes_contas)>0);
-      card.hidden=!(fits&&status);if(!card.hidden)shown++;
+      const amount=Number(card.dataset.pagar),vales=Number(card.dataset.vales);
+      const matchName=!q||norm(person.nome).includes(q);
+      const matchStatus=status==="all"||
+        (status==="pending"&&(amount>0||vales>0))||
+        (status==="payable"&&amount>0)||
+        (status==="vales"&&vales>0);
+      card.hidden=!(matchName&&matchStatus);
+      if(!card.hidden)shown++;
     }
-    setText("listSubtitle",shown+" de "+staff.length+" funcionário(s) exibido(s)");
-    const empty=$("emptyFiltered");
-    if(empty)empty.hidden=shown!==0;
-  }
-  async function linkVale(val,select,button){
-    const id=Number(select.value);
-    if(!id)return toast("Selecione o funcionário correto no Contas.",true);
-    const staff=state.data.funcionarios.find(x=>x.id===id);
-    if(!staff)return toast("Funcionário não encontrado.",true);
-    if(!window.confirm("Vincular "+val.nome+" (Vales) a "+staff.nome+
-      " (Contas)? Essa associação será mantida nos próximos holerites."))return;
-    button.disabled=true;
-    try{
-      await json("/central/api/vales-holerites/vincular",{
-        vale_employee_id:val.vale_employee_id,contas_employee_id:id
-      });
-      toast("Funcionários vinculados com sucesso.");await refresh();
-    }catch(err){toast(err.message,true);button.disabled=false}
-  }
-  function renderUnlinked(data){
-    const section=$("unlinkedSection"),list=$("unlinkedList");
-    const vales=data.vales_sem_vinculo||[];
-    section.hidden=vales.length===0;list.replaceChildren();
-    setText("unlinkedCount",vales.length+" pendente(s)");
-    for(const val of vales){
-      const row=e("div","nhf-unlinked-row");
-      const info=e("div","nhf-unlinked-info");
-      info.append(e("strong","",val.nome),e("small","",
-        "Controle #"+val.control_id+" · "+
-        br(val.vales_previstos)+" previstos no mês"));
-      const controls=e("div","nhf-unlinked-controls");
-      const select=e("select","nhf-link-select");
-      select.setAttribute("aria-label","Vincular "+val.nome+" ao funcionário");
-      const blank=e("option","","Escolher funcionário no Contas…");
-      blank.value="";select.append(blank);
-      for(const person of data.funcionarios){
-        const opt=e("option","",person.nome);
-        opt.value=String(person.id);select.append(opt);
-      }
-      if(val.sugestao_funcionario_id)
-        select.value=String(val.sugestao_funcionario_id);
-      const button=actionButton("Confirmar vínculo");
-      button.addEventListener("click",()=>linkVale(val,select,button));
-      controls.append(select,button);row.append(info,controls);list.append(row);
-    }
+    setText("listSubtitle",shown+" de "+people.length+" funcionário(s) exibido(s)");
+    $("emptyFiltered").hidden=shown!==0;
   }
   function render(data){
-    state.data=data;
-    const k=data.indicadores,month=data.competencia;
-    setText("metricPeople",k.funcionarios_com_pagamentos);
-    setText("metricPayroll",k.holerites_pendentes_mes);
-    setText("metricVales",br(k.vales_a_descontar));
-    setText("metricTotal",br(k.total_a_pagar));
-    setText("metricPaid",k.holerites_pagos_mes);
-    setText("payrollSubtitle",k.holerites_mes+" cadastrado(s) na competência");
+    if(!Array.isArray(data.funcionarios))
+      throw new Error("Lista de funcionários indisponível.");
+    state.data=data;state.cards.clear();
     const list=$("staffList");list.replaceChildren();
-    state.cards.clear();
-    const ordered=data.funcionarios.slice().sort((a,b)=>
-      number(b.totais.total_a_pagar)-number(a.totais.total_a_pagar)||
-      a.nome.localeCompare(b.nome,"pt-BR"));
-    for(const employee of ordered)
-      list.append(createStaffCard(employee,month));
-    const empty=e("p","nhf-empty","Nenhum funcionário corresponde a esses filtros.");
+    const people=data.funcionarios.slice().sort((a,b)=>{
+      const first=openAmounts(a),second=openAmounts(b);
+      return (second.pagar+second.descontar)-(first.pagar+first.descontar)||
+        a.nome.localeCompare(b.nome,"pt-BR");
+    });
+    let pendingPeople=0,totalPay=0,totalVale=0;
+    for(const person of people){
+      const open=openAmounts(person);
+      totalPay+=open.pagar;totalVale+=open.descontar;
+      if(open.pagar||open.descontar)pendingPeople++;
+      list.append(createStaffCard(person));
+    }
+    setText("metricPeople",pendingPeople);
+    setText("metricTotal",br(totalPay));
+    setText("metricVales",br(totalVale));
+    const empty=e("p","nhf-empty","Nenhum funcionário com valores em aberto neste filtro.");
     empty.id="emptyFiltered";empty.hidden=true;list.append(empty);
-    renderUnlinked(data);applyFilters();
+    applyFilters();
   }
   async function refresh(){
     if(state.loading)return;
-    loadingBusy(true);
+    state.loading=true;$("refresh").disabled=true;
+    $("refresh").textContent="Consultando…";
     try{
-      const q=new URLSearchParams({competencia:$("competence").value});
-      const data=await json("/central/api/funcionarios/painel?"+q);
+      const response=await fetch("/central/api/funcionarios/painel",{
+        credentials:"same-origin",cache:"no-store",
+        headers:{"Accept":"application/json"}
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.erro||"Falha ao consultar Funcionários.");
       render(data);
     }catch(error){
-      toast(error.message,true);
-      if(!state.data){
-        $("staffList").replaceChildren(e("p","nhf-failed",
-          "Não foi possível consultar os funcionários. Confira a ligação entre Contas e Vales e tente atualizar."));
-      }
-    }finally{loadingBusy(false)}
+      const list=$("staffList");
+      list.replaceChildren(e("p","nhf-failed",
+        "Não foi possível consultar os valores em aberto. "+(error.message||"")));
+    }finally{
+      state.loading=false;$("refresh").disabled=false;
+      $("refresh").textContent="Atualizar";
+    }
   }
-  const today=new Date();
-  $("competence").value=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0");
-  $("competence").addEventListener("change",()=>{state.openId=null;refresh()});
   $("search").addEventListener("input",event=>{
     state.filters.q=event.target.value;applyFilters();
   });
