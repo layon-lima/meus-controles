@@ -15,13 +15,13 @@ class CentralFullWidthTest(unittest.TestCase):
 
     def test_recebimentos_uses_all_available_width(self):
         self.check_selector("recebimentos.css",
-            r"\\.rx-app\\s*\\{[^}]*width:100%;[^}]*max-width:none;[^}]*padding:44px clamp\\(14px,1\\.55vw,30px\\)")
+            r"\.rx-app\s*\{[^}]*width:100%;[^}]*max-width:none;[^}]*padding:44px clamp\(14px,1\.55vw,30px\)")
         html=(ROOT/"static"/"recebimentos.html").read_text(encoding="utf-8")
         self.assertIn('recebimentos.css?v=20261123full',html)
 
     def test_funcionarios_width_and_aligned_header(self):
         self.check_selector("funcionarios.css",
-            r"\\.nhf-main\\s*\\{[^}]*width:100%;[^}]*max-width:none;")
+            r"\.nhf-main\s*\{[^}]*width:100%;[^}]*max-width:none;")
         css=(ROOT/"static"/"funcionarios.css").read_text(encoding="utf-8")
         self.assertIn("padding:14px clamp(14px,1.55vw,30px);",css)
         self.assertIn("@media(max-width:720px)",css)
@@ -31,14 +31,14 @@ class CentralFullWidthTest(unittest.TestCase):
     def test_central_home_full_width(self):
         for selector in ("content","site-footer"):
             self.check_selector("app.css",
-                r"\\."+selector+r"\\{[^}]*max-width:none;[^}]*width:100%;")
+                r"\."+selector+r"\{[^}]*max-width:none;[^}]*width:100%;")
         self.assertIn("app.css?v=20261123full",
             (ROOT/"static"/"index.html").read_text(encoding="utf-8"))
 
     def test_proxied_modules_and_documents_full_width(self):
         css=(ROOT/"static"/"operations.css").read_text(encoding="utf-8")
-        self.assertRegex(css,r"body\\.central-operational #main\\{max-width:none!important;")
-        self.assertRegex(css,r"\\.nh-documents\\{width:100%;max-width:none;")
+        self.assertRegex(css,r"body\.central-operational #main\{max-width:none!important;")
+        self.assertRegex(css,r"\.nh-documents\{width:100%;max-width:none;")
         self.assertNotIn("max-width:1540px",css)
         self.assertIn("padding:0 clamp(14px,1.55vw,30px)",css)
         gateway=(ROOT/"operations_gateway.py").read_text(encoding="utf-8")
