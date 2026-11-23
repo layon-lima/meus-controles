@@ -458,7 +458,7 @@ def quote(employee_id, competence, original, *, account_id=None, selected=None, 
         if vale_employee_id not in staff_by_id:
             raise BridgeError("Funcionário de Vales não encontrado.")
         if employee_id is not None and links.get(vale_employee_id) != employee_id:
-            raise BridgeError("O vale não corresponde ao funcionário identificado no CONTAS.")
+            raise BridgeError("O vale está associado a outro funcionário do CONTAS ou não corresponde ao cadastro identificado.")
         # Se funcionário ainda não foi criado no CONTAS, sua identidade
         # será validada após o cadastro pelo nome completo confirmado.
         vales_ids={vale_employee_id}
