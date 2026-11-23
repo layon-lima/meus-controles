@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Funcionários · Central Novo Horizonte</title>
-  <link rel="stylesheet" href="/central/funcionarios.css?v=20261121a">
+  <link rel="stylesheet" href="/central/funcionarios.css?v=20261123b">
   <link rel="stylesheet" href="/central/launcher.css?v=20261120g">
-  <script defer src="/central/funcionarios.js?v=20261121a"></script>
+  <script defer src="/central/funcionarios.js?v=20261123b"></script>
   <script defer src="/central/launcher.js?v=20261120g"></script>
 </head>
 <body class="central-operational nh-scope-funcionarios">
@@ -27,34 +27,28 @@
         <div>
           <p class="nhf-eyebrow">CENTRAL ADMINISTRATIVA / PESSOAS</p>
           <h1>Funcionários</h1>
-          <p class="nhf-subtitle">Holerites, vales a descontar, contas e pagamentos em um só lugar.</p>
-        </div>
-        <div class="nhf-month-wrap">
-          <label for="competence">Competência dos holerites</label>
-          <input id="competence" type="month" min="2020-01" max="2099-12"/>
+          <p class="nhf-subtitle">Consulte somente os saldos a pagar e os vales ainda não descontados.</p>
         </div>
       </section>
-      <section class="nhf-kpis" aria-label="Resumo dos funcionários">
-        <div class="nhf-kpi"><span>Funcionários a receber</span><strong id="metricPeople">—</strong><small>Com pagamentos abertos</small></div>
-        <div class="nhf-kpi"><span>Holerites pendentes</span><strong id="metricPayroll">—</strong><small id="payrollSubtitle">Na competência</small></div>
-        <div class="nhf-kpi"><span>Vales a descontar</span><strong id="metricVales">—</strong><small>Não reservados nem baixados</small></div>
-        <div class="nhf-kpi"><span>Total a pagar</span><strong id="metricTotal">—</strong><small>Somente contas vinculadas</small></div>
-        <div class="nhf-kpi"><span>Holerites pagos</span><strong id="metricPaid">—</strong><small>Na competência</small></div>
+      <section class="nhf-kpis" aria-label="Resumo de valores em aberto">
+        <div class="nhf-kpi"><span>Funcionários com valores em aberto</span><strong id="metricPeople">—</strong><small>Pagamentos ou vales pendentes</small></div>
+        <div class="nhf-kpi"><span>Saldo a pagar aos funcionários</span><strong id="metricTotal">—</strong><small>Somente lançamentos não pagos</small></div>
+        <div class="nhf-kpi"><span>Vales a descontar</span><strong id="metricVales">—</strong><small>Saldo de parcelas ainda disponível para desconto</small></div>
       </section>
       <div class="nhf-explanation">
         <span class="nhf-info-icon">i</span>
-        <span>O valor a pagar já considera os vales reservados nos holerites. Vales ainda previstos ficam separados — nunca são descontados duas vezes. Contas sugeridas por nome não entram no total até confirmar.</span>
+        <span>Os dois saldos são exibidos separadamente. Vales já reservados no líquido de holerites não são somados novamente. Nenhum pagamento, vínculo ou desconto é realizado nesta consulta.</span>
       </div>
       <section class="nhf-section">
         <div class="nhf-section-head">
-          <div><h2>Funcionários</h2><p id="listSubtitle">Buscando cadastros e pagamentos…</p></div>
+          <div><h2>Funcionários</h2><p id="listSubtitle">Buscando valores em aberto…</p></div>
           <div class="nhf-toolbar">
             <input id="search" type="search" autocomplete="off" placeholder="Pesquisar funcionário…" aria-label="Pesquisar funcionário">
             <select id="statusFilter" aria-label="Filtrar funcionários">
-              <option value="all">Todos</option>
-              <option value="pending">Com pagamentos</option>
-              <option value="vales">Com vales</option>
-              <option value="links">Com vínculos pendentes</option>
+              <option value="pending" selected>Com valores em aberto</option>
+              <option value="payable">Com saldo a pagar</option>
+              <option value="vales">Com vales a descontar</option>
+              <option value="all">Todos os funcionários</option>
             </select>
           </div>
         </div>
@@ -62,14 +56,7 @@
           <div class="nhf-loading">Carregando funcionários…</div>
         </div>
       </section>
-      <section id="unlinkedSection" class="nhf-section" hidden>
-        <div class="nhf-section-head">
-          <div><h2>Vales sem funcionário vinculado</h2><p>Confirme qual cadastro do Contas corresponde a cada funcionário de Vales.</p></div>
-          <span class="nhf-count" id="unlinkedCount"></span>
-        </div>
-        <div id="unlinkedList" class="nhf-unlinked"></div>
-      </section>
-      <p class="nhf-footer">Origem: CONTAS 4 + Meus Controles · Consulta consolidada da Central. Nenhum pagamento é criado nesta tela.</p>
+      <p class="nhf-footer">Origem: CONTAS 4 + Meus Controles · Somente valores em aberto. Sem alterar pagamentos ou descontos.</p>
     </main>
     <div id="toast" class="nhf-toast" role="status" aria-live="polite" hidden></div>
   </div>
