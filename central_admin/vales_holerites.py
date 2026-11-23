@@ -174,31 +174,114 @@ def read_controls():
         raise BridgeError("Não foi possível consultar os Vales do Meus Controles pela API privada.") from exc
 
 
-def unique_name_links(staff,people,explicit):
-    """Inferência somente de nomes COMPLETOS exatamente iguais (sem acentos).
+def _identity_words(value):
+    """Normaliza nomes de Vales e de Holerites sem usar dados bancários.
 
-    Uma pessoa tem exatamente um ID por nome em cada base. Não confirmar
-    apelidos, abreviações nem primeiro nome semelhante sem o usuário.
+    Parênteses em controles costumam guardar apelidos (ex.: João (Jorge)).
+    Variantes ortográficas conhecidas ficam equivalentes; isso NÃO identifica
+    pessoas quando há homônimos ou múltiplos candidatos possíveis.
+    """
+    without_nickname = re.sub(r"\\([^)]*\\)", " ", str(value or ""))
+    words = re.sub(r"[^A-Z0-9 ]", " ", name_key(without_nickname)).split()
+    aliases = {"RAPHAEL": "RAFAEL"}
+    return tuple(aliases.get(word, word) for word in words)
+
+
+def _single_edit(a, b):
+    """Aceita apenas um caractere de diferença, jamais similaridade genérica."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if a == b:
+        return True
+    if len(a) > len(b):
+        a, b = b, a
+    i = j = edits = 0
+    while i < len(a) and j < len(b):
+        if a[i] == b[j]:
+            i += 1
+            j += 1
+            continue
+        edits += 1
+        if edits > 1:
+            return False
+        if len(a) == len(b):
+            i += 1
+        j += 1
+    return edits + len(b) - j <= 1
+
+
+def _same_employee_name(vale_name, contas_name):
+    """Compatibilidade conservadora; unicidade é validada em ambas as bases."""
+    v = _identity_words(vale_name)
+    c = _identity_words(contas_name)
+    if not v or not c:
+        return False
+    if v == c:
+        return True
+    if v[0] == c[0]:
+        # Vales às vezes guarda só o primeiro nome; em Contas, o nome inteiro.
+        if len(v) == 1 or len(c) == 1:
+            return len(v[0]) >= 5
+        # Uma das bases tem o nome abreviado: primeiros dois nomes iguais.
+        shorter, longer = (v, c) if len(v) <= len(c) else (c, v)
+        return len(shorter) >= 2 and longer[:len(shorter)] == shorter
+    # Pequeno erro de digitação do primeiro nome exige sobrenome em comum.
+    if len(v[0]) >= 7 and len(c[0]) >= 7 and _single_edit(v[0], c[0]):
+        if len(v) == 1 or len(c) == 1:
+            return True
+        return bool({w for w in v[1:] if len(w) >= 4} &
+                    {w for w in c[1:] if len(w) >= 4})
+    return False
+
+
+def unique_name_links(staff, people, explicit):
+    """Relaciona automaticamente Vales e Contas, somente em memória.
+
+    Nomes completos idênticos têm prioridade; abreviações, primeiro nome
+    único e pequenas variantes são aceitas APENAS quando o candidato é único
+    nos dois sentidos. Um vínculo gravado nunca é sobrescrito, e um cadastro
+    do Contas não pode receber dois cadastros diferentes dos Vales.
+    Nenhuma associação de leitura gera desconto, pagamento ou cadastro.
     """
     from collections import defaultdict
-    source=defaultdict(list)
-    target=defaultdict(list)
-    for val in staff:
-        key=name_key(val["name"])
-        if key:source[key].append(int(val["id"]))
-    for employee in people:
-        key=name_key(employee["nome"])
-        if key:target[key].append(int(employee["id"]))
-    links=dict(explicit)
-    used=set(links.values())
-    for key,ids in source.items():
-        if len(ids)!=1 or len(target.get(key,[]))!=1:
-            continue
-        eid=ids[0]
-        destination=target[key][0]
-        if eid not in links and destination not in used:
-            links[eid]=destination
-            used.add(destination)
+    source = defaultdict(list)
+    target = defaultdict(list)
+    for row in staff:
+        name = _identity_words(row["name"])
+        if name:
+            source[name].append(int(row["id"]))
+    for row in people:
+        name = _identity_words(row["nome"])
+        if name:
+            target[name].append(int(row["id"]))
+
+    links = dict(explicit)
+    used = set(links.values())
+    # Primeira passagem: nomes completos idênticos, sem homônimos.
+    for name, ids in source.items():
+        matches = target.get(name, ())
+        if len(ids) == len(matches) == 1:
+            vid, cid = ids[0], matches[0]
+            if vid not in links and cid not in used:
+                links[vid] = cid
+                used.add(cid)
+
+    # Segunda passagem: abreviações/variantes, exigindo reciprocidade 1:1.
+    unmatched_vales = [v for v in staff if int(v["id"]) not in links]
+    unmatched_contas = [p for p in people if int(p["id"]) not in used]
+    candidates = {}
+    for vale in unmatched_vales:
+        targets = [int(p["id"]) for p in unmatched_contas
+                   if _same_employee_name(vale["name"], p["nome"])]
+        if len(targets) == 1:
+            candidates[int(vale["id"])] = targets[0]
+    reverse = defaultdict(list)
+    for vid, cid in candidates.items():
+        reverse[cid].append(vid)
+    for vid, cid in candidates.items():
+        if len(reverse[cid]) == 1 and cid not in used:
+            links[vid] = cid
+            used.add(cid)
     return links
 
 
