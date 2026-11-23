@@ -9,6 +9,8 @@
   if (["controles","transportadoras","relatorios","contas","documentos",
        "recebimentos","funcionarios"].includes(requested)) {
     document.documentElement.classList.add("nh-module-redirect");
+    // Fallback caso a sessão / o motor de redirecionamento falhe.
+    window.setTimeout(() => document.documentElement.classList.remove("nh-module-redirect"),15000);
   }
   const key = "nh-central-expand-entry";
   let timestamp = 0;
