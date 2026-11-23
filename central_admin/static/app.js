@@ -188,6 +188,8 @@ async function refresh() {
     render(data);
     document.documentElement.classList.remove("nh-module-redirect");
   } catch (error) {
+    // Erro de autenticação deixa de bloquear a tela para exibir diagnóstico.
+    document.documentElement.classList.remove("nh-module-redirect");
     setFeedback(error.message || "Falha ao atualizar os dados da Central.");
     if (!currentData) render({fontes:{contas:{disponivel:false},controles:{disponivel:false}},
                               contas:null,controles:null,sugestoes:[]});
