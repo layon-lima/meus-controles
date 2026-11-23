@@ -79,8 +79,9 @@
   function appendPayInfo(section,staff){
     const tools=e("div","nhf-staff-tools");
     const left=e("div","nhf-actions");
-    left.append(label(staff.pix_cadastrado?"Pix cadastrado":"Pix não cadastrado",
-      staff.pix_cadastrado?"good":"warn"));
+    left.append(label(staff.origem_cadastro==="vales"?"Cadastro vindo dos Vales":
+      staff.pix_cadastrado?"Pix cadastrado":"Pix não cadastrado",
+      staff.origem_cadastro==="vales"?"good":staff.pix_cadastrado?"good":"warn"));
     const count=staff.vales_ids.length;
     left.append(label(count?count+" cadastro(s) de vales":"Sem vales vinculados",
       count?"good":""));
@@ -297,8 +298,10 @@
     const avatar=e("span","nhf-avatar",initials(person.nome));
     const copy=e("span","nhf-person-text");
     copy.append(e("strong","",person.nome),e("small","",
-      person.totais.holerites_pendentes_mes+" holerite(s) aberto(s) · "+
-      (person.pix_cadastrado?"Pix cadastrado":"Pix pendente")));
+      person.origem_cadastro==="vales"?
+        "Cadastro do Meus Controles · sem holerite no Contas":
+        person.totais.holerites_pendentes_mes+" holerite(s) aberto(s) · "+
+        (person.pix_cadastrado?"Pix cadastrado":"Pix pendente")));
     who.append(avatar,copy);header.append(who);
     function cell(title,value,primary=false){
       const block=e("span","nhf-stat"+(primary?" primary":""));
@@ -315,9 +318,16 @@
       if(details.dataset.loaded==="1")return;
       appendPayInfo(details,person);
       const grid=e("div","nhf-detail-grid");
-      grid.append(renderPayroll(person,month),renderVales(person,month),
-        renderOther(person),renderSuggested(person),renderAccountFinder(person),
-        renderDiscounts(person));
+      if(person.origem_cadastro==="vales"){
+        details.append(e("p","nhf-note",
+          "Cadastro identificado automaticamente no Meus Controles. Os vales já aparecem aqui. "+
+          "O holerite e a chave Pix serão exibidos quando o funcionário for cadastrado no Contas."));
+        grid.append(renderVales(person,month));
+      }else{
+        grid.append(renderPayroll(person,month),renderVales(person,month),
+          renderOther(person),renderSuggested(person),renderAccountFinder(person),
+          renderDiscounts(person));
+      }
       details.append(grid);details.dataset.loaded="1";
     };
     header.addEventListener("click",()=>{
