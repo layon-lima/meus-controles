@@ -248,6 +248,21 @@ for asset in recebimentos.js recebimentos_imports.js recebimentos.css funcionari
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Recurso nativo $asset indisponível."
 done
+# Garante que a ficha de funcionários publicada é apenas de valores em
+# aberto. Não reintroduzir links de pagamento, busca de vínculo ou histórico.
+grep -Fq 'function openAmounts(person)' "$APP/static/funcionarios.js" \
+  || fail "Painel de Funcionários antigo: cálculo de pendências não instalado."
+grep -Fq 'class="nhf-open-table"' "$APP/static/funcionarios.html" >/dev/null 2>&1 \
+  && fail "A tabela de pendências foi inserida estaticamente em vez de consultar valores."
+for forbidden in 'Abrir no Contas' 'Buscar contas' 'Confirmar vínculo' 'renderAccountFinder('; do
+  if grep -Fq "$forbidden" "$APP/static/funcionarios.js"; then
+    fail "A ficha de Funcionários continua com ações manuais antigas: $forbidden"
+  fi
+done
+if grep -Fq 'id="unlinkedSection"' "$APP/static/funcionarios.html"; then
+  fail "Painel de Funcionários ainda tem lista manual de vínculos."
+fi
+echo "OK: Funcionários mostra somente saldos pendentes; sem busca de contas, vínculos ou histórico pago."
 # Verifica se o motor de origem continua a responder no mesmo banco.
 HTTP="$(curl -sS --max-time 25 -o "$TMP/receiving-state" -w '%{http_code}' \
   -H "Cookie: $COOKIE" \
