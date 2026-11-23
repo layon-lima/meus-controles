@@ -182,10 +182,11 @@ async function refresh() {
     }
     const data = await response.json();
     if (!data || !data.fontes) throw new Error("A API não retornou um resumo válido.");
+    // Chegou de link direto? Ir AO DESTINO sem renderizar a Home antes.
+    // Só após a API confirmar sessão válida (evita loop de 401).
+    if (openRequestedModuleAfterAuth()) return;
     render(data);
-    // Não redirecionar antes da confirmação de sessão. Sem pareamento,
-    // permanece na Home com a explicação, em vez de repetir 401 infinitos.
-    openRequestedModuleAfterAuth();
+    document.documentElement.classList.remove("nh-module-redirect");
   } catch (error) {
     setFeedback(error.message || "Falha ao atualizar os dados da Central.");
     if (!currentData) render({fontes:{contas:{disponivel:false},controles:{disponivel:false}},
