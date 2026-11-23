@@ -1,29 +1,26 @@
 "use strict";
-/* A tela nativa deve renderizar dados concretos e montar detalhes somente
- * quando o usuário expandir um funcionário, sem executar pagamentos. */
+/* Funcionários: somente saldo a pagar e vales pendentes, sem histórico pago,
+ * links para contas, busca de vínculos ou baixa automática. */
 const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const vm=require("node:vm");
 const src=fs.readFileSync("central_admin/static/funcionarios.js","utf8");
 const html=fs.readFileSync("central_admin/static/funcionarios.html","utf8");
-const home=fs.readFileSync("central_admin/static/index.html","utf8");
-const homeJs=fs.readFileSync("central_admin/static/app.js","utf8");
 const css=fs.readFileSync("central_admin/static/funcionarios.css","utf8");
+const home=fs.readFileSync("central_admin/static/index.html","utf8");
 assert.ok(html.includes('id="staffList"'));
 assert.ok(html.includes("/central/funcionarios.js"));
-assert.ok(!html.includes("/central/modules/funcionarios/app.js"));
 assert.ok(home.includes('id="moduleEmployeeMoney"'));
-assert.ok(homeJs.includes("refreshEmployeesHome()"));
-assert.ok(css.includes(".nhf-kpis") && css.includes(".nhf-staff"));
-assert.ok(src.includes("renderPayroll(") && src.includes("renderVales("));
-assert.ok(src.includes("renderDiscounts(") && src.includes("renderOther("));
-assert.ok(src.includes("renderAccountFinder("));
-assert.ok(src.includes("state.cards.set"),"Um card deve ser construído apenas uma vez");
-assert.ok(src.includes('if(details.dataset.loaded==="1")return'),
-  "Os detalhes não podem ser renderizados antes de abrir o card");
-assert.ok(!src.includes("/api/accounts/")||!src.includes("/pay"),
-  "A tela consolidada não deve executar pagamento");
-let assigned=0;
+assert.ok(css.includes(".nhf-kpis")&&css.includes(".nhf-open-table"));
+assert.ok(src.includes("openAmounts(person)")&&src.includes("makeTable(person)"));
+for(const removed of ["Abrir no Contas","Buscar contas","Confirmar vínculo",
+  "renderAccountFinder(","renderSuggested(","Holerites pagos","Ver histórico de"]){
+  assert.ok(!src.includes(removed),"Não apresentar ação/histórico antigo: "+removed);
+}
+assert.ok(!html.includes('id="unlinkedSection"'));
+assert.ok(!html.includes('id="competence"'));
+assert.ok(!html.includes('id="metricPaid"'));
+
 class E{
   constructor(tag="div"){
     this.tagName=tag;this.id="";this.textContent="";this.value="";
@@ -31,8 +28,8 @@ class E{
     this.hidden=false;this.disabled=false;this.attributes={};
     this.classList={
       tokens:new Set(),
-      add(...k){k.forEach(v=>this.tokens.add(v))},
-      remove(...k){k.forEach(v=>this.tokens.delete(v))},
+      add(...keys){keys.forEach(v=>this.tokens.add(v))},
+      remove(...keys){keys.forEach(v=>this.tokens.delete(v))},
       contains(v){return this.tokens.has(v)},
       toggle(v,enabled){
         if(enabled===undefined)enabled=!this.tokens.has(v);
@@ -40,58 +37,61 @@ class E{
       }
     };
   }
-  append(...children){this.children.push(...children);return this}
-  replaceChildren(...children){this.children=[...children]}
-  setAttribute(k,v){this.attributes[k]=v}
+  append(...items){this.children.push(...items);return this}
+  replaceChildren(...items){this.children=[...items]}
+  setAttribute(key,val){this.attributes[key]=val}
   addEventListener(name,fn){this.listeners[name]=fn}
-  querySelector(){return null}
   click(){this.listeners.click?.()}
 }
 const nodes=new Map();
-for(const id of ["competence","refresh","staffList","search","statusFilter",
-  "metricPeople","metricPayroll","metricVales","metricTotal","metricPaid",
-  "payrollSubtitle","listSubtitle","unlinkedSection","unlinkedCount","unlinkedList","toast"]){
-  const el=new E("div");el.id=id;nodes.set(id,el);
+for(const id of ["refresh","staffList","search","statusFilter","metricPeople",
+    "metricTotal","metricVales","listSubtitle","toast"]){
+  const el=new E();el.id=id;nodes.set(id,el);
 }
-const fixtures={
-  ok:true,competencia:"2026-11",
-  indicadores:{
-    funcionarios:2,funcionarios_com_pagamentos:1,holerites_mes:2,
-    holerites_pendentes_mes:1,holerites_pagos_mes:1,
-    vales_a_descontar:"85.00",vales_ja_reservados:"450.00",
-    total_a_pagar:"2550.00"
-  },
-  funcionarios:[
-    {
-      id:1,nome:"JOAO DA SILVA",chave_pix:"11999999999",pix_cadastrado:true,
-      vales_ids:[10],
-      totais:{holerites_pendentes_mes:1,total_a_pagar:"2550.00",
-        vales_previstos:"0.00",vales_reservados:"450.00",sugestoes_contas:1},
-      holerites:[{id:77,competencia:"2026-11",fornecedor:"JOAO DA SILVA",
-        valor:"2550.00",vencimento:"2026-11-30",paga:false}],
-      outras_contas:[],
-      sugestoes:[{id:91,fornecedor:"JOAO DA SILVA",valor:"99.00",
-                  vencimento:"2026-11-22",paga:false}],
-      parcelas:[{id:101,vale_id:10,control_id:4,titulo:"Adiantamento",
-        parcela:1,competencia:"2026-11",valor:"300.00",
-        ja_descontado:"0.00",reservado:"300.00",saldo_a_descontar:"0.00"}],
-      descontos:[{conta_id:77,parcela_id:101,competencia:"2026-11",
-        original_holerite:"3000.00",valor:"300.00",status:"reserved",erro:""}]
-    },
-    {id:2,nome:"MARIA PEREIRA",chave_pix:"",pix_cadastrado:false,
-      vales_ids:[],holerites:[],outras_contas:[],sugestoes:[],parcelas:[],
-      descontos:[],totais:{holerites_pendentes_mes:0,total_a_pagar:"0.00",
-        vales_previstos:"0.00",vales_reservados:"0.00",sugestoes_contas:0}}
-  ],
-  vales_sem_vinculo:[]
+const find=(el,id)=>{
+  if(el.id===id)return el;
+  for(const child of el.children){const hit=find(child,id);if(hit)return hit}
+  return null;
 };
+const text=el=>[el.textContent,...el.children.map(text)].join(" ");
+const person1={
+  id:1,nome:"REGINALDO VIANA DE SOUZA",origem_cadastro:"contas",
+  holerites:[
+    {id:1,competencia:"2026-10",valor:"4009.00",vencimento:"2026-10-01",paga:true},
+    {id:2,competencia:"2026-11",valor:"2215.50",vencimento:"2026-11-18",paga:false},
+    {id:3,competencia:"2026-09",valor:"101.00",vencimento:"2026-09-18",paga:false}
+  ],
+  outras_contas:[],
+  parcelas:[
+    {id:12,titulo:"Vale em dezembro",parcela:1,competencia:"2026-12",
+      valor:"200.00",ja_descontado:"0.00",reservado:"0.00",saldo_a_descontar:"200.00"},
+    {id:13,titulo:"Vale já pago",parcela:1,competencia:"2026-11",
+      valor:"500.00",ja_descontado:"500.00",reservado:"0.00",saldo_a_descontar:"0.00"},
+    {id:14,titulo:"Vale reservado",parcela:1,competencia:"2026-11",
+      valor:"80.00",ja_descontado:"0.00",reservado:"80.00",saldo_a_descontar:"0.00"}
+  ]
+};
+const person2={
+  id:2,nome:"JOAO SEM PENDENCIAS",holerites:[
+    {id:4,competencia:"2026-11",valor:"1111.00",paga:true}
+  ],outras_contas:[],parcelas:[]
+};
+const person3={
+  id:-3,nome:"RAFAEL",origem_cadastro:"vales",holerites:[],outras_contas:[],
+  parcelas:[{id:21,titulo:"Vale com Jonas",parcela:1,competencia:"2026-12",
+    saldo_a_descontar:"500.00"}]
+};
+const fixtures={ok:true,competencia:"2026-11",
+  funcionarios:[person1,person2,person3]};
 const requests=[];
-const win={setTimeout:()=>1,clearTimeout(){},confirm:()=>true};
 const context={
-  document:{createElement:tag=>new E(tag),getElementById:id=>nodes.get(id)},
+  document:{
+    createElement:tag=>new E(tag),
+    getElementById:id=>nodes.get(id)||find(nodes.get("staffList"),id)
+  },
   location:{pathname:"/central/modules/funcionarios/"},
-  window:win,navigator:{clipboard:{writeText:async()=>{}}},
-  Intl,Date,Number,Map,Set,URLSearchParams,console,
+  window:{},
+  Intl,Number,Map,Set,URLSearchParams,console,
   fetch:async(uri,options)=>{
     requests.push({uri,method:options?.method||"GET"});
     return {ok:true,json:async()=>fixtures};
@@ -100,30 +100,49 @@ const context={
 vm.runInNewContext(src,context);
 (async()=>{
   for(let i=0;i<20;i++)await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(nodes.get("metricPeople").textContent,"1");
-  assert.equal(nodes.get("metricPayroll").textContent,"1");
-  assert.ok(nodes.get("metricVales").textContent.includes("85,00"));
-  assert.ok(nodes.get("metricTotal").textContent.includes("2.550,00"));
-  assert.ok(requests[0].uri.includes("/central/api/funcionarios/painel?"));
-  assert.equal(requests.filter(x=>x.method==="POST").length,0,"Não pagar ou vincular automaticamente");
-  const cards=nodes.get("staffList").children.filter(x=>x.className==="nhf-staff");
-  assert.equal(cards.length,2);
-  const joao=cards.find(x=>x.dataset.personId==="1");
-  assert.ok(joao);
-  const detail=joao.children[1];
-  assert.equal(detail.hidden,true);
-  assert.equal(detail.children.length,0,"Todos os detalhes devem ser lazy");
-  joao.children[0].click();
+  assert.equal(nodes.get("metricPeople").textContent,2);
+  assert.match(nodes.get("metricTotal").textContent,/2\.316,50/);
+  assert.match(nodes.get("metricVales").textContent,/700,00/);
+  assert.ok(requests[0].uri.endsWith("/funcionarios/painel"));
+  const cards=nodes.get("staffList").children.filter(e=>e.className==="nhf-staff");
+  assert.equal(cards.length,3);
+  const reg=cards.find(x=>x.dataset.personId==="1");
+  assert.ok(reg);
+  assert.ok(!reg.hidden);
+  assert.match(text(reg.children[0]),/2\.316,50/);
+  assert.match(text(reg.children[0]),/200,00/);
+  const paid=cards.find(x=>x.dataset.personId==="2");
+  assert.equal(paid.hidden,true,"Funcionário só com pagamentos quitados não aparece no filtro padrão");
+  const pureVale=cards.find(x=>x.dataset.personId==="-3");
+  assert.equal(pureVale.hidden,false,"Funcionário exclusivo de Vales aparece se tem saldo");
+
+  const detail=reg.children[1];
+  assert.equal(detail.hidden,true,"Detalhes começam recolhidos");
+  assert.equal(detail.children.length,0,"Sem renderização desnecessária");
+  reg.children[0].click();
   assert.equal(detail.hidden,false);
-  assert.equal(detail.dataset.loaded,"1");
-  assert.ok(detail.children.length>0);
-  assert.equal(joao.children[0].attributes["aria-expanded"],"true");
-  joao.children[0].click();joao.children[0].click();
-  assert.equal(detail.children.length,2,"Reabrir não duplica detalhes");
-  nodes.get("search").listeners.input({target:{value:"MARIA"}});
-  assert.equal(joao.hidden,true,"Filtro funciona sem consultar os bancos novamente");
-  assert.equal(cards.find(x=>x.dataset.personId==="2").hidden,false);
-  assert.equal(requests.filter(x=>x.method==="POST").length,0);
-  console.log("OK: visão nativa de Funcionários, KPIs reais, busca e detalhes sob demanda");
-  console.log("OK: valor líquido já ajustado, vales separados, sem pagamento automático");
+  assert.equal(detail.children.length,1);
+  assert.match(text(detail),/Vale em dezembro/);
+  assert.match(text(detail),/Holerite/);
+  assert.ok(!text(detail).includes("Vale já pago"));
+  assert.ok(!text(detail).includes("Vale reservado"));
+  assert.ok(!text(detail).includes("4.009,00"));
+  const tbody=detail.children[0].children.find(x=>x.tagName==="table")
+    .children.find(x=>x.tagName==="tbody");
+  assert.equal(tbody.children.length,3,"Duas contas não pagas e um vale disponível");
+  reg.children[0].click();reg.children[0].click();
+  assert.equal(detail.children.length,1,"Reabrir não duplica linhas");
+
+  nodes.get("search").listeners.input({target:{value:"RAFAEL"}});
+  assert.equal(reg.hidden,true);
+  assert.equal(pureVale.hidden,false);
+  nodes.get("search").listeners.input({target:{value:""}});
+  nodes.get("statusFilter").listeners.change({target:{value:"all"}});
+  assert.equal(paid.hidden,false,"Todos pode mostrar cadastro sem saldo, mas não histórico pago");
+  paid.children[0].click();
+  assert.equal(text(paid.children[1]).includes("1.111,00"),false);
+  assert.equal(requests.filter(x=>x.method==="POST").length,0,
+    "Consultar nunca deve criar vínculo, baixa nem pagamento");
+  console.log("OK: saldos globais em aberto, vales futuros e vencidos, nenhum pagamento antigo");
+  console.log("OK: só leitura, sem busca/vínculo/abrir Contas, fichas sob demanda");
 })().catch(e=>{console.error(e);process.exitCode=1});
