@@ -338,6 +338,34 @@ for key in ("funcionarios_com_pagamentos","total_a_pagar","vales_a_descontar",
         raise SystemExit("Indicador não encontrado: "+key)
 print("OK: Funcionários reúne holerites, contas e vales no modo leitura.")
 PY
+# Paridade completa: TODO cadastro de Vales e TODA parcela com saldo devem
+# aparecer na ficha de algum funcionário da Central, inclusive sem holerite.
+# Nenhuma escrita em pagamentos, fichas originais ou reservas.
+docker exec -i central-novo-horizonte-painel-1 python - <<'PY' || fail "Algum funcionário ou parcela de Vale sumiu da Central."
+from decimal import Decimal
+from central_admin import funcionarios
+from central_admin.vales_holerites import read_controls, read_staff
+staff, parts = read_controls()
+report = funcionarios.dashboard()
+seen_staff = {int(vid) for person in report["funcionarios"]
+              for vid in person["vales_ids"]}
+seen_installments = {int(row["id"]) for person in report["funcionarios"]
+                     for row in person["parcelas"]}
+expected_staff = {int(x["id"]) for x in staff}
+expected_parts = {int(p["id"]) for p in parts
+                  if Decimal(p["amount"]) > Decimal(p["paid"])}
+missing_staff = expected_staff - seen_staff
+missing_parts = expected_parts - seen_installments
+if missing_staff or missing_parts:
+    raise SystemExit(
+      "Ausências na Central: %d cadastro(s) de Vales; %d parcela(s) pendente(s)."
+      % (len(missing_staff), len(missing_parts)))
+only_vales = sum(x.get("origem_cadastro") == "vales" for x in report["funcionarios"])
+print("OK: todos os %d cadastro(s) de Vales e %d parcela(s) com saldo "
+      "estão visíveis nas fichas de Funcionários." % (
+      len(expected_staff), len(expected_parts)))
+print("Perfis exclusivos de Vales (sem cadastro de holerite):", only_vales)
+PY
 CODE="$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' \
   "http://127.0.0.1:18771/api/funcionarios/painel?competencia=$MONTH")"
 [[ "$CODE" == 401 ]] || fail "Painel de Funcionários permite consulta sem sessão."
