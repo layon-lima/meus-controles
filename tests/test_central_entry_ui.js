@@ -20,7 +20,7 @@ assert.match(menuCss,/\.nh-start-menu\.nh-start-expanding > \*\s*\{[\s\S]*?opaci
 assert.ok(launcher.includes('sessionStorage.setItem("nh-central-expand-entry"'),
   "O marcador deve existir apenas quando o usuário expande");
 
-function simulate(stamp){
+function simulate(stamp,search=""){
   const classes=new Set();
   const root={classList:{
     add:v=>classes.add(v),remove:v=>classes.delete(v),contains:v=>classes.has(v)
@@ -30,6 +30,7 @@ function simulate(stamp){
   const storage=new Map();
   if(stamp!==null)storage.set("nh-central-expand-entry",String(stamp));
   const win={
+    location:{search},
     sessionStorage:{
       getItem:key=>storage.get(key)||null,
       removeItem:key=>storage.delete(key)
@@ -37,7 +38,7 @@ function simulate(stamp){
     addEventListener:(name,fn)=>listeners[name]=fn,
     setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length}
   };
-  vm.runInNewContext(code,{window:win,document:{documentElement:root},Date:{now:()=>20000}});
+  vm.runInNewContext(code,{window:win,document:{documentElement:root},Date:{now:()=>20000},URLSearchParams});
   return {classes,listeners,timers,storage,root};
 }
 const first=simulate(19800);
@@ -68,6 +69,12 @@ assert.equal(first.root.classList.contains("nh-start-arriving"),false);
 
 const noMarker=simulate(null);
 assert.equal(noMarker.classes.size,0,"Acesso normal à home não deve animar");
+const toModule=simulate(null,"?abrir=controles");
+assert.equal(toModule.root.classList.contains("nh-module-redirect"),true,
+  "Navegação para módulo não pode mostrar dashboard da Central como intermediário");
+assert.ok(css.includes("html.nh-module-redirect .page"));
+assert.ok(fs.readFileSync("central_admin/static/app.js","utf8")
+  .includes("if (openRequestedModuleAfterAuth()) return;"));
 const expired=simulate(1000);
 assert.equal(expired.classes.size,0,"Marcador antigo não pode ocultar a home");
 const noVT=simulate(19900);
