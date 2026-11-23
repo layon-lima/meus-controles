@@ -21,10 +21,11 @@ on:
       - "tests/test_central_contas_pdf_review_ui.js"
       - ".github/workflows/central-admin.yml"
   push:
-    branches: [main]
+    branches: [main, feature/central-administrativa-v1]
     paths:
       - "central_admin/**"
-      - "tests/test_central_admin.py"
+      - "tests/test_central_*.py"
+      - "tests/test_central_*.js"
       - ".github/workflows/central-admin.yml"
 
 jobs:
