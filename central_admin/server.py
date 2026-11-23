@@ -26,6 +26,7 @@ ASSETS = {
     "/launcher.css": ("launcher.css", "text/css; charset=utf-8"),
     "/launcher.js": ("launcher.js", "text/javascript; charset=utf-8"),
     "/entry-preflight.js": ("entry-preflight.js", "text/javascript; charset=utf-8"),
+    "/route-preflight.js": ("route-preflight.js", "text/javascript; charset=utf-8"),
     "/recebimentos.html": ("recebimentos.html", "text/html; charset=utf-8"),
     "/recebimentos.css": ("recebimentos.css", "text/css; charset=utf-8"),
     "/recebimentos.js": ("recebimentos.js", "text/javascript; charset=utf-8"),
