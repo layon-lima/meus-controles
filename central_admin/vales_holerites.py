@@ -181,7 +181,7 @@ def _identity_words(value):
     Variantes ortográficas conhecidas ficam equivalentes; isso NÃO identifica
     pessoas quando há homônimos ou múltiplos candidatos possíveis.
     """
-    without_nickname = re.sub(r"\\([^)]*\\)", " ", str(value or ""))
+    without_nickname = re.sub(r"\([^)]*\)", " ", str(value or ""))
     words = re.sub(r"[^A-Z0-9 ]", " ", name_key(without_nickname)).split()
     aliases = {"RAPHAEL": "RAFAEL"}
     return tuple(aliases.get(word, word) for word in words)
