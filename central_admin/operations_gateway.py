@@ -84,7 +84,7 @@ def rewrite_text(text, prefix, kind):
         if module in MODULES:
             text = text.replace("<body>", '<body class="central-operational nh-scope-' + module + '">', 1)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
-        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261123full">'
+        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261123route1">'
                '<link rel="stylesheet" href="/central/launcher.css?v=20261120g">')
         # Script síncrono no HEAD: não mostrar o dashboard legado
         # antes de a rota real ser hidratada. Mantém CSP self sem inline JS.
