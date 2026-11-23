@@ -3,6 +3,13 @@
  * Executado no <head> ANTES do CSS e da primeira pintura, sem conteúdo privado.
  */
 (function () {
+  // Se a sessão do link externo precisa voltar pela Central, não pintar
+  // o dashboard antes do redirecionamento ao módulo solicitado.
+  const requested=new URLSearchParams(window.location.search||"").get("abrir");
+  if (["controles","transportadoras","relatorios","contas","documentos",
+       "recebimentos","funcionarios"].includes(requested)) {
+    document.documentElement.classList.add("nh-module-redirect");
+  }
   const key = "nh-central-expand-entry";
   let timestamp = 0;
   try {
