@@ -100,7 +100,7 @@ const context={
 vm.runInNewContext(src,context);
 (async()=>{
   for(let i=0;i<20;i++)await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(nodes.get("metricPeople").textContent,2);
+  assert.equal(nodes.get("metricPeople").textContent,"2");
   assert.match(nodes.get("metricTotal").textContent,/2\.316,50/);
   assert.match(nodes.get("metricVales").textContent,/700,00/);
   assert.ok(requests[0].uri.endsWith("/funcionarios/painel"));
