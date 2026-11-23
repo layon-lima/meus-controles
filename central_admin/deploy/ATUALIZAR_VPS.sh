@@ -538,6 +538,7 @@ echo "LAYOUT: icone se transforma na MESMA janela; ambos arrastaveis, sem popup 
 echo "GEOMETRIA: janela fixa, ajustada à tela por escala; sempre completa sem scroll."
 echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a transição."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
+echo "NAVEGACAO: abre diretamente o controle escolhido, sem mostrar Home de Controles nem Home da Central antes."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
 echo "FUNCIONÁRIOS: painel nativo com holerites, Pix, contas a pagar, vales e vínculos confirmados."
