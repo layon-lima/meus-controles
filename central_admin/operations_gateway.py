@@ -84,7 +84,7 @@ def rewrite_text(text, prefix, kind):
         if module in MODULES:
             text = text.replace("<body>", '<body class="central-operational nh-scope-' + module + '">', 1)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
-        css = ('<link rel="stylesheet" href="/central/operations.css">'
+        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261123full">'
                '<link rel="stylesheet" href="/central/launcher.css?v=20261120g">')
         js = ('<script defer src="/central/operations.js"></script>'
               '<script defer src="/central/launcher.js?v=20261120g"></script>')
