@@ -62,6 +62,7 @@
   }
   function renderQuote(q){
     model.quote=q;model.selected=new Set(q.selecionadas||[]);
+    model.valeId=Number(q.vale_employee_id)||null;
     const list=model.box.querySelector(".nh-vales-installments");
     list.replaceChildren();
     for(const p of q.parcelas||[]){
@@ -103,7 +104,8 @@
     const query=new URLSearchParams({
       funcionario_id:String(ctx.employeeId||""),
       competencia:ctx.competence,original:amount(model.original),
-      vale_employee_id:String(model.valeId||"")
+      vale_employee_id:String(model.valeId||""),
+      funcionario_nome:ctx.employeeId?"":ctx.name
     });
     try{
       const data=await req("cotacao?"+query);
@@ -131,75 +133,29 @@
     }
     const mapped=model.staff.funcionarios_vales.filter(x=>
       ctx.employeeId && Number(x.contas_employee_id)===ctx.employeeId);
-    const suggestions=mapped.length?[]:model.staff.funcionarios_vales.filter(x=>
-      !x.contas_employee_id && norm(x.name)===norm(ctx.name));
     const binding=model.box.querySelector(".nh-vales-bind");
     binding.replaceChildren();
     model.valeId=null;
     if(mapped.length){
       binding.append(el("p","nh-vales-muted",
-        mapped.length+" registro(s) de Vales vinculado(s) ao funcionário."));
+        "Vales identificados automaticamente para este funcionário."));
+      await fetchQuote(ctx,serial);
+      return;
+    }
+    if(!ctx.employeeId && ctx.name.trim()){
+      // Funcionário ainda não existe no Contas: o servidor identifica o
+      // cadastro único em Vales pelo nome, sem clique ou pareamento manual.
+      binding.append(el("p","nh-vales-muted",
+        "Buscando automaticamente os vales do novo funcionário…"));
       await fetchQuote(ctx,serial);
       return;
     }
     resetDiscount();
     model.box.querySelector(".nh-vales-installments").replaceChildren();
     model.box.querySelector(".nh-vales-total").textContent="Sem vales aplicados.";
-    if(suggestions.length===1){
-      const candidate=suggestions[0];
-      binding.append(el("p","nh-vales-muted",
-        "Funcionário encontrado em Vales: "+candidate.name+". Confirme a associação."));
-      const button=el("button","nh-vales-action","Vincular funcionário aos Vales");
-      button.type="button";
-      button.addEventListener("click",async()=>{
-        if(!window.confirm("Confirmar o vínculo de "+candidate.name+
-          " com este funcionário?"))return;
-        if(ctx.employeeId){
-          try{
-            await req("vincular",{vale_employee_id:candidate.id,
-              contas_employee_id:ctx.employeeId});
-            model.staff=null;refresh();
-          }catch(e){notice(e.message,"error")}
-        }else{
-          model.valeId=Number(candidate.id);
-          binding.replaceChildren(el("p","nh-vales-muted",
-            "Vínculo do novo cadastro confirmado. Será gravado ao salvar."));
-          fetchQuote(ctx,serial);
-        }
-      });
-      binding.append(button);
-    }else{
-      binding.append(el("p","nh-vales-muted",
-        "Sem vínculo confirmado. Escolha o funcionário correspondente no controle de Vales."));
-      if(ctx.employeeId){
-        const available=model.staff.funcionarios_vales.filter(x=>!x.contas_employee_id);
-        if(available.length){
-          const select=el("select","nh-vales-choice");
-          select.setAttribute("aria-label","Funcionário do controle de Vales");
-          const choose=el("option","","Escolher funcionário de Vales…");
-          choose.value="";select.append(choose);
-          for(const person of available){
-            const option=el("option","",person.name+" · controle "+person.control_id);
-            option.value=String(person.id);select.append(option);
-          }
-          const btn=el("button","nh-vales-action","Confirmar vínculo");
-          btn.type="button";
-          btn.addEventListener("click",async()=>{
-            const valeId=Number(select.value||0);
-            if(!valeId)return notice("Selecione um funcionário dos Vales.","warning");
-            const chosen=available.find(x=>Number(x.id)===valeId);
-            if(!window.confirm("Confirmar que "+chosen.name+
-              " (Vales) é a mesma pessoa do holerite?"))return;
-            try{
-              await req("vincular",{vale_employee_id:valeId,
-                contas_employee_id:ctx.employeeId});
-              model.staff=null;refresh();
-            }catch(e){notice(e.message,"error")}
-          });
-          binding.append(select,btn);
-        }
-      }
-    }
+    binding.append(el("p","nh-vales-muted",
+      "Não há vale identificado com segurança para este funcionário. "+
+      "Cadastros sem holerite continuam visíveis no módulo Funcionários."));
   }
   function attach(form){
     model.form=form;model.staff=null;model.quote=null;model.serial++;model.existing=false;
