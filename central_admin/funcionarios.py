@@ -102,16 +102,34 @@ def dashboard(month=None):
     for person in employees:
         eid=int(person["id"])
         rows[eid]={
-          "id":eid,"nome":person["nome"],
+          "id":eid,"nome":person["nome"],"origem_cadastro":"contas",
           "pix_cadastrado":bool(str(person.get("chave_pix") or "").strip()),
           "chave_pix":str(person.get("chave_pix") or ""),
           "vales_ids":[],"holerites":[],"outras_contas":[],"sugestoes":[],
           "parcelas":[],"descontos":[],"totais":{},
         }
+    # O módulo de Funcionários também inclui cadastros que só existem
+    # no Meus Controles. São perfis de CONSULTA com ID virtual negativo:
+    # não criam funcionário/PIX no Contas nem geram holerite/pagamento.
+    # Assim todos os vales ficam visíveis mesmo antes do primeiro holerite.
+    virtual_ids=set()
     for vale in staff:
-        employee_id=links.get(int(vale["id"]))
+        vid=int(vale["id"])
+        if links.get(vid) in rows:
+            continue
+        eid=-vid
+        virtual_ids.add(eid)
+        rows[eid]={
+          "id":eid,"nome":str(vale["name"]),"origem_cadastro":"vales",
+          "pix_cadastrado":False,"chave_pix":"",
+          "vales_ids":[],"holerites":[],"outras_contas":[],"sugestoes":[],
+          "parcelas":[],"descontos":[],"totais":{},
+        }
+    for vale in staff:
+        vid=int(vale["id"])
+        employee_id=links.get(vid,-vid)
         if employee_id in rows:
-            rows[employee_id]["vales_ids"].append(int(vale["id"]))
+            rows[employee_id]["vales_ids"].append(vid)
     pending_by_employee=defaultdict(list)
     for item in installments:
         pending_by_employee[int(item["employee_id"])].append(item)
@@ -238,40 +256,10 @@ def dashboard(month=None):
         person["holerites"].sort(key=lambda a:(a["competencia"],a["id"]),reverse=True)
         person["outras_contas"].sort(key=lambda a:(a["paga"],a["vencimento"],a["id"]))
         person["parcelas"].sort(key=lambda a:(a["competencia"],a["id"]),reverse=True)
-    for vale in staff:
-        if links.get(int(vale["id"])) in rows:
-            continue
-        related=pending_by_employee.get(int(vale["id"]),[])
-        remaining=sum((max(ZERO,amount(p["amount"])-amount(p["paid"]))
-                       for p in related if p["due_month"]==month),ZERO)
-        suggestions=bridge.name_suggestions(vale["name"],employees)
-        # Primeiro nome repetido em vários Vales jamais vira sugestão
-        # única para associação sem conferir a identidade.
-        if any(other["id"]!=vale["id"] and
-               bridge.name_key(other["name"]).split()[:1]==
-               bridge.name_key(vale["name"]).split()[:1]
-               for other in staff):
-            suggestions=[]
-        unlinked.append({
-          "vale_employee_id":int(vale["id"]),
-          "control_id":int(vale["control_id"]),
-          "nome":str(vale["name"]),
-          "vales_previstos":serial(remaining),
-          # Exibe os vales existentes ANTES do vínculo, mas jamais os
-          # transforma em desconto do salário até a identidade estar ligada.
-          "parcelas_pendentes":[{
-              "id":int(p["id"]),"titulo":str(p["title"] or "Vale"),
-              "competencia":str(p["due_month"]),
-              "parcela":int(p["installment_number"]),
-              "valor":serial(amount(p["amount"])),
-              "ja_descontado":serial(amount(p["paid"])),
-              "saldo":serial(max(ZERO,
-                  amount(p["amount"])-amount(p["paid"]))),
-          } for p in related if amount(p["amount"])>amount(p["paid"])],
-          "sugestao_funcionario_id":(
-              suggestions[0] if len(suggestions)==1 else None
-          ),
-        })
+    # Não há mais uma fila de pareamento manual: todos os perfis de Vales
+    # estão nos cards da Central, com seus saldos e competências.
+    # Vínculos ambíguos permanecem em cadastros virtuais separados.
+    unlinked=[]
     return {
        "ok":True,"competencia":month,
        "indicadores":{
@@ -285,12 +273,13 @@ def dashboard(month=None):
           "total_a_pagar":serial(total_pending),
           "vales_a_descontar":serial(total_vales_to_deduct),
           "vales_ja_reservados":serial(linked_reserved_total),
-          "vales_sem_vinculo":len(unlinked),
+          "vales_sem_vinculo":len(virtual_ids),
+          "funcionarios_somente_vales":len(virtual_ids),
           "total_sugestoes":sum(len(x["sugestoes"]) for x in rows.values()),
        },
        "funcionarios":list(rows.values()),
        "vales_sem_vinculo":unlinked,
-       "nota":"Contas sugeridas por nome não entram no total até confirmação. "
+       "nota":"Cadastros exclusivos de Vales aparecem como perfis de leitura. Contas sugeridas por nome não entram no total até confirmação. "
               "Vales reservados já foram abatidos do valor do holerite e não são descontados novamente."
     }
 
