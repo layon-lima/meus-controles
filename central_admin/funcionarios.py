@@ -14,6 +14,8 @@ from decimal import Decimal
 from urllib.parse import parse_qs, urlsplit
 import re
 import sqlite3
+import http.client
+import json
 
 from . import access
 from . import vales_holerites as bridge
@@ -341,6 +343,50 @@ def assign_account(payload):
     return {"ok":True,"conta_id":account_id,"funcionario_id":employee_id}
 
 
+def update_pix(payload):
+    """Altera somente o Pix de um funcionário existente pelo motor original.
+    O token interno nunca sai do servidor e a base continua montada só leitura.
+    """
+    from .operations_gateway import _upstream, _requested_origin
+    employee_id=bridge.positive_id(payload.get("funcionario_id"))
+    key=payload.get("chave_pix")
+    previous=payload.get("chave_anterior")
+    if not isinstance(key,str) or not isinstance(previous,str) or len(key)>150 or any(ord(c)<32 for c in key):
+        raise bridge.BridgeError("Chave Pix inválida.")
+    key=key.strip()
+    employees,_=read_contas()
+    employee=next((p for p in employees if int(p["id"])==employee_id),None)
+    if not employee:
+        raise bridge.BridgeError("Funcionário não cadastrado no Contas.")
+    if str(employee.get("chave_pix") or "")!=previous:
+        raise bridge.BridgeError("A chave foi alterada em outra sessão. Atualize a lista antes de editar.")
+    host,port=_upstream("contas")
+    origin=_requested_origin("contas")
+    headers={"Host":urlsplit(origin).netloc,"Accept-Encoding":"identity"}
+    conn=http.client.HTTPConnection(host,port,timeout=15)
+    try:
+        conn.request("GET","/?desktop=1",headers=headers)
+        response=conn.getresponse()
+        if response.status!=200:
+            raise bridge.BridgeError("Não foi possível abrir a sessão do Contas.")
+        html=response.read(4_000_000).decode("utf-8")
+        match=re.search(r'window\.__CONTAS_TOKEN__\s*=\s*("(?:[^"\\]|\\.)*")\s*;',html)
+        if not match:
+            raise bridge.BridgeError("Sessão do Contas indisponível.")
+        token=json.loads(match.group(1))
+        headers.update({"X-Local-Token":token,"Origin":origin,"Content-Type":"application/json"})
+        # Reutiliza o cadastro original, preservando ID e nome; não cria conta.
+        body=json.dumps({"id":employee_id,"nome":employee["nome"],"chave_pix":key}).encode("utf-8")
+        conn.request("POST","/api/holerites/funcionarios",body=body,headers=headers)
+        response=conn.getresponse()
+        result=json.loads(response.read(100_000))
+        if response.status!=200 or not result.get("ok") or int(result.get("id") or 0)!=employee_id:
+            raise bridge.BridgeError("O Contas não confirmou a alteração do Pix. Confira a chave e tente novamente.")
+        return {"ok":True,"funcionario_id":employee_id}
+    finally:
+        conn.close()
+
+
 def handle(handler):
     uri=urlsplit(handler.path)
     path=uri.path
@@ -359,6 +405,8 @@ def handle(handler):
         elif handler.command=="GET" and path=="/api/funcionarios/buscar-contas":
             query=parse_qs(uri.query).get("q",[""])[0]
             result=find_account_candidates(query)
+        elif handler.command=="POST" and path=="/api/funcionarios/pix":
+            result=update_pix(bridge.read_body(handler))
         elif handler.command=="POST" and path=="/api/funcionarios/vincular-conta":
             result=assign_account(bridge.read_body(handler))
         else:
