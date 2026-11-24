@@ -600,7 +600,41 @@
     if(action==="xml")return window.NHReceivingImports.openXML(ui);
     if(action==="pdf")return window.NHReceivingImports.openPDF(ui);
   }
-  const ui={api,toast,dialog,closeDialog,refresh,cid,route,items,receipts,esc,qty,dec,field,select,today,setBusy};
+  const canImportXML=()=>!!cid()&&!!store.data&&!store.busy&&!modal;
+  const ui={api,toast,dialog,closeDialog,refresh,cid,route,items,receipts,esc,qty,dec,field,select,today,setBusy,canImportXML};
+  // A tela inteira de Recebimentos aceita um XML de NF-e, como no motor antigo.
+  // Evita que o navegador abra o arquivo e abandone o aplicativo.
+  const fileDrag=e=>Array.from(e.dataTransfer?.types||[]).includes("Files");
+  const dragHint=$("#rx-xml-drop");
+  let dragDepth=0;
+  function hideDrop(){dragDepth=0;dragHint.hidden=true;}
+  document.addEventListener("dragenter",e=>{
+    if(!fileDrag(e))return;
+    e.preventDefault();dragDepth++;
+    if(canImportXML())dragHint.hidden=false;
+  });
+  document.addEventListener("dragover",e=>{
+    if(!fileDrag(e))return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect=canImportXML()?"copy":"none";
+    if(canImportXML())dragHint.hidden=false;
+  });
+  document.addEventListener("dragleave",e=>{
+    if(!fileDrag(e))return;
+    dragDepth=Math.max(0,dragDepth-1);
+    if(!dragDepth)hideDrop();
+  });
+  document.addEventListener("drop",e=>{
+    const files=Array.from(e.dataTransfer?.files||[]);
+    if(!files.length&&!fileDrag(e))return;
+    e.preventDefault();hideDrop();
+    if(!files.length)return;
+    if(!canImportXML())return toast("Aguarde o carregamento ou feche a janela aberta.",true);
+    if(files.length!==1)return toast("Solte um XML de NF-e por vez.",true);
+    const task=window.NHReceivingImports.importXML(ui,files[0]);
+    if(task?.catch)task.catch(err=>toast(err.message,true));
+  });
+  document.addEventListener("dragend",hideDrop);
   document.addEventListener("click",e=>{
     const group=e.target.closest("[data-group]");
     if(group){
