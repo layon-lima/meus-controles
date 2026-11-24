@@ -179,6 +179,55 @@ body.central-operational .nh-start-expand {
 /* Nos módulos vindos do motor antigo, remover ícones apenas decorativos de
    ações COM texto. Preservar voltar, expandir, busca e controle por teclado. */
 body.central-operational :is(.btn,.mini-action,.nh-add) > .ui-icon {display:none !important;}
+
+/* Substituir também os azuis residuais dos componentes vindos dos dois
+   motores originais. O estilo sempre é escopado à Central. */
+body.central-operational :is(.topbar,.filters,.section-header,.payroll-head,
+  .panel-header,.receipt-toolbar,.truck-toolbar,.nh-module-toolbar) {
+  background:linear-gradient(125deg,rgba(255,255,255,.87),rgba(255,247,245,.72)) !important;
+  border-color:rgba(211,175,186,.24) !important;
+  box-shadow:0 4px 17px rgba(132,80,104,.04),inset 0 1px 0 #fff !important;
+}
+body.central-operational :is(input,select,textarea) {
+  color:var(--hz-ink) !important;
+  accent-color:var(--hz-rose) !important;
+  background:rgba(255,255,255,.85) !important;
+  border-color:rgba(191,154,172,.31) !important;
+}
+body.central-operational :is(input,select,textarea):focus {
+  border-color:rgba(190,97,137,.50) !important;
+  box-shadow:0 0 0 3px rgba(214,146,176,.12) !important;
+}
+body.central-operational :is(.btn-primary,.primary):hover:not(:disabled) {
+  background:linear-gradient(115deg,#ab567e,#cd7e86 60%,#d99e78) !important;
+  border-color:rgba(172,92,123,.37) !important;
+}
+body.central-operational :is(#modalRoot .modal,.dialog,.menu.visible,.card-action-menu,
+  .search-results,.dropdown-menu,.popover,.toast),
+body.nh-native-screen .rx-dialog {
+  background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(255,249,246,.93)) !important;
+  border-color:rgba(225,193,198,.51) !important;
+  box-shadow:0 20px 60px rgba(122,71,99,.14),inset 0 1px 0 #fff !important;
+}
+body.central-operational :is(.control-card,.board-card,.receipt-eligible-option,.kpi):hover,
+body .module-card:hover {
+  border-color:rgba(210,143,167,.42) !important;
+  box-shadow:0 14px 36px rgba(137,77,106,.10),inset 0 1px 0 #fff !important;
+}
+body .nhf-staff-summary:hover {background:rgba(250,231,237,.27) !important;}
+body .nhf-avatar {
+  background:linear-gradient(145deg,rgba(252,236,243,.92),rgba(255,248,239,.89)) !important;
+  color:#9c5d80 !important;
+  border-color:rgba(218,172,189,.32) !important;
+}
+body .nhf-staff-details {
+  background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,247,245,.42)) !important;
+  border-color:rgba(212,175,185,.23) !important;
+}
+body :is(.nhf-detail-heading,.nhf-stat.primary strong,.nhf-person-text strong,
+  .nhf-record-end b,.nhf-vale strong,.rx-table td strong) {color:#77526b !important;}
+body :is(.nhf-staff,.rx-group,.module-card,.control-card,.board-card) {overflow:hidden;}
+
 /* Barra discreta e consistente, sem remover contraste de estado financeiro. */
 body :is(.rx-pill,.chip,.nhf-tag,.pill):not(.complete):not(.partial):not(.pending):not(.negative):not(.positive) {
   border-color:rgba(204,160,174,.25) !important;
