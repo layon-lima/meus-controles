@@ -1,276 +1,161 @@
-/* NOVO HORIZONTE • identidade visual única, v1
-   Um só tema para Home, Recebimentos, Funcionários e módulos legados.
-   O ícone original do usuário é servido localmente, sem serviço externo.
-   Liquid Glass SUAVE: superfícies claras, rosa/pêssego/sol discretos.
-   Nunca altera regras financeiras, campos, rotas, scroll ou dimensão de modal.
-*/
+/* Central Novo Horizonte — interface administrativa neutra.
+   Apenas apresentação: não altera dados, fluxos nem navegação. */
 :root {
-  color-scheme: light;
-  --hz-rose: #c56890;
-  --hz-coral: #e79a86;
-  --hz-gold: #edba72;
-  --hz-ink: #403945;
-  --hz-muted: #797380;
-  --hz-line: rgba(190, 153, 168, .26);
-  --hz-glass: rgba(255,255,255,.78);
-  --hz-shadow: 0 16px 43px rgba(124,75,105,.12), 0 3px 9px rgba(105,69,90,.045), inset 0 2px 1px rgba(255,255,255,.98), inset 0 -1px 1px rgba(199,139,164,.14);
-  --hz-gradient: linear-gradient(115deg,#bb638c 0%,#d5878d 55%,#e9a778 100%);
-  --ink: #403945;
-  --muted: #797380;
-  --accent: #b9638c;
-  --primary: #b9638c;
-  --rx-ink: #403945;
-  --rx-muted: #797380;
-  --rx-blue: #b9638c;
-  --rx-panel: rgba(255,255,255,.76);
-  --rx-line: rgba(194,162,177,.27);
-  --rx-shadow: var(--hz-shadow);
-  --nh-ink: #403945;
-  --nh-muted: #797380;
-  --nh-blue: #b9638c;
-  --nh-glass: rgba(255,255,255,.76);
-  --nh-glass-strong: rgba(255,255,255,.85);
-  --nh-line: rgba(255,255,255,.92);
-  --nh-ring: rgba(207,133,159,.22);
-  --nh-shadow: var(--hz-shadow);
+  color-scheme:light;
+  --hz-surface:#ffffff;
+  --hz-bg:#f5f6f8;
+  --hz-ink:#20242b;
+  --hz-muted:#606873;
+  --hz-line:#dce0e5;
+  --hz-action:#303740;
+  --hz-shadow:0 1px 3px rgba(20,25,32,.06);
+  --bg:var(--hz-bg);--paper:var(--hz-surface);--ink:var(--hz-ink);
+  --muted:var(--hz-muted);--line:var(--hz-line);--accent:var(--hz-action);
+  --primary:var(--hz-action);--shadow:var(--hz-shadow);
+  --rx-ink:var(--hz-ink);--rx-muted:var(--hz-muted);--rx-blue:var(--hz-action);
+  --rx-panel:var(--hz-surface);--rx-line:var(--hz-line);--rx-shadow:var(--hz-shadow);
+  --nh-ink:var(--hz-ink);--nh-muted:var(--hz-muted);--nh-blue:var(--hz-action);
+  --nh-glass:#fff;--nh-glass-strong:#fff;--nh-line:var(--hz-line);
+  --nh-ring:#b8bec6;--nh-shadow:var(--hz-shadow);
 }
-html { background:#f9f7f9; }
-body,
-body.central-operational,
-body.nh-native-screen {
-  background:
-    radial-gradient(ellipse 42% 58% at 0% 0%, rgba(247,172,202,.43), transparent 82%),
-    radial-gradient(ellipse 38% 48% at 100% 14%, rgba(255,218,147,.39), transparent 82%),
-    radial-gradient(ellipse 44% 52% at 53% 100%, rgba(250,191,169,.24), transparent 85%),
-    linear-gradient(135deg,#f7edf5 0%,#fcf8f6 52%,#f9f1e6 100%) fixed !important;
-  color:var(--hz-ink) !important;
+html {background:#f5f6f8}
+body,body.central-operational,body.nh-native-screen {
+  background:#f5f6f8!important;color:var(--hz-ink)!important;
+}
+body :is(*, *::before, *::after) {
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
 }
 body :is(h1,h2,h3,.brand-copy strong,.nhf-back strong,.rx-title h1,
-         .nh-start-tile-name,.nhf-person-text strong) { color:var(--hz-ink) !important; }
+  .nh-start-tile-name,.nhf-person-text strong,.module-name,.nhf-stat strong,
+  .rx-metric strong,.summary-item strong,.nhf-kpi strong,.nhf-value,
+  .module-employees-metrics>strong,.rx-table td strong,.detail-row .row-value) {
+  color:var(--hz-ink)!important;
+}
 body :is(.subtitle,.subtext,.nhf-subtitle,.rx-title p,.module-description,
-         .nhf-section-head p,.nh-start-tile-subtitle) { color:var(--hz-muted) !important; }
-body :is(.site-header,.nhf-header,.central-shell-bar) {
-  background:linear-gradient(122deg,rgba(255,255,255,.76),rgba(255,246,244,.44)) !important;
-  border-color:rgba(255,255,255,.94) !important;
-  box-shadow:0 4px 20px rgba(108,74,89,.045),inset 0 -1px 0 rgba(205,163,174,.13) !important;
-  backdrop-filter:blur(24px) saturate(155%);
-  -webkit-backdrop-filter:blur(24px) saturate(155%);
-}
-/* Mesmo raio, sombra e material para todas as fichas/cards. */
-body :is(.module-card,.summary-item,.detail-box,.rx-metric,.rx-group,
-         .rx-note-card,.rx-blank,.rx-order-row,.nhf-kpi,.nhf-staff,
-         .nhf-detail-section,.nhf-open-only,
-         .nh-documents,.nh-document-card,.panel,.stat,.board-card,.control-card,
-         .surface,.kpi,.payroll-surface,.payroll-person,.truck-card,
-         .receiving-card,.receiving-summary-card,.debt-card,.pair-card) {
-  background:linear-gradient(132deg,rgba(255,255,255,.66),rgba(255,248,244,.35)) !important;
-  border-color:rgba(255,255,255,.94) !important;
-  box-shadow:var(--hz-shadow) !important;
-  backdrop-filter:blur(22px) saturate(155%);
-  -webkit-backdrop-filter:blur(22px) saturate(155%);
-}
-body :is(.rx-table th,.nhf-open-table th,table thead th,.table-header) {
-  background:rgba(246,230,233,.38) !important;
-  color:#756976 !important;
-}
-body :is(.rx-table tbody tr:hover,.nhf-open-table tbody tr:hover,table tbody tr:hover) {
-  background:rgba(250,230,230,.22) !important;
-}
-body :is(.site-footer,.nhf-section,.rx-tabs,.rx-group-table,
-         .rx-table td,.nhf-open-table td,table td) { border-color:var(--hz-line) !important; }
-/* Área de pesquisa, filtros, ações secundárias: quase branco, não rosado forte. */
-body :is(input,select,textarea,.header-button,.rx-button,.nhf-btn,
-         .nhf-mini,.nhf-link-action,.btn,.mini-action,.nh-document-action) {
-  accent-color:var(--hz-rose);
-}
-body :is(input,select,textarea):focus-visible,
-body :is(button,a):focus-visible {
-  outline-color:rgba(191,99,142,.58) !important;
-}
-body :is(.header-button,.rx-button:not(.rx-button-primary),
-         .nhf-btn,.nhf-mini,.nhf-link-action,
-         .btn:not(.btn-primary),.mini-action,.nh-document-action,
-         .rx-control-picker select,.rx-field input,.rx-field select,
-         .rx-field textarea,.nhf-toolbar input,.nhf-toolbar select) {
-  border-color:rgba(196,159,172,.35) !important;
-  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,249,246,.83)) !important;
-  color:#73556d !important;
-  box-shadow:0 2px 9px rgba(119,75,103,.045),inset 0 1px 0 white !important;
-}
-body :is(.header-button,.rx-button:not(.rx-button-primary),.nhf-btn,.btn):hover {
-  border-color:rgba(192,111,144,.40) !important;
-  background:rgba(255,249,247,.94) !important;
-}
-body :is(button,a,input[type="submit"],input[type="button"], [role="button"]):is(.rx-button-primary,.btn-primary,.primary):not(:disabled) {
-  background:var(--hz-gradient) !important;
-  color:#fff !important;
-  border:1px solid rgba(164,93,124,.34) !important;
-  box-shadow:0 4px 12px rgba(177,92,131,.15),inset 0 1px 0 rgba(255,255,255,.24) !important;
-}
-body :is(.rx-tab.is-active,.nhf-tab.active,.module-tab.active,
-         .central-tabs a[aria-current="page"]) {
-  color:#a5557e !important;
-  background:linear-gradient(140deg,rgba(255,255,255,.96),rgba(250,229,229,.60)) !important;
-  border-color:rgba(204,156,174,.34) !important;
-}
-body :is(.eyebrow,.nhf-eyebrow,.rx-eyebrow,.nh-kicker) { color:#aa6487 !important; }
-body :is(.module-footer,.nhf-stat strong,.rx-metric strong,.summary-item strong,
-         .nhf-kpi strong,.nhf-value) { color:#5a4559 !important; }
-/* Marca somente nos lugares de marca: antigos NH e cabeçalhos.
-   Os símbolos dos módulos e das ações continuam indicativos. */
-body .brand-mark,body .nhf-mark,body .central-mark {
-  background:transparent url("/central/horizon-logo.svg?v=1") center/contain no-repeat !important;
-  box-shadow:none !important;border:0 !important;color:transparent !important;
-  border-radius:50% !important;overflow:hidden;
-}
-body .brand-mark img,body .nhf-mark img {
-  width:100%;height:100%;display:block;object-fit:contain;
-}
-body .brand-mark:has(img),body .nhf-mark:has(img){background:none !important;}
-body .rx-title {position:relative;padding-left:49px;min-height:43px;}
-body .rx-brand-logo {
-  position:absolute;left:0;top:0;width:38px;height:38px;
-  display:block;object-fit:contain;
-}
-/* Pictogramas distintos, mas com o mesmo tratamento de vidro. */
-body .module-icon,body .nh-start-tile-icon {
-  background:linear-gradient(145deg,rgba(255,255,255,.84),rgba(247,209,225,.42) 55%,rgba(255,226,171,.32)) !important;
-  border:1px solid rgba(255,255,255,.96) !important;
-  border-radius:13px !important;color:#925376 !important;
-  box-shadow:0 5px 14px rgba(125,72,100,.13),inset 0 1.5px 1px #fff,inset 0 -1px 1px rgba(198,127,151,.14) !important;
-}
-body .module-icon svg,body .nh-start-tile-icon .nh-start-icon {display:block !important;}
-body .intro-tag svg {color:#925376 !important;}
-/* Menu original: quadrado arredondado, quatro quadradinhos brancos e
-   a mesma superficie que se expande. Somente a paleta foi adaptada. */
-body.central-operational .nh-start-menu:not(.nh-start-open) {
-  background:linear-gradient(145deg,#c77b9f,#be6c88 60%,#d69c78) !important;
-  border-radius:20px !important;
-  border:1px solid rgba(255,255,255,.94) !important;
-  box-shadow:0 10px 26px rgba(132,75,103,.24),inset 0 1px 0 #ffffff79 !important;
-}
-body.central-operational .nh-start-menu.nh-start-open {
-  background:linear-gradient(142deg,rgba(255,255,255,.88),rgba(252,232,228,.74)) !important;
-  border:1px solid rgba(255,255,255,.97) !important;
-  box-shadow:0 18px 55px rgba(132,75,103,.19),inset 0 1px 0 #fff !important;
-}
-body.central-operational .nh-start-trigger>.nh-start-icon {display:block !important;}
-body.central-operational :is(.nh-start-section-title strong,
-         .nh-start-tile-name,.nh-start-search-input) { color:var(--hz-ink) !important; }
-body.central-operational .nh-start-tile {
-  background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,240,232,.43)) !important;
-  border-color:rgba(255,255,255,.92) !important;
-}
-body.central-operational .nh-start-tile:hover,
-body.central-operational .nh-start-tile[aria-current="page"] {
-  background:rgba(253,239,239,.8) !important;
-  border-color:rgba(194,119,151,.35) !important;
-}
-body.central-operational .nh-start-search {
-  background:rgba(255,255,255,.80) !important;
-  border-color:rgba(201,155,173,.30) !important;
-}
-body.central-operational .nh-start-close,
-body.central-operational .nh-start-expand {
-  color:#8b5d76 !important;
-  border-color:rgba(208,170,181,.34) !important;
-}
-
-/* Substituir também os azuis residuais dos componentes vindos dos dois
-   motores originais. O estilo sempre é escopado à Central. */
-body.central-operational :is(.topbar,.filters,.section-header,.payroll-head,
-  .panel-header,.receipt-toolbar,.truck-toolbar,.nh-module-toolbar) {
-  background:linear-gradient(125deg,rgba(255,255,255,.87),rgba(255,247,245,.72)) !important;
-  border-color:rgba(211,175,186,.24) !important;
-  box-shadow:0 4px 17px rgba(132,80,104,.04),inset 0 1px 0 #fff !important;
-}
-body.central-operational :is(input,select,textarea) {
-  color:var(--hz-ink) !important;
-  accent-color:var(--hz-rose) !important;
-  background:rgba(255,255,255,.85) !important;
-  border-color:rgba(191,154,172,.31) !important;
-}
-body.central-operational :is(input,select,textarea):focus {
-  border-color:rgba(190,97,137,.50) !important;
-  box-shadow:0 0 0 3px rgba(214,146,176,.12) !important;
-}
-body.central-operational :is(button,a,input[type="submit"],input[type="button"],[role="button"]):is(.btn-primary,.primary):hover:not(:disabled) {
-  background:linear-gradient(115deg,#ab567e,#cd7e86 60%,#d99e78) !important;
-  border-color:rgba(172,92,123,.37) !important;
-}
-body.central-operational :is(#modalRoot .modal,.dialog,.menu.visible,.card-action-menu,
-  .search-results,.dropdown-menu,.popover,.toast),
-body.nh-native-screen .rx-dialog {
-  background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(255,249,246,.93)) !important;
-  border-color:rgba(225,193,198,.51) !important;
-  box-shadow:0 20px 60px rgba(122,71,99,.14),inset 0 1px 0 #fff !important;
-}
-body.central-operational :is(.control-card,.board-card,.receipt-eligible-option,.kpi):hover,
-body .module-card:hover {
-  border-color:rgba(210,143,167,.42) !important;
-  box-shadow:0 14px 36px rgba(137,77,106,.10),inset 0 1px 0 #fff !important;
-}
-body .nhf-staff-summary:hover {background:rgba(250,231,237,.27) !important;}
-body .nhf-avatar {
-  background:linear-gradient(145deg,rgba(252,236,243,.92),rgba(255,248,239,.89)) !important;
-  color:#9c5d80 !important;
-  border-color:rgba(218,172,189,.32) !important;
-}
-body .nhf-staff-details {
-  background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,247,245,.42)) !important;
-  border-color:rgba(212,175,185,.23) !important;
-}
-body :is(.nhf-detail-heading,.nhf-stat.payable strong,.nhf-person-text strong,
-  .nhf-record-end b,.nhf-vale strong,.rx-table td strong) {color:#77526b !important;}
-
-
-/* Barra discreta e consistente, sem remover contraste de estado financeiro. */
-body :is(.rx-pill,.chip,.nhf-tag,.pill):not(.complete):not(.partial):not(.pending):not(.negative):not(.positive) {
-  border-color:rgba(204,160,174,.25) !important;
-}
-
-@media (max-width:720px) {
-  body .brand-mark,body .nhf-mark {width:36px !important;height:36px !important}
-  
-}
-@media(prefers-reduced-motion:reduce) {
-  body :is(.module-card,.rx-button,.btn){transition:none !important;}
-}
-
-/* Liquid Glass: recuperar o brilho da borda, a refração da superfície e
-   a profundidade que foram perdidos no tema anterior. Sem pintar os cards
-   de rosa sólido e sem usar a marca como decoração repetida. */
-body .module-card::before {
-  height:62%;opacity:.82;
-  background:linear-gradient(155deg,rgba(255,255,255,.72),rgba(255,255,255,.09) 56%,transparent 72%);
-}
-body .module-card,body .summary-item {
-  box-shadow:var(--hz-shadow) !important;
-  border-radius:19px !important;
+  .nhf-section-head p,.nh-start-tile-subtitle,.summary-item span,.summary-item small,
+  .nhf-stat span,.nhf-kpi>span,.rx-metric span,.eyebrow,.rx-eyebrow,.nh-kicker,
+  .nhf-eyebrow,.module-employees-metrics,.module-employees-metrics>small,
+  .module-footer,.nhf-reference,.nhf-type,.rx-control-picker,.rx-group-head small,
+  .section-heading p,.site-footer,.notice,.connection-state,.brand small,.nhf-person-text small) {
+  color:var(--hz-muted)!important;
 }
 body .site-header {padding-inline:clamp(14px,1.55vw,30px);}
-body :is(.module-employees-metrics,.module-employees-metrics>small,.summary-item span,.summary-item small) {color:var(--hz-muted) !important;}
-body .module-employees-metrics>strong {color:#754a66 !important;}
-body .nhf-staff-summary:hover {background:rgba(255,255,255,.25) !important;}
-body.central-operational .nh-start-menu.nh-start-open {
-  backdrop-filter:blur(24px) saturate(155%);
-  -webkit-backdrop-filter:blur(24px) saturate(155%);
+body:is(.nh-central-home,.central-operational,.nh-native-screen) :is(
+ .site-header,.nhf-header,.central-shell-bar,.topbar,.filters,.section-header,
+ .payroll-head,.panel-header,.receipt-toolbar,.truck-toolbar,.nh-module-toolbar,
+ .module-card,.summary-item,.intro-tag,.detail-box,.nh-home-panel,.rx-metric,
+ .rx-group,.rx-note-card,.rx-blank,.rx-order-row,.nhf-kpi,.nhf-staff,
+ .nhf-detail-section,.nhf-open-only,.nh-documents,.nh-document-card,
+ .nh-documents-intro,.nh-report-actions,.nh-module-empty,.panel,.surface,.card,
+ .stat,.board-card,.control-card,.payroll-surface,.payroll-person,.payroll-person-head,
+ .receipt-confirm-summary>div,.receipt-eligible-option,.truck-stat,.truck-card,
+ .receiving-card,.receiving-summary-card,.debt-card,.pair-card,.kpi,.info-card,
+ .summary-card,.form-row-card,.form-card,.field-card,.config-card,.wizard-choice>.choice
+) {
+  background:#fff!important;border-color:var(--hz-line)!important;
+  box-shadow:var(--hz-shadow)!important;border-radius:8px!important;
 }
-body.central-operational .nh-start-menu.nh-start-moving {backdrop-filter:none;-webkit-backdrop-filter:none;}
-html.nh-start-arriving #nh-entry-surface,html.nh-start-revealing #nh-entry-surface,
-html.nh-route-boot body::before,html.nh-module-redirect body::before {
-  background:radial-gradient(ellipse at 0% 0%,rgba(247,172,202,.43),transparent 75%),
-    radial-gradient(ellipse at 100% 10%,rgba(255,218,147,.39),transparent 75%),
-    linear-gradient(135deg,#f7edf5,#fcf8f6 52%,#f9f1e6) !important;
-  color:var(--hz-ink);
+body .site-header,body .nhf-header,body .central-shell-bar {border-radius:0!important;}
+body .module-card::before {display:none!important;}
+body:is(.nh-central-home,.central-operational,.nh-native-screen) :is(
+ .module-card,.control-card,.board-card,.nh-document-card,.receipt-eligible-option,.kpi):hover {
+  border-color:#aeb5be!important;box-shadow:0 2px 6px rgba(20,25,32,.08)!important;
+  transform:none!important;
 }
-@supports not (backdrop-filter:blur(2px)) {
-  body :is(.module-card,.summary-item,.rx-metric,.rx-group,.nhf-staff,.nhf-kpi) {
-    background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(255,248,244,.65)) !important;
-  }
+body :is(.nhf-staff-details,.rx-group-table,.nhf-vale,.nhf-unlinked-row,.table-scroll,
+ .nh-batch-dock,.nh-vales-payroll,.nh-vales-row,.nh-vales-choice,.nhp-vales-inline,
+ .nhp-vales-group,.nh-pdf-review-head,.nh-pdf-review-controls,.nh-pdf-review-hint,
+ .rx-file-control,.rx-preview-item,.rx-pdf-page,.nhf-loading,.nhf-empty) {
+  background:#fff!important;border-color:var(--hz-line)!important;
+  box-shadow:none!important;
 }
-
-/* Marcas dos motores legados: mesma imagem original, sem moldura azul. */
+body .nhf-staff-summary .nhf-stat {background:transparent!important;border:0!important;box-shadow:none!important;}
+body :is(.nhf-staff-summary,.rx-group-head,.rx-tab) {background:transparent!important;}
+body :is(.nhf-staff-summary,.rx-group-head,.rx-tab):hover {background:#f4f5f6!important;}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(thead,.table-header,table thead th) {
+  background:#f0f2f4!important;color:#4a515b!important;
+  border-color:var(--hz-line)!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) tbody tr {background:#fff!important;}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) tbody tr:nth-child(even) {background:#fafbfc!important;}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) tbody tr:hover {background:#eef0f2!important;}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) tbody tr.selected {background:#e4e8ed!important;}
+body :is(table td,.site-footer,.rx-tabs,.nhf-staff-details,.detail-row) {border-color:var(--hz-line)!important;}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]),select,textarea) {
+  background-color:#fff!important;color:var(--hz-ink)!important;
+  border-color:#cdd2d9!important;border-radius:6px!important;box-shadow:none!important;
+}
+body :is(input,select,textarea){accent-color:#303740}
+body :is(button,a,input,select,textarea):focus-visible{outline-color:#7b8590!important;}
+body.central-operational :is(input,select,textarea):focus{border-color:#8e98a3!important;box-shadow:0 0 0 2px #e2e5e9!important;}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .header-button,.rx-button,.nhf-btn,.nhf-mini,.nhf-link-action,.btn,.outline,
+ .mini-action,.nh-document-action,.reset-columns,.back-to-open,.nhf-confirm,
+ .nh-batch-controls button,.nh-vales-action,.nhp-confirm-link,.nhp-review-button,
+ .payroll-toolbar button,.payroll-actions button,.payroll-legacy button,.top-actions button
+):not(.primary):not(.btn-primary):not(.rx-button-primary):not(.danger):not(.rx-button-danger) {
+  background:#fff!important;color:#353b44!important;border-color:#cdd2d9!important;
+  box-shadow:none!important;border-radius:6px!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .header-button,.rx-button,.nhf-btn,.btn,.outline,.reset-columns,.top-actions button
+):not(.primary):not(.btn-primary):not(.rx-button-primary):not(.danger):not(.rx-button-danger):hover {
+  background:#f1f3f5!important;border-color:#afb7c0!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(button,a,input[type="submit"],input[type="button"],[role="button"]):is(.rx-button-primary,.btn-primary,.primary) {
+  background:#303740!important;color:#fff!important;border-color:#303740!important;
+  border-radius:6px!important;box-shadow:none!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(button,a,input[type="submit"],input[type="button"],[role="button"]):is(.rx-button-primary,.btn-primary,.primary):hover:not(:disabled) {
+  background:#20252c!important;border-color:#20252c!important;
+}
+body :is(.rx-tab.is-active,.nhf-tab.active,.module-tab.active,.module-tabs button[aria-selected="true"],
+ .central-tabs a[aria-current="page"]) {
+  background:#e8eaed!important;color:#20242b!important;
+  border-color:#cdd2d9!important;box-shadow:none!important;border-radius:6px!important;
+}
+body :is(.module-icon,.nh-start-tile-icon,.nhf-avatar,.vendor-avatar,.payroll-avatar) {
+  background:#eef0f2!important;color:#454d57!important;border-color:#dce0e5!important;
+  box-shadow:none!important;
+}
+body .module-icon,body .nh-start-tile-icon{border-radius:8px!important;}
+body .module-icon svg,body .nh-start-tile-icon .nh-start-icon {display:block!important;}
+body .intro-tag svg{color:#454d57!important;}
+/* Logo somente nos pontos de identidade, nunca em pictogramas funcionais. */
+body .brand-mark,body .nhf-mark,body .central-mark {
+  background:transparent url("/central/horizon-logo.svg?v=1") center/contain no-repeat!important;
+  box-shadow:none!important;border:0!important;color:transparent!important;border-radius:50%!important;overflow:hidden;
+}
+body .brand-mark img,body .nhf-mark img{width:100%;height:100%;display:block;object-fit:contain}
+body .brand-mark:has(img),body .nhf-mark:has(img){background:none!important}
+body .rx-title{position:relative;padding-left:49px;min-height:43px}
+body .rx-brand-logo{position:absolute;left:0;top:0;width:38px;height:38px;display:block;object-fit:contain}
 body.central-operational :is(.brand-icon,.mr-logo):has(.nh-legacy-brand-logo){background:transparent!important;border:0!important;box-shadow:none!important;border-radius:50%!important;overflow:hidden}
 body.central-operational .nh-legacy-brand-logo{display:block;width:100%;height:100%;object-fit:contain}
 body.central-operational .brand>img[src*="horizon-logo.svg"]{object-fit:contain;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:50%}
+body.central-operational .nh-start-menu:not(.nh-start-open) {
+  background:#303740!important;border-radius:20px!important;border-color:#303740!important;
+  box-shadow:0 3px 10px rgba(20,25,32,.18)!important;
+}
+body.central-operational .nh-start-menu.nh-start-open {
+  background:#fff!important;border-color:#dce0e5!important;
+  box-shadow:0 8px 25px rgba(20,25,32,.15)!important;border-radius:12px!important;
+}
+body.central-operational .nh-start-trigger>.nh-start-icon {display:block!important;}
+body.central-operational :is(.nh-start-tile,.nh-start-search,.nh-start-close,.nh-start-expand) {
+  background:#fff!important;color:#353b44!important;border-color:var(--hz-line)!important;
+  box-shadow:none!important;border-radius:8px!important;
+}
+body.central-operational .nh-start-search .nh-start-search-input{background:transparent!important;border:0!important;box-shadow:none!important;}
+body.central-operational :is(.nh-start-tile:hover,.nh-start-tile[aria-current="page"],.nh-start-close:hover,.nh-start-expand:hover){background:#eef0f2!important;border-color:#aeb5be!important}
+body:is(.central-operational,.nh-native-screen) :is(#modalRoot .modal,.dialog,.menu.visible,.menu,.card-action-menu,.search-results,.dropdown-menu,.popover,.rx-dialog,.nhf-toast,.rx-toast) {
+  background:#fff!important;border-color:var(--hz-line)!important;border-radius:10px!important;
+  box-shadow:0 8px 24px rgba(20,25,32,.16)!important;
+}
+body:is(.central-operational,.nh-native-screen) :is(#modalRoot .modal-backdrop,.backdrop.show,.rx-dialog-mask) {background:rgba(0,0,0,.32)!important;}
+body .nhf-toast.error,body .rx-toast.error{color:#a12735!important;background:#fff1f2!important}
+html.nh-start-arriving #nh-entry-surface,html.nh-start-revealing #nh-entry-surface,
+html.nh-route-boot body::before,html.nh-module-redirect body::before{background:#f5f6f8!important;color:var(--hz-ink)!important}
+body .nh-route-loading{background:#fff!important;border-color:var(--hz-line)!important;color:var(--hz-muted)!important}
+@media(max-width:720px){body .brand-mark,body .nhf-mark{width:36px!important;height:36px!important}}
+/* Cores semânticas de alerta, vencimento, pagamento e recebimento permanecem. */
