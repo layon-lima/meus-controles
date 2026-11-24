@@ -1,0 +1,184 @@
+/* NOVO HORIZONTE • identidade visual única, v1
+   Um só tema para Home, Recebimentos, Funcionários e módulos legados.
+   O ícone original do usuário é servido localmente, sem serviço externo.
+   Liquid Glass SUAVE: superfícies claras, rosa/pêssego/sol discretos.
+   Nunca altera regras financeiras, campos, rotas, scroll ou dimensão de modal.
+*/
+:root {
+  color-scheme: light;
+  --hz-rose: #c56890;
+  --hz-coral: #e79a86;
+  --hz-gold: #edba72;
+  --hz-ink: #403945;
+  --hz-muted: #797380;
+  --hz-line: rgba(190, 153, 168, .26);
+  --hz-glass: rgba(255,255,255,.78);
+  --hz-shadow: 0 9px 30px rgba(121,73,105,.065), inset 0 1px 0 rgba(255,255,255,.9);
+  --hz-gradient: linear-gradient(115deg,#bb638c 0%,#d5878d 55%,#e9a778 100%);
+  --ink: #403945;
+  --muted: #797380;
+  --accent: #b9638c;
+  --primary: #b9638c;
+  --rx-ink: #403945;
+  --rx-muted: #797380;
+  --rx-blue: #b9638c;
+  --rx-panel: rgba(255,255,255,.76);
+  --rx-line: rgba(194,162,177,.27);
+  --rx-shadow: var(--hz-shadow);
+  --nh-ink: #403945;
+  --nh-muted: #797380;
+  --nh-blue: #b9638c;
+  --nh-glass: rgba(255,255,255,.76);
+  --nh-glass-strong: rgba(255,255,255,.85);
+  --nh-line: rgba(255,255,255,.92);
+  --nh-ring: rgba(207,133,159,.22);
+  --nh-shadow: var(--hz-shadow);
+}
+html { background:#f9f7f9; }
+body,
+body.central-operational,
+body.nh-native-screen {
+  background:
+    radial-gradient(ellipse 42% 58% at 0% 0%, rgba(247,172,202,.18), transparent 82%),
+    radial-gradient(ellipse 38% 48% at 100% 14%, rgba(255,218,147,.18), transparent 82%),
+    radial-gradient(ellipse 44% 52% at 53% 100%, rgba(250,191,169,.11), transparent 85%),
+    linear-gradient(135deg,#f9f7fb 0%,#fdfaf9 52%,#faf8f6 100%) fixed !important;
+  color:var(--hz-ink) !important;
+}
+body :is(h1,h2,h3,.brand-copy strong,.nhf-back strong,.rx-title h1,
+         .nh-start-tile-name,.nhf-person-text strong) { color:var(--hz-ink) !important; }
+body :is(.subtitle,.subtext,.nhf-subtitle,.rx-title p,.module-description,
+         .nhf-section-head p,.nh-start-tile-subtitle) { color:var(--hz-muted) !important; }
+body :is(.site-header,.nhf-header,.central-shell-bar) {
+  background:linear-gradient(122deg,rgba(255,255,255,.87),rgba(255,246,244,.67)) !important;
+  border-color:rgba(255,255,255,.94) !important;
+  box-shadow:0 4px 20px rgba(108,74,89,.045),inset 0 -1px 0 rgba(205,163,174,.13) !important;
+  backdrop-filter:blur(18px) saturate(135%);
+  -webkit-backdrop-filter:blur(18px) saturate(135%);
+}
+/* Mesmo raio, sombra e material para todas as fichas/cards. */
+body :is(.module-card,.summary-item,.detail-box,.rx-metric,.rx-group,
+         .rx-note-card,.rx-blank,.rx-order-row,.nhf-kpi,.nhf-staff,
+         .nhf-detail-section,.nhf-explanation,.nhf-open-only,
+         .nh-documents,.nh-document-card,.panel,.stat,.board-card,.control-card,
+         .surface,.kpi,.payroll-surface,.payroll-person,.truck-card,
+         .receiving-card,.receiving-summary-card,.debt-card,.pair-card) {
+  background:linear-gradient(132deg,rgba(255,255,255,.88),rgba(255,250,247,.72)) !important;
+  border-color:rgba(204,167,179,.26) !important;
+  box-shadow:var(--hz-shadow) !important;
+  backdrop-filter:blur(12px) saturate(120%);
+  -webkit-backdrop-filter:blur(12px) saturate(120%);
+}
+body :is(.rx-table th,.nhf-open-table th,table thead th,.table-header) {
+  background:rgba(246,230,233,.38) !important;
+  color:#756976 !important;
+}
+body :is(.rx-table tbody tr:hover,.nhf-open-table tbody tr:hover,table tbody tr:hover) {
+  background:rgba(250,230,230,.22) !important;
+}
+body :is(.site-footer,.nhf-section,.rx-tabs,.rx-group-table,
+         .rx-table td,.nhf-open-table td,table td) { border-color:var(--hz-line) !important; }
+/* Área de pesquisa, filtros, ações secundárias: quase branco, não rosado forte. */
+body :is(input,select,textarea,.header-button,.rx-button,.nhf-btn,
+         .nhf-mini,.nhf-link-action,.btn,.mini-action,.nh-document-action) {
+  accent-color:var(--hz-rose);
+}
+body :is(input,select,textarea):focus-visible,
+body :is(button,a):focus-visible {
+  outline-color:rgba(191,99,142,.58) !important;
+}
+body :is(.header-button,.rx-button:not(.rx-button-primary),
+         .nhf-btn,.nhf-mini,.nhf-link-action,
+         .btn:not(.btn-primary),.mini-action,.nh-document-action,
+         .rx-control-picker select,.rx-field input,.rx-field select,
+         .rx-field textarea,.nhf-toolbar input,.nhf-toolbar select) {
+  border-color:rgba(196,159,172,.35) !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,249,246,.83)) !important;
+  color:#73556d !important;
+  box-shadow:0 2px 9px rgba(119,75,103,.045),inset 0 1px 0 white !important;
+}
+body :is(.header-button,.rx-button:not(.rx-button-primary),.nhf-btn,.btn):hover {
+  border-color:rgba(192,111,144,.40) !important;
+  background:rgba(255,249,247,.94) !important;
+}
+body :is(.rx-button-primary,.btn-primary,.primary):not(:disabled) {
+  background:var(--hz-gradient) !important;
+  color:#fff !important;
+  border:1px solid rgba(164,93,124,.34) !important;
+  box-shadow:0 4px 12px rgba(177,92,131,.15),inset 0 1px 0 rgba(255,255,255,.24) !important;
+}
+body :is(.rx-tab.is-active,.nhf-tab.active,.module-tab.active,
+         .central-tabs a[aria-current="page"]) {
+  color:#a5557e !important;
+  background:linear-gradient(140deg,rgba(255,255,255,.96),rgba(250,229,229,.60)) !important;
+  border-color:rgba(204,156,174,.34) !important;
+}
+body :is(.eyebrow,.nhf-eyebrow,.rx-eyebrow,.nh-kicker) { color:#aa6487 !important; }
+body :is(.module-footer,.nhf-stat strong,.rx-metric strong,.summary-item strong,
+         .nhf-kpi strong,.nhf-value) { color:#5a4559 !important; }
+/* Um ÚNICO logotipo para os módulos — não um pacote de ícones diferentes. */
+body .brand-mark,
+body .nhf-mark,
+body .module-icon,
+body .nh-start-tile-icon {
+  background:transparent url("/central/horizon-logo.svg?v=1") center/contain no-repeat !important;
+  box-shadow:none !important;
+  border:0 !important;
+  color:transparent !important;
+  overflow:hidden;
+}
+body .brand-mark img,
+body .nhf-mark img { width:100%;height:100%;display:block;object-fit:contain; }
+body .module-icon :is(svg,img),
+body .nh-start-tile-icon .nh-start-icon { display:none !important; }
+body .module-icon {border-radius:50% !important;}
+body .module-footer svg,
+body .intro-tag svg {display:none !important;}
+/* Botão flutuante: a própria identidade funciona como ícone. */
+body.central-operational .nh-start-menu:not(.nh-start-open) {
+  background:transparent url("/central/horizon-logo.svg?v=1") center/cover no-repeat !important;
+  border-radius:50% !important;
+  border:1px solid rgba(255,255,255,.85) !important;
+  box-shadow:0 7px 20px rgba(165,88,123,.15) !important;
+}
+body.central-operational .nh-start-menu.nh-start-open {
+  background:linear-gradient(136deg,rgba(255,255,255,.95),rgba(255,240,235,.91)) !important;
+  border:1px solid rgba(255,255,255,.94) !important;
+  box-shadow:0 18px 48px rgba(145,93,117,.13),inset 0 1px 0 #fff !important;
+}
+body.central-operational .nh-start-trigger>.nh-start-icon {display:none !important;}
+body.central-operational :is(.nh-start-section-title strong,
+         .nh-start-tile-name,.nh-start-search-input) { color:var(--hz-ink) !important; }
+body.central-operational .nh-start-tile {
+  background:rgba(255,255,255,.67) !important;
+  border-color:rgba(213,180,185,.29) !important;
+}
+body.central-operational .nh-start-tile:hover,
+body.central-operational .nh-start-tile[aria-current="page"] {
+  background:rgba(253,239,239,.8) !important;
+  border-color:rgba(194,119,151,.35) !important;
+}
+body.central-operational .nh-start-search {
+  background:rgba(255,255,255,.80) !important;
+  border-color:rgba(201,155,173,.30) !important;
+}
+body.central-operational .nh-start-close,
+body.central-operational .nh-start-expand {
+  color:#8b5d76 !important;
+  border-color:rgba(208,170,181,.34) !important;
+}
+/* Nos módulos vindos do motor antigo, remover ícones apenas decorativos de
+   ações COM texto. Preservar voltar, expandir, busca e controle por teclado. */
+body.central-operational :is(.btn,.mini-action,.nh-add) > .ui-icon {display:none !important;}
+/* Barra discreta e consistente, sem remover contraste de estado financeiro. */
+body :is(.rx-pill,.chip,.nhf-tag,.pill):not(.complete):not(.partial):not(.pending):not(.negative):not(.positive) {
+  border-color:rgba(204,160,174,.25) !important;
+}
+body :is(.rx-group,.nhf-staff,.panel,.module-card) {border-radius:16px !important;}
+@media (max-width:720px) {
+  body .brand-mark,body .nhf-mark {width:36px !important;height:36px !important}
+  body :is(.module-card,.rx-metric,.nhf-kpi){backdrop-filter:none;-webkit-backdrop-filter:none;}
+}
+@media(prefers-reduced-motion:reduce) {
+  body :is(.module-card,.rx-button,.btn){transition:none !important;}
+}
