@@ -103,10 +103,7 @@
     header.type="button";header.setAttribute("aria-expanded","false");
     const who=e("span","nhf-person"),avatar=e("span","nhf-avatar",initials(person.nome));
     const copy=e("span","nhf-person-text");
-    const openCount=balance.holerites.length+balance.contas.length;
-    copy.append(e("strong","",person.nome),
-      e("small","",openCount+" valor(es) a pagar · "+
-        balance.vales.length+" parcela(s) de vale em aberto"));
+    copy.append(e("strong","",person.nome));
     who.append(avatar,copy);header.append(who);
     function stat(title,value,kind){
       const cell=e("span","nhf-stat "+kind);
@@ -114,7 +111,7 @@
       return cell;
     }
     header.append(
-      stat("Saldo a pagar ao funcionário",balance.pagar,"primary"),
+      stat("Saldo a pagar ao funcionário",balance.pagar,"payable"),
       stat("Vales a descontar",balance.descontar,"deduct"),
       e("span","nhf-chevron","⌄")
     );
@@ -160,7 +157,7 @@
       card.hidden=!(matchName&&matchStatus);
       if(!card.hidden)shown++;
     }
-    setText("listSubtitle",shown+" de "+people.length+" funcionário(s) exibido(s)");
+    setText("listSubtitle",shown+" de "+people.length);
     $("emptyFiltered").hidden=shown!==0;
   }
   function render(data){
