@@ -154,6 +154,34 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(k["total_a_pagar"],"120.00")
         self.assertEqual(report["funcionarios"][0]["totais"]["vales_atrasados"],"0.00")
 
+    def test_pix_edit_uses_original_employee_api_only(self):
+        import json
+        from unittest.mock import MagicMock
+        conn=MagicMock()
+        first=MagicMock(status=200)
+        first.read.return_value=b'<script>window.__CONTAS_TOKEN__="test-token";</script>'
+        second=MagicMock(status=200)
+        second.read.return_value=b'{"ok":true,"id":1}'
+        conn.getresponse.side_effect=[first,second]
+        with patch.object(f.http.client,"HTTPConnection",return_value=conn):
+            result=f.update_pix({"funcionario_id":1,
+                "chave_pix":"new@example.com","chave_anterior":"12345678900"})
+        self.assertEqual(result,{"ok":True,"funcionario_id":1})
+        first_call,second_call=conn.request.call_args_list
+        self.assertEqual(first_call.args[:2],("GET","/?desktop=1"))
+        self.assertEqual(second_call.args[:2],("POST","/api/holerites/funcionarios"))
+        self.assertEqual(json.loads(second_call.kwargs["body"]),
+            {"id":1,"nome":"JOAO DA SILVA","chave_pix":"new@example.com"})
+        self.assertEqual(second_call.kwargs["headers"]["X-Local-Token"],"test-token")
+        with closing(sqlite3.connect(self.db)) as db:
+            self.assertEqual(db.execute("SELECT chave_pix FROM holerite_funcionarios WHERE id=1").fetchone()[0],"12345678900")
+        with patch.object(f.http.client,"HTTPConnection") as network:
+            with self.assertRaises(v.BridgeError):
+                f.update_pix({"funcionario_id":1,"chave_pix":"x","chave_anterior":"stale"})
+            with self.assertRaises(v.BridgeError):
+                f.update_pix({"funcionario_id":999,"chave_pix":"x","chave_anterior":""})
+            network.assert_not_called()
+
     def test_no_write_to_original_sqlite(self):
         f.assign_account({"conta_id":5,"funcionario_id":1})
         with closing(sqlite3.connect(self.db)) as con:
