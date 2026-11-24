@@ -309,6 +309,14 @@ grep -Fq 'NHReceivingImports.importXML(ui,files[0])' "$APP/static/recebimentos.j
 grep -Fq 'async function importXML(app,file)' "$APP/static/recebimentos_imports.js" \
   || fail "Conferencia XML compartilhada ausente."
 echo "OK: arrastar XML de NF-e restaurado em Recebimentos; gravacao somente apos confirmacao."
+# Gerenciamento Pix separado; não executar operação de escrita no deploy.
+grep -Fq 'id="managePix"' "$APP/static/funcionarios.html" \
+  || fail "Gerenciamento Pix ausente da tela."
+grep -Fq '/central/api/funcionarios/pix' "$APP/static/funcionarios.js" \
+  || fail "Interface de edição Pix ausente."
+grep -Fq 'def update_pix(payload):' "$APP/funcionarios.py" \
+  || fail "Integração de cadastro Pix ausente."
+echo "OK: gerenciamento Pix usa cadastro original do Contas; nenhuma chave alterada pelo instalador."
 # Garante que a ficha de funcionários publicada é apenas de valores em
 # aberto. Não reintroduzir links de pagamento, busca de vínculo ou histórico.
 grep -Fq 'function openAmounts(person)' "$APP/static/funcionarios.js" \
