@@ -59,7 +59,7 @@ body :is(.site-header,.nhf-header,.central-shell-bar) {
 /* Mesmo raio, sombra e material para todas as fichas/cards. */
 body :is(.module-card,.summary-item,.detail-box,.rx-metric,.rx-group,
          .rx-note-card,.rx-blank,.rx-order-row,.nhf-kpi,.nhf-staff,
-         .nhf-detail-section,.nhf-explanation,.nhf-open-only,
+         .nhf-detail-section,.nhf-open-only,
          .nh-documents,.nh-document-card,.panel,.stat,.board-card,.control-card,
          .surface,.kpi,.payroll-surface,.payroll-person,.truck-card,
          .receiving-card,.receiving-summary-card,.debt-card,.pair-card) {
@@ -101,7 +101,7 @@ body :is(.header-button,.rx-button:not(.rx-button-primary),.nhf-btn,.btn):hover 
   border-color:rgba(192,111,144,.40) !important;
   background:rgba(255,249,247,.94) !important;
 }
-body :is(.rx-button-primary,.btn-primary,.primary):not(:disabled) {
+body :is(button,a,input[type="submit"],input[type="button"], [role="button"]):is(.rx-button-primary,.btn-primary,.primary):not(:disabled) {
   background:var(--hz-gradient) !important;
   color:#fff !important;
   border:1px solid rgba(164,93,124,.34) !important;
@@ -194,7 +194,7 @@ body.central-operational :is(input,select,textarea):focus {
   border-color:rgba(190,97,137,.50) !important;
   box-shadow:0 0 0 3px rgba(214,146,176,.12) !important;
 }
-body.central-operational :is(.btn-primary,.primary):hover:not(:disabled) {
+body.central-operational :is(button,a,input[type="submit"],input[type="button"],[role="button"]):is(.btn-primary,.primary):hover:not(:disabled) {
   background:linear-gradient(115deg,#ab567e,#cd7e86 60%,#d99e78) !important;
   border-color:rgba(172,92,123,.37) !important;
 }
@@ -220,7 +220,7 @@ body .nhf-staff-details {
   background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,247,245,.42)) !important;
   border-color:rgba(212,175,185,.23) !important;
 }
-body :is(.nhf-detail-heading,.nhf-stat.primary strong,.nhf-person-text strong,
+body :is(.nhf-detail-heading,.nhf-stat.payable strong,.nhf-person-text strong,
   .nhf-record-end b,.nhf-vale strong,.rx-table td strong) {color:#77526b !important;}
 
 
