@@ -129,6 +129,15 @@ body .nh-start-tile-icon {
 }
 body .brand-mark img,
 body .nhf-mark img { width:100%;height:100%;display:block;object-fit:contain; }
+body .brand-mark:has(img),body .nhf-mark:has(img){background:none !important;}
+/* Recebimentos compartilha a mesma assinatura no cabeçalho, sem barra extra. */
+body .rx-title { position:relative;padding-left:49px;min-height:43px; }
+body .rx-brand-logo {
+  position:absolute;left:0;top:0;width:38px;height:38px;
+  display:block;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(174,96,132,.07));
+}
+body.central-operational .nh-start-search>.nh-start-icon{display:none !important;}
+
 body .module-icon :is(svg,img),
 body .nh-start-tile-icon .nh-start-icon { display:none !important; }
 body .module-icon {border-radius:50% !important;}
