@@ -116,7 +116,7 @@ body :is(.rx-tab.is-active,.nhf-tab.active,.module-tab.active,
 body :is(.eyebrow,.nhf-eyebrow,.rx-eyebrow,.nh-kicker) { color:#aa6487 !important; }
 body :is(.module-footer,.nhf-stat strong,.rx-metric strong,.summary-item strong,
          .nhf-kpi strong,.nhf-value) { color:#5a4559 !important; }
-/* Marca somente nos lugares de marca: NH e botão flutuante.
+/* Marca somente nos lugares de marca: antigos NH e cabeçalhos.
    Os símbolos dos módulos e das ações continuam indicativos. */
 body .brand-mark,body .nhf-mark,body .central-mark {
   background:transparent url("/central/horizon-logo.svg?v=1") center/contain no-repeat !important;
@@ -141,19 +141,20 @@ body .module-icon,body .nh-start-tile-icon {
 }
 body .module-icon svg,body .nh-start-tile-icon .nh-start-icon {display:block !important;}
 body .intro-tag svg {color:#925376 !important;}
-/* Botão flutuante: a própria identidade funciona como ícone. */
+/* Menu original: quadrado arredondado, quatro quadradinhos brancos e
+   a mesma superficie que se expande. Somente a paleta foi adaptada. */
 body.central-operational .nh-start-menu:not(.nh-start-open) {
-  background:transparent url("/central/horizon-logo.svg?v=1") center/cover no-repeat !important;
-  border-radius:50% !important;
-  border:1px solid rgba(255,255,255,.85) !important;
-  box-shadow:0 7px 20px rgba(165,88,123,.15) !important;
+  background:linear-gradient(145deg,#c77b9f,#be6c88 60%,#d69c78) !important;
+  border-radius:20px !important;
+  border:1px solid rgba(255,255,255,.94) !important;
+  box-shadow:0 10px 26px rgba(132,75,103,.24),inset 0 1px 0 #ffffff79 !important;
 }
 body.central-operational .nh-start-menu.nh-start-open {
-  background:linear-gradient(136deg,rgba(255,255,255,.86),rgba(255,240,235,.63)) !important;
-  border:1px solid rgba(255,255,255,.94) !important;
-  box-shadow:0 18px 48px rgba(145,93,117,.13),inset 0 1px 0 #fff !important;
+  background:linear-gradient(142deg,rgba(255,255,255,.88),rgba(252,232,228,.74)) !important;
+  border:1px solid rgba(255,255,255,.97) !important;
+  box-shadow:0 18px 55px rgba(132,75,103,.19),inset 0 1px 0 #fff !important;
 }
-body.central-operational .nh-start-trigger>.nh-start-icon {display:none !important;}
+body.central-operational .nh-start-trigger>.nh-start-icon {display:block !important;}
 body.central-operational :is(.nh-start-section-title strong,
          .nh-start-tile-name,.nh-start-search-input) { color:var(--hz-ink) !important; }
 body.central-operational .nh-start-tile {
