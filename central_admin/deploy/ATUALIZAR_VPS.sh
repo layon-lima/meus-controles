@@ -301,6 +301,14 @@ grep -Fq 'balance.pagar,"payable"' "$APP/static/funcionarios.js" || fail "Estilo
 if grep -Fq 'class="nhf-explanation"' "$APP/static/funcionarios.html"; then
   fail "Textos explicativos antigos ainda presentes."
 fi
+# Recebimentos: arrastar XML e selecionar arquivo usam a mesma previa.
+grep -Fq 'id="rx-xml-drop"' "$APP/static/recebimentos.html" \
+  || fail "Recebimentos sem feedback de arraste XML."
+grep -Fq 'NHReceivingImports.importXML(ui,files[0])' "$APP/static/recebimentos.js" \
+  || fail "Recebimentos sem importacao por arrastar XML."
+grep -Fq 'async function importXML(app,file)' "$APP/static/recebimentos_imports.js" \
+  || fail "Conferencia XML compartilhada ausente."
+echo "OK: arrastar XML de NF-e restaurado em Recebimentos; gravacao somente apos confirmacao."
 # Garante que a ficha de funcionários publicada é apenas de valores em
 # aberto. Não reintroduzir links de pagamento, busca de vínculo ou histórico.
 grep -Fq 'function openAmounts(person)' "$APP/static/funcionarios.js" \
