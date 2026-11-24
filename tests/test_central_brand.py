@@ -29,7 +29,7 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertEqual(ASSETS["/horizon-theme.css"][1], "text/css; charset=utf-8")
 
     def test_uma_folha_de_estilo_em_todos_modulos(self):
-        path = "/central/horizon-theme.css?v=20261124glass3"
+        path = "/central/horizon-theme.css?v=20261124glass4"
         for name in ("index", "recebimentos", "funcionarios"):
             html = (ROOT / (name + ".html")).read_text(encoding="utf-8")
             with self.subTest(name=name):
@@ -56,7 +56,11 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertNotIn(".ui-icon {display:none", theme)
         launcher = (ROOT / "launcher.js").read_text(encoding="utf-8")
         self.assertIn("badge.appendChild(icon(mod.icon))", launcher)
-        self.assertNotIn('trigger.appendChild(icon("grid"))', launcher)
+        self.assertIn('trigger.appendChild(icon("grid"))', launcher)
+        self.assertIn("body.central-operational .nh-start-trigger>.nh-start-icon {display:block", theme)
+        closed = theme.split(".nh-start-menu:not(.nh-start-open) {", 1)[1].split("}", 1)[0]
+        self.assertIn("border-radius:20px", closed)
+        self.assertNotIn("horizon-logo", closed)
 
     def test_vidro_discreto_sem_modificar_estados(self):
         theme = (ROOT / "horizon-theme.css").read_text(encoding="utf-8")
