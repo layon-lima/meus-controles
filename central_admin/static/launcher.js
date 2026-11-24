@@ -8,19 +8,26 @@
   if (!location.pathname.startsWith("/central/modules/")) return;
   const currentModule = (location.pathname.match(/^\/central\/modules\/([a-z-]+)/)||[])[1]||"";
   const MODULES=[
-    {id:"contas",name:"Contas a pagar",detail:"Pagamentos e vencimentos"},
-    {id:"recebimentos",name:"Recebimentos",detail:"Pedidos e notas fiscais"},
-    {id:"controles",name:"Meus Controles",detail:"Controles personalizados"},
-    {id:"transportadoras",name:"Transportadoras",detail:"Fretes e comissões"},
-    {id:"funcionarios",name:"Funcionários",detail:"Holerites e chaves Pix"},
-    {id:"documentos",name:"Documentos",detail:"Boletos e comprovantes"},
-    {id:"vinculos",name:"Conferir vínculos",detail:"Notas e contas relacionadas"},
-    {id:"relatorios",name:"Relatórios",detail:"Consultas e exportações"}
+    {id:"contas",name:"Contas a pagar",detail:"Pagamentos e vencimentos",icon:"wallet"},
+    {id:"recebimentos",name:"Recebimentos",detail:"Pedidos e notas fiscais",icon:"package"},
+    {id:"controles",name:"Meus Controles",detail:"Controles personalizados",icon:"sliders"},
+    {id:"transportadoras",name:"Transportadoras",detail:"Fretes e comissões",icon:"truck"},
+    {id:"funcionarios",name:"Funcionários",detail:"Holerites e chaves Pix",icon:"users"},
+    {id:"documentos",name:"Documentos",detail:"Boletos e comprovantes",icon:"file"},
+    {id:"vinculos",name:"Conferir vínculos",detail:"Notas e contas relacionadas",icon:"link"},
+    {id:"relatorios",name:"Relatórios",detail:"Consultas e exportações",icon:"chart"}
   ];
-  // O SVG funcional de expandir continua; todos os ícones de módulos
-  // foram substituídos pelo arquivo único horizon-logo.svg.
   const ICONS={
-    expand:[["path",{d:"M8 3H3v5M3 3l7 7M16 3h5v5M21 3l-7 7M3 16v5h5M3 21l7-7M21 16v5h-5M21 21l-7-7"}]]
+    grid:[["rect",{x:3,y:3,width:7,height:7,rx:1.6}],["rect",{x:14,y:3,width:7,height:7,rx:1.6}],["rect",{x:3,y:14,width:7,height:7,rx:1.6}],["rect",{x:14,y:14,width:7,height:7,rx:1.6}]],
+    expand:[["path",{d:"M8 3H3v5M3 3l7 7M16 3h5v5M21 3l-7 7M3 16v5h5M3 21l7-7M21 16v5h-5M21 21l-7-7"}]],
+    wallet:[["rect",{x:3,y:5,width:18,height:15,rx:3}],["path",{d:"M3 9h18M16 14h2"}]],
+    package:[["path",{d:"m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10M7.5 5l9 4"}]],
+    sliders:[["path",{d:"M4 7h16M4 17h16"}],["circle",{cx:9,cy:7,r:2}],["circle",{cx:16,cy:17,r:2}]],
+    truck:[["path",{d:"M3 6h12v11H3zM15 10h4l3 3v4h-7"}],["circle",{cx:7,cy:18,r:2}],["circle",{cx:18,cy:18,r:2}]],
+    users:[["circle",{cx:9,cy:8,r:3}],["path",{d:"M3 20v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v1"}]],
+    file:[["path",{d:"M6 3h8l5 5v13H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM14 3v6h5M8 14h8M8 18h6"}]],
+    link:[["path",{d:"M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.5l-3 2"}]],
+    chart:[["path",{d:"M4 20V4M4 20h17M8 15l4-4 3 2 5-7M17 6h3v3"}]]
   };
   const KEY="nh-central-launcher-geometry-v1";
   const SIZES=[58,70,82,94];
@@ -309,7 +316,7 @@
     close.addEventListener("click",()=>closeMenu());
     header.append(expand,close);
 
-    const inputWrap=html("div","nh-start-search");
+    const inputWrap=html("div","nh-start-search");inputWrap.appendChild(icon("grid"));
     search=html("input","nh-start-search-input");
     search.type="search";search.autocomplete="off";
     search.placeholder="Pesquisar módulos…";
@@ -325,6 +332,7 @@
       anchor.dataset.module=mod.id;
       if(mod.id===currentModule)anchor.setAttribute("aria-current","page");
       const badge=html("span","nh-start-tile-icon");
+      badge.appendChild(icon(mod.icon));
       anchor.append(badge,html("strong","nh-start-tile-name",mod.name),
         html("small","nh-start-tile-subtitle",mod.detail));
       anchor.addEventListener("click",event=>{
