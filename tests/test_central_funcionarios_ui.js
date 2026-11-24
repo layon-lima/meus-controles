@@ -20,6 +20,13 @@ for(const removed of ["Abrir no Contas","Buscar contas","Confirmar vínculo",
 assert.ok(!html.includes('id="unlinkedSection"'));
 assert.ok(!html.includes('id="competence"'));
 assert.ok(!html.includes('id="metricPaid"'));
+assert.ok(!html.includes('class="nhf-explanation"'));
+assert.ok(!html.includes('class="nhf-subtitle"'));
+assert.ok(!html.includes('class="nhf-footer"'));
+assert.ok(!html.includes("Somente lançamentos não pagos"));
+assert.ok(!src.includes('balance.pagar,"primary"'));
+assert.ok(src.includes('balance.pagar,"payable"'));
+assert.ok(css.includes(".nhf-staff-summary .nhf-stat{background:transparent!important"));
 
 class E{
   constructor(tag="div"){
@@ -111,6 +118,7 @@ vm.runInNewContext(src,context);
   assert.ok(!reg.hidden);
   assert.match(text(reg.children[0]),/2\.316,50/);
   assert.match(text(reg.children[0]),/200,00/);
+  assert.ok(!text(reg.children[0]).includes("valor(es) a pagar"));
   const paid=cards.find(x=>x.dataset.personId==="2");
   assert.equal(paid.hidden,true,"Funcionário só com pagamentos quitados não aparece no filtro padrão");
   const pureVale=cards.find(x=>x.dataset.personId==="-3");
