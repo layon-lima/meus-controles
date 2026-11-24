@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Funcionários · Central Novo Horizonte</title>
-  <link rel="stylesheet" href="/central/funcionarios.css?v=20261123full">
+  <link rel="stylesheet" href="/central/funcionarios.css?v=20261124clean1">
   <link rel="stylesheet" href="/central/launcher.css?v=20261120g">
-  <link rel="stylesheet" href="/central/horizon-theme.css?v=20261124glass4">
+  <link rel="stylesheet" href="/central/horizon-theme.css?v=20261124clean1">
   <link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">
-  <script defer src="/central/funcionarios.js?v=20261123b"></script>
+  <script defer src="/central/funcionarios.js?v=20261124clean1"></script>
   <script defer src="/central/launcher.js?v=20261124glass4"></script>
 </head>
 <body class="central-operational nh-scope-funcionarios">
@@ -27,20 +27,14 @@
     <main class="nhf-main">
       <section class="nhf-intro">
         <div>
-          <p class="nhf-eyebrow">CENTRAL ADMINISTRATIVA / PESSOAS</p>
           <h1>Funcionários</h1>
-          <p class="nhf-subtitle">Consulte somente os saldos a pagar e os vales ainda não descontados.</p>
         </div>
       </section>
       <section class="nhf-kpis" aria-label="Resumo de valores em aberto">
-        <div class="nhf-kpi"><span>Funcionários com valores em aberto</span><strong id="metricPeople">—</strong><small>Pagamentos ou vales pendentes</small></div>
-        <div class="nhf-kpi"><span>Saldo a pagar aos funcionários</span><strong id="metricTotal">—</strong><small>Somente lançamentos não pagos</small></div>
-        <div class="nhf-kpi"><span>Vales a descontar</span><strong id="metricVales">—</strong><small>Saldo de parcelas ainda disponível para desconto</small></div>
+        <div class="nhf-kpi"><span>Funcionários com valores em aberto</span><strong id="metricPeople">—</strong></div>
+        <div class="nhf-kpi"><span>Saldo a pagar aos funcionários</span><strong id="metricTotal">—</strong></div>
+        <div class="nhf-kpi"><span>Vales a descontar</span><strong id="metricVales">—</strong></div>
       </section>
-      <div class="nhf-explanation">
-        <span class="nhf-info-icon">i</span>
-        <span>Os dois saldos são exibidos separadamente. Vales já reservados no líquido de holerites não são somados novamente. Nenhum pagamento, vínculo ou desconto é realizado nesta consulta.</span>
-      </div>
       <section class="nhf-section">
         <div class="nhf-section-head">
           <div><h2>Funcionários</h2><p id="listSubtitle">Buscando valores em aberto…</p></div>
@@ -58,7 +52,6 @@
           <div class="nhf-loading">Carregando funcionários…</div>
         </div>
       </section>
-      <p class="nhf-footer">Origem: CONTAS 4 + Meus Controles · Somente valores em aberto. Sem alterar pagamentos ou descontos.</p>
     </main>
     <div id="toast" class="nhf-toast" role="status" aria-live="polite" hidden></div>
   </div>
