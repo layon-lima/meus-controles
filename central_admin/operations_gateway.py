@@ -90,7 +90,7 @@ def rewrite_text(text, prefix, kind):
         # antes de a rota real ser hidratada. Mantém CSP self sem inline JS.
         js = ('<script src="/central/route-preflight.js?v=20261123route1"></script>'
               '<script defer src="/central/operations.js?v=20261123route1"></script>'
-              '<script defer src="/central/launcher.js?v=20261124brand1"></script>')
+              '<script defer src="/central/launcher.js?v=20261124brand2"></script>')
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
             # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
