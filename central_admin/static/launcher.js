@@ -283,7 +283,6 @@
     trigger.setAttribute("aria-label","Abrir menu Iniciar da Central");
     trigger.setAttribute("aria-controls","nh-start-panel");
     trigger.setAttribute("aria-expanded","false");
-    trigger.appendChild(icon("grid"));
     trigger.addEventListener("click",event=>{
       if(blockClick&&event.detail!==0){
         event.preventDefault();blockClick=false;return;
@@ -317,7 +316,7 @@
     close.addEventListener("click",()=>closeMenu());
     header.append(expand,close);
 
-    const inputWrap=html("div","nh-start-search");inputWrap.appendChild(icon("grid"));
+    const inputWrap=html("div","nh-start-search");
     search=html("input","nh-start-search-input");
     search.type="search";search.autocomplete="off";
     search.placeholder="Pesquisar módulos…";
@@ -333,7 +332,6 @@
       anchor.dataset.module=mod.id;
       if(mod.id===currentModule)anchor.setAttribute("aria-current","page");
       const badge=html("span","nh-start-tile-icon");
-      badge.appendChild(icon(mod.icon));
       anchor.append(badge,html("strong","nh-start-tile-name",mod.name),
         html("small","nh-start-tile-subtitle",mod.detail));
       anchor.addEventListener("click",event=>{
