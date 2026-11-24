@@ -90,7 +90,7 @@ def rewrite_text(text, prefix, kind):
         # antes de a rota real ser hidratada. Mantém CSP self sem inline JS.
         js = ('<script src="/central/route-preflight.js?v=20261123route1"></script>'
               '<script defer src="/central/operations.js?v=20261123route1"></script>'
-              '<script defer src="/central/launcher.js?v=20261124brand2"></script>')
+              '<script defer src="/central/launcher.js?v=20261124glass3"></script>')
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
             # Não reimplementa OCR, holerites, R2, sincronização nem cadastro.
@@ -103,7 +103,7 @@ def rewrite_text(text, prefix, kind):
             css += '<link rel="stylesheet" href="/central/holerites_vales.css?v=20261121a">'
             js += '<script defer src="/central/holerites_vales.js?v=20261121a"></script>'
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
-        css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124brand1">'
+        css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124glass3">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
