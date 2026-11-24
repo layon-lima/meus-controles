@@ -83,6 +83,28 @@ def rewrite_text(text, prefix, kind):
         module = prefix.rstrip("/").rsplit("/", 1)[-1]
         if module in MODULES:
             text = text.replace("<body>", '<body class="central-operational nh-scope-' + module + '">', 1)
+        # Identidade única dos motores legados, antes da primeira pintura.
+        # Preservar ícones de status, ações, avatares e menu.
+        if module in MODULES:
+            logo = "/central/horizon-logo.svg?v=1"
+            old_image = re.escape(prefix + "/icons/brand.svg")
+            text = re.sub(r'(<img\b[^>]*\bsrc\s*=\s*)(["\x27])' + old_image + r'\2',
+                          lambda m: m.group(1) + m.group(2) + logo + m.group(2), text,
+                          flags=re.I)
+            old_mark = re.compile(
+                r'(<span\s+class="brand-icon"[^>]*>)\s*<svg\b[^>]*>\s*'
+                r'<use\b[^>]*href="' + re.escape(prefix) +
+                r'/static/icons\.svg#logo"[^>]*>\s*</use>\s*</svg>\s*</span>', re.I)
+            text = old_mark.sub(
+                lambda m: m.group(1) + '<img class="nh-legacy-brand-logo" src="' +
+                logo + '" alt=""></span>', text)
+            text = text.replace(
+                '<span class="mr-logo" aria-hidden="true">MC</span>',
+                '<span class="mr-logo" aria-hidden="true"><img class="nh-legacy-brand-logo" src="' +
+                logo + '" alt=""></span>')
+            text = re.sub(
+                r'<link\b(?=[^>]*\brel\s*=\s*["\x27](?:shortcut\s+)?icon["\x27])[^>]*>',
+                '', text, flags=re.I)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
         css = ('<link rel="stylesheet" href="/central/operations.css?v=20261123route1">'
                '<link rel="stylesheet" href="/central/launcher.css?v=20261120g">')
@@ -103,7 +125,7 @@ def rewrite_text(text, prefix, kind):
             css += '<link rel="stylesheet" href="/central/holerites_vales.css?v=20261121a">'
             js += '<script defer src="/central/holerites_vales.js?v=20261121a"></script>'
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
-        css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124clean1">'
+        css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124brand5">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
