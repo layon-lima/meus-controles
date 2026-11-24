@@ -13,7 +13,7 @@
   --hz-muted: #797380;
   --hz-line: rgba(190, 153, 168, .26);
   --hz-glass: rgba(255,255,255,.78);
-  --hz-shadow: 0 9px 30px rgba(121,73,105,.065), inset 0 1px 0 rgba(255,255,255,.9);
+  --hz-shadow: 0 16px 43px rgba(124,75,105,.12), 0 3px 9px rgba(105,69,90,.045), inset 0 2px 1px rgba(255,255,255,.98), inset 0 -1px 1px rgba(199,139,164,.14);
   --hz-gradient: linear-gradient(115deg,#bb638c 0%,#d5878d 55%,#e9a778 100%);
   --ink: #403945;
   --muted: #797380;
@@ -39,10 +39,10 @@ body,
 body.central-operational,
 body.nh-native-screen {
   background:
-    radial-gradient(ellipse 42% 58% at 0% 0%, rgba(247,172,202,.18), transparent 82%),
-    radial-gradient(ellipse 38% 48% at 100% 14%, rgba(255,218,147,.18), transparent 82%),
-    radial-gradient(ellipse 44% 52% at 53% 100%, rgba(250,191,169,.11), transparent 85%),
-    linear-gradient(135deg,#f9f7fb 0%,#fdfaf9 52%,#faf8f6 100%) fixed !important;
+    radial-gradient(ellipse 42% 58% at 0% 0%, rgba(247,172,202,.43), transparent 82%),
+    radial-gradient(ellipse 38% 48% at 100% 14%, rgba(255,218,147,.39), transparent 82%),
+    radial-gradient(ellipse 44% 52% at 53% 100%, rgba(250,191,169,.24), transparent 85%),
+    linear-gradient(135deg,#f7edf5 0%,#fcf8f6 52%,#f9f1e6 100%) fixed !important;
   color:var(--hz-ink) !important;
 }
 body :is(h1,h2,h3,.brand-copy strong,.nhf-back strong,.rx-title h1,
@@ -50,11 +50,11 @@ body :is(h1,h2,h3,.brand-copy strong,.nhf-back strong,.rx-title h1,
 body :is(.subtitle,.subtext,.nhf-subtitle,.rx-title p,.module-description,
          .nhf-section-head p,.nh-start-tile-subtitle) { color:var(--hz-muted) !important; }
 body :is(.site-header,.nhf-header,.central-shell-bar) {
-  background:linear-gradient(122deg,rgba(255,255,255,.87),rgba(255,246,244,.67)) !important;
+  background:linear-gradient(122deg,rgba(255,255,255,.76),rgba(255,246,244,.44)) !important;
   border-color:rgba(255,255,255,.94) !important;
   box-shadow:0 4px 20px rgba(108,74,89,.045),inset 0 -1px 0 rgba(205,163,174,.13) !important;
-  backdrop-filter:blur(18px) saturate(135%);
-  -webkit-backdrop-filter:blur(18px) saturate(135%);
+  backdrop-filter:blur(24px) saturate(155%);
+  -webkit-backdrop-filter:blur(24px) saturate(155%);
 }
 /* Mesmo raio, sombra e material para todas as fichas/cards. */
 body :is(.module-card,.summary-item,.detail-box,.rx-metric,.rx-group,
@@ -63,11 +63,11 @@ body :is(.module-card,.summary-item,.detail-box,.rx-metric,.rx-group,
          .nh-documents,.nh-document-card,.panel,.stat,.board-card,.control-card,
          .surface,.kpi,.payroll-surface,.payroll-person,.truck-card,
          .receiving-card,.receiving-summary-card,.debt-card,.pair-card) {
-  background:linear-gradient(132deg,rgba(255,255,255,.88),rgba(255,250,247,.72)) !important;
-  border-color:rgba(204,167,179,.26) !important;
+  background:linear-gradient(132deg,rgba(255,255,255,.66),rgba(255,248,244,.35)) !important;
+  border-color:rgba(255,255,255,.94) !important;
   box-shadow:var(--hz-shadow) !important;
-  backdrop-filter:blur(12px) saturate(120%);
-  -webkit-backdrop-filter:blur(12px) saturate(120%);
+  backdrop-filter:blur(22px) saturate(155%);
+  -webkit-backdrop-filter:blur(22px) saturate(155%);
 }
 body :is(.rx-table th,.nhf-open-table th,table thead th,.table-header) {
   background:rgba(246,230,233,.38) !important;
@@ -116,33 +116,31 @@ body :is(.rx-tab.is-active,.nhf-tab.active,.module-tab.active,
 body :is(.eyebrow,.nhf-eyebrow,.rx-eyebrow,.nh-kicker) { color:#aa6487 !important; }
 body :is(.module-footer,.nhf-stat strong,.rx-metric strong,.summary-item strong,
          .nhf-kpi strong,.nhf-value) { color:#5a4559 !important; }
-/* Um ÚNICO logotipo para os módulos — não um pacote de ícones diferentes. */
-body .brand-mark,
-body .nhf-mark,
-body .module-icon,
-body .nh-start-tile-icon {
+/* Marca somente nos lugares de marca: NH e botão flutuante.
+   Os símbolos dos módulos e das ações continuam indicativos. */
+body .brand-mark,body .nhf-mark,body .central-mark {
   background:transparent url("/central/horizon-logo.svg?v=1") center/contain no-repeat !important;
-  box-shadow:none !important;
-  border:0 !important;
-  color:transparent !important;
-  overflow:hidden;
+  box-shadow:none !important;border:0 !important;color:transparent !important;
+  border-radius:50% !important;overflow:hidden;
 }
-body .brand-mark img,
-body .nhf-mark img { width:100%;height:100%;display:block;object-fit:contain; }
+body .brand-mark img,body .nhf-mark img {
+  width:100%;height:100%;display:block;object-fit:contain;
+}
 body .brand-mark:has(img),body .nhf-mark:has(img){background:none !important;}
-/* Recebimentos compartilha a mesma assinatura no cabeçalho, sem barra extra. */
-body .rx-title { position:relative;padding-left:49px;min-height:43px; }
+body .rx-title {position:relative;padding-left:49px;min-height:43px;}
 body .rx-brand-logo {
   position:absolute;left:0;top:0;width:38px;height:38px;
-  display:block;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(174,96,132,.07));
+  display:block;object-fit:contain;
 }
-body.central-operational .nh-start-search>.nh-start-icon{display:none !important;}
-
-body .module-icon :is(svg,img),
-body .nh-start-tile-icon .nh-start-icon { display:none !important; }
-body .module-icon {border-radius:50% !important;}
-body .module-footer svg,
-body .intro-tag svg {display:none !important;}
+/* Pictogramas distintos, mas com o mesmo tratamento de vidro. */
+body .module-icon,body .nh-start-tile-icon {
+  background:linear-gradient(145deg,rgba(255,255,255,.84),rgba(247,209,225,.42) 55%,rgba(255,226,171,.32)) !important;
+  border:1px solid rgba(255,255,255,.96) !important;
+  border-radius:13px !important;color:#925376 !important;
+  box-shadow:0 5px 14px rgba(125,72,100,.13),inset 0 1.5px 1px #fff,inset 0 -1px 1px rgba(198,127,151,.14) !important;
+}
+body .module-icon svg,body .nh-start-tile-icon .nh-start-icon {display:block !important;}
+body .intro-tag svg {color:#925376 !important;}
 /* Botão flutuante: a própria identidade funciona como ícone. */
 body.central-operational .nh-start-menu:not(.nh-start-open) {
   background:transparent url("/central/horizon-logo.svg?v=1") center/cover no-repeat !important;
@@ -151,7 +149,7 @@ body.central-operational .nh-start-menu:not(.nh-start-open) {
   box-shadow:0 7px 20px rgba(165,88,123,.15) !important;
 }
 body.central-operational .nh-start-menu.nh-start-open {
-  background:linear-gradient(136deg,rgba(255,255,255,.95),rgba(255,240,235,.91)) !important;
+  background:linear-gradient(136deg,rgba(255,255,255,.86),rgba(255,240,235,.63)) !important;
   border:1px solid rgba(255,255,255,.94) !important;
   box-shadow:0 18px 48px rgba(145,93,117,.13),inset 0 1px 0 #fff !important;
 }
@@ -159,8 +157,8 @@ body.central-operational .nh-start-trigger>.nh-start-icon {display:none !importa
 body.central-operational :is(.nh-start-section-title strong,
          .nh-start-tile-name,.nh-start-search-input) { color:var(--hz-ink) !important; }
 body.central-operational .nh-start-tile {
-  background:rgba(255,255,255,.67) !important;
-  border-color:rgba(213,180,185,.29) !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,240,232,.43)) !important;
+  border-color:rgba(255,255,255,.92) !important;
 }
 body.central-operational .nh-start-tile:hover,
 body.central-operational .nh-start-tile[aria-current="page"] {
@@ -176,9 +174,6 @@ body.central-operational .nh-start-expand {
   color:#8b5d76 !important;
   border-color:rgba(208,170,181,.34) !important;
 }
-/* Nos módulos vindos do motor antigo, remover ícones apenas decorativos de
-   ações COM texto. Preservar voltar, expandir, busca e controle por teclado. */
-body.central-operational :is(.btn,.mini-action,.nh-add) > .ui-icon {display:none !important;}
 
 /* Substituir também os azuis residuais dos componentes vindos dos dois
    motores originais. O estilo sempre é escopado à Central. */
@@ -226,17 +221,50 @@ body .nhf-staff-details {
 }
 body :is(.nhf-detail-heading,.nhf-stat.primary strong,.nhf-person-text strong,
   .nhf-record-end b,.nhf-vale strong,.rx-table td strong) {color:#77526b !important;}
-body :is(.nhf-staff,.rx-group,.module-card,.control-card,.board-card) {overflow:hidden;}
+
 
 /* Barra discreta e consistente, sem remover contraste de estado financeiro. */
 body :is(.rx-pill,.chip,.nhf-tag,.pill):not(.complete):not(.partial):not(.pending):not(.negative):not(.positive) {
   border-color:rgba(204,160,174,.25) !important;
 }
-body :is(.rx-group,.nhf-staff,.panel,.module-card) {border-radius:16px !important;}
+
 @media (max-width:720px) {
   body .brand-mark,body .nhf-mark {width:36px !important;height:36px !important}
-  body :is(.module-card,.rx-metric,.nhf-kpi){backdrop-filter:none;-webkit-backdrop-filter:none;}
+  
 }
 @media(prefers-reduced-motion:reduce) {
   body :is(.module-card,.rx-button,.btn){transition:none !important;}
+}
+
+/* Liquid Glass: recuperar o brilho da borda, a refração da superfície e
+   a profundidade que foram perdidos no tema anterior. Sem pintar os cards
+   de rosa sólido e sem usar a marca como decoração repetida. */
+body .module-card::before {
+  height:62%;opacity:.82;
+  background:linear-gradient(155deg,rgba(255,255,255,.72),rgba(255,255,255,.09) 56%,transparent 72%);
+}
+body .module-card,body .summary-item {
+  box-shadow:var(--hz-shadow) !important;
+  border-radius:19px !important;
+}
+body .site-header {padding-inline:clamp(14px,1.55vw,30px);}
+body :is(.module-employees-metrics,.module-employees-metrics>small,.summary-item span,.summary-item small) {color:var(--hz-muted) !important;}
+body .module-employees-metrics>strong {color:#754a66 !important;}
+body .nhf-staff-summary:hover {background:rgba(255,255,255,.25) !important;}
+body.central-operational .nh-start-menu.nh-start-open {
+  backdrop-filter:blur(24px) saturate(155%);
+  -webkit-backdrop-filter:blur(24px) saturate(155%);
+}
+body.central-operational .nh-start-menu.nh-start-moving {backdrop-filter:none;-webkit-backdrop-filter:none;}
+html.nh-start-arriving #nh-entry-surface,html.nh-start-revealing #nh-entry-surface,
+html.nh-route-boot body::before,html.nh-module-redirect body::before {
+  background:radial-gradient(ellipse at 0% 0%,rgba(247,172,202,.43),transparent 75%),
+    radial-gradient(ellipse at 100% 10%,rgba(255,218,147,.39),transparent 75%),
+    linear-gradient(135deg,#f7edf5,#fcf8f6 52%,#f9f1e6) !important;
+  color:var(--hz-ink);
+}
+@supports not (backdrop-filter:blur(2px)) {
+  body :is(.module-card,.summary-item,.rx-metric,.rx-group,.nhf-staff,.nhf-kpi) {
+    background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(255,248,244,.65)) !important;
+  }
 }
