@@ -66,5 +66,51 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertIn(':not(.complete):not(.partial):not(.pending)', theme)
         self.assertNotIn("fetch(", theme)
 
+
+    def test_instalador_valida_recursos_por_tipo(self):
+        import os
+        import subprocess
+        import tempfile
+        script = (ROOT.parent / "deploy" / "ATUALIZAR_VPS.sh").read_text(encoding="utf-8")
+        start = script.index("for asset in launcher.js launcher.css horizon-theme.css horizon-logo.svg; do")
+        end = script.index("# Verificar HTML e recursos", start)
+        validation = script[start:end]
+        # Exercitar o MESMO trecho bash do instalador com os arquivos reais,
+        # simulando apenas o HTTP. Um grep errado no SVG deve falhar no CI.
+        harness = r'''
+set -Eeuo pipefail
+fail(){ echo "$*" >&2; exit 1; }
+curl(){
+  local body="" headers="" url="" mime=""
+  while (($#)); do
+    case "$1" in
+      -o) body="$2"; shift 2 ;;
+      -D) headers="$2"; shift 2 ;;
+      -w|--max-time) shift 2 ;;
+      http://*) url="$1"; shift ;;
+      *) shift ;;
+    esac
+  done
+  local asset="${url##*/}"
+  case "$asset" in
+    *.css) mime="text/css; charset=utf-8" ;;
+    *.svg) mime="image/svg+xml" ;;
+    *.js) mime="text/javascript; charset=utf-8" ;;
+  esac
+  cp "$APP/static/$asset" "$body"
+  printf 'HTTP/1.0 200 OK\r\nContent-Type: %s\r\n\r\n' "$mime" > "$headers"
+  printf 200
+}
+'''
+        with tempfile.TemporaryDirectory() as td:
+            result = subprocess.run(
+                ["bash", "-c", harness + "\n" + validation],
+                env={**os.environ, "APP": str(ROOT.parent), "TMP": td},
+                capture_output=True, text=True, timeout=10,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("byte a byte", result.stdout)
+        self.assertIn('cmp -s "$APP/static/$asset" "$TMP/public-asset"', script)
+
 if __name__ == "__main__":
     unittest.main()
