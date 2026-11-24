@@ -52,9 +52,10 @@ class E{
 }
 const nodes=new Map();
 for(const id of ["refresh","staffList","search","statusFilter","metricPeople",
-    "metricTotal","metricVales","listSubtitle","toast"]){
+    "metricTotal","metricVales","listSubtitle","toast","managePix","closePix","pixPanel","pixList"]){
   const el=new E();el.id=id;nodes.set(id,el);
 }
+nodes.get("pixPanel").hidden=true;
 const find=(el,id)=>{
   if(el.id===id)return el;
   for(const child of el.children){const hit=find(child,id);if(hit)return hit}
@@ -62,7 +63,7 @@ const find=(el,id)=>{
 };
 const text=el=>[el.textContent,...el.children.map(text)].join(" ");
 const person1={
-  id:1,nome:"REGINALDO VIANA DE SOUZA",origem_cadastro:"contas",
+  id:1,nome:"REGINALDO VIANA DE SOUZA",origem_cadastro:"contas",chave_pix:"teste@example.com",
   holerites:[
     {id:1,competencia:"2026-10",valor:"4009.00",vencimento:"2026-10-01",paga:true},
     {id:2,competencia:"2026-11",valor:"2215.50",vencimento:"2026-11-18",paga:false},
@@ -97,7 +98,7 @@ const context={
     getElementById:id=>nodes.get(id)||find(nodes.get("staffList"),id)
   },
   location:{pathname:"/central/modules/funcionarios/"},
-  window:{},
+  window:{confirm:()=>true},
   Intl,Number,Map,Set,URLSearchParams,console,
   fetch:async(uri,options)=>{
     requests.push({uri,method:options?.method||"GET"});
@@ -151,6 +152,15 @@ vm.runInNewContext(src,context);
   assert.equal(text(paid.children[1]).includes("1.111,00"),false);
   assert.equal(requests.filter(x=>x.method==="POST").length,0,
     "Consultar nunca deve criar vínculo, baixa nem pagamento");
+  nodes.get("managePix").click();
+  assert.equal(nodes.get("pixPanel").hidden,false);
+  assert.equal(nodes.get("pixList").children.length,2,"Gerenciar todos os cadastrados, inclusive sem pendências");
+  const pixRow=nodes.get("pixList").children.find(x=>x.children[0].textContent===person1.nome);
+  assert.equal(pixRow.children[1].type,"password");
+  pixRow.children[2].children[0].click();
+  assert.equal(pixRow.children[1].type,"text");
+  nodes.get("closePix").click();
+  assert.equal(nodes.get("pixList").children.length,0);
   console.log("OK: saldos globais em aberto, vales futuros e vencidos, nenhum pagamento antigo");
   console.log("OK: só leitura, sem busca/vínculo/abrir Contas, fichas sob demanda");
 })().catch(e=>{console.error(e);process.exitCode=1});
