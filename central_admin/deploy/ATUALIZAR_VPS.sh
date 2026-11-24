@@ -338,14 +338,49 @@ if not isinstance(payload.get("boards"),list) or not isinstance(payload.get("con
     raise SystemExit("ERRO: contrato de dados de Recebimentos incompleto.")
 print("OK: modulo nativo acessa os controles reais, sem trocar o banco.")
 PY
-# Confere se os arquivos da animacao realmente estao no container.
+# Conferir cada recurso pelo seu conteúdo real, não pelo marcador do launcher.
+# A regra anterior exigia JavaScript dentro do SVG e revertia toda atualização.
 for asset in launcher.js launcher.css horizon-theme.css horizon-logo.svg; do
-  HTTP="$(curl -sS --max-time 6 -o "$TMP/asset" -w '%{http_code}' \
+  HTTP="$(curl -sS --max-time 8 -D "$TMP/asset-headers" -o "$TMP/asset" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Recurso $asset nao respondeu (HTTP $HTTP)."
-  grep -Fq 'nh-start-menu' "$TMP/asset" \
-    || fail "Recurso $asset nao corresponde ao lançador unificado."
+  cmp -s "$APP/static/$asset" "$TMP/asset" \
+    || fail "Recurso $asset servido pelo container difere do arquivo instalado."
+  case "$asset" in
+    launcher.js|launcher.css)
+      grep -Fq 'nh-start-menu' "$TMP/asset" \
+        || fail "Recurso $asset nao corresponde ao lancador unificado." ;;
+    horizon-theme.css)
+      grep -Fq -- '--hz-gradient:' "$TMP/asset" \
+        || fail "CSS do tema Horizonte ausente."
+      grep -Ei '^Content-Type: text/css' "$TMP/asset-headers" >/dev/null \
+        || fail "CSS Horizonte com MIME incorreto." ;;
+    horizon-logo.svg)
+      grep -Fq '<svg' "$TMP/asset" \
+        || fail "Logotipo Horizonte nao e SVG."
+      grep -Ei '^Content-Type: image/svg\+xml' "$TMP/asset-headers" >/dev/null \
+        || fail "Logotipo Horizonte com MIME incorreto." ;;
+  esac
 done
+echo "OK: tema e logotipo foram servidos pelo container, byte a byte."
+# Verificar HTML e recursos na URL HTTPS que o navegador realmente usa.
+PUBLIC="https://controles.fazendanovohorizonte.com/central"
+for entry in '' 'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' \
+  'modules/controles/' 'modules/recebimentos/' 'modules/transportadoras/' 'modules/relatorios/'; do
+  HTTP="$(curl -sS --max-time 25 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
+    -o "$TMP/theme-page" -w '%{http_code}' "$PUBLIC/$entry")"
+  [[ "$HTTP" == 200 ]] || fail "Pagina publica $entry indisponivel (HTTP $HTTP)."
+  grep -Fq '/central/horizon-theme.css?v=20261124brand1' "$TMP/theme-page" \
+    || fail "Pagina publica $entry nao carrega o tema Horizonte."
+done
+for asset in horizon-theme.css horizon-logo.svg; do
+  curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
+    "$PUBLIC/$asset?v=20261124brand1" -o "$TMP/public-asset" \
+    || fail "Recurso HTTPS $asset indisponivel."
+  cmp -s "$APP/static/$asset" "$TMP/public-asset" \
+    || fail "Recurso HTTPS $asset nao corresponde ao novo arquivo."
+done
+echo "OK: tema e logotipo confirmados no endereco HTTPS de uso do navegador."
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
 for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css vales_holerites.js vales_holerites.css holerites_vales.js holerites_vales.css; do
