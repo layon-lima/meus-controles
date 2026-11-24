@@ -1,6 +1,6 @@
 "use strict";
 /* Central / Funcionários: quadro exclusivamente de valores em aberto.
- * Sem edição, vínculos, histórico pago, Pix ou botões para outras páginas.
+ * Sem vínculos ou histórico pago. Gerenciamento de Pix separado.
  * A consulta lê os motores originais e nunca cria descontos/pagamentos.
  */
 (() => {
@@ -160,6 +160,80 @@
     setText("listSubtitle",shown+" de "+people.length);
     $("emptyFiltered").hidden=shown!==0;
   }
+  let pixSaving=false;
+  function pixFeedback(message,error=false){
+    const toast=$("toast");
+    toast.hidden=false;toast.textContent=message;
+    toast.classList.toggle("error",error);
+  }
+  function renderPix(){
+    const list=$("pixList");
+    list.replaceChildren();
+    const people=(state.data?.funcionarios||[]).filter(p=>Number(p.id)>0)
+      .sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+    for(const person of people){
+      const row=e("div","nhf-pix-row"),name=e("strong","",person.nome);
+      const input=e("input","nhf-pix-input");
+      input.type="password";input.value=person.chave_pix||"";input.readOnly=true;
+      input.maxLength=150;input.autocomplete="off";
+      input.setAttribute("aria-label","Chave Pix de "+person.nome);
+      const actions=e("div","nhf-pix-actions");
+      const button=label=>{const b=e("button","nhf-mini",label);b.type="button";return b;};
+      const show=button("Mostrar"),copy=button("Copiar"),edit=button(input.value?"Editar":"Cadastrar");
+      const save=button("Salvar"),cancel=button("Cancelar");
+      save.hidden=cancel.hidden=true;copy.disabled=!input.value;
+      show.addEventListener("click",()=>{
+        input.type=input.type==="password"?"text":"password";
+        show.textContent=input.type==="password"?"Mostrar":"Ocultar";
+      });
+      copy.addEventListener("click",async()=>{
+        try{await navigator.clipboard.writeText(person.chave_pix||"");pixFeedback("Chave Pix copiada.");}
+        catch{pixFeedback("Não foi possível copiar. Use Mostrar e copie a chave.",true);}
+      });
+      function reset(){
+        input.value=person.chave_pix||"";input.type="password";input.readOnly=true;
+        show.textContent="Mostrar";edit.hidden=false;save.hidden=cancel.hidden=true;
+        copy.disabled=!input.value;
+      }
+      edit.addEventListener("click",()=>{
+        input.readOnly=false;input.type="text";show.textContent="Ocultar";
+        edit.hidden=true;save.hidden=cancel.hidden=false;copy.disabled=true;
+        input.focus?.();
+      });
+      cancel.addEventListener("click",reset);
+      save.addEventListener("click",async()=>{
+        if(pixSaving)return;
+        const key=input.value.trim(),previous=person.chave_pix||"";
+        if(key===previous){reset();return;}
+        if(!window.confirm((key?"Salvar nova chave Pix de ":"Remover a chave Pix de ")+person.nome+"?"))return;
+        pixSaving=true;save.disabled=cancel.disabled=true;
+        try{
+          const response=await fetch("/central/api/funcionarios/pix",{
+            method:"POST",credentials:"same-origin",cache:"no-store",
+            headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:JSON.stringify({funcionario_id:person.id,chave_pix:key,chave_anterior:previous})
+          });
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.erro||"Não foi possível salvar o Pix.");
+          person.chave_pix=key;person.pix_cadastrado=!!key;reset();
+          edit.textContent=key?"Editar":"Cadastrar";
+          pixFeedback("Chave Pix atualizada.");
+        }catch(error){pixFeedback(error.message,true);}
+        finally{pixSaving=false;save.disabled=cancel.disabled=false;}
+      });
+      actions.append(show,copy,edit,save,cancel);
+      row.append(name,input,actions);list.append(row);
+    }
+    if(!people.length)list.append(e("p","nhf-muted","Nenhum funcionário cadastrado no Contas."));
+  }
+  function togglePix(open){
+    if(pixSaving)return;
+    $("pixPanel").hidden=!open;
+    $("managePix").setAttribute("aria-expanded",String(open));
+    if(open)renderPix();else $("pixList").replaceChildren();
+  }
+  $("managePix").addEventListener("click",()=>togglePix($("pixPanel").hidden));
+  $("closePix").addEventListener("click",()=>togglePix(false));
   function render(data){
     if(!Array.isArray(data.funcionarios))
       throw new Error("Lista de funcionários indisponível.");
@@ -183,9 +257,10 @@
     const empty=e("p","nhf-empty","Nenhum funcionário com valores em aberto neste filtro.");
     empty.id="emptyFiltered";empty.hidden=true;list.append(empty);
     applyFilters();
+    if(!$('pixPanel').hidden)renderPix();
   }
   async function refresh(){
-    if(state.loading)return;
+    if(state.loading||pixSaving)return;
     state.loading=true;$("refresh").disabled=true;
     $("refresh").textContent="Consultando…";
     try{
