@@ -51,6 +51,7 @@ const document={
   querySelectorAll(){return []},
   addEventListener(name,fn){this.listeners[name]=fn}
 };
+const dropped=[];
 const requested=[];
 const posted=[];
 const backend={
@@ -94,7 +95,7 @@ async function fetchMock(path,options={}){
   return {ok:true,json:async()=>json};
 }
 const context={
-  document,window:{NHReceivingImports:{openPDF(){},openXML(){}}},
+  document,window:{NHReceivingImports:{openPDF(){},openXML(){},importXML(app,file){dropped.push({id:app.cid(),file});}}},
   fetch:fetchMock,
   setTimeout:()=>0,
   requestAnimationFrame:callback=>callback(),
@@ -122,6 +123,20 @@ const test=async()=>{
   assert.ok(!results.innerHTML.includes("FRETES"));
   assert.equal(get("#rx-content").hidden,false);
   assert.equal(get("#rx-status").hidden,true);
+  const file={name:"nota.xml",size:100};
+  const event={dataTransfer:{types:["Files"],files:[file]},preventDefault(){this.prevented=true}};
+  document.listeners.dragenter(event);
+  assert.equal(get("#rx-xml-drop").hidden,false);
+  document.listeners.dragover(event);
+  assert.equal(event.dataTransfer.dropEffect,"copy");
+  document.listeners.drop(event);
+  assert.equal(event.prevented,true);
+  assert.equal(get("#rx-xml-drop").hidden,true);
+  assert.equal(dropped.length,1);
+  assert.equal(dropped[0].id,7);
+  assert.equal(dropped[0].file,file);
+  document.listeners.drop({dataTransfer:{types:["Files"],files:[file,file]},preventDefault(){}});
+  assert.equal(dropped.length,1,"Um XML por conferência");
   // Mesmo com vários produtos na NF-e, apenas uma solicitação agrupada
   // deve ser enviada, utilizando as regras do motor de estoque.
   const clicked={
