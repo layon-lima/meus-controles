@@ -83,7 +83,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
 .nhf-person-text small{font-size:10px;color:#8099b0}
 .nhf-stat{display:grid;gap:4px}.nhf-stat span{font-size:10px;color:#8ba1b6}
 .nhf-stat strong{font-size:14px;color:#315980;font-variant-numeric:tabular-nums}
-.nhf-stat.primary strong{color:#236aaa}
+.nhf-stat.payable strong{color:#236aaa}
 .nhf-chevron{display:grid;place-items:center;font-size:20px;color:#81a5c5;
  transition:transform .18s}
 .nhf-staff.is-open .nhf-chevron{transform:rotate(180deg)}
@@ -226,7 +226,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
  .nhf-staff-summary .nhf-stat{
    display:grid!important;grid-row:2;min-width:0;
  }
- .nhf-staff-summary .nhf-stat.primary{grid-column:1;grid-row:2;justify-self:start}
+ .nhf-staff-summary .nhf-stat.payable{grid-column:1;grid-row:2;justify-self:start}
  .nhf-staff-summary .nhf-stat.deduct{grid-column:1;grid-row:3;justify-self:start}
  .nhf-staff-summary .nhf-chevron{grid-column:2;grid-row:1 / span 3}
  .nhf-staff-summary .nhf-stat strong{font-size:15px}
@@ -243,3 +243,10 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
  .nhf-open-table td:nth-child(3){grid-column:1;grid-row:3}
  .nhf-open-table td:nth-child(4){grid-column:2;grid-row:2;text-align:right}
 }
+
+/* Os saldos são dados, nunca botões de ação. */
+.nhf-staff-summary .nhf-stat{background:transparent!important;border:0!important;box-shadow:none!important;min-width:0}
+.nhf-kpis{margin-bottom:24px}
+.nhf-kpi{min-height:86px;justify-content:center}
+.nhf-intro{margin-bottom:18px}
+.nhf-stat span,.nhf-kpi>span{color:#756473!important}
