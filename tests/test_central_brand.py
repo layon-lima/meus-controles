@@ -29,7 +29,7 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertEqual(ASSETS["/horizon-theme.css"][1], "text/css; charset=utf-8")
 
     def test_uma_folha_de_estilo_em_todos_modulos(self):
-        path = "/central/horizon-theme.css?v=20261124clean1"
+        path = "/central/horizon-theme.css?v=20261124brand5"
         for name in ("index", "recebimentos", "funcionarios"):
             html = (ROOT / (name + ".html")).read_text(encoding="utf-8")
             with self.subTest(name=name):
@@ -43,6 +43,28 @@ class HorizonThemeTests(unittest.TestCase):
                 self.assertIn(path, page)
                 self.assertIn("/central/horizon-logo.svg?v=1", page)
                 self.assertEqual(page.count(path), 1)
+
+    def test_marcas_legadas_em_todos_os_modulos(self):
+        for module in ("contas", "documentos", "controles", "transportadoras",
+                       "relatorios", "recebimentos", "funcionarios"):
+            prefix = "/central/modules/" + module
+            source = (
+                '<html><head><link rel="icon" type="image/svg+xml" href="/icons/brand.svg"></head><body>'
+                '<div class="brand"><img src="/icons/brand.svg" alt=""></div>'
+                '<span class="brand-icon"><svg class="ui-icon" aria-hidden="true">'
+                '<use href="/static/icons.svg#logo"></use></svg></span>'
+                '<span class="mr-logo" aria-hidden="true">MC</span>'
+                '<button><svg><use href="/static/icons.svg#search"></use></svg></button>'
+                '<span class="avatar">AB</span></body></html>'
+            )
+            with self.subTest(module=module):
+                page = rewrite_text(source, prefix, "html")
+                self.assertNotIn(prefix + "/icons/brand.svg", page)
+                self.assertNotIn("/static/icons.svg#logo", page)
+                self.assertEqual(page.count('src="/central/horizon-logo.svg?v=1"'), 3)
+                self.assertEqual(page.count('rel="icon"'), 1)
+                self.assertIn(prefix + "/static/icons.svg#search", page)
+                self.assertIn('<span class="avatar">AB</span>', page)
 
     def test_marca_separada_dos_icones_indicativos(self):
         home = (ROOT / "index.html").read_text(encoding="utf-8")
