@@ -283,6 +283,7 @@
     trigger.setAttribute("aria-label","Abrir menu Iniciar da Central");
     trigger.setAttribute("aria-controls","nh-start-panel");
     trigger.setAttribute("aria-expanded","false");
+    trigger.appendChild(icon("grid"));
     trigger.addEventListener("click",event=>{
       if(blockClick&&event.detail!==0){
         event.preventDefault();blockClick=false;return;
