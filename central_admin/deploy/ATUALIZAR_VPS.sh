@@ -278,12 +278,12 @@ echo "OK: navegação direta com guarda de pintura e carregamento por destino."
 # Identidade original Horizonte: uma única logo, uma única paleta, todos
 # os módulos recebem a mesma folha de estilo DEPOIS do CSS original.
 for page in index recebimentos funcionarios; do
-  grep -Fq '/central/horizon-theme.css?v=20261124brand5' "$APP/static/$page.html" \
+  grep -Fq '/central/horizon-theme.css?v=20261124neutral1' "$APP/static/$page.html" \
     || fail "Pagina $page sem tema unificado do Horizonte."
   grep -Fq '/central/horizon-logo.svg?v=1' "$APP/static/$page.html" \
     || fail "Pagina $page sem logotipo original do Horizonte."
 done
-grep -Fq 'horizon-theme.css?v=20261124brand5' "$APP/operations_gateway.py" \
+grep -Fq 'horizon-theme.css?v=20261124neutral1' "$APP/operations_gateway.py" \
   || fail "Os modulos antigos nao receberam o tema compartilhado."
 grep -Fq 'horizon-logo.svg' "$APP/server.py" \
   || fail "Logo compartilhada nao foi registrada no servidor."
@@ -295,7 +295,7 @@ grep -Fq 'body.nh-native-screen' "$APP/static/horizon-theme.css" \
   || fail "O tema nao cobre Recebimentos."
 grep -Fq 'body .nhf-mark' "$APP/static/horizon-theme.css" \
   || fail "O tema nao cobre Funcionarios."
-echo "OK: Liquid Glass unificado e logotipo original Horizonte em todos os modulos."
+echo "OK: tema administrativo neutro e logotipo Horizonte em todos os modulos."
 # Saldos são dados: jamais aplicar estilo de botão primário ao valor.
 grep -Fq 'balance.pagar,"payable"' "$APP/static/funcionarios.js" || fail "Estilo de saldo antigo."
 if grep -Fq 'class="nhf-explanation"' "$APP/static/funcionarios.html"; then
@@ -356,7 +356,7 @@ for asset in launcher.js launcher.css horizon-theme.css horizon-logo.svg; do
       grep -Fq 'nh-start-menu' "$TMP/asset" \
         || fail "Recurso $asset nao corresponde ao lancador unificado." ;;
     horizon-theme.css)
-      grep -Fq -- '--hz-gradient:' "$TMP/asset" \
+      grep -Fq -- '--hz-surface:#ffffff;' "$TMP/asset" \
         || fail "CSS do tema Horizonte ausente."
       grep -Ei '^Content-Type: text/css' "$TMP/asset-headers" >/dev/null \
         || fail "CSS Horizonte com MIME incorreto." ;;
@@ -375,7 +375,7 @@ for entry in '' 'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' 
   HTTP="$(curl -sS --max-time 25 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
     -o "$TMP/theme-page" -w '%{http_code}' "$PUBLIC/$entry")"
   [[ "$HTTP" == 200 ]] || fail "Pagina publica $entry indisponivel (HTTP $HTTP)."
-  grep -Fq '/central/horizon-theme.css?v=20261124brand5' "$TMP/theme-page" \
+  grep -Fq '/central/horizon-theme.css?v=20261124neutral1' "$TMP/theme-page" \
     || fail "Pagina publica $entry nao carrega o tema Horizonte."
   if grep -Eq '/icons/brand\.svg|/static/icons\.svg#logo|class="mr-logo"[^>]*>MC<' "$TMP/theme-page"; then
     fail "Pagina $entry ainda possui marca antiga."
@@ -389,7 +389,7 @@ done
 echo "OK: marcas antigas ausentes das paginas publicas; cabecalhos conferidos."
 for asset in horizon-theme.css horizon-logo.svg; do
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-    "$PUBLIC/$asset?v=20261124brand5" -o "$TMP/public-asset" \
+    "$PUBLIC/$asset?v=20261124neutral1" -o "$TMP/public-asset" \
     || fail "Recurso HTTPS $asset indisponivel."
   cmp -s "$APP/static/$asset" "$TMP/public-asset" \
     || fail "Recurso HTTPS $asset nao corresponde ao novo arquivo."
@@ -611,7 +611,7 @@ echo "GEOMETRIA: janela fixa, ajustada à tela por escala; sempre completa sem s
 echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a transição."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NAVEGACAO: abre diretamente o controle escolhido, sem mostrar Home de Controles nem Home da Central antes."
-echo "IDENTIDADE: marca Horizonte apenas nos pontos de identidade; icones indicativos preservados; menu original; Liquid Glass translucido."
+echo "IDENTIDADE: marca Horizonte apenas nos pontos de identidade; icones indicativos preservados; menu original; interface neutra sem Liquid Glass."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
 echo "FUNCIONÁRIOS: painel nativo com holerites, Pix, contas a pagar, vales e vínculos confirmados."
