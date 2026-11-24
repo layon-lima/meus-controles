@@ -28,16 +28,26 @@ window.NHReceivingImports=(()=>{
     input.click();
   }
 
-  async function openXML(app){
+  function openXML(app){
+    if(!app.cid()){app.toast("Selecione um controle de recebimentos.",true);return}
+    selectFiles(".xml,text/xml,application/xml",false,files=>importXML(app,files[0]));
+  }
+
+  // Arrastar e selecionar passam pela mesma conferência. Nunca gravar no drop.
+  async function importXML(app,file){
     const {api,cid,dialog,toast,refresh,esc,items,route,dec,closeDialog}=app;
-    if(!cid()){toast("Selecione um controle de recebimentos.",true);return}
-    selectFiles(".xml,text/xml",false,async files=>{
-      const file=files[0];
-      if(file.size>2_000_000||file.size<10)
-        return toast("O XML precisa ter até 2 MB.",true);
+    if(!file||(!/\.xml$/i.test(file.name||"")&&!/xml/i.test(file.type||"")))
+      return toast("Selecione um arquivo XML de NF-e.",true);
+    if(file.size>2_000_000||file.size<10)
+      return toast("O XML precisa ter até 2 MB e não pode estar vazio.",true);
+    if(!cid()||!app.canImportXML())return toast("Aguarde os recebimentos ou feche a janela aberta.",true);
+    const control=cid(), previewPath=route("/xml/preview"), confirmPath=route("/xml/confirm");
+    app.setBusy(true);
+    try{
       toast("Conferindo o XML e os saldos dos pedidos…");
       const xml=await readFile(file);
-      const report=await api(route("/xml/preview"),"POST",{xml});
+      const report=await api(previewPath,"POST",{xml});
+      if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
       if(!report.lines?.length){toast("XML sem itens para conferir.",true);return}
       const active=items().filter(x=>!x.closed&&Number(x.remaining_qty)>0);
       const rows=report.lines.map((line,index)=>{
@@ -77,11 +87,13 @@ window.NHReceivingImports=(()=>{
             return raw?dec(raw):null;
           });
           if(!confirm("Registrar "+selections.length+" item(ns) da NF-e "+report.invoice_number+"?"))return;
-          const result=await api(route("/xml/confirm"),"POST",{xml,selections,manual_quantities});
+          if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
+          const result=await api(confirmPath,"POST",{xml,selections,manual_quantities});
           closeDialog();await refresh();
           toast("XML processado: "+(result.registered||result.imported||"itens")+" conferidos.");
         },"Confirmar XML");
-    });
+    }catch(e){toast(e.message||"Falha ao conferir o XML.",true);}
+    finally{app.setBusy(false);}
   }
 
   async function openPDF(app){
@@ -364,5 +376,5 @@ window.NHReceivingImports=(()=>{
     });
   }
 
-  return {openXML,openPDF,openJSON,restoreIssuer,readFiscalPDF};
+  return {openXML,importXML,openPDF,openJSON,restoreIssuer,readFiscalPDF};
 })();
