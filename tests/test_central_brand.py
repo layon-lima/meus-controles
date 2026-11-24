@@ -91,7 +91,8 @@ class HorizonThemeTests(unittest.TestCase):
                       "body.central-operational", "body.nh-native-screen",
                       ".module-card", ".nhf-avatar"):
             self.assertIn(token, theme)
-        self.assertNotRegex(theme, r"(?:linear|radial|conic)-gradient\\(")
+        for kind in ("linear", "radial", "conic"):
+            self.assertNotIn(kind + "-gradient(", theme)
         self.assertNotIn("backdrop-filter:blur", theme)
         self.assertNotIn("fetch(", theme)
         self.assertIn("Cores semânticas de alerta", theme)
