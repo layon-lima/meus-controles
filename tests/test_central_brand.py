@@ -29,7 +29,7 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertEqual(ASSETS["/horizon-theme.css"][1], "text/css; charset=utf-8")
 
     def test_uma_folha_de_estilo_em_todos_modulos(self):
-        path = "/central/horizon-theme.css?v=20261124brand1"
+        path = "/central/horizon-theme.css?v=20261124glass3"
         for name in ("index", "recebimentos", "funcionarios"):
             html = (ROOT / (name + ".html")).read_text(encoding="utf-8")
             with self.subTest(name=name):
@@ -44,16 +44,19 @@ class HorizonThemeTests(unittest.TestCase):
                 self.assertIn("/central/horizon-logo.svg?v=1", page)
                 self.assertEqual(page.count(path), 1)
 
-    def test_modulos_sem_icones_diferentes(self):
+    def test_marca_separada_dos_icones_indicativos(self):
         home = (ROOT / "index.html").read_text(encoding="utf-8")
-        self.assertEqual(home.count('<span class="module-icon" aria-hidden="true"></span>'), 8)
-        self.assertNotRegex(home, r'<span class="module-icon"><svg>')
+        icons = re.findall(r'<span class="module-icon" aria-hidden="true"><svg><use href="#i-([a-z]+)"', home)
+        self.assertEqual(icons, ["wallet", "package", "sliders", "truck", "users", "doc", "link", "chart"])
         theme = (ROOT / "horizon-theme.css").read_text(encoding="utf-8")
-        self.assertIn('.nh-start-tile-icon', theme)
-        self.assertIn('.nh-start-trigger>.nh-start-icon', theme)
+        self.assertIn("body .brand-mark,body .nhf-mark,body .central-mark", theme)
         self.assertIn('url("/central/horizon-logo.svg?v=1")', theme)
-        self.assertIn('body .rx-brand-logo', theme)
-        self.assertNotIn('#397ecc', theme)
+        self.assertIn("body .rx-brand-logo", theme)
+        self.assertIn("body .module-icon svg,body .nh-start-tile-icon .nh-start-icon {display:block", theme)
+        self.assertNotIn(".ui-icon {display:none", theme)
+        launcher = (ROOT / "launcher.js").read_text(encoding="utf-8")
+        self.assertIn("badge.appendChild(icon(mod.icon))", launcher)
+        self.assertNotIn('trigger.appendChild(icon("grid"))', launcher)
 
     def test_vidro_discreto_sem_modificar_estados(self):
         theme = (ROOT / "horizon-theme.css").read_text(encoding="utf-8")
@@ -65,6 +68,9 @@ class HorizonThemeTests(unittest.TestCase):
         # Status Pago/Pendente/Parcial continuam semanticamente distintos.
         self.assertIn(':not(.complete):not(.partial):not(.pending)', theme)
         self.assertNotIn("fetch(", theme)
+        self.assertIn("rgba(255,255,255,.66),rgba(255,248,244,.35)", theme)
+        self.assertIn("blur(22px) saturate(155%)", theme)
+        self.assertIn("inset 0 2px 1px", theme)
 
 
     def test_instalador_valida_recursos_por_tipo(self):
