@@ -269,3 +269,8 @@ html.nh-route-boot body::before,html.nh-module-redirect body::before {
     background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(255,248,244,.65)) !important;
   }
 }
+
+/* Marcas dos motores legados: mesma imagem original, sem moldura azul. */
+body.central-operational :is(.brand-icon,.mr-logo):has(.nh-legacy-brand-logo){background:transparent!important;border:0!important;box-shadow:none!important;border-radius:50%!important;overflow:hidden}
+body.central-operational .nh-legacy-brand-logo{display:block;width:100%;height:100%;object-fit:contain}
+body.central-operational .brand>img[src*="horizon-logo.svg"]{object-fit:contain;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:50%}
