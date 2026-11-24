@@ -151,6 +151,34 @@ const test=async()=>{
   assert.equal(posted.length,1,"GFARM deve receber uma única solicitação por nota");
   assert.deepEqual(posted[0].receipt_ids,[51,52],
     "Todos os itens da mesma NF-e precisam ir ao GFARM");
+  // Testar o importador real: largar o arquivo abre a prévia, não o POST de confirmação.
+  const impWin={};
+  const calls=[];
+  let onSubmit,dialogBody,busy=false;
+  vm.runInNewContext(imports,{window:impWin,Uint8Array,btoa:x=>Buffer.from(x,"binary").toString("base64"),
+    console,confirm:()=>true});
+  const xmlFile={name:"nfe.xml",size:30,arrayBuffer:async()=>Uint8Array.from(Buffer.from("<nfe>teste de importação</nfe>")).buffer};
+  const app={
+    cid:()=>7,canImportXML:()=>!busy,setBusy:v=>{busy=v;},
+    route:p=>"/api/controls/7/receiving"+p,
+    api:async(path,method,payload)=>{
+      calls.push({path,method,payload});
+      return {invoice_number:"42",supplier:"Agrex",lines:[{name:"KCL",quantity:10,unit:"t",suggested_id:11}]};
+    },
+    toast(){},dialog:(title,subtitle,body,submit)=>{dialogBody=body;onSubmit=submit;},
+    refresh:async()=>{},esc:x=>String(x??""),items:()=>orders.items,
+    dec:x=>x,closeDialog(){}
+  };
+  await impWin.NHReceivingImports.importXML(app,xmlFile);
+  assert.equal(calls.length,1,"Soltar XML só pode abrir a prévia");
+  assert.ok(calls[0].path.endsWith("/xml/preview"));
+  assert.ok(dialogBody.includes("KCL")&&dialogBody.includes('value="11" selected'));
+  assert.equal(busy,false);
+  await onSubmit({get:key=>key==="selection_0"?"11":""});
+  assert.equal(calls.length,2);
+  assert.ok(calls[1].path.endsWith("/xml/confirm"));
+  assert.equal(calls[1].payload.selections[0],11);
+  console.log("OK: arrastar XML usa a prévia real, com sugestão e confirmação explícita");
   console.log("OK: Recebimentos aparece diretamente, sem renderizar outros modelos antes");
   console.log("OK: envio ao GFARM agrupa os dois itens da mesma nota fiscal");
 };
