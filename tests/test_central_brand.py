@@ -29,7 +29,7 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertEqual(ASSETS["/horizon-theme.css"][1], "text/css; charset=utf-8")
 
     def test_uma_folha_de_estilo_em_todos_modulos(self):
-        path = "/central/horizon-theme.css?v=20261124brand5"
+        path = "/central/horizon-theme.css?v=20261124neutral1"
         for name in ("index", "recebimentos", "funcionarios"):
             html = (ROOT / (name + ".html")).read_text(encoding="utf-8")
             with self.subTest(name=name):
@@ -84,20 +84,17 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertIn("border-radius:20px", closed)
         self.assertNotIn("horizon-logo", closed)
 
-    def test_vidro_discreto_sem_modificar_estados(self):
+    def test_tema_neutro_sem_vidro_nem_gradiente(self):
         theme = (ROOT / "horizon-theme.css").read_text(encoding="utf-8")
-        for text in ("--hz-rose:", "--hz-coral:", "--hz-gold:",
-                     "rgba(255,255,255,.78)", "backdrop-filter:blur",
-                     "body.central-operational", "body.nh-native-screen",
-                     "body .module-card", "body .nhf-avatar"):
-            self.assertIn(text, theme)
-        # Status Pago/Pendente/Parcial continuam semanticamente distintos.
-        self.assertIn(':not(.complete):not(.partial):not(.pending)', theme)
+        for token in ("--hz-surface:#ffffff", "--hz-bg:#f5f6f8",
+                      "backdrop-filter:none!important", "background:#fff!important",
+                      "body.central-operational", "body.nh-native-screen",
+                      ".module-card", ".nhf-avatar"):
+            self.assertIn(token, theme)
+        self.assertNotRegex(theme, r"(?:linear|radial|conic)-gradient\\(")
+        self.assertNotIn("backdrop-filter:blur", theme)
         self.assertNotIn("fetch(", theme)
-        self.assertIn("rgba(255,255,255,.66),rgba(255,248,244,.35)", theme)
-        self.assertIn("blur(22px) saturate(155%)", theme)
-        self.assertIn("inset 0 2px 1px", theme)
-
+        self.assertIn("Cores semânticas de alerta", theme)
 
     def test_instalador_valida_recursos_por_tipo(self):
         import os
