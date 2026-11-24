@@ -377,7 +377,16 @@ for entry in '' 'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' 
   [[ "$HTTP" == 200 ]] || fail "Pagina publica $entry indisponivel (HTTP $HTTP)."
   grep -Fq '/central/horizon-theme.css?v=20261124brand5' "$TMP/theme-page" \
     || fail "Pagina publica $entry nao carrega o tema Horizonte."
+  if grep -Eq '/icons/brand\.svg|/static/icons\.svg#logo|class="mr-logo"[^>]*>MC<' "$TMP/theme-page"; then
+    fail "Pagina $entry ainda possui marca antiga."
+  fi
+  case "$entry" in
+    ''|modules/contas/|modules/documentos/|modules/funcionarios/|modules/recebimentos/)
+      grep -Fq 'src="/central/horizon-logo.svg?v=1"' "$TMP/theme-page" \
+        || fail "Cabecalho de $entry nao recebeu a marca Horizonte." ;;
+  esac
 done
+echo "OK: marcas antigas ausentes das paginas publicas; cabecalhos conferidos."
 for asset in horizon-theme.css horizon-logo.svg; do
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
     "$PUBLIC/$asset?v=20261124brand5" -o "$TMP/public-asset" \
