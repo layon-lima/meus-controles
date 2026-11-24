@@ -22,6 +22,8 @@ ASSETS = {
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/app.css": ("app.css", "text/css; charset=utf-8"),
     "/operations.css": ("operations.css", "text/css; charset=utf-8"),
+    "/horizon-theme.css": ("horizon-theme.css", "text/css; charset=utf-8"),
+    "/horizon-logo.svg": ("horizon-logo.svg", "image/svg+xml"),
     "/operations.js": ("operations.js", "text/javascript; charset=utf-8"),
     "/launcher.css": ("launcher.css", "text/css; charset=utf-8"),
     "/launcher.js": ("launcher.js", "text/javascript; charset=utf-8"),
