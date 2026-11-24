@@ -22,7 +22,7 @@ html {background:#f5f6f8}
 body,body.central-operational,body.nh-native-screen {
   background:#f5f6f8!important;color:var(--hz-ink)!important;
 }
-body :is(*, *::before, *::after) {
+body *,body *::before,body *::after {
   backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
 }
 body :is(h1,h2,h3,.brand-copy strong,.nhf-back strong,.rx-title h1,
@@ -70,6 +70,7 @@ body :is(.nhf-staff-details,.rx-group-table,.nhf-vale,.nhf-unlinked-row,.table-s
   box-shadow:none!important;
 }
 body .nhf-staff-summary .nhf-stat {background:transparent!important;border:0!important;box-shadow:none!important;}
+body.central-operational :is(.btn-primary,.primary):not(button):not(a):not(input):not([role="button"]).nhf-stat{background:transparent!important;border:0!important;box-shadow:none!important;}
 body :is(.nhf-staff-summary,.rx-group-head,.rx-tab) {background:transparent!important;}
 body :is(.nhf-staff-summary,.rx-group-head,.rx-tab):hover {background:#f4f5f6!important;}
 body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(thead,.table-header,table thead th) {
@@ -85,6 +86,7 @@ body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(input:not([
   background-color:#fff!important;color:var(--hz-ink)!important;
   border-color:#cdd2d9!important;border-radius:6px!important;box-shadow:none!important;
 }
+body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea){background-image:none!important;}
 body :is(input,select,textarea){accent-color:#303740}
 body :is(button,a,input,select,textarea):focus-visible{outline-color:#7b8590!important;}
 body.central-operational :is(input,select,textarea):focus{border-color:#8e98a3!important;box-shadow:0 0 0 2px #e2e5e9!important;}
