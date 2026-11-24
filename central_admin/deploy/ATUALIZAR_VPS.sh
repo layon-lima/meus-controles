@@ -64,6 +64,8 @@ SOURCE="$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d -print -quit)"
     -f "$SOURCE/central_admin/static/entry-preflight.js" &&
     -f "$SOURCE/central_admin/static/route-preflight.js" &&
     -f "$SOURCE/central_admin/static/launcher.css" &&
+    -f "$SOURCE/central_admin/static/horizon-theme.css" &&
+    -f "$SOURCE/central_admin/static/horizon-logo.svg" &&
     -f "$SOURCE/central_admin/static/recebimentos.html" &&
     -f "$SOURCE/central_admin/static/recebimentos.js" &&
     -f "$SOURCE/central_admin/static/recebimentos_imports.js" &&
@@ -273,6 +275,27 @@ HTTP="$(curl -sS --max-time 8 -o "$TMP/route-asset" -w '%{http_code}' \
   "http://127.0.0.1:18771/route-preflight.js")"
 [[ "$HTTP" == 200 ]] || fail "Script de navegação direta não está acessível (HTTP $HTTP)."
 echo "OK: navegação direta com guarda de pintura e carregamento por destino."
+# Identidade original Horizonte: uma única logo, uma única paleta, todos
+# os módulos recebem a mesma folha de estilo DEPOIS do CSS original.
+for page in index recebimentos funcionarios; do
+  grep -Fq '/central/horizon-theme.css?v=20261124brand1' "$APP/static/$page.html" \
+    || fail "Pagina $page sem tema unificado do Horizonte."
+  grep -Fq '/central/horizon-logo.svg?v=1' "$APP/static/$page.html" \
+    || fail "Pagina $page sem logotipo original do Horizonte."
+done
+grep -Fq 'horizon-theme.css?v=20261124brand1' "$APP/operations_gateway.py" \
+  || fail "Os modulos antigos nao receberam o tema compartilhado."
+grep -Fq 'horizon-logo.svg' "$APP/server.py" \
+  || fail "Logo compartilhada nao foi registrada no servidor."
+grep -Fq 'data:image/webp;base64,' "$APP/static/horizon-logo.svg" \
+  || fail "O arquivo original do logotipo nao foi incorporado."
+grep -Fq 'body.central-operational' "$APP/static/horizon-theme.css" \
+  || fail "O tema nao cobre os modulos operacionais."
+grep -Fq 'body.nh-native-screen' "$APP/static/horizon-theme.css" \
+  || fail "O tema nao cobre Recebimentos."
+grep -Fq 'body .nhf-mark' "$APP/static/horizon-theme.css" \
+  || fail "O tema nao cobre Funcionarios."
+echo "OK: Liquid Glass unificado e logotipo original Horizonte em todos os modulos."
 # Garante que a ficha de funcionários publicada é apenas de valores em
 # aberto. Não reintroduzir links de pagamento, busca de vínculo ou histórico.
 grep -Fq 'function openAmounts(person)' "$APP/static/funcionarios.js" \
@@ -300,7 +323,7 @@ grep -Fq 'body.central-operational #main{max-width:none!important;' "$APP/static
   || fail "Modulos operacionais continuam com largura limitada."
 grep -Fq '.nh-documents{width:100%;max-width:none;' "$APP/static/operations.css" \
   || fail "Modulo Documentos ainda possui limite de largura fixo."
-grep -Fq 'operations.css?v=20261123full' "$APP/operations_gateway.py" \
+grep -Fq 'operations.css?v=20261123route1' "$APP/operations_gateway.py" \
   || fail "Modulo legado nao recebe CSS atualizado de largura fluida."
 echo "OK: paginas da Central preparadas para ocupar a largura do monitor."
 # Verifica se o motor de origem continua a responder no mesmo banco.
@@ -316,7 +339,7 @@ if not isinstance(payload.get("boards"),list) or not isinstance(payload.get("con
 print("OK: modulo nativo acessa os controles reais, sem trocar o banco.")
 PY
 # Confere se os arquivos da animacao realmente estao no container.
-for asset in launcher.js launcher.css; do
+for asset in launcher.js launcher.css horizon-theme.css horizon-logo.svg; do
   HTTP="$(curl -sS --max-time 6 -o "$TMP/asset" -w '%{http_code}' \
     "http://127.0.0.1:18771/$asset")"
   [[ "$HTTP" == 200 ]] || fail "Recurso $asset nao respondeu (HTTP $HTTP)."
@@ -539,6 +562,7 @@ echo "GEOMETRIA: janela fixa, ajustada à tela por escala; sempre completa sem s
 echo "ANIMAÇÃO: expandir primeiro o fundo, revelar cards somente após a transição."
 echo "FLUIDEZ: JS/CSS comprimidos e reutilizados, listas mais leves e downloads em streaming."
 echo "NAVEGACAO: abre diretamente o controle escolhido, sem mostrar Home de Controles nem Home da Central antes."
+echo "IDENTIDADE: todas as telas usam logo Horizonte original, vidro suave e degrade rosa/pessego/dourado discreto."
 echo "NOVA ARQUITETURA: Recebimentos usa frontend proprio sem carregar o antigo."
 echo "CONTAS: upload em lote, leitura e confirmação manual UMA CONTA POR VEZ."
 echo "FUNCIONÁRIOS: painel nativo com holerites, Pix, contas a pagar, vales e vínculos confirmados."
