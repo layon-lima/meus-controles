@@ -20,14 +20,38 @@ window.NHReceivingImports=(()=>{
   const productWords=value=>words(value).replace(/\bkcl\b/g,"cloreto potassio")
     .replace(/\b(?:de|da|do)\b/g," ").replace(/\s+/g," ").trim();
   const docNumber=value=>String(value??"").replace(/\D/g,"");
+  const compactName=value=>String(value).replace(/[^a-z0-9]/g,"");
+  const digits=value=>String(value).match(/\d+/g)?.map(v=>String(Number(v))).join("|")||"";
+  function editSimilarity(a,b){
+    let prev=Array.from({length:b.length+1},(_,i)=>i);
+    for(let i=1;i<=a.length;i++){
+      const next=[i];
+      for(let j=1;j<=b.length;j++)next[j]=Math.min(prev[j]+1,next[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      prev=next;
+    }
+    return 1-prev[b.length]/Math.max(a.length,b.length);
+  }
   function nameScore(a,b,product=false){
     a=(product?productWords:words)(a);b=(product?productWords:words)(b);
     if(!a||!b)return 0;
     if(a===b)return 1;
+    const ca=compactName(a),cb=compactName(b);
+    if(ca===cb)return 1;
     const short=a.length<=b.length?a:b,long=a.length<=b.length?b:a;
-    if(short.length>=4&&long.startsWith(short+" "))return .96;
     const x=new Set(a.split(" ")),y=new Set(b.split(" "));
-    return [...x].filter(v=>y.has(v)).length/Math.max(x.size,y.size);
+    const overlap=[...x].filter(v=>y.has(v)).length/Math.max(x.size,y.size);
+    let score=short.length>=4&&long.startsWith(short+" ")?.96:overlap;
+    if(product&&Math.min(ca.length,cb.length)>=5&&ca.slice(0,3)===cb.slice(0,3)){
+      score=Math.max(score,editSimilarity(ca,cb));
+    }
+    return score;
+  }
+  function productScore(a,b,serverScore){
+    const local=nameScore(a,b,true);
+    const da=digits(productWords(a)),db=digits(productWords(b));
+    // Não confundir formulações/apresentações numéricas diferentes por mera proximidade.
+    if(da&&db&&da!==db)return Math.min(.72,local);
+    return Math.max(local,Number.isFinite(Number(serverScore))?Number(serverScore):0);
   }
   const units={
     kg:["mass",1],kgm:["mass",1],t:["mass",1000],to:["mass",1000],ton:["mass",1000],tonelada:["mass",1000],g:["mass",.001],gr:["mass",.001],
@@ -63,33 +87,35 @@ window.NHReceivingImports=(()=>{
       const options=active.map(item=>{
         const id=Number(item.id),server=ranked.get(id),amount=xmlAmount(line,item);
         const remaining=Number(item.remaining_qty),available=remaining-(reserved.get(id)||0);
-        const product=Number.isFinite(Number(server?.product_score))&&server?.product_score!=null
-          ?Number(server.product_score):nameScore(line.name||line.product,item.product,true);
+        const product=productScore(line.name||line.product,item.product,server?.product_score);
         const supplier=Number.isFinite(Number(server?.supplier_score))&&server?.supplier_score!=null
           ?Number(server.supplier_score):nameScore(report.supplier,item.supplier);
         const sufficient=amount!==null&&amount<=available+1e-9;
+        const learnedMatch=learned.has(id);
+        const recognizable=learnedMatch||product>=.88||(product>=.80&&supplier>=.72);
+        const compatible=sufficient&&recognizable;
+        const needsEquivalence=amount===null&&available>0&&(learnedMatch||product>=.96);
         return {...item,id,amount,productScore:product,supplierScore:supplier,
-          learned:learned.has(id),sufficient,score:.85*product+.15*supplier,
+          learned:learnedMatch,sufficient,compatible,needsEquivalence,score:.85*product+.15*supplier,
           blocked:amount!==null&&amount>remaining+1e-9};
-      }).sort((a,b)=>Number(b.sufficient)-Number(a.sufficient)||
-        Number(b.learned)-Number(a.learned)||b.score-a.score||a.id-b.id);
-      const valid=options.filter(o=>o.sufficient);
+      }).sort((a,b)=>Number(b.compatible||b.needsEquivalence)-Number(a.compatible||a.needsEquivalence)||
+        Number(b.learned)-Number(a.learned)||Number(b.sufficient)-Number(a.sufficient)||b.score-a.score||a.id-b.id);
+      const valid=options.filter(o=>o.compatible||o.needsEquivalence);
       const known=valid.filter(o=>o.learned);
-      // Se houver dois pedidos históricos válidos, não adivinhar qual deles.
+      // Histórico único tem prioridade. Em caso de empate, pedir seleção manual.
       let suggested=known.length===1?known[0]:null;
       if(!known.length){
         const top=valid[0],next=valid[1];
-        if(top&&(top.productScore>=.94||(top.productScore>=.83&&top.supplierScore>=.72))&&
-          (!next||top.score-next.score>=.065))suggested=top;
+        if(top&&(!next||top.score-next.score>=.05))suggested=top;
       }
-      if(suggested)reserved.set(suggested.id,(reserved.get(suggested.id)||0)+suggested.amount);
-      return {options,suggested};
+      if(suggested&&suggested.amount!==null)reserved.set(suggested.id,(reserved.get(suggested.id)||0)+suggested.amount);
+      return {options,suggested,hasCompatible:valid.length>0};
     });
   }
   const orderLabel=o=>o.order_number+" · "+o.supplier+" · "+o.product;
   function filterOrders(choice,query){
     const terms=words(query).split(" ").filter(Boolean);
-    return choice.options.filter(o=>terms.every(t=>words(orderLabel(o)).includes(t)));
+    return choice.options.filter(o=>terms.every(t=>words(orderLabel(o)).includes(t)||compactName(words(orderLabel(o))).includes(compactName(t))));
   }
   function pickerHTML(choice,query,selected,esc,index=0,highlight=-1){
     const visible=filterOrders(choice,query);
@@ -109,6 +135,7 @@ window.NHReceivingImports=(()=>{
       list=view.mask.querySelector("#rx-xml-list-"+index),
       hint=view.mask.querySelector("#rx-xml-suggestion-"+index),
       noOrder=view.mask.querySelector("#rx-xml-no-order-"+index),
+      noOrderLabel=view.mask.querySelector("#rx-xml-no-order-label-"+index),
       picker=view.mask.querySelector("#rx-xml-picker-"+index),
       manualField=view.mask.querySelector("#rx-xml-manual-field-"+index),
       manual=view.mask.querySelector("#rx-xml-manual-"+index);
@@ -117,6 +144,9 @@ window.NHReceivingImports=(()=>{
     const initial=choice.suggested;
     value.value=initial?String(initial.id):"";
     search.value=initial?orderLabel(initial):"";
+    function updateNoOrder(){noOrderLabel.hidden=choice.hasCompatible||!!(value.value&&value.value!=="pending");noOrder.disabled=noOrderLabel.hidden;}
+    function updateManual(item){manual.required=!!item&&item.amount===null;}
+    updateNoOrder();updateManual(initial);
     function draw(){
       list.innerHTML=pickerHTML(choice,query,value.value,esc,index,highlight);
       if(highlight>=0)search.setAttribute("aria-activedescendant","rx-xml-opt-"+index+"-"+highlight);
@@ -137,17 +167,19 @@ window.NHReceivingImports=(()=>{
       value.value=id;
       search.value=orderLabel(item);
       search.setCustomValidity("");
-      hint.textContent="Pedido selecionado";
+      hint.textContent=item.amount===null?"Pedido selecionado · Informe a quantidade equivalente na unidade "+item.unit:"Pedido selecionado";
+      updateNoOrder();updateManual(item);
       close();
     }
     noOrder.checked=false;
     noOrder.addEventListener("change",()=>{
       close();
       if(noOrder.checked){
+        if(choice.hasCompatible||noOrder.disabled){noOrder.checked=false;return;}
         previous={value:value.value,text:search.value,hint:hint.textContent};
         value.value="pending";
         search.setCustomValidity("");
-        search.required=false;search.disabled=true;manual.disabled=true;
+        search.required=false;search.disabled=true;manual.disabled=true;manual.required=false;
         picker.hidden=true;manualField.hidden=true;
       }else{
         value.value=previous?.value||"";
@@ -155,14 +187,16 @@ window.NHReceivingImports=(()=>{
         hint.textContent=previous?.hint||"";
         picker.hidden=false;manualField.hidden=false;
         search.disabled=false;search.required=true;manual.disabled=false;
-        search.setCustomValidity(value.value?"":"Selecione um pedido da lista ou marque Sem pedido.");
+        search.setCustomValidity(value.value?"":"Selecione um pedido da lista.");
+        updateNoOrder();updateManual(choice.options.find(o=>String(o.id)===value.value));
       }
     });
     search.addEventListener("focus",()=>{open();if(value.value)search.select();});
     search.addEventListener("click",open);
     search.addEventListener("input",()=>{
       value.value="";query=search.value;highlight=-1;
-      search.setCustomValidity("Selecione um pedido da lista ou marque Sem pedido.");
+      updateNoOrder();updateManual(null);
+      search.setCustomValidity(choice.hasCompatible?"Selecione um pedido da lista.":"Selecione um pedido da lista ou marque Sem pedido.");
       hint.textContent="";list.hidden=false;search.setAttribute("aria-expanded","true");draw();
     });
     search.addEventListener("blur",close);
@@ -238,12 +272,12 @@ window.NHReceivingImports=(()=>{
           '<strong>'+esc(line.name||line.product||"Produto "+(index+1))+'</strong>'+
           '<small>'+esc(line.quantity)+" "+esc(line.unit)+" · "+esc(line.code||"")+'</small>'+
           '<div class="rx-form-grid">'+
-          '<label class="rx-xml-no-order wide"><input type="checkbox" id="rx-xml-no-order-'+index+'"><span>Sem pedido</span></label>'+
+          '<label id="rx-xml-no-order-label-'+index+'" class="rx-xml-no-order wide"'+(choice.hasCompatible?' hidden':'')+'><input type="checkbox" id="rx-xml-no-order-'+index+'"'+(choice.hasCompatible?' disabled':'')+'><span>Sem pedido</span></label>'+
           '<div id="rx-xml-picker-'+index+'" class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Vincular ao pedido</label>'+
           '<div class="rx-xml-combo"><input id="rx-xml-search-'+index+'" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rx-xml-list-'+index+'" placeholder="Pesquisar fornecedor, produto ou número do pedido" autocomplete="off" required value="'+esc(choice.suggested?orderLabel(choice.suggested):"")+'">'+
                     '<div id="rx-xml-list-'+index+'" class="rx-xml-list" role="listbox" hidden></div></div>'+
           '<small class="rx-xml-suggestion" id="rx-xml-suggestion-'+index+'">'+
-          (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":"Sugestão por produto e saldo disponível"):"")+'</small></div>'+
+          (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":choice.suggested.needsEquivalence?"Produto identificado pelo nome · Informe a equivalência de unidade":"Sugestão por produto e saldo disponível"):(choice.hasCompatible?"Pedidos compatíveis encontrados. Selecione o correto.":""))+'</small></div>'+
           '<input type="hidden" id="rx-xml-choice-'+index+'" name="selection_'+index+'" value="'+esc(suggested)+'">'+
           '<label id="rx-xml-manual-field-'+index+'" class="rx-field wide"><span>Quantidade equivalente no pedido (somente se a unidade não converter automaticamente)</span>'+
           '<input id="rx-xml-manual-'+index+'" inputmode="decimal" name="manual_'+index+'" placeholder="Deixe vazio para conversão automática"></label>'+
@@ -259,7 +293,10 @@ window.NHReceivingImports=(()=>{
         summary,async form=>{
           const selections=report.lines.map((_,i)=>{
             const value=form.get("selection_"+i);
-            if(value==="pending")return "pending";
+            if(value==="pending"){
+              if(choices[i].hasCompatible)throw new Error("Existe pedido compatível para este produto.");
+              return "pending";
+            }
             return safeInt(value);
           });
           if(selections.some(x=>x===null))throw new Error("Selecione um pedido ou marque Sem pedido em todos os itens.");
