@@ -229,21 +229,51 @@ const test=async()=>{
     route:p=>"/api/controls/7/receiving"+p,
     api:async(path,method,payload)=>{
       calls.push({path,method,payload});
+      if(method==="GET")return orders;
       return {invoice_number:"42",supplier:"Agrex",lines:[{name:"KCL",quantity:10,unit:"t",suggested_id:11}]};
     },
-    toast(){},dialog:(title,subtitle,body,submit)=>{dialogBody=body;onSubmit=submit;},
+    toast(){},dialog:(title,subtitle,body,submit)=>{dialogBody=body;onSubmit=submit;return {mask:{querySelector:get}};},
     refresh:async()=>{},esc:x=>String(x??""),items:()=>orders.items,
     dec:x=>x,closeDialog(){}
   };
   await impWin.NHReceivingImports.importXML(app,xmlFile);
-  assert.equal(calls.length,1,"Soltar XML só pode abrir a prévia");
+  assert.equal(calls.length,2,"Soltar XML só abre a prévia e consulta o saldo/histórico");
+  assert.equal(calls[1].method,"GET");
   assert.ok(calls[0].path.endsWith("/xml/preview"));
   assert.ok(dialogBody.includes("KCL")&&dialogBody.includes('value="11" selected'));
   assert.equal(busy,false);
   await onSubmit({get:key=>key==="selection_0"?"11":""});
-  assert.equal(calls.length,2);
-  assert.ok(calls[1].path.endsWith("/xml/confirm"));
-  assert.equal(calls[1].payload.selections[0],11);
+  assert.equal(calls.length,3);
+  assert.ok(calls[2].path.endsWith("/xml/confirm"));
+  assert.equal(calls[2].payload.selections[0],11);
+  // Histórico de XML confirmado prevalece sobre fornecedor/título divergentes.
+  const match=impWin.NHReceivingImports.buildXMLChoices;
+  const picker=impWin.NHReceivingImports.pickerHTML;
+  const invoice={cnpj:"12.345.678/0001-99",supplier:"Distribuidora XYZ",
+    lines:[{name:"FERTILIZANTE CLASSE A",code:"A-1",quantity:"1000",unit:"kg"}]};
+  const candidates=[
+    {id:21,order_number:"PED-21",supplier:"Cooperativa",product:"KCL",unit:"t",remaining_qty:"2",closed:false},
+    {id:22,order_number:"PED-22",supplier:"Distribuidora XYZ",product:"FERTILIZANTE CLASSE A",unit:"kg",remaining_qty:"2000",closed:false}
+  ];
+  const history=[{item_id:21,invoice_issuer_document:"12345678000199",invoice_issuer:"Distribuidora XYZ",
+    fiscal_json:JSON.stringify({codigo_produto:"A-1",descricao_xml:"FERTILIZANTE CLASSE A"})}];
+  let choices=match(invoice,candidates,history);
+  assert.equal(choices[0].suggested.id,21);
+  assert.equal(choices[0].suggested.learned,true);
+  assert.equal(choices[0].suggested.amount,1);
+  assert.equal(match(invoice,candidates,[])[0].suggested.id,22,"Título identifica sem histórico");
+  assert.equal(match({...invoice,cnpj:"99999999000199"},candidates,history)[0].suggested.id,22,"CNPJ diferente não aprende vínculo");
+  const insufficient=candidates.map(p=>p.id===21?{...p,remaining_qty:".5"}:p);
+  assert.equal(match(invoice,insufficient,history)[0].suggested.id,22,"Histórico sem saldo não prevalece");
+  assert.equal(match(invoice,[{...candidates[0],closed:true}],history)[0].suggested,null);
+  const repeat={...invoice,lines:[invoice.lines[0],invoice.lines[0],invoice.lines[0]]};
+  assert.equal(match(repeat,candidates,history)[2].suggested.id,22,"Sugestões reservam saldo na mesma nota");
+  const ambiguous=[...candidates,{...candidates[1],id:23}];
+  assert.equal(match(invoice,ambiguous,[])[0].suggested,null,"Empate não escolhe pedido arbitrariamente");
+  assert.equal(match({supplier:"OUTRO EMITENTE",lines:[{name:"KCL",quantity:1,unit:"t"}]},[candidates[0]],[])[0].suggested.id,21,"Fornecedor divergente não bloqueia título claro");
+  assert.ok(picker(choices[0],"ped-22","",x=>String(x)).includes('value="22"'));
+  assert.ok(!picker(choices[0],"ped-22","",x=>String(x)).includes('value="21"'));
+  assert.ok(dialogBody.includes('id="rx-xml-search-0"'));
   const pdfCalls=[];
   const pdfFile={name:"pedido.pdf",size:30,arrayBuffer:async()=>Uint8Array.from(Buffer.from("%PDF-1.4 teste")).buffer};
   const pdfApp={...app,
