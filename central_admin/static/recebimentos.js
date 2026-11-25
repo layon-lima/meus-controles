@@ -49,6 +49,7 @@
   const items=()=>store.data?.items||[];
   const receipts=()=>store.data?.receipts||[];
   function toast(message,error=false) {
+    if(window.NHFeedback){window.NHFeedback.notify(message,error);return;}
     const holder=$("#rx-notifications");
     const el=document.createElement("div");
     el.className="rx-toast"+(error?" error":"");
