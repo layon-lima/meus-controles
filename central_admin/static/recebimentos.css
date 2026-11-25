@@ -290,3 +290,5 @@ body.nh-scope-recebimentos .rx-xml-suggestion:empty{display:none}
 body.nh-scope-recebimentos .rx-xml-no-order{display:flex;align-items:center;gap:8px;grid-column:1/-1;width:fit-content;cursor:pointer;font-size:12px;font-weight:650;color:#303740}
 body.nh-scope-recebimentos .rx-xml-no-order input[type="checkbox"]{appearance:auto;accent-color:#303740;width:16px!important;height:16px!important;min-height:0!important;margin:0!important;padding:0!important;flex:none;cursor:pointer}
 body.nh-scope-recebimentos .rx-xml-item .rx-field[hidden]{display:none!important}
+
+body.nh-scope-recebimentos .rx-xml-no-order[hidden]{display:none!important}
