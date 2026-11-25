@@ -217,6 +217,7 @@
     app.toggleMenu = function () { close(); };
     const originalNavigate=app.navigate;
     app.navigate=function (route,id,options) {
+      if((this.s.route!==route||Number(this.s.id||0)!==Number(id||0))&&window.NHDrafts?.blockNavigation())return;
       // Vale também para Voltar/Avançar, que usam navigate(fromHistory).
       paintTargetWhileLoading(this,route,id);
       return originalNavigate.apply(this,arguments);
