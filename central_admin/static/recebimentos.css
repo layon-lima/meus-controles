@@ -285,3 +285,8 @@ body.nh-scope-recebimentos .rx-xml-option:not(:disabled):is(:hover,.is-highlight
 body.nh-scope-recebimentos .rx-xml-option:disabled{opacity:.55;cursor:not-allowed}
 body.nh-scope-recebimentos .rx-xml-empty{padding:10px 11px;color:#606873;font-weight:400}
 body.nh-scope-recebimentos .rx-xml-suggestion:empty{display:none}
+
+/* Sem pedido é uma escolha explícita por item, não uma opção escondida na lista. */
+body.nh-scope-recebimentos .rx-xml-no-order{display:flex;align-items:center;gap:8px;grid-column:1/-1;width:fit-content;cursor:pointer;font-size:12px;font-weight:650;color:#303740}
+body.nh-scope-recebimentos .rx-xml-no-order input[type="checkbox"]{appearance:auto;accent-color:#303740;width:16px!important;height:16px!important;min-height:0!important;margin:0!important;padding:0!important;flex:none;cursor:pointer}
+body.nh-scope-recebimentos .rx-xml-item .rx-field[hidden]{display:none!important}
