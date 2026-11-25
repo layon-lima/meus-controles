@@ -264,6 +264,8 @@ const test=async()=>{
   assert.equal(calls.length,3);
   assert.ok(calls[2].path.endsWith("/xml/confirm"));
   assert.equal(calls[2].payload.selections[0],11);
+  assert.equal(calls[2].payload.manual_quantities[0],null);
+  assert.equal(get("#rx-xml-manual-field-0").hidden,true,"Unidades iguais não exibem conversão");
   // Sem pedido só aparece quando não há produto compatível.
   const noOrder=get("#rx-xml-no-order-0"),noOrderLabel=get("#rx-xml-no-order-label-0");
   const pickerBox=get("#rx-xml-picker-0"),manual=get("#rx-xml-manual-0"),manualField=get("#rx-xml-manual-field-0");
@@ -344,6 +346,43 @@ const test=async()=>{
   assert.equal(match(onsuva,[{...fmc,unit:"L",remaining_qty:19}],[])[0].hasCompatible,false,"Saldo conhecido insuficiente");
   assert.equal(match(onsuva,[{...fmc,unit:"L",remaining_qty:20}],[])[0].suggested.id,31);
   assert.equal(match(onsuva,[{...fmc,unit:"L"},{...fmc,id:35,unit:"L"}],[])[0].hasCompatible,true,"Ambiguidade não libera Sem pedido");
+  for(const unit of ["lT","Lt","lt"," LT ","L","Litros"]){
+    const same=match({...onsuva,lines:[{...onsuva.lines[0],unit}]},[{...fmc,unit:"L"}],[])[0];
+    assert.equal(same.suggested.amount,20,"Normalizar unidade "+unit);
+  }
+  const unitCalls=[];
+  let orderUnit="un",xmlUnit="LT";
+  const unitApp={...app,api:async(path,method,payload)=>{
+    unitCalls.push({path,method,payload});
+    if(method==="GET")return {items:[{...fmc,unit:orderUnit}],receipts:[]};
+    if(path.endsWith("/xml/preview"))return {...onsuva,lines:[{...onsuva.lines[0],unit:xmlUnit}]};
+    return {inserted:1,pending:0};
+  }};
+  await impWin.NHReceivingImports.importXML(unitApp,xmlFile);
+  assert.equal(manualField.hidden,false);
+  assert.equal(manual.required,true);
+  assert.equal(get("#rx-xml-conversion-question-0").textContent,"Quanto 1 LT equivale em un do pedido?");
+  manual.value="0,1";manual.listeners.input();
+  assert.equal(get("#rx-xml-conversion-total-0").textContent,"20 LT = 2 un");
+  const unitForm={get:key=>key==="selection_0"?"31":key==="manual_0"?manual.value:""};
+  await onSubmit(unitForm);
+  assert.equal(unitCalls.at(-1).payload.manual_quantities[0],"2","Enviar total, não fator");
+  manual.value="100";manual.listeners.input();
+  await assert.rejects(onSubmit(unitForm),/superior ao saldo/);
+  manual.value="0,00001";manual.listeners.input();
+  await assert.rejects(onSubmit(unitForm),/três casas decimais/);
+  orderUnit="L";xmlUnit="lT";
+  await impWin.NHReceivingImports.importXML(unitApp,xmlFile);
+  assert.equal(manualField.hidden,true);
+  assert.equal(manual.disabled,true);
+  await onSubmit(unitForm);
+  assert.equal(unitCalls.at(-1).payload.manual_quantities[0],null,"Conversão nativa, sem manual");
+  xmlUnit="Litros";
+  await impWin.NHReceivingImports.importXML(unitApp,xmlFile);
+  assert.equal(manualField.hidden,true);
+  await onSubmit(unitForm);
+  assert.equal(unitCalls.at(-1).payload.manual_quantities[0],"20","Grafia adicional conhecida, sem pergunta");
+  console.log("OK: unidades normalizadas e fator de uma unidade convertido em total");
   const pdfCalls=[];
   const pdfFile={name:"pedido.pdf",size:30,arrayBuffer:async()=>Uint8Array.from(Buffer.from("%PDF-1.4 teste")).buffer};
   const pdfApp={...app,
