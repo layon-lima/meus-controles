@@ -226,18 +226,13 @@
     }
     if(!people.length)list.append(e("p","nhf-muted","Nenhum funcionário cadastrado no Contas."));
   }
-  function togglePix(open){
-    if(pixSaving)return;
-    $("pixPanel").hidden=!open;
-    $("managePix").setAttribute("aria-expanded",String(open));
-    if(open)renderPix();else $("pixList").replaceChildren();
-  }
-  $("managePix").addEventListener("click",()=>togglePix($("pixPanel").hidden));
-  $("closePix").addEventListener("click",()=>togglePix(false));
   function render(data){
     if(!Array.isArray(data.funcionarios))
       throw new Error("Lista de funcionários indisponível.");
-    state.data=data;state.cards.clear();
+    state.data=data;
+    // Carrega o painel permanente sem depender de clique, filtro ou expansão.
+    renderPix();
+    state.cards.clear();
     const list=$("staffList");list.replaceChildren();
     const people=data.funcionarios.slice().sort((a,b)=>{
       const first=openAmounts(a),second=openAmounts(b);
@@ -257,7 +252,6 @@
     const empty=e("p","nhf-empty","Nenhum funcionário com valores em aberto neste filtro.");
     empty.id="emptyFiltered";empty.hidden=true;list.append(empty);
     applyFilters();
-    if(!$('pixPanel').hidden)renderPix();
   }
   async function refresh(){
     if(state.loading||pixSaving)return;
@@ -272,6 +266,7 @@
       if(!response.ok)throw new Error(data.erro||"Falha ao consultar Funcionários.");
       render(data);
     }catch(error){
+      $("pixList").replaceChildren(e("p","nhf-failed","Não foi possível carregar as chaves Pix. Use Atualizar para tentar novamente."));
       const list=$("staffList");
       list.replaceChildren(e("p","nhf-failed",
         "Não foi possível consultar os valores em aberto. "+(error.message||"")));
