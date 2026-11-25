@@ -311,7 +311,7 @@ grep -Fq 'rx-compact-header' "$APP/static/recebimentos.html" \
   || fail "Cabecalho compacto de Recebimentos ausente."
 grep -Fq 'rx-supplier-card' "$APP/static/recebimentos.js" \
   || fail "Cards individuais de fornecedores ausentes."
-grep -Fq '/central/recebimentos.css?v=20261125unit3' "$APP/static/recebimentos.html" \
+grep -Fq '/central/recebimentos.css?v=20261125unit4' "$APP/static/recebimentos.html" \
   || fail "Versao compacta do CSS nao carregada."
 # Recebimentos: arrastar XML e selecionar arquivo usam a mesma previa.
 grep -Fq 'id="rx-xml-drop"' "$APP/static/recebimentos.html" \
@@ -474,8 +474,7 @@ curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
   || fail "Recebimentos indisponivel no HTTPS."
 grep -Fq 'rx-compact-header' "$TMP/rx-page" || fail "Cabecalho antigo de Recebimentos no HTTPS."
 for asset in recebimentos.js recebimentos.css recebimentos_imports.js; do
-  VERSION=20261125draft2
-  [[ "$asset" == recebimentos.js ]] || VERSION=20261125unit3
+  VERSION=20261125unit4
   grep -Fq "/central/$asset?v=$VERSION" "$TMP/rx-page" \
     || fail "Recebimentos usa recurso antigo: $asset."
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
