@@ -86,7 +86,6 @@ window.NHReceivingImports=(()=>{
       return {options,suggested};
     });
   }
-  const pendingLabel="Sem pedido — vincular depois";
   const orderLabel=o=>o.order_number+" · "+o.supplier+" · "+o.product;
   function filterOrders(choice,query){
     const terms=words(query).split(" ").filter(Boolean);
@@ -94,10 +93,10 @@ window.NHReceivingImports=(()=>{
   }
   function pickerHTML(choice,query,selected,esc,index=0,highlight=-1){
     const visible=filterOrders(choice,query);
-    const entries=[...visible.map(o=>({value:String(o.id),label:orderLabel(o),
+    const entries=visible.map(o=>({value:String(o.id),label:orderLabel(o),
       info:(o.learned?"Histórico · ":"")+Number(o.remaining_qty).toLocaleString("pt-BR",{maximumFractionDigits:3})+
         " "+o.unit+" restantes"+(o.blocked?" · saldo insuficiente":o.amount===null?" · informar equivalência":""),
-      disabled:o.blocked})),{value:"pending",label:pendingLabel,info:"",disabled:false}];
+      disabled:o.blocked}));
     return (visible.length?"":'<div class="rx-xml-empty">Nenhum pedido encontrado</div>')+
       entries.map((o,i)=>'<button type="button" role="option" id="rx-xml-opt-'+index+'-'+i+
         '" data-xml-order="'+esc(o.value)+'" tabindex="-1" aria-selected="'+(String(selected)===o.value)+
@@ -108,7 +107,12 @@ window.NHReceivingImports=(()=>{
     const search=view.mask.querySelector("#rx-xml-search-"+index),
       value=view.mask.querySelector("#rx-xml-choice-"+index),
       list=view.mask.querySelector("#rx-xml-list-"+index),
-      hint=view.mask.querySelector("#rx-xml-suggestion-"+index);
+      hint=view.mask.querySelector("#rx-xml-suggestion-"+index),
+      noOrder=view.mask.querySelector("#rx-xml-no-order-"+index),
+      picker=view.mask.querySelector("#rx-xml-picker-"+index),
+      manualField=view.mask.querySelector("#rx-xml-manual-field-"+index),
+      manual=view.mask.querySelector("#rx-xml-manual-"+index);
+    let previous=null;
     let query="",highlight=-1;
     const initial=choice.suggested;
     value.value=initial?String(initial.id):"";
@@ -119,7 +123,7 @@ window.NHReceivingImports=(()=>{
       else search.removeAttribute("aria-activedescendant");
     }
     function open(){
-      if(!list.hidden)return;
+      if(noOrder.checked||!list.hidden)return;
       query=value.value?"":search.value;
       highlight=-1;list.hidden=false;search.setAttribute("aria-expanded","true");draw();
     }
@@ -129,18 +133,36 @@ window.NHReceivingImports=(()=>{
     }
     function choose(id){
       const item=choice.options.find(o=>String(o.id)===id&&!o.blocked);
-      if(id!=="pending"&&!item)return;
+      if(!item||noOrder.checked)return;
       value.value=id;
-      search.value=item?orderLabel(item):pendingLabel;
+      search.value=orderLabel(item);
       search.setCustomValidity("");
-      hint.textContent=item?"Pedido selecionado":"Vincular posteriormente";
+      hint.textContent="Pedido selecionado";
       close();
     }
+    noOrder.checked=false;
+    noOrder.addEventListener("change",()=>{
+      close();
+      if(noOrder.checked){
+        previous={value:value.value,text:search.value,hint:hint.textContent};
+        value.value="pending";
+        search.setCustomValidity("");
+        search.required=false;search.disabled=true;manual.disabled=true;
+        picker.hidden=true;manualField.hidden=true;
+      }else{
+        value.value=previous?.value||"";
+        search.value=previous?.text||"";
+        hint.textContent=previous?.hint||"";
+        picker.hidden=false;manualField.hidden=false;
+        search.disabled=false;search.required=true;manual.disabled=false;
+        search.setCustomValidity(value.value?"":"Selecione um pedido da lista ou marque Sem pedido.");
+      }
+    });
     search.addEventListener("focus",()=>{open();if(value.value)search.select();});
     search.addEventListener("click",open);
     search.addEventListener("input",()=>{
       value.value="";query=search.value;highlight=-1;
-      search.setCustomValidity("Selecione um pedido da lista ou Sem pedido.");
+      search.setCustomValidity("Selecione um pedido da lista ou marque Sem pedido.");
       hint.textContent="";list.hidden=false;search.setAttribute("aria-expanded","true");draw();
     });
     search.addEventListener("blur",close);
@@ -155,7 +177,8 @@ window.NHReceivingImports=(()=>{
       if(e.key==="ArrowDown"||e.key==="ArrowUp"){
         e.preventDefault();open();
         const visible=filterOrders(choice,query);
-        const allowed=visible.map((o,i)=>o.blocked?-1:i).filter(i=>i>=0).concat(visible.length);
+        const allowed=visible.map((o,i)=>o.blocked?-1:i).filter(i=>i>=0);
+        if(!allowed.length)return;
         let n=allowed.indexOf(highlight);
         n=n<0?(e.key==="ArrowDown"?0:allowed.length-1):(n+(e.key==="ArrowDown"?1:-1)+allowed.length)%allowed.length;
         highlight=allowed[n];draw();
@@ -163,7 +186,7 @@ window.NHReceivingImports=(()=>{
       }else if(e.key==="Enter"&&!list.hidden){
         e.preventDefault();
         const visible=filterOrders(choice,query);
-        if(highlight>=0)choose(highlight===visible.length?"pending":String(visible[highlight]?.id));
+        if(highlight>=0&&visible[highlight])choose(String(visible[highlight].id));
       }
     });
     close();
@@ -215,14 +238,15 @@ window.NHReceivingImports=(()=>{
           '<strong>'+esc(line.name||line.product||"Produto "+(index+1))+'</strong>'+
           '<small>'+esc(line.quantity)+" "+esc(line.unit)+" · "+esc(line.code||"")+'</small>'+
           '<div class="rx-form-grid">'+
-          '<div class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Vincular ao pedido</label>'+
+          '<label class="rx-xml-no-order wide"><input type="checkbox" id="rx-xml-no-order-'+index+'"><span>Sem pedido</span></label>'+
+          '<div id="rx-xml-picker-'+index+'" class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Vincular ao pedido</label>'+
           '<div class="rx-xml-combo"><input id="rx-xml-search-'+index+'" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rx-xml-list-'+index+'" placeholder="Pesquisar fornecedor, produto ou número do pedido" autocomplete="off" required value="'+esc(choice.suggested?orderLabel(choice.suggested):"")+'">'+
-          '<input type="hidden" id="rx-xml-choice-'+index+'" name="selection_'+index+'" value="'+esc(suggested)+'">'+
-          '<div id="rx-xml-list-'+index+'" class="rx-xml-list" role="listbox" hidden></div></div>'+
+                    '<div id="rx-xml-list-'+index+'" class="rx-xml-list" role="listbox" hidden></div></div>'+
           '<small class="rx-xml-suggestion" id="rx-xml-suggestion-'+index+'">'+
           (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":"Sugestão por produto e saldo disponível"):"")+'</small></div>'+
-          '<label class="rx-field wide"><span>Quantidade equivalente no pedido (somente se a unidade não converter automaticamente)</span>'+
-          '<input inputmode="decimal" name="manual_'+index+'" placeholder="Deixe vazio para conversão automática"></label>'+
+          '<input type="hidden" id="rx-xml-choice-'+index+'" name="selection_'+index+'" value="'+esc(suggested)+'">'+
+          '<label id="rx-xml-manual-field-'+index+'" class="rx-field wide"><span>Quantidade equivalente no pedido (somente se a unidade não converter automaticamente)</span>'+
+          '<input id="rx-xml-manual-'+index+'" inputmode="decimal" name="manual_'+index+'" placeholder="Deixe vazio para conversão automática"></label>'+
           '</div></article>';
       });
       const summary='<div class="rx-preview">'+
@@ -238,15 +262,17 @@ window.NHReceivingImports=(()=>{
             if(value==="pending")return "pending";
             return safeInt(value);
           });
-          if(selections.some(x=>x===null))throw new Error("Selecione o pedido de todos os itens.");
+          if(selections.some(x=>x===null))throw new Error("Selecione um pedido ou marque Sem pedido em todos os itens.");
           const manual_quantities=report.lines.map((_,i)=>{
+            if(selections[i]==="pending")return null;
             const raw=String(form.get("manual_"+i)||"").trim();
             return raw?dec(raw):null;
           });
           if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
           const result=await api(confirmPath,"POST",{xml,selections,manual_quantities});
           closeDialog();await refresh();
-          toast("XML processado: "+(result.registered||result.imported||"itens")+" conferidos.");
+          const pending=Number(result.pending||0),inserted=Number(result.inserted||result.registered||result.imported||0);
+          toast(pending?"XML registrado: "+pending+" item(ns) sem pedido"+(inserted?" e "+inserted+" recebimento(s) vinculado(s)":"")+".":"XML registrado com sucesso.");
         },"Confirmar XML");
       choices.forEach((choice,index)=>bindXMLPicker(view,choice,index,esc));
     }catch(e){toast(e.message||"Falha ao conferir o XML.",true);}
