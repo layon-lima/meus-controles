@@ -29,19 +29,7 @@
     const path="/"+match[1];
     if(method==="POST"&&readOnly.some(re=>re.test(path)))return null;
     const removing=method==="DELETE"||/\/(?:delete|bulk-delete|undo|cancel-suggestion)(?:\/|$)/.test(path);
-    let title=removing?"Confirmar exclusão":method==="PUT"||method==="PATCH"||/\/(?:edit|rename|move|pix)$/.test(path)?"Confirmar alteração":"Confirmar operação";
-    let message=removing?"Deseja excluir este registro? A operação pode alterar os saldos e não poderá ser desfeita automaticamente.":"Deseja gravar esta operação? Os dados serão atualizados no sistema.";
-    if(/\/(?:pay|pay-with-receipt)$/.test(path)){title="Confirmar pagamento";message="Deseja registrar este pagamento? O saldo e a situação dos lançamentos serão atualizados.";}
-    else if(/\/(?:confirm-send|suggest)$/.test(path)){title="Confirmar envio";message="Deseja enviar a operação selecionada para pagamento?";}
-    else if(/\/gfarm\/send$/.test(path)){title="Enviar para o GFARM";message="Deseja enviar os itens da nota fiscal para aprovação no GFARM?";}
-    else if(/\/(?:xml|pdf|import|financial-import|mixed-import)\/confirm$|\/import\/commit$/.test(path)){title="Confirmar importação";message="Deseja registrar os dados conferidos? Os lançamentos e seus saldos serão atualizados.";}
-    else if(/\/xml\/pending\/\d+\/assign$/.test(path)){title="Confirmar vínculo";message="Deseja registrar este produto no pedido selecionado?";}
-    else if(/\/xml\/issuer$/.test(path)){title="Confirmar atualização de emitente";message="Deseja atualizar o emitente dos recebimentos identificados?";}
-    else if(/\/complete$|\/truck\/closures$/.test(path)){title="Confirmar encerramento";message="Deseja concluir os registros selecionados? Novos lançamentos ou alterações poderão ficar bloqueados.";}
-    else if(/\/funcionarios\/pix$|\/holerites\/funcionarios$/.test(path)){title="Confirmar cadastro de funcionário";message="Deseja salvar as informações do cadastro, inclusive a chave Pix informada?";}
-    else if(/\/vincular(?:-conta)?$/.test(path)){title="Confirmar vínculo";message="Deseja salvar o vínculo entre os registros selecionados?";}
-    else if(/\/(?:boards|controls|entries|items|receipts|employees|debts|payments|accounts|invoice)$/.test(path)&&method==="POST"){title="Confirmar lançamento";message="Deseja adicionar os dados informados ao sistema?";}
-    return {title,message,removing,path,method};
+    return {removing,path,method};
   }
   // Um aviso visível, acima dos formulários e fora de qualquer container rolável.
   // Mensagens específicas do módulo substituem o aviso genérico da mesma operação.
@@ -54,14 +42,15 @@
         root.setAttribute("aria-label","Notificações");document.body.append(root);
       }
       const now=Date.now();
+      const info=!error&&!fallback&&/^(?:conferindo|carregando|importando|processando|lendo|buscando|gerando|enviando|aguarde|selecione|informe|solte|revise)\b/i.test(String(message));
       let item;
-      if(!fallback&&last?.fallback&&last.error===error&&now-last.time<3500&&last.item.isConnected){
+      if(!info&&!fallback&&last?.fallback&&last.error===error&&now-last.time<3500&&last.item.isConnected){
         item=last.item;clearTimeout(last.timer);
         item.querySelector(".nh-operation-text").textContent=String(message);
       }else{
-        item=document.createElement("div");item.className="nh-operation-notice"+(error?" is-error":"");
+        item=document.createElement("div");item.className="nh-operation-notice"+(error?" is-error":info?" is-info":"");
         item.setAttribute("role",error?"alert":"status");
-        const mark=document.createElement("span");mark.className="nh-operation-mark";mark.textContent=error?"!":"✓";mark.setAttribute("aria-hidden","true");
+        const mark=document.createElement("span");mark.className="nh-operation-mark";mark.textContent=error?"!":info?"i":"✓";mark.setAttribute("aria-hidden","true");
         const text=document.createElement("span");text.className="nh-operation-text";text.textContent=String(message);
         const close=document.createElement("button");close.type="button";close.textContent="×";close.setAttribute("aria-label","Fechar notificação");
         close.addEventListener("click",()=>item.remove());
@@ -125,7 +114,8 @@
   window.NHConfirm={ask,operation};
   window.NHFeedback={notify};
   window.fetch=async function(input,init){
-    const op=operation(input,init);
+    let op=null;
+    try{op=operation(input,init);}catch{}
     let response;
     try{response=await originalFetch(input,init);}
     catch(error){
@@ -142,7 +132,7 @@
         try{data=await response.clone().json();valid=data!==null&&typeof data==="object";}catch{}
       }
       const reason=data?.error||data?.erro;
-      const failed=!response.ok||data?.ok===false||!!reason;
+      const failed=!response.ok||data?.ok===false||data?.success===false||!!reason;
       if(failed){
         if(response.status===403&&/sess[aã]o inv[aá]lida|reabra pelo iniciador/i.test(String(reason||"")))return response;
         notify(typeof reason==="string"?reason:"Operação não concluída. Confira os dados.",true,{fallback:true});
