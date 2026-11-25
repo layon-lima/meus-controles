@@ -41,6 +41,9 @@ class Element{
   replaceChildren(){this.innerHTML=""}
   querySelector(selector){return get(selector)}
   focus(){}
+  select(){}
+  setCustomValidity(message){this.validationMessage=message}
+  scrollIntoView(){}
   click(){}
   removeAttribute(){}
   setAttribute(){}
@@ -240,9 +243,24 @@ const test=async()=>{
   assert.equal(calls.length,2,"Soltar XML só abre a prévia e consulta o saldo/histórico");
   assert.equal(calls[1].method,"GET");
   assert.ok(calls[0].path.endsWith("/xml/preview"));
-  assert.ok(dialogBody.includes("KCL")&&dialogBody.includes('value="11" selected'));
+  assert.ok(dialogBody.includes("KCL")&&dialogBody.includes('name="selection_0" value="11"'));
   assert.equal(busy,false);
-  await onSubmit({get:key=>key==="selection_0"?"11":""});
+  assert.ok(dialogBody.includes('role="combobox"'));
+  assert.ok(!dialogBody.includes('<select'),"Sem seletor separado");
+  const xmlSearch=get("#rx-xml-search-0"),xmlChoice=get("#rx-xml-choice-0"),xmlList=get("#rx-xml-list-0");
+  assert.equal(xmlChoice.value,"11");
+  assert.ok(xmlSearch.value.includes("Agrex"));
+  xmlSearch.value="Mosaic";xmlSearch.listeners.input();
+  assert.equal(xmlChoice.value,"","Texto digitado não é seleção confirmada");
+  assert.ok(xmlList.innerHTML.includes('data-xml-order="12"'));
+  assert.ok(!xmlList.innerHTML.includes('data-xml-order="11"'));
+  xmlSearch.value="KCL";xmlSearch.listeners.input();
+  assert.ok(xmlList.innerHTML.includes('data-xml-order="11"'));
+  xmlList.listeners.click({target:{closest:()=>({dataset:{xmlOrder:"11"},disabled:false})}});
+  assert.equal(xmlChoice.value,"11");
+  assert.ok(xmlSearch.value.includes("KCL"));
+  assert.equal(xmlList.hidden,true);
+  await onSubmit({get:key=>key==="selection_0"?xmlChoice.value:""});
   assert.equal(calls.length,3);
   assert.ok(calls[2].path.endsWith("/xml/confirm"));
   assert.equal(calls[2].payload.selections[0],11);
@@ -271,8 +289,8 @@ const test=async()=>{
   const ambiguous=[...candidates,{...candidates[1],id:23}];
   assert.equal(match(invoice,ambiguous,[])[0].suggested,null,"Empate não escolhe pedido arbitrariamente");
   assert.equal(match({supplier:"OUTRO EMITENTE",lines:[{name:"KCL",quantity:1,unit:"t"}]},[candidates[0]],[])[0].suggested.id,21,"Fornecedor divergente não bloqueia título claro");
-  assert.ok(picker(choices[0],"ped-22","",x=>String(x)).includes('value="22"'));
-  assert.ok(!picker(choices[0],"ped-22","",x=>String(x)).includes('value="21"'));
+  assert.ok(picker(choices[0],"ped-22","",x=>String(x)).includes('data-xml-order="22"'));
+  assert.ok(!picker(choices[0],"ped-22","",x=>String(x)).includes('data-xml-order="21"'));
   assert.ok(dialogBody.includes('id="rx-xml-search-0"'));
   const pdfCalls=[];
   const pdfFile={name:"pedido.pdf",size:30,arrayBuffer:async()=>Uint8Array.from(Buffer.from("%PDF-1.4 teste")).buffer};
