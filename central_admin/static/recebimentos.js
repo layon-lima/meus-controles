@@ -76,7 +76,9 @@
       '<header class="rx-dialog-head"><div><h2 id="rx-dialog-title">'+esc(title)+'</h2>'+
       (subtitle?'<p>'+esc(subtitle)+'</p>':"")+'</div>'+
       '<button class="rx-close" type="button" data-close aria-label="Fechar">×</button></header>'+
-      '<form id="rx-dialog-form" class="rx-form" autocomplete="off"><div class="rx-dialog-body">'+body+'</div>'+
+      '<form id="rx-dialog-form" class="rx-form" autocomplete="off">'+
+      (variant==="summary"?'<div class="rx-summary-toolbar"><input id="rx-summary-search" type="search" aria-label="Pesquisar no resumo" placeholder="Pesquisar fornecedor, pedido ou produto…" autocomplete="off"><button id="rx-summary-export" class="rx-button" type="button">↓ Exportar Excel</button></div>':"")+
+      '<div class="rx-dialog-body">'+body+'</div>'+
       '<footer class="rx-dialog-foot"><button class="rx-button" type="button" data-close>'+(onSubmit?"Cancelar":"Fechar")+'</button>'+
       (onSubmit?'<button class="rx-button rx-button-primary" type="submit" id="rx-submit">'+esc(saveText)+'</button>':"")+
       '</footer></form></section></div>';
@@ -544,24 +546,73 @@
   function quickSummary(){
     const received=items().filter(item=>Number(item.received_qty)>0);
     if(!received.length)return toast("Ainda não há produtos com recebimento registrado.",true);
-    // Nunca somar quantidades de unidades diferentes em um total falso.
-    const groups=new Map();
-    for(const item of received){
-      const key=normal(item.supplier)+"|"+item.order_number;
-      if(!groups.has(key))groups.set(key,{supplier:item.supplier,order:item.order_number,items:[]});
-      groups.get(key).items.push(item);
+    // O mesmo recorte alimenta as tabelas e o XLSX; nada é somado entre unidades.
+    function grouped(query){
+      const terms=normal(query).split(/\s+/).filter(Boolean);
+      const groups=new Map();
+      for(const item of received){
+        const searchable=normal([item.supplier,item.order_number,item.product].join(" "));
+        if(!terms.every(term=>searchable.includes(term)))continue;
+        const key=JSON.stringify([normal(item.supplier),item.order_number]);
+        if(!groups.has(key))groups.set(key,{supplier:item.supplier,order:item.order_number,items:[]});
+        groups.get(key).items.push(item);
+      }
+      return groups;
     }
-    const blocks=[...groups.values()].map(g=>
-      '<section class="rx-summary-card"><h3>'+esc(g.supplier)+' <span>· Pedido '+esc(g.order)+'</span></h3>'+
-      '<table class="rx-summary-table"><colgroup><col class="rx-summary-product"><col><col><col></colgroup><thead><tr>'+
-      '<th scope="col">Produto</th><th scope="col">Pedido</th><th scope="col">Recebido</th><th scope="col">Falta receber</th></tr></thead><tbody>'+
-      g.items.map(p=>'<tr><td>'+esc(p.product)+'</td>'+
-        '<td class="rx-summary-number" data-label="Pedido">'+qty(p.ordered_qty)+' '+esc(p.unit)+'</td>'+
-        '<td class="rx-summary-number" data-label="Recebido">'+qty(p.received_qty)+' '+esc(p.unit)+'</td>'+
-        '<td class="rx-summary-number" data-label="Falta receber">'+qty(p.remaining_qty)+' '+esc(p.unit)+'</td></tr>').join("")+
-      '</tbody></table></section>').join("");
-    dialog("Resumo rápido dos recebimentos","",
-      '<div class="rx-summary-list">'+blocks+'</div>',null,"Salvar","summary");
+    function summaryHTML(groups){
+      const blocks=[...groups.values()].map(g=>
+        '<section class="rx-summary-card"><h3>'+esc(g.supplier)+' <span>· Pedido '+esc(g.order)+'</span></h3>'+
+        '<table class="rx-summary-table"><colgroup><col class="rx-summary-product"><col><col><col></colgroup><thead><tr>'+
+        '<th scope="col">Produto</th><th scope="col">Pedido</th><th scope="col">Recebido</th><th scope="col">Falta receber</th></tr></thead><tbody>'+
+        g.items.map(p=>'<tr><td>'+esc(p.product)+'</td>'+
+          '<td class="rx-summary-number" data-label="Pedido">'+qty(p.ordered_qty)+' '+esc(p.unit)+'</td>'+
+          '<td class="rx-summary-number" data-label="Recebido">'+qty(p.received_qty)+' '+esc(p.unit)+'</td>'+
+          '<td class="rx-summary-number" data-label="Falta receber">'+qty(p.remaining_qty)+' '+esc(p.unit)+'</td></tr>').join("")+
+        '</tbody></table></section>').join("");
+      return blocks||'<div class="rx-summary-empty">Nenhum produto encontrado.</div>';
+    }
+    const view=dialog("Resumo rápido dos recebimentos","",
+      '<div id="rx-summary-results" class="rx-summary-list">'+summaryHTML(grouped(""))+'</div>',null,"Salvar","summary");
+    const search=view.mask.querySelector("#rx-summary-search"),
+      exportButton=view.mask.querySelector("#rx-summary-export"),
+      results=view.mask.querySelector("#rx-summary-results");
+    let exporting=false;
+    function update(){
+      const groups=grouped(search.value);
+      results.innerHTML=summaryHTML(groups);
+      exportButton.disabled=exporting||groups.size===0;
+      view.body.scrollTop=0;
+    }
+    search.addEventListener("input",update);
+    exportButton.addEventListener("click",async()=>{
+      if(exporting)return;
+      const groups=grouped(search.value);
+      const rows=[...groups.values()].flatMap(group=>group.items.map(p=>[
+        String(p.supplier??""),String(p.order_number??""),String(p.product??""),String(p.unit??""),
+        Number(p.ordered_qty||0),Number(p.received_qty||0),Number(p.remaining_qty||0)
+      ]));
+      if(!rows.length)return;
+      exporting=true;exportButton.disabled=true;exportButton.textContent="Gerando…";
+      try{
+        const response=await fetch("/central/api/recebimentos/resumo.xlsx",{
+          method:"POST",credentials:"same-origin",cache:"no-store",
+          headers:{"Content-Type":"application/json","Accept":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+          body:JSON.stringify({rows})
+        });
+        if(!response.ok)throw new Error("Não foi possível exportar o resumo.");
+        const url=URL.createObjectURL(await response.blob());
+        const link=document.createElement("a");
+        link.href=url;link.download="resumo_recebimentos.xlsx";
+        document.body.append(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),30000);
+        toast("Resumo exportado.");
+      }catch(error){toast(error.message,true);}
+      finally{
+        exporting=false;exportButton.textContent="↓ Exportar Excel";
+        exportButton.disabled=grouped(search.value).size===0;
+      }
+    });
+    search.focus({preventScroll:true});
   }
   function renameControl(){
     const current=currentControl();
