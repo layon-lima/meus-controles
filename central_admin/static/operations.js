@@ -65,7 +65,7 @@
     app.newControl();
   }
   const controlTypes={saldo:"Saldo devedor",financeiro:"Financeiro",calculo:"Calculado",
-    divida:"Dívidas",divida_sem_valor:"Pagamentos acumulados",acerto_ab:"Acerto A × B",vale_funcionarios:"Vales de funcionários"};
+    caminhao:"Transportadora",divida:"Dívidas",divida_sem_valor:"Pagamentos acumulados",acerto_ab:"Acerto A × B",vale_funcionarios:"Vales de funcionários"};
   const controlEsc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const controlMoney=value=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(value||0));
   function controlListRow(c,folder){
@@ -95,7 +95,7 @@
     const state = app.s.state;
     if (!main || !state) return;
     const heading = titles[active] || "Controles";
-    const compact=active==="controles";
+    const compact=active==="controles"||active==="transportadoras";
     const folders=new Map((state.boards||[]).map(b=>[String(b.id),b.name]));
     if (pageTitle) pageTitle.textContent = heading;
     if (crumb) crumb.textContent = "NOVO HORIZONTE / "+heading.toUpperCase();
@@ -139,9 +139,9 @@
       intro.className="nh-controls-brand";
       intro.replaceChildren();
       const logo=document.createElement("img");logo.src="/central/horizon-logo.svg?v=1";logo.alt="";
-      const copy=document.createElement("div");note.textContent="Gestão de controles e lançamentos";copy.append(h2,note);intro.append(logo,copy);
+      const copy=document.createElement("div");note.textContent=active==="transportadoras"?"Gestão de fretes e comissões":"Gestão de controles e lançamentos";copy.append(h2,note);intro.append(logo,copy);
       const metrics=document.createElement("div");metrics.className="nh-controls-metrics";
-      const counts=[["Controles",all.length,"clipboard"],["Registros",all.reduce((n,x)=>n+Number(x.control.summary?.count||0),0),"list"],["Pastas",new Set(all.map(x=>x.board)).size,"folder"]];
+      const counts=[[active==="transportadoras"?"Transportadoras":"Controles",all.length,"clipboard"],["Registros",all.reduce((n,x)=>n+Number(x.control.summary?.count||0),0),"list"],["Pastas",new Set(all.map(x=>x.board)).size,"folder"]];
       for(const [label,value,symbol] of counts){
         const metric=document.createElement("div");metric.className="nh-controls-metric";
         const glyph=document.createElement("span");glyph.className="nh-controls-metric-icon";
@@ -200,7 +200,7 @@
       counter.textContent = visible.length + (visible.length === 1 ? " controle" : " controles");
       if(compact){
         const empty=all.length?"Nenhum controle corresponde aos filtros.":"Ainda não existem controles nesta categoria.";
-        results.innerHTML='<table class="nh-controls-table" aria-label="Meus controles"><colgroup><col style="width:31%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:19%"><col style="width:5%"></colgroup><thead><tr>'+
+        results.innerHTML='<table class="nh-controls-table" aria-label="Controles da área"><colgroup><col style="width:31%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:19%"><col style="width:5%"></colgroup><thead><tr>'+
           ["Controle","Pasta","Tipo","Registros","Saldo","Ações"].map(label=>'<th scope="col">'+label+'</th>').join("")+'</tr></thead><tbody>'+
           (visible.length?visible.map(c=>controlListRow(c,folders.get(String(c.board_id)))).join(""):'<tr><td colspan="6" class="nh-controls-empty">'+empty+'</td></tr>')+'</tbody></table>';
         return;
@@ -304,7 +304,7 @@
           document.body.classList.toggle("nh-module-list",true);
           document.getElementById("pageTitle").textContent = "Relatórios";
           document.getElementById("crumb").textContent = "NOVO HORIZONTE / RELATÓRIOS";
-          main.innerHTML = '<section class="nh-module-head"><div><small class="nh-kicker">ARQUIVOS E CONSULTAS</small><h2>Relatórios</h2><p>Exportações e consultas executadas pelo motor original, sem recadastrar dados.</p></div></section><section class="nh-report-actions"><button class="btn btn-primary" type="button" id="nh-export-report">Gerar relatório Excel de controles</button></section>';
+          main.innerHTML = '<section class="nh-module-head nh-controls-compact-head nh-report-head"><div class="nh-controls-brand"><img src="/central/horizon-logo.svg?v=1" alt=""><div><h2>Relatórios</h2><p>Consultas e exportações</p></div></div></section><section class="nh-report-actions"><button class="btn btn-primary" type="button" id="nh-export-report">Gerar relatório Excel de controles</button></section>';
           document.getElementById("nh-export-report").addEventListener("click",
             () => this.reportExcelOpen());
         };
@@ -365,7 +365,7 @@
     view.id = "nh-documents-view";
     view.className = "nh-documents";
     const heading = document.createElement("header");
-    heading.className = "nh-module-head";
+    heading.className = "nh-module-head nh-controls-compact-head nh-document-head";
     const text = document.createElement("div");
     const kicker = document.createElement("small");
     kicker.className = "nh-kicker";
@@ -374,7 +374,9 @@
     title.textContent = "Documentos e comprovantes";
     const desc = document.createElement("p");
     desc.textContent = "Localize documentos, abra PDFs e comprovantes ou anexe e substitua arquivos usando o motor do CONTAS 4.";
-    text.append(kicker,title,desc);
+    const logo=document.createElement("img");logo.src="/central/horizon-logo.svg?v=1";logo.alt="";
+    text.className="nh-controls-brand";const copy=document.createElement("div");
+    title.textContent="Documentos";desc.textContent="PDFs e comprovantes";copy.append(title,desc);text.append(logo,copy);
     const importPDF = document.createElement("button");
     importPDF.type="button";importPDF.className="primary nh-add";
     importPDF.textContent="+ Importar PDF";
@@ -400,7 +402,7 @@
     bar.append(search,status,count);
 
     const list=document.createElement("div");
-    list.className="nh-documents-list";
+    list.className="nh-documents-list nh-documents-table-wrap";
     view.append(heading,bar,list);
     original.before(view);
 
@@ -438,18 +440,22 @@
           :"Nenhum documento cadastrado ainda.";
         list.append(empty);return;
       }
+      const table=document.createElement("table");table.className="nh-documents-table";table.setAttribute("aria-label","Documentos e comprovantes");
+      const thead=document.createElement("thead"),header=document.createElement("tr"),tbody=document.createElement("tbody");
+      for(const label of ["Fornecedor","Documento / vencimento","Arquivos","Ações"]){const th=document.createElement("th");th.textContent=label;th.setAttribute("scope","col");header.append(th);}
+      thead.append(header);table.append(thead,tbody);list.append(table);
       filtered.forEach(a=>{
-        const card=document.createElement("article");card.className="nh-document-card";
-        const info=document.createElement("div");info.className="nh-document-info";
+        const card=document.createElement("tr");card.className="nh-document-row";
+        const info=document.createElement("td");info.className="nh-document-info";
         const name=document.createElement("strong");name.textContent=a.fornecedor||"Fornecedor não informado";
-        const details=document.createElement("small");
+        const details=document.createElement("td");
         details.textContent=[a.documento||"Documento",a.vencimento||"",a.status||""]
           .filter(Boolean).join(" · ");
-        const badges=document.createElement("span");badges.className="nh-document-badges";
+        const badges=document.createElement("td");badges.className="nh-document-badges";
         badges.textContent=(a.has_pdf?"PDF disponível":"Sem PDF")+
           (a.has_receipt?" · Comprovante disponível":"");
-        info.append(name,details,badges);
-        const actions=document.createElement("div");actions.className="nh-document-actions";
+        info.append(name);
+        const actions=document.createElement("div");actions.className="nh-document-actions";const actionCell=document.createElement("td");actionCell.append(actions);
         const selectAccount=()=>{
           if(typeof select==="function")select(a.id);
         };
@@ -471,8 +477,8 @@
           if(typeof openMenu==="function")openMenu(a.id,{currentTarget:menu});
         });
         actions.append(menu);
-        card.append(info,actions);
-        list.append(card);
+        card.append(info,details,badges,actionCell);
+        tbody.append(card);
       });
     }
     // Atualizações de filtros, tabela e carregamento de dados são agrupadas
