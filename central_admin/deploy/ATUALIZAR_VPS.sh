@@ -234,7 +234,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261125list1' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261125unified1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -280,12 +280,12 @@ echo "OK: navegação direta com guarda de pintura e carregamento por destino."
 # Identidade original Horizonte: uma única logo, uma única paleta, todos
 # os módulos recebem a mesma folha de estilo DEPOIS do CSS original.
 for page in index recebimentos funcionarios; do
-  grep -Fq '/central/horizon-theme.css?v=20261124neutral1' "$APP/static/$page.html" \
+  grep -Fq '/central/horizon-theme.css?v=20261125unified1' "$APP/static/$page.html" \
     || fail "Pagina $page sem tema unificado do Horizonte."
   grep -Fq '/central/horizon-logo.svg?v=1' "$APP/static/$page.html" \
     || fail "Pagina $page sem logotipo original do Horizonte."
 done
-grep -Fq 'horizon-theme.css?v=20261124neutral1' "$APP/operations_gateway.py" \
+grep -Fq 'horizon-theme.css?v=20261125unified1' "$APP/operations_gateway.py" \
   || fail "Os modulos antigos nao receberam o tema compartilhado."
 grep -Fq 'horizon-logo.svg' "$APP/server.py" \
   || fail "Logo compartilhada nao foi registrada no servidor."
@@ -361,7 +361,7 @@ grep -Fq 'body.central-operational #main{max-width:none!important;' "$APP/static
   || fail "Modulos operacionais continuam com largura limitada."
 grep -Fq '.nh-documents{width:100%;max-width:none;' "$APP/static/operations.css" \
   || fail "Modulo Documentos ainda possui limite de largura fixo."
-grep -Fq 'operations.css?v=20261125list1' "$APP/operations_gateway.py" \
+grep -Fq 'operations.css?v=20261125unified1' "$APP/operations_gateway.py" \
   || fail "Modulo legado nao recebe CSS atualizado de largura fluida."
 echo "OK: paginas da Central preparadas para ocupar a largura do monitor."
 # Verifica se o motor de origem continua a responder no mesmo banco.
@@ -408,7 +408,7 @@ for entry in '' 'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' 
   HTTP="$(curl -sS --max-time 25 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
     -o "$TMP/theme-page" -w '%{http_code}' "$PUBLIC/$entry")"
   [[ "$HTTP" == 200 ]] || fail "Pagina publica $entry indisponivel (HTTP $HTTP)."
-  grep -Fq '/central/horizon-theme.css?v=20261124neutral1' "$TMP/theme-page" \
+  grep -Fq '/central/horizon-theme.css?v=20261125unified1' "$TMP/theme-page" \
     || fail "Pagina publica $entry nao carrega o tema Horizonte."
   grep -Fq '/central/confirm-actions.js?v=20261125draft2' "$TMP/theme-page" || fail "Notificacoes de resultado ausentes em $entry."
   grep -Fq '/central/form-drafts.js?v=20261125draft2' "$TMP/theme-page" || fail "Protecao de formularios ausente em $entry."
@@ -424,7 +424,7 @@ done
 echo "OK: marcas antigas ausentes das paginas publicas; cabecalhos conferidos."
 for asset in horizon-theme.css horizon-logo.svg confirm-actions.js confirm-actions.css form-drafts.js form-drafts.css; do
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-    "$PUBLIC/$asset?v=20261124neutral1" -o "$TMP/public-asset" \
+    "$PUBLIC/$asset?v=20261125unified1" -o "$TMP/public-asset" \
     || fail "Recurso HTTPS $asset indisponivel."
   cmp -s "$APP/static/$asset" "$TMP/public-asset" \
     || fail "Recurso HTTPS $asset nao corresponde ao novo arquivo."
