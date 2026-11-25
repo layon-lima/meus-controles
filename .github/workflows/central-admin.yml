@@ -57,6 +57,8 @@ jobs:
           python -m unittest discover -s tests -p "test_central_brand.py" -v
       - name: Conferir JavaScript
         run: |
+          node --check central_admin/static/confirm-actions.js
+          node tests/test_central_confirm_actions.js
           node --check central_admin/static/app.js
           node --check central_admin/static/operations.js
           node --check central_admin/static/launcher.js
