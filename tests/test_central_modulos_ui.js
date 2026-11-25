@@ -77,9 +77,9 @@ for(const [module,allowed,forbidden,newMode] of [
 ]){
   const {elements,app,body}=boot(module,testControls);
   const main=elements.get("main");
-  const compact=module==="controles";
+  const compact=module==="controles"||module==="transportadoras";
   const results=compact?main.children.find(x=>x.className==="nh-controls-workspace").children[2]:main.children.find(x=>x.className==="control-grid nh-filtered-results");
-  if(compact){assert.ok(results.innerHTML.includes("nh-controls-table"));assert.ok(results.innerHTML.includes("Restante da dívida"));assert.ok(results.innerHTML.includes("Saldo compensado"));assert.ok(results.innerHTML.includes("Excluir controle"));assert.ok(main.children[0].children[0].children[0].src.includes("horizon-logo.svg"));assert.equal(main.children[0].children[1].children.length,3);}
+  if(compact){assert.ok(results.innerHTML.includes("nh-controls-table"));if(module==="controles"){assert.ok(results.innerHTML.includes("Restante da dívida"));assert.ok(results.innerHTML.includes("Saldo compensado"));}else assert.ok(results.innerHTML.includes("Transportadora"));assert.ok(results.innerHTML.includes("Excluir controle"));assert.ok(main.children[0].children[0].children[0].src.includes("horizon-logo.svg"));assert.equal(main.children[0].children[1].children.length,3);}
   assert.ok(results,"Lista do módulo deve estar presente: "+module);
   for(const name of allowed)assert.ok(results.innerHTML.includes(name),module+" deveria mostrar "+name);
   for(const name of forbidden)assert.ok(!results.innerHTML.includes(name),module+" não deve mostrar "+name);
@@ -119,5 +119,12 @@ assert.equal(before[0].id,"nh-documents-view");
 assert.equal(before[0].children.length,3,"Cabeçalho, filtro e lista de documentos");
 const records=before[0].children[2];
 assert.equal(records.children.length,1,"Documento existente deve aparecer na lista");
+const documentTable=records.children[0];
+assert.equal(documentTable.className,"nh-documents-table");
+assert.equal(documentTable.children[1].children.length,1);
+const documentRow=documentTable.children[1].children[0];
+assert.equal(documentRow.children[0].children[0].textContent,"Agrex");
+assert.equal(documentRow.children[3].children[0].children.length,3,"Preservar PDF, comprovante e ações");
+assert.equal(documentRow.children[3].children[0].children[0].disabled,false);
 console.log("OK: Documentos mostra apenas arquivos e mantém ações nativas");
 console.log("OK: módulos testados sem afetar o App legado");
