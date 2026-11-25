@@ -68,16 +68,16 @@
       button=>button.disabled=!!value
     );
   }
-  function dialog(title,subtitle,body,onSubmit,saveText="Salvar") {
+  function dialog(title,subtitle,body,onSubmit,saveText="Salvar",variant="") {
     closeDialog();
     const host=$("#rx-dialog-layer");
-    host.innerHTML='<div class="rx-dialog-mask" id="rx-mask"><section class="rx-dialog" role="dialog" '+
+    host.innerHTML='<div class="rx-dialog-mask" id="rx-mask"><section class="rx-dialog'+(variant==="summary"?" rx-dialog-summary":"")+'" role="dialog" '+
       'aria-modal="true" aria-labelledby="rx-dialog-title">'+
       '<header class="rx-dialog-head"><div><h2 id="rx-dialog-title">'+esc(title)+'</h2>'+
       (subtitle?'<p>'+esc(subtitle)+'</p>':"")+'</div>'+
       '<button class="rx-close" type="button" data-close aria-label="Fechar">×</button></header>'+
       '<form id="rx-dialog-form" class="rx-form" autocomplete="off"><div class="rx-dialog-body">'+body+'</div>'+
-      '<footer class="rx-dialog-foot"><button class="rx-button" type="button" data-close>Cancelar</button>'+
+      '<footer class="rx-dialog-foot"><button class="rx-button" type="button" data-close>'+(onSubmit?"Cancelar":"Fechar")+'</button>'+
       (onSubmit?'<button class="rx-button rx-button-primary" type="submit" id="rx-submit">'+esc(saveText)+'</button>':"")+
       '</footer></form></section></div>';
     const mask=$("#rx-mask"),form=$("#rx-dialog-form");
@@ -552,17 +552,16 @@
       groups.get(key).items.push(item);
     }
     const blocks=[...groups.values()].map(g=>
-      '<section class="rx-preview-item"><strong>'+esc(g.supplier)+' · Pedido '+esc(g.order)+'</strong>'+
-      '<div class="rx-group-table"><table class="rx-table"><thead><tr>'+
-      '<th>Produto</th><th>Pedido</th><th>Recebido</th><th>Falta receber</th></tr></thead><tbody>'+
+      '<section class="rx-summary-card"><h3>'+esc(g.supplier)+' <span>· Pedido '+esc(g.order)+'</span></h3>'+
+      '<table class="rx-summary-table"><colgroup><col class="rx-summary-product"><col><col><col></colgroup><thead><tr>'+
+      '<th scope="col">Produto</th><th scope="col">Pedido</th><th scope="col">Recebido</th><th scope="col">Falta receber</th></tr></thead><tbody>'+
       g.items.map(p=>'<tr><td>'+esc(p.product)+'</td>'+
-        '<td>'+qty(p.ordered_qty)+' '+esc(p.unit)+'</td>'+
-        '<td>'+qty(p.received_qty)+' '+esc(p.unit)+'</td>'+
-        '<td>'+qty(p.remaining_qty)+' '+esc(p.unit)+'</td></tr>').join("")+
-      '</tbody></table></div></section>').join("");
-    dialog("Resumo rápido dos recebimentos",
-      "Somente produtos com entrega registrada. Cada unidade é apresentada separadamente.",
-      '<div class="rx-preview">'+blocks+'</div>');
+        '<td class="rx-summary-number" data-label="Pedido">'+qty(p.ordered_qty)+' '+esc(p.unit)+'</td>'+
+        '<td class="rx-summary-number" data-label="Recebido">'+qty(p.received_qty)+' '+esc(p.unit)+'</td>'+
+        '<td class="rx-summary-number" data-label="Falta receber">'+qty(p.remaining_qty)+' '+esc(p.unit)+'</td></tr>').join("")+
+      '</tbody></table></section>').join("");
+    dialog("Resumo rápido dos recebimentos","",
+      '<div class="rx-summary-list">'+blocks+'</div>',null,"Salvar","summary");
   }
   function renameControl(){
     const current=currentControl();
