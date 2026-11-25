@@ -162,17 +162,19 @@
       if(!groups.has(key))groups.set(key,{name:row.supplier||"Fornecedor não informado",rows:[]});
       groups.get(key).rows.push(row);
     }
-    // Uma tabela, um cabeçalho e colunas alinhadas para todos os fornecedores.
-    // As linhas de fornecedor preservam o recolhimento e a expansão existentes.
-    const body=[...groups.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"pt-BR"))
+    // Cards individuais; colunas com as mesmas proporções em todos.
+    const columns='<colgroup><col class="rx-col-order"><col class="rx-col-product"><col class="rx-col-qty"><col class="rx-col-qty"><col class="rx-col-qty"><col class="rx-col-status"><col class="rx-col-actions"></colgroup>'+
+      '<thead><tr><th scope="col">Pedido</th><th scope="col">Produto</th><th scope="col" class="rx-number">Qtd. pedida</th>'+
+      '<th scope="col" class="rx-number">Recebido</th><th scope="col" class="rx-number">Falta</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>';
+    return [...groups.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"pt-BR"))
       .map(([key,group])=>{
         const expanded=!store.collapsed.has(key);
-        return '<tbody class="rx-order-group '+(expanded?"is-open":"")+'">'+
-          '<tr class="rx-supplier-row"><td colspan="7">'+
+        return '<article class="rx-group rx-supplier-card '+(expanded?"is-open":"")+'">'+
           '<button type="button" class="rx-group-head" data-group="'+esc(key)+'" aria-expanded="'+expanded+'">'+
-          '<span><strong>'+esc(group.name)+'</strong><small>'+group.rows.length+' produto(s)</small></span>'+
-          '<span class="rx-group-icon" aria-hidden="true">›</span></button></td></tr>'+
-          (expanded?group.rows.map(p=>'<tr class="rx-order-line">'+
+          '<span class="rx-supplier-label"><strong>'+esc(group.name)+'</strong><small>'+group.rows.length+' produto(s)</small></span>'+
+          '<span class="rx-group-icon" aria-hidden="true">›</span></button>'+
+          (expanded?'<div class="rx-group-table rx-orders-table"><table class="rx-table">'+columns+
+            '<tbody>'+group.rows.map(p=>'<tr class="rx-order-line">'+
             '<td><strong>'+esc(p.order_number)+'</strong></td>'+
             '<td><strong>'+esc(p.product)+'</strong><small>'+esc(p.unit)+'</small></td>'+
             '<td class="rx-number">'+qty(p.ordered_qty)+'</td>'+
@@ -184,12 +186,9 @@
             '<td><div class="rx-inline-actions">'+
             (!p.closed&&Number(p.remaining_qty)>0?'<button class="rx-button rx-button-small" data-action="receive" data-id="'+p.id+'">Receber</button>':"")+
             '<button class="rx-button rx-button-small" data-action="edit-item" data-id="'+p.id+'">Editar</button>'+
-            '</div></td></tr>').join(""):"")+'</tbody>';
+            '</div></td></tr>').join("")+'</tbody></table></div>':"")+
+          '</article>';
       }).join("");
-    return '<div class="rx-group-table rx-orders-table"><table class="rx-table">'+
-      '<colgroup><col class="rx-col-order"><col class="rx-col-product"><col class="rx-col-qty"><col class="rx-col-qty"><col class="rx-col-qty"><col class="rx-col-status"><col class="rx-col-actions"></colgroup>'+
-      '<thead><tr><th scope="col">Pedido</th><th scope="col">Produto</th><th scope="col" class="rx-number">Qtd. pedida</th>'+
-      '<th scope="col" class="rx-number">Recebido</th><th scope="col" class="rx-number">Falta</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>'+body+'</table></div>';
   }
   function renderNotes(){
     const data=receipts().filter(r=>normal([r.invoice_number,r.access_key,r.product,r.supplier,r.order_number].join(" ")).includes(normal(store.search)));
