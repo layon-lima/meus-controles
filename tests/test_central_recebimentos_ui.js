@@ -59,6 +59,7 @@ const document={
   addEventListener(name,fn){this.listeners[name]=fn}
 };
 const dropped=[];
+const droppedPDF=[];
 const requested=[];
 const posted=[];
 const exported=[];
@@ -107,7 +108,7 @@ async function fetchMock(path,options={}){
   return {ok:true,json:async()=>json};
 }
 const context={
-  document,window:{NHReceivingImports:{openPDF(){},openXML(){},importXML(app,file){dropped.push({id:app.cid(),file});}}},
+  document,window:{NHReceivingImports:{openPDF(){},openXML(){},importXML(app,file){dropped.push({id:app.cid(),file});},importPDF(app,files){droppedPDF.push({id:app.cid(),files});}}},
   fetch:fetchMock,
   URL:{createObjectURL:()=>"blob:test",revokeObjectURL(){}},
   setTimeout:()=>0,
@@ -163,6 +164,16 @@ const test=async()=>{
   assert.equal(dropped[0].file,file);
   document.listeners.drop({dataTransfer:{types:["Files"],files:[file,file]},preventDefault(){}});
   assert.equal(dropped.length,1,"Um XML por conferência");
+  const pdf={name:"pedido.PDF",size:100},pdf2={name:"pedido2.pdf",size:100};
+  document.listeners.drop({dataTransfer:{types:["Files"],files:[pdf,pdf2]},preventDefault(){}});
+  assert.equal(droppedPDF.length,1);
+  assert.equal(droppedPDF[0].id,7);
+  assert.equal(droppedPDF[0].files.length,2);
+  assert.equal(droppedPDF[0].files[0],pdf);
+  document.listeners.drop({dataTransfer:{types:["Files"],files:[pdf,file]},preventDefault(){}});
+  document.listeners.drop({dataTransfer:{types:["Files"],files:[{name:"teste.txt"}]},preventDefault(){}});
+  assert.equal(droppedPDF.length,1,"Lotes mistos e formatos inválidos não importam");
+  assert.equal(dropped.length,1);
   // Mesmo com vários produtos na NF-e, apenas uma solicitação agrupada
   // deve ser enviada, utilizando as regras do motor de estoque.
   const clicked={
@@ -233,6 +244,30 @@ const test=async()=>{
   assert.equal(calls.length,2);
   assert.ok(calls[1].path.endsWith("/xml/confirm"));
   assert.equal(calls[1].payload.selections[0],11);
+  const pdfCalls=[];
+  const pdfFile={name:"pedido.pdf",size:30,arrayBuffer:async()=>Uint8Array.from(Buffer.from("%PDF-1.4 teste")).buffer};
+  const pdfApp={...app,
+    api:async(path,method,payload)=>{
+      pdfCalls.push({path,method,payload});
+      return {filename:payload.filename,fingerprint:"hash-pedido",order_number:"1001",supplier:"Agrex",
+        items:[{product:"KCL",ordered_qty:"40",unit:"t"}]};
+    },
+    dialog:(title,subtitle,body,submit)=>{
+      dialogBody=body;onSubmit=submit;return {form:{addEventListener(){}}};
+    }
+  };
+  await impWin.NHReceivingImports.importPDF(pdfApp,[pdfFile,pdfFile]);
+  assert.equal(pdfCalls.length,2,"Dois arquivos conferidos sem gravar");
+  assert.ok(pdfCalls.every(c=>c.path.endsWith("/pdf/preview")));
+  assert.equal((dialogBody.match(/name="enabled_/g)||[]).length,1,"Mesmo fingerprint não duplica o pedido");
+  assert.ok(dialogBody.includes("KCL"));
+  assert.equal(busy,false);
+  await onSubmit({has:key=>key==="enabled_0_0",get:key=>({"order_0_0":"1001","supplier_0_0":"Agrex","product_0_0":"KCL","qty_0_0":"40","unit_0_0":"t"})[key]});
+  assert.equal(pdfCalls.length,3);
+  assert.ok(pdfCalls[2].path.endsWith("/pdf/confirm"));
+  assert.equal(pdfCalls[2].payload.files.length,1);
+  assert.equal(pdfCalls[2].payload.files[0].items[0].product,"KCL");
+  console.log("OK: arrastar PDF usa OCR/prévia e confirmação, sem duplicar arquivo");
   console.log("OK: arrastar XML usa a prévia real, com sugestão e confirmação explícita");
   console.log("OK: Recebimentos aparece diretamente, sem renderizar outros modelos antes");
   console.log("OK: envio ao GFARM agrupa os dois itens da mesma nota fiscal");
