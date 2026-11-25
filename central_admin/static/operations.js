@@ -288,7 +288,7 @@
     divida:{heading:".debt-heading",metrics:".debt-summary",actions:".debt-heading-actions",extra:".debt-progress-wrap"},
     divida_sem_valor:{heading:".open-debt-heading",metrics:".open-debt-total",actions:".open-debt-header-actions"},
     vale_funcionarios:{root:".vf-page",heading:".vf-heading",actions:".vf-heading-actions"},
-    caminhao:{navigation:".truck-nav",actions:".truck-nav-actions",metrics:".truck-fast-summary"},
+    caminhao:{navigation:".truck-nav",actions:".truck-nav-actions",metrics:".truck-fast-summary,.truck-workflow-metrics"},
     saldo:{heading:".intro",metrics:".stat-grid",actions:".actions-end"},
     financeiro:{heading:".intro",metrics:".stat-grid",actions:".actions-end"},
     calculo:{heading:".intro",metrics:".stat-grid",actions:".actions-end"}
@@ -314,6 +314,9 @@
     if(heading){
       heading.classList.add("nh-detail-heading");
       header.append(heading);
+    }else if(navigation){
+      const title=document.createElement("div");title.className="nh-detail-heading";
+      const name=document.createElement("h2");name.textContent="Operações do controle";title.append(name);header.append(title);
     }
     if(metrics){
       metrics.classList.add("nh-detail-metrics");
