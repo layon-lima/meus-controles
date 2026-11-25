@@ -41,6 +41,7 @@ class Element{
   replaceChildren(){this.innerHTML=""}
   querySelector(selector){return get(selector)}
   focus(){}
+  click(){}
   removeAttribute(){}
   setAttribute(){}
 }
@@ -51,6 +52,7 @@ const get=selector=>{
 };
 const document={
   listeners:{},
+  body:new Element(),
   querySelector:get,
   createElement:()=>new Element(),
   querySelectorAll(){return []},
@@ -59,6 +61,7 @@ const document={
 const dropped=[];
 const requested=[];
 const posted=[];
+const exported=[];
 const backend={
   boards:[{id:1,name:"FINANCEIRO"},{id:2,name:"RECEBIMENTOS"}],
   controls:[
@@ -88,6 +91,10 @@ const orders={
 };
 async function fetchMock(path,options={}){
   requested.push(path);
+  if(path==='/central/api/recebimentos/resumo.xlsx'){
+    exported.push(JSON.parse(options.body));
+    return {ok:true,blob:async()=>({})};
+  }
   if(path.endsWith("/receiving/gfarm/send")){
     posted.push(JSON.parse(options.body));
     return {ok:true,json:async()=>({ok:true})};
@@ -102,6 +109,7 @@ async function fetchMock(path,options={}){
 const context={
   document,window:{NHReceivingImports:{openPDF(){},openXML(){},importXML(app,file){dropped.push({id:app.cid(),file});}}},
   fetch:fetchMock,
+  URL:{createObjectURL:()=>"blob:test",revokeObjectURL(){}},
   setTimeout:()=>0,
   requestAnimationFrame:callback=>callback(),
   Date,Number,String,Array,Map,Set,Intl,Promise,console,confirm:()=>true,
@@ -182,7 +190,22 @@ const test=async()=>{
   const style=fs.readFileSync("central_admin/static/recebimentos.css","utf8");
   assert.match(style,/\.rx-summary-table\{\s*width:100%;min-width:0;max-width:100%;table-layout:fixed/);
   assert.match(style,/\.rx-dialog>\.rx-form\{[^}]*min-height:0/);
-  console.log("OK: resumo rápido com tabelas próprias e quantidades preservadas");
+  assert.ok(summary.includes('id="rx-summary-search"')&&summary.includes('id="rx-summary-export"'));
+  const summarySearch=get("#rx-summary-search"), summaryExport=get("#rx-summary-export"), summaryResults=get("#rx-summary-results");
+  summarySearch.value="mosaic";summarySearch.listeners.input();
+  assert.ok(summaryResults.innerHTML.includes("Nenhum produto encontrado"));
+  assert.equal(summaryExport.disabled,true);
+  await summaryExport.listeners.click();
+  assert.equal(exported.length,0);
+  summarySearch.value="ÁGREX KCL";summarySearch.listeners.input();
+  assert.ok(summaryResults.innerHTML.includes("KCL"));
+  assert.equal(summaryExport.disabled,false);
+  await summaryExport.listeners.click();
+  assert.equal(exported.length,1);
+  assert.deepEqual(exported[0].rows,[["Agrex","1001","KCL","t",40,10,30]]);
+  summarySearch.value="1001";summarySearch.listeners.input();
+  assert.ok(summaryResults.innerHTML.includes("KCL"));
+  console.log("OK: pesquisa do resumo e Excel usam exatamente o mesmo recorte");
   // Testar o importador real: largar o arquivo abre a prévia, não o POST de confirmação.
   const impWin={};
   const calls=[];
