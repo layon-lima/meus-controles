@@ -210,6 +210,20 @@ class NativeRouteTest(unittest.TestCase):
         self.assertNotIn("/central/modules/funcionarios/app.js",html)
         self.assertNotIn("<iframe",html)
 
+    def test_pix_has_dedicated_view_before_first_paint(self):
+        handler=object.__new__(Handler)
+        handler.path="/modules/funcionarios/?view=pix"
+        handler.headers={"Accept-Encoding":"identity"}
+        handler.authorized=lambda:True
+        result=[]
+        handler.respond=lambda *args,**kwargs:result.append((args,kwargs))
+        Handler.do_GET(handler)
+        self.assertEqual(result[0][0][0],200)
+        html=result[0][0][1].decode()
+        self.assertIn('class="central-operational nh-scope-funcionarios nhf-view-pix"',html)
+        self.assertIn('id="managePix" aria-current="page"',html)
+        self.assertIn('id="pixList"',html)
+
     def test_module_needs_authenticated_session(self):
         handler=object.__new__(Handler)
         handler.path="/modules/funcionarios/"
