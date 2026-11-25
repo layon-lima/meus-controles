@@ -8,7 +8,7 @@ body.nh-native-screen{margin:0!important;min-height:100dvh!important;color:var(-
 button,input,select,textarea{font:inherit}button{cursor:pointer}
 button:disabled{opacity:.48;cursor:not-allowed}
 [hidden]{display:none!important}a{color:#296cab}
-.rx-app{width:100%;max-width:none;min-width:0;margin:0;padding:44px clamp(14px,1.55vw,30px) 92px}
+.rx-app{width:100%;max-width:none;min-width:0;margin:0;padding:10px 16px 64px}
 .rx-page-header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin:0 0 30px}
 .rx-eyebrow{display:block;font-size:10px;font-weight:850;letter-spacing:1.75px;color:#7594b5}
 .rx-title h1{font-size:clamp(25px,3vw,34px);line-height:1.2;letter-spacing:-1.2px;font-weight:790;margin:8px 0}
@@ -110,3 +110,85 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .rx-xml-drop{position:fixed;inset:12px;z-index:44000;display:grid;place-items:center;pointer-events:none;border:2px dashed #65717e;border-radius:8px;background:rgba(245,246,248,.92);color:#303740}
 .rx-xml-drop[hidden]{display:none!important}
 .rx-xml-drop>div{padding:20px 28px;background:#fff;border:1px solid #dce0e5;border-radius:8px;font-size:18px;font-weight:700;box-shadow:0 2px 8px #20242b12}
+
+/* Recebimentos — composição operacional do Controle de Contas.
+   Mesma densidade, cabeçalho e superfície de trabalho; sem alterar fluxos. */
+body.nh-scope-recebimentos .rx-app{padding:10px 16px 64px}
+body.nh-scope-recebimentos .rx-compact-header{
+  display:grid;grid-template-columns:minmax(190px,auto) minmax(0,1fr) auto;
+  align-items:center;gap:12px;padding:10px 12px;margin:0 0 12px;
+  min-height:80px;background:#fff;border:1px solid #dce0e5;border-radius:8px;
+  box-shadow:0 1px 3px #20242b0f
+}
+body.nh-scope-recebimentos .rx-title{display:flex;align-items:center;gap:10px;padding:0;min-height:0;min-width:0}
+body.nh-scope-recebimentos .rx-title>div{min-width:0}
+body.nh-scope-recebimentos .rx-brand-logo{position:static;flex:0 0 42px;width:42px;height:42px}
+body.nh-scope-recebimentos .rx-title h1{font-size:18px;line-height:1.25;letter-spacing:-.35px;font-weight:750;margin:0;white-space:nowrap}
+body.nh-scope-recebimentos .rx-title p{font-size:10px;line-height:1.4;margin:3px 0 0;white-space:nowrap}
+body.nh-scope-recebimentos .rx-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:0;min-width:0}
+body.nh-scope-recebimentos .rx-metric{position:relative;min-height:56px;min-width:0;padding:7px 8px 7px 36px}
+body.nh-scope-recebimentos .rx-metric svg{position:absolute;left:9px;top:12px;width:20px;height:20px;color:#526476}
+body.nh-scope-recebimentos .rx-metric-pending svg{color:#bd7c15}
+body.nh-scope-recebimentos .rx-metric-partial svg{color:#ad7716}
+body.nh-scope-recebimentos .rx-metric-complete svg{color:#198354}
+body.nh-scope-recebimentos .rx-metric-deliveries svg{color:#3672af}
+body.nh-scope-recebimentos .rx-metric span{display:block;white-space:nowrap;font-size:9px;line-height:1.3;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+body.nh-scope-recebimentos .rx-metric strong{font-size:19px;line-height:1.25;letter-spacing:0;margin:2px 0 0;font-weight:800}
+body.nh-scope-recebimentos .rx-header-actions{align-items:center;gap:7px;flex-wrap:nowrap}
+body.nh-scope-recebimentos .rx-control-picker{display:block;min-width:0}
+body.nh-scope-recebimentos .rx-control-picker select{width:clamp(145px,13vw,230px);min-width:0;max-width:230px;font-size:11px;padding:6px 8px;min-height:35px}
+body.nh-scope-recebimentos .rx-button{min-height:35px;padding:6px 10px;font-size:11px}
+body.nh-scope-recebimentos .rx-workspace{background:#fff;border:1px solid #dce0e5;border-radius:8px;box-shadow:0 1px 3px #20242b0f;min-width:0}
+body.nh-scope-recebimentos .rx-section-head{min-height:49px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 15px;border-bottom:1px solid #dce0e5}
+body.nh-scope-recebimentos .rx-section-head h2{font-size:16px;font-weight:750;letter-spacing:-.2px;margin:0;white-space:nowrap}
+body.nh-scope-recebimentos .rx-tabs{display:flex;align-items:center;gap:4px;padding:0;border:0;max-width:100%;min-width:0}
+body.nh-scope-recebimentos .rx-tab{padding:7px 11px;min-height:32px;border-radius:6px;font-size:11px;white-space:nowrap}
+body.nh-scope-recebimentos .rx-toolbar{display:flex;flex-direction:row;align-items:center;margin:0;padding:9px 12px;border-bottom:1px solid #dce0e5;gap:8px}
+body.nh-scope-recebimentos .rx-actions{display:flex;flex-wrap:wrap;gap:7px;width:100%}
+body.nh-scope-recebimentos .rx-filterbar{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid #dce0e5}
+body.nh-scope-recebimentos .rx-filters{position:relative;flex:1;min-width:0;width:auto}
+body.nh-scope-recebimentos .rx-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#8190a1;pointer-events:none}
+body.nh-scope-recebimentos #rx-search{padding:7px 12px 7px 36px;min-height:38px;width:100%;font-size:12px}
+body.nh-scope-recebimentos .rx-export{color:#18774c!important}
+body.nh-scope-recebimentos .rx-results{margin:0;padding:0 9px 9px;gap:0;min-height:0}
+body.nh-scope-recebimentos .rx-results .rx-group-table{border:1px solid #dce0e5!important;border-radius:7px;overflow:auto}
+body.nh-scope-recebimentos .rx-results>.rx-group{border:0;box-shadow:none!important;border-radius:0!important}
+body.nh-scope-recebimentos .rx-table{min-width:820px;font-size:12px;border-collapse:separate;border-spacing:0}
+body.nh-scope-recebimentos .rx-table th{height:40px;padding:0 12px;font-size:11px;letter-spacing:0;white-space:nowrap}
+body.nh-scope-recebimentos .rx-table td{padding:5px 12px;height:43px;font-size:12px;color:#344d6e;vertical-align:middle}
+body.nh-scope-recebimentos .rx-table :is(th,td){border-bottom:1px solid #dce0e5}
+body.nh-scope-recebimentos .rx-table :is(th+th,td+td){border-left:1px solid #e5e8ed}
+body.nh-scope-recebimentos .rx-table tbody:not(:last-child) tr:last-child td{border-bottom:1px solid #dce0e5}
+body.nh-scope-recebimentos .rx-table td strong{font-size:12px}
+body.nh-scope-recebimentos .rx-table td small{font-size:10px;line-height:1.2;margin-top:1px;color:#75869a}
+body.nh-scope-recebimentos .rx-table .rx-number{font-variant-numeric:tabular-nums}
+body.nh-scope-recebimentos .rx-orders-table .rx-table{table-layout:fixed}
+body.nh-scope-recebimentos .rx-col-order{width:22%}
+body.nh-scope-recebimentos .rx-col-product{width:26%}
+body.nh-scope-recebimentos .rx-col-qty{width:10%}
+body.nh-scope-recebimentos .rx-col-status{width:11%}
+body.nh-scope-recebimentos .rx-col-actions{width:11%;min-width:128px}
+body.nh-scope-recebimentos .rx-table .rx-supplier-row>td{height:35px;padding:0;background:#eef1f4;border-bottom:1px solid #dce0e5}
+body.nh-scope-recebimentos .rx-group-head{padding:7px 12px;gap:8px;line-height:1.4}
+body.nh-scope-recebimentos .rx-group-head strong{font-size:12px}
+body.nh-scope-recebimentos .rx-group-head small{font-size:10px;margin-left:8px}
+body.nh-scope-recebimentos .rx-order-group.is-open .rx-group-icon{transform:rotate(90deg)}
+body.nh-scope-recebimentos .rx-inline-actions{gap:5px;flex-wrap:wrap}
+body.nh-scope-recebimentos .rx-button-small{font-size:10px;min-height:27px;padding:3px 7px}
+body.nh-scope-recebimentos .rx-pill{padding:4px 8px;font-size:10px}
+@media(max-width:1300px){
+  body.nh-scope-recebimentos .rx-compact-header{grid-template-columns:minmax(180px,auto) minmax(0,1fr)}
+  body.nh-scope-recebimentos .rx-header-actions{grid-column:1/-1;justify-content:flex-end}
+}
+@media(max-width:760px){
+  body.nh-scope-recebimentos .rx-app{padding:8px 8px 75px}
+  body.nh-scope-recebimentos .rx-compact-header{grid-template-columns:minmax(0,1fr);gap:9px}
+  body.nh-scope-recebimentos .rx-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  body.nh-scope-recebimentos .rx-header-actions{grid-column:auto;flex-wrap:wrap;justify-content:flex-start}
+  body.nh-scope-recebimentos .rx-control-picker{flex:1;min-width:120px}
+  body.nh-scope-recebimentos .rx-control-picker select{width:100%;max-width:none}
+  body.nh-scope-recebimentos .rx-section-head{align-items:flex-start;flex-direction:column;gap:6px}
+  body.nh-scope-recebimentos .rx-tabs{width:100%;overflow-x:auto}
+  body.nh-scope-recebimentos .rx-filterbar{gap:6px;flex-wrap:wrap}
+  body.nh-scope-recebimentos .rx-filters{flex:1 1 180px}
+}
