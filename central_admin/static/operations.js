@@ -64,6 +64,30 @@
     }
     app.newControl();
   }
+  const controlTypes={saldo:"Saldo devedor",financeiro:"Financeiro",calculo:"Calculado",
+    divida:"Dívidas",divida_sem_valor:"Pagamentos acumulados",acerto_ab:"Acerto A × B",vale_funcionarios:"Vales de funcionários"};
+  const controlEsc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const controlMoney=value=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(value||0));
+  function controlListRow(c,folder){
+    const id=Number(c.id),e=controlEsc,summary=c.summary||{};
+    if(!Number.isSafeInteger(id)||id<=0)return "";
+    const pair=c.mode==="acerto_ab",vales=c.mode==="vale_funcionarios";
+    const balance=pair?(summary.settlement?.debtor?e(summary.settlement.debtor)+" deve "+controlMoney(summary.settlement.amount):controlMoney(0)):controlMoney(summary.balance);
+    const label=pair?"Saldo compensado":vales?"Total a descontar":c.mode==="divida"?"Restante da dívida":c.mode==="divida_sem_valor"?"Total acumulado":"Saldo do controle";
+    const count=vales?e(summary.count||0)+" vale(s)":e(summary.count||0)+" lançamento(s)";
+    const detail=vales?e(summary.employees||0)+" funcionário(s)":c.mode==="divida"||c.mode==="divida_sem_valor"?"Pagamentos com descrição":e(c.fields?.length||0)+" campo(s)";
+    const symbol=(String(c.name||"").trim().split(/\s+/).slice(0,2).map(x=>x[0]).join("")||"C").toUpperCase();
+    const menu=[["rename","Renomear"],["configure","Configurar / editar"],["type","Alterar tipo de controle"],["move","Mover para pasta"],["duplicate","Duplicar controle"],["delete","Excluir controle"]].map(([action,name])=>
+      '<button type="button"'+(action==="delete"?' class="danger"':'')+' onclick="App.controlMenuAction(event,\''+action+'\','+id+')">'+name+'</button>').join("");
+    return '<tr data-control-id="'+id+'" onclick="App.navigate(\'control\','+id+')">'+
+      '<td><button type="button" class="nh-control-open" onclick="event.stopPropagation();App.navigate(\'control\','+id+')" aria-label="Abrir '+e(c.name)+'">'+
+      '<span class="nh-control-avatar">'+e(symbol)+'</span><strong>'+e(c.name)+'</strong></button></td>'+
+      '<td>'+e(folder||"—")+'</td><td>'+e(controlTypes[c.mode]||c.mode||"—")+'</td>'+
+      '<td>'+count+'<small>'+detail+'</small></td><td class="nh-control-balance"><strong>'+balance+'</strong><small>'+label+'</small></td>'+
+      '<td class="nh-control-actions"><button type="button" class="control-card-edit" data-nh-table-menu="'+id+'" aria-label="Ações de '+e(c.name)+'" title="Editar e configurar" aria-haspopup="true" aria-expanded="false" onclick="App.toggleControlMenu(event,'+id+')">'+
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12-4-4L4 15z"/></svg></button>'+
+      '<div class="card-action-menu" id="controlMenu-'+id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+menu+'</div></td></tr>';
+  }
   function buildModuleHome(app) {
     const main = document.getElementById("main");
     const pageTitle = document.getElementById("pageTitle");
@@ -71,6 +95,8 @@
     const state = app.s.state;
     if (!main || !state) return;
     const heading = titles[active] || "Controles";
+    const compact=active==="controles";
+    const folders=new Map((state.boards||[]).map(b=>[String(b.id),b.name]));
     if (pageTitle) pageTitle.textContent = heading;
     if (crumb) crumb.textContent = "NOVO HORIZONTE / "+heading.toUpperCase();
     const normalize = value => String(value || "").normalize("NFD")
@@ -81,7 +107,7 @@
       .filter(modeFilters[active] || (() => true))
       .map(control => ({
         control,
-        nameSearch: normalize(control.name),
+        nameSearch: normalize(compact?[control.name,folders.get(String(control.board_id)),controlTypes[control.mode]].join(" "):control.name),
         board: String(control.board_id)
       }));
     main.replaceChildren();
@@ -108,7 +134,24 @@
       transportadoras:"+ Nova transportadora"
     }[active] || "+ Novo controle";
     add.addEventListener("click",()=>newNativeControl(app));
-    head.append(intro,add);
+    if(compact){
+      head.className+=" nh-controls-compact-head";
+      intro.className="nh-controls-brand";
+      intro.replaceChildren();
+      const logo=document.createElement("img");logo.src="/central/horizon-logo.svg?v=1";logo.alt="";
+      const copy=document.createElement("div");note.textContent="Gestão de controles e lançamentos";copy.append(h2,note);intro.append(logo,copy);
+      const metrics=document.createElement("div");metrics.className="nh-controls-metrics";
+      const counts=[["Controles",all.length,"clipboard"],["Registros",all.reduce((n,x)=>n+Number(x.control.summary?.count||0),0),"list"],["Pastas",new Set(all.map(x=>x.board)).size,"folder"]];
+      for(const [label,value,symbol] of counts){
+        const metric=document.createElement("div");metric.className="nh-controls-metric";
+        const glyph=document.createElement("span");glyph.className="nh-controls-metric-icon";
+        const paths={clipboard:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 10h6M9 14h6"/>',list:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.1M4 12h.1M4 18h.1"/>',folder:'<path d="M3 7V5h7l2 3h9v12H3z"/>'};
+        glyph.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[symbol]+'</svg>';
+        const numbers=document.createElement("div"),caption=document.createElement("small"),strong=document.createElement("strong");
+        caption.textContent=label;strong.textContent=String(value);numbers.append(caption,strong);metric.append(glyph,numbers);metrics.append(metric);
+      }
+      head.append(intro,metrics,add);
+    }else head.append(intro,add);
     main.append(head);
 
     const toolbar = document.createElement("div");
@@ -117,7 +160,8 @@
     search.type = "search";
     search.value = typedSearch;
     search.className = "nh-module-search";
-    search.placeholder = "Pesquisar nesta área…";
+    search.placeholder = compact?"Pesquisar controle, pasta ou tipo…":"Pesquisar nesta área…";
+    if(compact)search.id="nh-controls-search";
     search.setAttribute("aria-label","Pesquisar somente "+heading);
     const board = document.createElement("select");
     board.className = "nh-board-select";
@@ -135,11 +179,18 @@
     const counter = document.createElement("span");
     counter.className = "nh-module-count";
     counter.textContent = all.length + (all.length===1 ? " controle" : " controles");
-    toolbar.append(search,board,counter);
-    main.append(toolbar);
+    let workspace=main;
+    if(compact){
+      workspace=document.createElement("section");workspace.className="nh-controls-workspace";
+      const section=document.createElement("div");section.className="nh-controls-section-head";
+      const title=document.createElement("h3");title.textContent="Visão geral";
+      section.append(title,counter);workspace.append(section);main.append(workspace);
+      toolbar.append(board,search);
+    }else toolbar.append(search,board,counter);
+    workspace.append(toolbar);
 
     const results = document.createElement("div");
-    results.className = "control-grid nh-filtered-results";
+    results.className = compact?"nh-controls-table-wrap nh-filtered-results":"control-grid nh-filtered-results";
     function renderResults() {
       const query = normalize(typedSearch).trim();
       const visible = all.filter(item =>
@@ -147,6 +198,13 @@
         && item.nameSearch.includes(query)
       ).map(item => item.control);
       counter.textContent = visible.length + (visible.length === 1 ? " controle" : " controles");
+      if(compact){
+        const empty=all.length?"Nenhum controle corresponde aos filtros.":"Ainda não existem controles nesta categoria.";
+        results.innerHTML='<table class="nh-controls-table" aria-label="Meus controles"><colgroup><col style="width:31%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:19%"><col style="width:5%"></colgroup><thead><tr>'+
+          ["Controle","Pasta","Tipo","Registros","Saldo","Ações"].map(label=>'<th scope="col">'+label+'</th>').join("")+'</tr></thead><tbody>'+
+          (visible.length?visible.map(c=>controlListRow(c,folders.get(String(c.board_id)))).join(""):'<tr><td colspan="6" class="nh-controls-empty">'+empty+'</td></tr>')+'</tbody></table>';
+        return;
+      }
       if (typeof controlCard !== "function") {
         results.textContent = "Componentes do motor de Controles indisponíveis.";
         return;
@@ -174,7 +232,20 @@
     }
     search.addEventListener("input",()=>{typedSearch=search.value;scheduleResults();});
     board.addEventListener("change",()=>{selectedBoard=board.value;scheduleResults();});
-    main.append(results);
+    if(compact){
+      // O menu original conserva as ações; posicionamento fixo evita cortes no scroll.
+      results.addEventListener("click",event=>{
+        const button=event.target.closest?.("[data-nh-table-menu]");
+        if(!button)return;
+        const menu=document.getElementById("controlMenu-"+button.dataset.nhTableMenu);
+        if(!menu)return;
+        const box=button.getBoundingClientRect();
+        menu.style.left=Math.max(8,box.right-216)+"px";
+        menu.style.right="auto";menu.style.top=Math.max(8,Math.min(box.bottom+4,window.innerHeight-290))+"px";
+      },true);
+      results.addEventListener("scroll",()=>app.closeControlMenus?.(),{passive:true});
+    }
+    workspace.append(results);
     renderResults();
   }
   function releaseEntryAfterRealRender(app) {
