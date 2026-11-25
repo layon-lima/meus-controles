@@ -411,28 +411,37 @@ for asset in horizon-theme.css horizon-logo.svg; do
     || fail "Recurso HTTPS $asset nao corresponde ao novo arquivo."
 done
 echo "OK: tema e logotipo confirmados no endereco HTTPS de uso do navegador."
-# Conferir a tela de Pix realmente entregue ao navegador, não só o arquivo no disco.
-curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
-  "$PUBLIC/modules/funcionarios/?v=20261125pix2" -o "$TMP/pix-page" \
-  || fail "Pagina publica de Funcionarios indisponivel."
-grep -Fq 'href="#pixPanel"' "$TMP/pix-page" \
-  || fail "Atalho Gerenciar Pix ausente na pagina publica."
-grep -Fq 'id="pixTitle">Gerenciar Pix dos funcionários' "$TMP/pix-page" \
-  || fail "Painel permanente de Pix ausente na pagina publica."
-if grep -Eq '<section id="pixPanel"[^>]*[[:space:]]hidden([[:space:]>]|=)' "$TMP/pix-page"; then
-  fail "Painel Pix ainda esta oculto."
-fi
-for asset in funcionarios.js funcionarios.css; do
-  grep -Fq "/central/$asset?v=20261125pix2" "$TMP/pix-page" \
-    || fail "Pagina publica ainda utiliza recurso antigo de Funcionarios: $asset."
-  curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-    "$PUBLIC/$asset?v=20261125pix2" -o "$TMP/pix-asset" \
-    || fail "Recurso Pix $asset indisponivel."
-  cmp -s "$APP/static/$asset" "$TMP/pix-asset" \
-    || fail "Recurso Pix $asset diverge da versao instalada."
+# Verificar as duas abas reais no HTTPS, sem modificar chaves Pix.
+for view in staff pix; do
+  QUERY='v=20261125pix3'
+  [[ "$view" != pix ]] || QUERY="$QUERY&view=pix"
+  curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
+    "$PUBLIC/modules/funcionarios/?$QUERY" -o "$TMP/pix-page" \
+    || fail "Pagina publica de Funcionarios ($view) indisponivel."
+  grep -Fq 'href="/central/modules/funcionarios/?view=pix"' "$TMP/pix-page" \
+    || fail "Aba Gerenciar Pix ausente."
+  grep -Fq 'id="pixTitle">Gerenciar Pix dos funcionários' "$TMP/pix-page" \
+    || fail "Painel Pix ausente."
+  if [[ "$view" == pix ]]; then
+    grep -Fq 'class="central-operational nh-scope-funcionarios nhf-view-pix"' "$TMP/pix-page" \
+      || fail "Servidor nao abriu a aba Pix diretamente."
+    grep -Fq 'id="managePix" aria-current="page"' "$TMP/pix-page" \
+      || fail "Aba Pix nao esta selecionada."
+  else
+    grep -Fq 'id="staffTab" aria-current="page"' "$TMP/pix-page" \
+      || fail "Aba de saldos nao esta selecionada."
+  fi
+  for asset in funcionarios.js funcionarios.css; do
+    grep -Fq "/central/$asset?v=20261125pix3" "$TMP/pix-page" \
+      || fail "Pagina usa recurso antigo: $asset."
+    curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
+      "$PUBLIC/$asset?v=20261125pix3" -o "$TMP/pix-asset" \
+      || fail "Recurso Pix $asset indisponivel."
+    cmp -s "$APP/static/$asset" "$TMP/pix-asset" \
+      || fail "Recurso Pix $asset diverge da versao instalada."
+  done
 done
-echo "OK: painel permanente Gerenciar Pix e recursos novos confirmados no endereco publico."
-
+echo "OK: abas Valores em aberto e Gerenciar Pix confirmadas no endereco publico."
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
 for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css vales_holerites.js vales_holerites.css holerites_vales.js holerites_vales.css; do
