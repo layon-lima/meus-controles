@@ -191,12 +191,15 @@
         try{await navigator.clipboard.writeText(person.chave_pix||"");pixFeedback("Chave Pix copiada.");}
         catch{pixFeedback("Não foi possível copiar. Use Mostrar e copie a chave.",true);}
       });
+      cancel.setAttribute("data-nh-draft-cancel","");save.setAttribute("data-nh-draft-save","");
       function reset(){
+        row.removeAttribute("data-nh-draft");
         input.value=person.chave_pix||"";input.type="password";input.readOnly=true;
         show.textContent="Mostrar";edit.hidden=false;save.hidden=cancel.hidden=true;
         copy.disabled=!input.value;
       }
       edit.addEventListener("click",()=>{
+        row.setAttribute("data-nh-draft","pix");
         input.readOnly=false;input.type="text";show.textContent="Ocultar";
         edit.hidden=true;save.hidden=cancel.hidden=false;copy.disabled=true;
         input.focus?.();
@@ -254,7 +257,7 @@
     applyFilters();
   }
   async function refresh(){
-    if(state.loading||pixSaving)return;
+    if(state.loading||pixSaving||document.querySelector?.("[data-nh-draft=\"pix\"]"))return;
     state.loading=true;$("refresh").disabled=true;
     $("refresh").textContent="Consultando…";
     try{
