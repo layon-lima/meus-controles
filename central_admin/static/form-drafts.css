@@ -12,3 +12,5 @@ body #backdrop #dialogTitle{padding-right:44px}
 #nh-draft-dock .nh-draft-discard{flex:0 0 32px;height:32px;font-size:22px;border:1px solid #dce0e5!important;border-radius:6px!important}
 #nh-draft-dock button:hover,body .nh-draft-minimize:hover{background:#eef0f2!important}
 #nh-draft-dock button:focus-visible,body .nh-draft-minimize:focus-visible{outline:2px solid #8593a4;outline-offset:2px}
+
+#rx-mask.nh-draft-minimized,#backdrop.nh-draft-minimized,#modalRoot .modal-backdrop.nh-draft-minimized,#pixPanel .nhf-pix-row.nh-draft-minimized{display:none!important}
