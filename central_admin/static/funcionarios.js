@@ -205,7 +205,6 @@
         if(pixSaving)return;
         const key=input.value.trim(),previous=person.chave_pix||"";
         if(key===previous){reset();return;}
-        if(!window.confirm((key?"Salvar nova chave Pix de ":"Remover a chave Pix de ")+person.nome+"?"))return;
         pixSaving=true;save.disabled=cancel.disabled=true;
         try{
           const response=await fetch("/central/api/funcionarios/pix",{
