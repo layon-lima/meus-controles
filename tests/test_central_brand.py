@@ -29,7 +29,7 @@ class HorizonThemeTests(unittest.TestCase):
         self.assertEqual(ASSETS["/horizon-theme.css"][1], "text/css; charset=utf-8")
 
     def test_uma_folha_de_estilo_em_todos_modulos(self):
-        path = "/central/horizon-theme.css?v=20261124neutral1"
+        path = "/central/horizon-theme.css?v=20261125unified1"
         for name in ("index", "recebimentos", "funcionarios"):
             html = (ROOT / (name + ".html")).read_text(encoding="utf-8")
             with self.subTest(name=name):
