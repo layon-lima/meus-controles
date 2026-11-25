@@ -141,7 +141,7 @@ def rewrite_text(text, prefix, kind):
             css += '<link rel="stylesheet" href="/central/vales_holerites.css?v=20261121b">'
             js += '<script defer src="/central/vales_holerites.js?v=20261121b"></script>'
             css += '<link rel="stylesheet" href="/central/holerites_vales.css?v=20261121a">'
-            js += '<script defer src="/central/holerites_vales.js?v=20261121a"></script>'
+            js += '<script defer src="/central/holerites_vales.js?v=20261125confirm1"></script>'
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
         css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124neutral1">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
