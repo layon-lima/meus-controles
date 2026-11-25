@@ -1,12 +1,10 @@
 /* Funcionários — módulo nativo da Central Novo Horizonte.
-   Liquid Glass discreto, sem barra lateral e sem rolagens internas. */
+   Tema administrativo neutro, sem barra lateral e sem rolagens internas. */
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
  color:#203f60;background:#eaf2fb;color-scheme:light;--ink:#264d74;
  --muted:#7891ac;--edge:#ffffffed;--shadow:0 14px 42px #406c9a15;}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100dvh;
- background:radial-gradient(ellipse 40% 30% at 10% 8%,#c8e0f9aa,transparent),
- radial-gradient(ellipse 45% 30% at 90% 77%,#cde9f7aa,transparent),
- linear-gradient(145deg,#f5f8fd,#e7f0fa 52%,#f5f9fd);
+ background:#f5f6f8;
  font-size:13px;line-height:1.45}button,input,select{font:inherit}button{cursor:pointer}
 a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #5e9ce0;outline-offset:2px}
 [hidden]{display:none!important}
@@ -14,10 +12,10 @@ a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:
 .nhf-header{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;
  gap:12px;padding:14px clamp(14px,1.55vw,30px);min-height:74px;
  background:#f7fbffd1;border-bottom:1px solid #ffffffb8;
- backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%)}
+ backdrop-filter:none;-webkit-backdrop-filter:none}
 .nhf-back{display:flex;gap:10px;align-items:center}.nhf-mark{width:41px;height:41px;border-radius:12px;
  display:grid;place-items:center;font-weight:850;letter-spacing:-1.5px;color:#fff;
- background:linear-gradient(145deg,#659bd0,#2467ab);box-shadow:0 5px 18px #4e84b66b}
+ background:#303740;box-shadow:0 5px 18px #4e84b66b}
 .nhf-back>span:last-child{display:grid;gap:1px}.nhf-back strong{font-size:13px;color:#204365}
 .nhf-back small{font-size:10px;color:#8199b0}
 .nhf-right{display:flex;gap:10px;align-items:center}
@@ -25,7 +23,7 @@ a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:
  padding:9px 13px;border-radius:30px;background:#fff8;border:1px solid #fff}
 .nhf-live>span{width:7px;height:7px;border-radius:50%;background:#46a981}
 .nhf-btn,.nhf-link-action,.nhf-confirm,.nhf-mini{border:1px solid #c2d9f0!important;
- border-radius:10px!important;background:linear-gradient(150deg,#fff,#e6f1ff)!important;
+ border-radius:10px!important;background:#fff!important;
  padding:9px 13px!important;min-height:36px!important;color:#346b9f!important;
  font-size:11px!important;font-weight:750!important;box-shadow:0 3px 10px #457cad12!important}
 .nhf-btn:hover,.nhf-link-action:hover,.nhf-mini:hover{background:#fff!important}
@@ -42,7 +40,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
  border-radius:11px;color:#305a80;background:#ffffffe6}
 .nhf-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px;margin-bottom:12px}
 .nhf-kpi{min-height:117px;display:flex;flex-direction:column;gap:5px;padding:17px 18px;
- border-radius:18px;border:1px solid var(--edge);background:linear-gradient(145deg,#ffffffed,#edf6ffce);
+ border-radius:18px;border:1px solid var(--edge);background:#fff;
  box-shadow:var(--shadow),inset 0 1px 0 #fff}
 .nhf-kpi>span{color:#7891ab;font-weight:720;font-size:11px}
 .nhf-kpi strong{display:block;color:#28537f;font-size:25px;line-height:1.2;font-weight:800;
@@ -66,7 +64,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
  background:#ffffffd4;border-radius:17px;border:1px solid #fff}
 .nhf-failed{color:#aa4851}
 .nhf-staff{min-width:0;border:1px solid #fff;border-radius:18px;
- background:linear-gradient(145deg,#fffefef3,#eaf4fff0);
+ background:#fff;
  box-shadow:var(--shadow),inset 0 1px 0 #fff;overflow:hidden}
 .nhf-staff-summary{width:100%;border:0;background:transparent;display:grid;
  grid-template-columns:minmax(200px,1.3fr) repeat(3,minmax(120px,.8fr)) 28px;
@@ -75,7 +73,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
 .nhf-staff-summary:hover{background:#edf6ff75}
 .nhf-person{display:flex;align-items:center;gap:12px;min-width:0}
 .nhf-avatar{width:45px;height:45px;display:grid;place-items:center;flex:none;
- border-radius:14px;background:linear-gradient(150deg,#dcecff,#eff8ff);
+ border-radius:14px;background:#fff;
  border:1px solid #fff;color:#477faf;font-weight:850;letter-spacing:-.3px}
 .nhf-person-text{min-width:0;display:grid;gap:4px}
 .nhf-person-text strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -88,7 +86,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
  transition:transform .18s}
 .nhf-staff.is-open .nhf-chevron{transform:rotate(180deg)}
 .nhf-staff-details{border-top:1px solid #cbdff058;padding:18px 20px 20px;
- background:linear-gradient(155deg,#ffffff63,#eaf5ff41)}
+ background:#fff}
 .nhf-staff-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;
  flex-wrap:wrap;margin-bottom:15px;color:#7894ad}
 .nhf-pill{font-size:10px;font-weight:750;border-radius:30px;border:1px solid #bcd6ee;
@@ -142,7 +140,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
 .nhf-toast{position:fixed;bottom:22px;right:23px;max-width:min(420px,calc(100vw - 46px));
  z-index:30000;border:1px solid #fff;padding:13px 17px;border-radius:13px;
  background:#f4f9ffef;color:#416e9a;box-shadow:0 12px 36px #244d7650;font-size:12px;
- backdrop-filter:blur(18px)}
+ backdrop-filter:none}
 .nhf-toast.error{color:#9d4450;background:#fff0f1eF}
 @media(max-width:1100px){
  .nhf-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
