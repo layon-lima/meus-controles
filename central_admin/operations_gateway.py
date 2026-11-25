@@ -75,6 +75,9 @@ def adapt_legacy_script(backend, upstream_path, source):
         source = re.sub(
             r'(?m)^[ \t]*if\s*\(!\s*(?:window\.)?confirm\s*\([\s\S]*?\)\s*\)\s*return\s*;',
             replace_confirmation, source)
+        # Os avisos específicos dos motores usam a mesma área de notificações.
+        source = source.replace("toast(message,error=false){", "toast(message,error=false){\n    if(window.NHFeedback){window.NHFeedback.notify(message,error);return;}", 1)
+        source = source.replace("function notice(message,error=false,duration=4200){", "function notice(message,error=false,duration=4200){\n  if(window.NHFeedback){window.NHFeedback.notify(message,error);return;}", 1)
         # As decisões que não são uma gravação continuam pedindo resposta.
         source = re.sub(r'(?<![\w.])(?:window\.)?confirm\s*\(', 'await window.NHConfirm.ask(', source)
     if backend != "controles":
@@ -141,13 +144,13 @@ def rewrite_text(text, prefix, kind):
             css += '<link rel="stylesheet" href="/central/vales_holerites.css?v=20261121b">'
             js += '<script defer src="/central/vales_holerites.js?v=20261121b"></script>'
             css += '<link rel="stylesheet" href="/central/holerites_vales.css?v=20261121a">'
-            js += '<script defer src="/central/holerites_vales.js?v=20261125confirm1"></script>'
+            js += '<script defer src="/central/holerites_vales.js?v=20261125feedback2"></script>'
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
         css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124neutral1">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
         # Antes dos scripts legados, inclusive os que capturam fetch na carga.
-        confirmation = ('<link rel="stylesheet" href="/central/confirm-actions.css?v=20261125confirm1">'
-                        '<script src="/central/confirm-actions.js?v=20261125confirm1"></script>')
+        confirmation = ('<link rel="stylesheet" href="/central/confirm-actions.css?v=20261125feedback2">'
+                        '<script src="/central/confirm-actions.js?v=20261125feedback2"></script>')
         text = re.sub(r"<head(?:\s[^>]*)?>", lambda m: m.group(0) + confirmation, text, count=1, flags=re.I)
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
