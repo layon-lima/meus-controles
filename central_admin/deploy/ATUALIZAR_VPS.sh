@@ -115,6 +115,7 @@ chmod 600 /root/CENTRAL_NH_PRIMEIRO_ACESSO.txt
 python3 -m compileall -q "$APP" || fail "Falha na verificacao de sintaxe Python."
 if command -v node >/dev/null 2>&1; then
   node --check "$APP/static/confirm-actions.js"
+  node --check "$APP/static/form-drafts.js"
   node --check "$APP/static/app.js"
   node --check "$APP/static/operations.js"
   node --check "$APP/static/launcher.js"
@@ -233,7 +234,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261123route1' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261125draft1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -307,7 +308,7 @@ grep -Fq 'rx-compact-header' "$APP/static/recebimentos.html" \
   || fail "Cabecalho compacto de Recebimentos ausente."
 grep -Fq 'rx-supplier-card' "$APP/static/recebimentos.js" \
   || fail "Cards individuais de fornecedores ausentes."
-grep -Fq '/central/recebimentos.css?v=20261125feedback2' "$APP/static/recebimentos.html" \
+grep -Fq '/central/recebimentos.css?v=20261125draft1' "$APP/static/recebimentos.html" \
   || fail "Versao compacta do CSS nao carregada."
 # Recebimentos: arrastar XML e selecionar arquivo usam a mesma previa.
 grep -Fq 'id="rx-xml-drop"' "$APP/static/recebimentos.html" \
@@ -409,7 +410,8 @@ for entry in '' 'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' 
   [[ "$HTTP" == 200 ]] || fail "Pagina publica $entry indisponivel (HTTP $HTTP)."
   grep -Fq '/central/horizon-theme.css?v=20261124neutral1' "$TMP/theme-page" \
     || fail "Pagina publica $entry nao carrega o tema Horizonte."
-  grep -Fq '/central/confirm-actions.js?v=20261125feedback2' "$TMP/theme-page" || fail "Notificacoes de resultado ausentes em $entry."
+  grep -Fq '/central/confirm-actions.js?v=20261125draft1' "$TMP/theme-page" || fail "Notificacoes de resultado ausentes em $entry."
+  grep -Fq '/central/form-drafts.js?v=20261125draft1' "$TMP/theme-page" || fail "Protecao de formularios ausente em $entry."
   if grep -Eq '/icons/brand\.svg|/static/icons\.svg#logo|class="mr-logo"[^>]*>MC<' "$TMP/theme-page"; then
     fail "Pagina $entry ainda possui marca antiga."
   fi
@@ -420,7 +422,7 @@ for entry in '' 'modules/contas/' 'modules/funcionarios/' 'modules/documentos/' 
   esac
 done
 echo "OK: marcas antigas ausentes das paginas publicas; cabecalhos conferidos."
-for asset in horizon-theme.css horizon-logo.svg confirm-actions.js confirm-actions.css; do
+for asset in horizon-theme.css horizon-logo.svg confirm-actions.js confirm-actions.css form-drafts.js form-drafts.css; do
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
     "$PUBLIC/$asset?v=20261124neutral1" -o "$TMP/public-asset" \
     || fail "Recurso HTTPS $asset indisponivel."
@@ -430,7 +432,7 @@ done
 echo "OK: tema e logotipo confirmados no endereco HTTPS de uso do navegador."
 # Verificar as duas abas reais no HTTPS, sem modificar chaves Pix.
 for view in staff pix; do
-  QUERY='v=20261125feedback2'
+  QUERY='v=20261125draft1'
   [[ "$view" != pix ]] || QUERY="$QUERY&view=pix"
   curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
     "$PUBLIC/modules/funcionarios/?$QUERY" -o "$TMP/pix-page" \
@@ -449,10 +451,10 @@ for view in staff pix; do
       || fail "Aba de saldos nao esta selecionada."
   fi
   for asset in funcionarios.js funcionarios.css; do
-    grep -Fq "/central/$asset?v=20261125feedback2" "$TMP/pix-page" \
+    grep -Fq "/central/$asset?v=20261125draft1" "$TMP/pix-page" \
       || fail "Pagina usa recurso antigo: $asset."
     curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-      "$PUBLIC/$asset?v=20261125feedback2" -o "$TMP/pix-asset" \
+      "$PUBLIC/$asset?v=20261125draft1" -o "$TMP/pix-asset" \
       || fail "Recurso Pix $asset indisponivel."
     cmp -s "$APP/static/$asset" "$TMP/pix-asset" \
       || fail "Recurso Pix $asset diverge da versao instalada."
@@ -460,14 +462,14 @@ for view in staff pix; do
 done
 echo "OK: abas Valores em aberto e Gerenciar Pix confirmadas no endereco publico."
 curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
-  "$PUBLIC/modules/recebimentos/?v=20261125feedback2" -o "$TMP/rx-page" \
+  "$PUBLIC/modules/recebimentos/?v=20261125draft1" -o "$TMP/rx-page" \
   || fail "Recebimentos indisponivel no HTTPS."
 grep -Fq 'rx-compact-header' "$TMP/rx-page" || fail "Cabecalho antigo de Recebimentos no HTTPS."
 for asset in recebimentos.js recebimentos.css recebimentos_imports.js; do
-  grep -Fq "/central/$asset?v=20261125feedback2" "$TMP/rx-page" \
+  grep -Fq "/central/$asset?v=20261125draft1" "$TMP/rx-page" \
     || fail "Recebimentos usa recurso antigo: $asset."
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-    "$PUBLIC/$asset?v=20261125feedback2" -o "$TMP/rx-asset" \
+    "$PUBLIC/$asset?v=20261125draft1" -o "$TMP/rx-asset" \
     || fail "Recurso de Recebimentos indisponivel: $asset."
   cmp -s "$APP/static/$asset" "$TMP/rx-asset" \
     || fail "Recurso de Recebimentos diverge do arquivo instalado."
