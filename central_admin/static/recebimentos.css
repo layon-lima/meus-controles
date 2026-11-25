@@ -208,3 +208,57 @@ body.nh-scope-recebimentos .rx-supplier-label small{margin:0;white-space:nowrap}
 body.nh-scope-recebimentos #rx-results>.rx-supplier-card>.rx-orders-table{
   border:0!important;border-top:1px solid #dce0e5!important;border-radius:0!important;
 }
+
+/* O formulário precisa encolher junto com a janela. Só o corpo rola;
+   cabeçalho e rodapé permanecem visíveis, inclusive nos outros diálogos. */
+body.nh-scope-recebimentos .rx-dialog{min-width:0;max-width:100%}
+body.nh-scope-recebimentos .rx-dialog-head,
+body.nh-scope-recebimentos .rx-dialog-foot{flex:0 0 auto}
+body.nh-scope-recebimentos .rx-dialog>.rx-form{
+  display:flex;flex-direction:column;flex:1 1 auto;min-height:0;min-width:0;overflow:hidden;margin:0;
+}
+body.nh-scope-recebimentos .rx-dialog-body{
+  flex:1 1 auto;min-height:0;min-width:0;max-width:100%;overflow:auto;overscroll-behavior:contain;
+}
+/* Resumo rápido: tabelas com quatro colunas próprias, sem o min-width
+   de 820px reservado à tabela operacional de sete colunas. */
+body.nh-scope-recebimentos .rx-dialog-summary{
+  width:min(980px,100%);max-height:calc(100dvh - 36px);
+}
+body.nh-scope-recebimentos .rx-dialog-summary .rx-dialog-head{padding:16px 20px;align-items:center}
+body.nh-scope-recebimentos .rx-dialog-summary .rx-dialog-body{padding:12px 16px;background:#f5f6f8}
+body.nh-scope-recebimentos .rx-dialog-summary .rx-dialog-foot{padding:10px 16px;background:#fff}
+body.nh-scope-recebimentos .rx-summary-list{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0;min-width:0;
+}
+body.nh-scope-recebimentos .rx-summary-card{
+  min-width:0;max-width:100%;border:1px solid #dce0e5;border-radius:7px;background:#fff;overflow:hidden;
+}
+body.nh-scope-recebimentos .rx-summary-card h3{
+  margin:0;padding:10px 12px;font-size:12px;line-height:1.4;font-weight:750;overflow-wrap:anywhere;
+}
+body.nh-scope-recebimentos .rx-summary-card h3 span{font-weight:500;color:#606873}
+body.nh-scope-recebimentos .rx-summary-table{
+  width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;text-align:left;
+}
+body.nh-scope-recebimentos .rx-summary-table col{width:19%}
+body.nh-scope-recebimentos .rx-summary-table .rx-summary-product{width:43%}
+body.nh-scope-recebimentos .rx-summary-table :is(th,td){
+  padding:8px 10px;border-top:1px solid #dce0e5;border-bottom:0;vertical-align:middle;
+  overflow-wrap:anywhere;white-space:normal;line-height:1.4;
+}
+body.nh-scope-recebimentos .rx-summary-table th{font-size:11px;font-weight:700}
+body.nh-scope-recebimentos .rx-summary-table th:not(:first-child),
+body.nh-scope-recebimentos .rx-summary-number{text-align:right;font-variant-numeric:tabular-nums}
+body.nh-scope-recebimentos .rx-summary-table :is(th+th,td+td){border-left:1px solid #e5e8ed}
+@media(max-width:520px){
+  body.nh-scope-recebimentos .rx-dialog-summary{max-height:calc(100dvh - 12px)}
+  body.nh-scope-recebimentos .rx-dialog-summary .rx-dialog-body{padding:8px}
+  body.nh-scope-recebimentos .rx-summary-table{display:block}
+  body.nh-scope-recebimentos .rx-summary-table :is(colgroup,thead){display:none}
+  body.nh-scope-recebimentos .rx-summary-table tbody{display:block}
+  body.nh-scope-recebimentos .rx-summary-table tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #dce0e5}
+  body.nh-scope-recebimentos .rx-summary-table td{display:block;min-width:0;border:0!important;padding:7px 8px;text-align:left}
+  body.nh-scope-recebimentos .rx-summary-table td:first-child{grid-column:1/-1;font-weight:650}
+  body.nh-scope-recebimentos .rx-summary-number::before{content:attr(data-label);display:block;font-size:10px;font-weight:650;color:#606873;margin-bottom:3px}
+}
