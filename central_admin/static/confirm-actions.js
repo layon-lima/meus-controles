@@ -1,5 +1,5 @@
 "use strict";
-/* Confirmação de escrita comum à Central. Nenhuma chamada é enviada antes de aprovar. */
+/* Feedback após a resposta do servidor. Não interceptar a ação com perguntas. */
 (()=>{
   if(window.NHConfirm)return;
   const originalFetch=window.fetch.bind(window);
@@ -43,6 +43,48 @@
     else if(/\/(?:boards|controls|entries|items|receipts|employees|debts|payments|accounts|invoice)$/.test(path)&&method==="POST"){title="Confirmar lançamento";message="Deseja adicionar os dados informados ao sistema?";}
     return {title,message,removing,path,method};
   }
+  // Um aviso visível, acima dos formulários e fora de qualquer container rolável.
+  // Mensagens específicas do módulo substituem o aviso genérico da mesma operação.
+  let last=null;
+  function notify(message,error=false,{fallback=false}={}){
+    try{
+      let root=document.getElementById("nh-operation-notices");
+      if(!root){
+        root=document.createElement("div");root.id="nh-operation-notices";
+        root.setAttribute("aria-label","Notificações");document.body.append(root);
+      }
+      const now=Date.now();
+      let item;
+      if(!fallback&&last?.fallback&&last.error===error&&now-last.time<3500&&last.item.isConnected){
+        item=last.item;clearTimeout(last.timer);
+        item.querySelector(".nh-operation-text").textContent=String(message);
+      }else{
+        item=document.createElement("div");item.className="nh-operation-notice"+(error?" is-error":"");
+        item.setAttribute("role",error?"alert":"status");
+        const mark=document.createElement("span");mark.className="nh-operation-mark";mark.textContent=error?"!":"✓";mark.setAttribute("aria-hidden","true");
+        const text=document.createElement("span");text.className="nh-operation-text";text.textContent=String(message);
+        const close=document.createElement("button");close.type="button";close.textContent="×";close.setAttribute("aria-label","Fechar notificação");
+        close.addEventListener("click",()=>item.remove());
+        item.append(mark,text,close);root.append(item);
+        while(root.children.length>4)root.firstElementChild.remove();
+      }
+      last={item,error,fallback,time:now,timer:setTimeout(()=>item.remove(),error?10000:5500)};
+    }catch(_){/* A apresentação nunca interfere no resultado da gravação. */}
+  }
+  function successMessage(op,status,data){
+    if(status===202)return "Solicitação recebida pelo servidor. Processamento pendente.";
+    const path=op.path;
+    if(/\/gfarm\/send$/.test(path))return "Solicitação enviada ao GFARM.";
+    if(/\/(?:pay|pay-with-receipt)$/.test(path))return "Pagamento registrado com sucesso.";
+    if(/\/(?:confirm-send|suggest)$/.test(path))return "Envio registrado com sucesso.";
+    if(/\/funcionarios\/pix$/.test(path))return "Chave Pix atualizada com sucesso.";
+    if(/\/(?:xml|pdf|import|financial-import|mixed-import)\/confirm$|\/import\/commit$/.test(path))return "Importação concluída com sucesso.";
+    if(/\/(?:vincular(?:-conta)?|assign)$/.test(path))return "Vínculo salvo com sucesso.";
+    if(/\/complete$|\/truck\/closures$/.test(path))return "Encerramento registrado com sucesso.";
+    if(op.removing)return "Exclusão concluída com sucesso.";
+    if(op.method==="PUT"||op.method==="PATCH"||/\/(?:edit|rename|move)$/.test(path))return "Alteração salva com sucesso.";
+    return "Operação concluída com sucesso.";
+  }
   let queue=Promise.resolve();
   function show(title,message,removing){
     return new Promise(resolve=>{
@@ -78,13 +120,38 @@
     queue=next.catch(()=>false);
     return next;
   }
+  // O diálogo permanece exclusivamente para decisões específicas existentes
+  // (descartar formulário, escolha de fornecedor, consentimento), não para cada POST.
   window.NHConfirm={ask,operation};
+  window.NHFeedback={notify};
   window.fetch=async function(input,init){
     const op=operation(input,init);
-    if(op&&!await ask(op.message,op.title,op.removing)){
-      const error=new Error("Operação cancelada. Nenhuma alteração desta solicitação foi enviada.");
-      error.name="NHOperationCancelled";throw error;
+    let response;
+    try{response=await originalFetch(input,init);}
+    catch(error){
+      if(op)notify("Não foi possível verificar o resultado da operação. Atualize a lista antes de tentar novamente.",true,{fallback:true});
+      throw error;
     }
-    return originalFetch(input,init);
+    if(!op)return response;
+    // Não consumir o corpo usado pelo módulo. Uma resposta 2xx com ok:false
+    // ou error também é falha. Não afirmar sucesso com HTML/login ou JSON inválido.
+    try{
+      let data=null,valid=response.status===204;
+      const type=response.headers.get("Content-Type")||"";
+      if(type.includes("json")){
+        try{data=await response.clone().json();valid=data!==null&&typeof data==="object";}catch{}
+      }
+      const reason=data?.error||data?.erro;
+      const failed=!response.ok||data?.ok===false||!!reason;
+      if(failed){
+        if(response.status===403&&/sess[aã]o inv[aá]lida|reabra pelo iniciador/i.test(String(reason||"")))return response;
+        notify(typeof reason==="string"?reason:"Operação não concluída. Confira os dados.",true,{fallback:true});
+      }else if(valid){
+        notify(successMessage(op,response.status,data),false,{fallback:true});
+      }else{
+        notify("O servidor respondeu, mas não foi possível confirmar o resultado. Atualize a lista.",true,{fallback:true});
+      }
+    }catch(_){/* Nunca modificar o retorno da API. */}
+    return response;
   };
 })();
