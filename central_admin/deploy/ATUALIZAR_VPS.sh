@@ -234,7 +234,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261125draft2' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261125list1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -361,7 +361,7 @@ grep -Fq 'body.central-operational #main{max-width:none!important;' "$APP/static
   || fail "Modulos operacionais continuam com largura limitada."
 grep -Fq '.nh-documents{width:100%;max-width:none;' "$APP/static/operations.css" \
   || fail "Modulo Documentos ainda possui limite de largura fixo."
-grep -Fq 'operations.css?v=20261123route1' "$APP/operations_gateway.py" \
+grep -Fq 'operations.css?v=20261125list1' "$APP/operations_gateway.py" \
   || fail "Modulo legado nao recebe CSS atualizado de largura fluida."
 echo "OK: paginas da Central preparadas para ocupar a largura do monitor."
 # Verifica se o motor de origem continua a responder no mesmo banco.
