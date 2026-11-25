@@ -264,6 +264,33 @@ const test=async()=>{
   assert.equal(calls.length,3);
   assert.ok(calls[2].path.endsWith("/xml/confirm"));
   assert.equal(calls[2].payload.selections[0],11);
+  // Sem pedido deve funcionar sem selecionar um pedido, preservando a seleção se desmarcado.
+  await impWin.NHReceivingImports.importXML(app,xmlFile);
+  const noOrder=get("#rx-xml-no-order-0"),pickerBox=get("#rx-xml-picker-0");
+  const manual=get("#rx-xml-manual-0"),manualField=get("#rx-xml-manual-field-0");
+  assert.ok(dialogBody.includes('type="checkbox" id="rx-xml-no-order-0"'));
+  assert.equal(noOrder.checked,false);
+  assert.equal(xmlChoice.value,"11");
+  manual.value="42";
+  noOrder.checked=true;noOrder.listeners.change();
+  assert.equal(xmlChoice.value,"pending");
+  assert.equal(xmlSearch.required,false);
+  assert.equal(xmlSearch.disabled,true);
+  assert.equal(pickerBox.hidden,true);
+  assert.equal(manual.disabled,true);
+  assert.equal(manualField.hidden,true);
+  noOrder.checked=false;noOrder.listeners.change();
+  assert.equal(xmlChoice.value,"11");
+  assert.equal(xmlSearch.required,true);
+  assert.equal(xmlSearch.disabled,false);
+  assert.equal(pickerBox.hidden,false);
+  assert.equal(manual.value,"42");
+  noOrder.checked=true;noOrder.listeners.change();
+  await onSubmit({get:key=>key==="selection_0"?xmlChoice.value:key==="manual_0"?"42":""});
+  assert.equal(calls.length,6);
+  assert.ok(calls[5].path.endsWith("/xml/confirm"));
+  assert.equal(calls[5].payload.selections[0],"pending");
+  assert.equal(calls[5].payload.manual_quantities[0],null);
   // Histórico de XML confirmado prevalece sobre fornecedor/título divergentes.
   const match=impWin.NHReceivingImports.buildXMLChoices;
   const picker=impWin.NHReceivingImports.pickerHTML;
