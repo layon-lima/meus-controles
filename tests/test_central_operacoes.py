@@ -115,6 +115,37 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(rewrite_location("/mobile/", "/central/modules/contas"),
                          "/central/modules/contas/mobile/")
 
+    def test_confirmation_loaded_before_legacy_scripts(self):
+        original = '<html><head><script src="/app.js"></script></head><body></body></html>'
+        for module in ("contas", "controles", "documentos", "recebimentos", "transportadoras", "relatorios", "funcionarios"):
+            html = rewrite_text(original, "/central/modules/"+module, "html")
+            self.assertLess(html.index("/central/confirm-actions.js"), html.index("/central/modules/"+module+"/app.js"))
+            self.assertIn("/central/confirm-actions.css", html)
+
+    def test_legacy_confirmations_use_common_dialog(self):
+        import subprocess
+        from pathlib import Path
+        for path in Path("static").glob("*.js"):
+            source = path.read_text(encoding="utf-8")
+            adapted = adapt_legacy_script("controles", "/static/"+path.name, source)
+            if adapted != source:
+                with self.subTest(file=path.name):
+                    result = subprocess.run(["node", "--check"], input=adapted, text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+        original = """function closeModal({saved=false}={}){
+  if(!saved&&!window.confirm('Descartar?'))return false;
+  return true;
+}
+async function save(){
+  if(!window.confirm('Excluir?'))return;
+  await fetch('/api/accounts/1/delete',{method:'POST'});
+}"""
+        adapted = adapt_legacy_script("contas", "/app.js", original)
+        self.assertIn("async function closeModal", adapted)
+        self.assertIn("await window.NHConfirm.ask('Descartar?')", adapted)
+        self.assertNotIn("window.confirm(", adapted)
+        self.assertNotIn("Excluir?", adapted)
+
     def test_contas_batch_only_in_contas_module_not_other_pages(self):
         original = '<html><head></head><body></body></html>'
         accounts = rewrite_text(original, "/central/modules/contas", "html")
