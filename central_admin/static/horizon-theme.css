@@ -197,7 +197,7 @@ body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
 ){background:#fff!important;color:var(--hz-ink)!important;border-color:var(--hz-line)!important}
 body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
  .truck-detail-cards .truck-note,.truck-detail-cards .truck-due,.hint,.control-type-hint,
- .calc-preview,.nh-pdf-review-hint,.nhf-vale-more,.nhf-history,.rx-help
+ .calc-preview,.nh-pdf-review-hint,.nhf-vale-more,.nhf-history
 ){background:#f5f6f8!important;color:var(--hz-muted)!important;border-color:var(--hz-line)!important}
 body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
  .control-icon,.folder-icon,.nhf-avatar,.vendor-avatar,.payroll-avatar,.nh-control-avatar
@@ -224,7 +224,7 @@ body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
 body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
  .truck-quick,.control-card-edit,.icon-button,.close,.rx-close,.nhf-link-action,.back-button
 ):not(.danger):not(.btn-primary):not(.primary){background:#fff!important;color:#414b56!important;border-color:#cdd2d9!important;box-shadow:none!important;border-radius:6px!important}
-body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.btn-danger,.rx-button-danger,.danger){
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.btn-danger,.rx-button-danger,button.danger,a.danger){
  color:var(--hz-bad)!important;border-color:#efd0d4!important;background:#fff5f6!important;
 }
 body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.choice.selected,.truck-tabs .active,.module-tabs .active,.nhf-view-tabs a[aria-current="page"]){
@@ -321,6 +321,12 @@ body.nh-scope-funcionarios .nhf-section-head{padding:3px 2px 10px;margin:0;borde
 body.nh-scope-funcionarios .nhf-section-head h2{font-size:15px!important}
 body.nh-scope-funcionarios .nhf-staff-list{gap:8px;margin-top:10px}
 body.nh-scope-funcionarios .nhf-staff-summary{padding:10px 12px!important}
+body.nh-scope-funcionarios .nhf-stat.deduct strong{color:#916414!important}
+body.nh-scope-funcionarios .nhf-stat.payable strong{color:var(--hz-ink)!important}
+body.nh-scope-funcionarios .nhf-view-tabs a{border-radius:6px!important}
+body.nh-scope-documentos .nh-documents{background:transparent!important;box-shadow:none!important;border:0!important}
+body.nh-scope-documentos .nh-documents-list>table{margin:0!important}
+body.nh-scope-documentos .nh-document-info strong{color:var(--hz-ink)!important}
 body.nh-scope-funcionarios #pixPanel{padding:12px!important}
 @media(max-width:720px){
  body.nh-scope-funcionarios .nhf-header,body.nh-central-home .site-header{margin:6px 6px 0}
