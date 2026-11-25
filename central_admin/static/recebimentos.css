@@ -274,6 +274,16 @@ body.nh-scope-recebimentos .rx-summary-empty{padding:24px;text-align:center;colo
 body.nh-scope-recebimentos .rx-xml-picker{gap:6px;min-width:0}
 body.nh-scope-recebimentos .rx-xml-picker>label{font-size:11px;font-weight:700;color:#4c5967}
 body.nh-scope-recebimentos .rx-xml-picker input[type="search"]{min-height:36px;border:1px solid #cdd2d9;border-radius:6px;padding:7px 10px}
-body.nh-scope-recebimentos .rx-xml-picker select{min-width:0;width:100%;max-width:100%;min-height:38px}
 body.nh-scope-recebimentos .rx-xml-suggestion{color:#526476;font-size:11px;font-weight:500}
 body.nh-scope-recebimentos .rx-xml-item{min-width:0;overflow-wrap:anywhere}
+
+/* Combobox único: lista ancorada no campo, dentro da rolagem do modal. */
+body.nh-scope-recebimentos .rx-xml-combo{min-width:0}
+body.nh-scope-recebimentos .rx-xml-list{max-height:230px;overflow:auto;overscroll-behavior:contain;background:#fff;border:1px solid #cdd2d9;border-radius:6px;margin-top:4px}
+body.nh-scope-recebimentos .rx-xml-list[hidden]{display:none!important}
+body.nh-scope-recebimentos .rx-xml-option{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #e5e8ed;background:#fff;color:#303740;padding:8px 11px;cursor:pointer;white-space:normal;overflow-wrap:anywhere}
+body.nh-scope-recebimentos .rx-xml-option:last-child{border-bottom:0}
+body.nh-scope-recebimentos .rx-xml-option:not(:disabled):is(:hover,.is-highlighted,[aria-selected="true"]){background:#e9edf1}
+body.nh-scope-recebimentos .rx-xml-option:disabled{opacity:.55;cursor:not-allowed}
+body.nh-scope-recebimentos .rx-xml-empty{padding:10px 11px;color:#606873;font-weight:400}
+body.nh-scope-recebimentos .rx-xml-suggestion:empty{display:none}
