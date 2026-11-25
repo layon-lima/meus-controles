@@ -69,7 +69,7 @@ window.NHReceivingImports=(()=>{
     if(!x||!y)return null;
     if(words(from)===words(to))return 1;
     const a=units[extended?(aliases[x]||x):x],b=units[extended?(aliases[y]||y):y];
-    return a&&b&&a[0]===b[0]?a[1]/b[1]:null;
+    return Array.isArray(a)&&Array.isArray(b)&&a[0]===b[0]?a[1]/b[1]:null;
   }
   function xmlAmount(line,item){
     const n=Number(line.quantity),factor=conversionFactor(line.unit,item.unit,true);
@@ -196,6 +196,7 @@ window.NHReceivingImports=(()=>{
       previewTotal();
     }
     manual.addEventListener("input",previewTotal);
+    noOrder.checked=false;
     updateNoOrder();updateManual(initial);
     function draw(){
       list.innerHTML=pickerHTML(choice,query,value.value,esc,index,highlight);
@@ -221,7 +222,6 @@ window.NHReceivingImports=(()=>{
       updateNoOrder();updateManual(item);
       close();
     }
-    noOrder.checked=false;
     noOrder.addEventListener("change",()=>{
       close();
       if(noOrder.checked){
