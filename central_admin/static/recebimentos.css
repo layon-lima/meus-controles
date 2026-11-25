@@ -262,3 +262,10 @@ body.nh-scope-recebimentos .rx-summary-table :is(th+th,td+td){border-left:1px so
   body.nh-scope-recebimentos .rx-summary-table td:first-child{grid-column:1/-1;font-weight:650}
   body.nh-scope-recebimentos .rx-summary-number::before{content:attr(data-label);display:block;font-size:10px;font-weight:650;color:#606873;margin-bottom:3px}
 }
+
+/* Pesquisa e exportação ficam fixas acima da área rolável do resumo. */
+body.nh-scope-recebimentos .rx-summary-toolbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid #dce0e5;min-width:0}
+body.nh-scope-recebimentos #rx-summary-search{flex:1 1 auto;width:100%;min-width:0;min-height:36px;padding:8px 12px;border:1px solid #cdd2d9;border-radius:6px;font-size:12px}
+body.nh-scope-recebimentos #rx-summary-export{flex:0 0 auto;color:#18774c!important;white-space:nowrap}
+body.nh-scope-recebimentos .rx-summary-empty{padding:24px;text-align:center;color:#606873;background:#fff;border:1px solid #dce0e5;border-radius:7px}
+@media(max-width:520px){body.nh-scope-recebimentos .rx-summary-toolbar{padding:8px;gap:6px;flex-wrap:wrap}body.nh-scope-recebimentos #rx-summary-search{flex:1 1 100%}body.nh-scope-recebimentos #rx-summary-export{margin-left:auto}}
