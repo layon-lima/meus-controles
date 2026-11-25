@@ -317,7 +317,6 @@
       const drop=document.createElement("button");drop.type="button";
       drop.className="rx-button rx-button-danger";drop.textContent="Excluir";
       drop.addEventListener("click",async()=>{
-        if(!confirm("Excluir produto? Pedidos com entregas não podem ser apagados."))return;
         try{await api("/api/receiving-items/"+item.id,"DELETE");closeDialog();await refresh();toast("Produto excluído.");}
         catch(e){toast(e.message,true)}
       });
@@ -325,7 +324,6 @@
       const done=document.createElement("button");done.type="button";
       done.className="rx-button";done.textContent="Concluir pedido";
       done.addEventListener("click",async()=>{
-        if(!confirm("Concluir todos os produtos deste pedido?"))return;
         try{await api("/api/receiving-items/"+item.id+"/complete","POST",{});closeDialog();await refresh();toast("Pedido concluído.");}
         catch(e){toast(e.message,true)}
       });
@@ -370,7 +368,6 @@
       const del=document.createElement("button");del.type="button";
       del.className="rx-button rx-button-danger";del.textContent="Excluir entrega";
       del.addEventListener("click",async()=>{
-        if(!confirm("Excluir entrega? A quantidade retornará ao saldo pendente."))return;
         try{await api("/api/receiving-receipts/"+record.id,"DELETE");closeDialog();await refresh();toast("Entrega excluída.");}
         catch(e){toast(e.message,true)}
       });
@@ -537,7 +534,6 @@
       : [target];
     const ids=[...new Set(group.map(r=>Number(r.id)))].filter(Number.isSafeInteger);
     if(!ids.length)return toast("Nenhum produto disponível para envio.",true);
-    if(!confirm("Enviar "+ids.length+" item(ns) desta NF-e para aprovação no GFARM?"))return;
     try{
       await api(route("/gfarm/send"),"POST",{receipt_ids:ids});
       await refresh();toast("NF-e enviada ao GFARM com "+ids.length+" item(ns).");
