@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Funcionários · Central Novo Horizonte</title>
-  <link rel="stylesheet" href="/central/funcionarios.css?v=20261124pix1">
+  <link rel="stylesheet" href="/central/funcionarios.css?v=20261125pix2">
   <link rel="stylesheet" href="/central/launcher.css?v=20261120g">
   <link rel="stylesheet" href="/central/horizon-theme.css?v=20261124neutral1">
   <link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">
-  <script defer src="/central/funcionarios.js?v=20261124pix1"></script>
+  <script defer src="/central/funcionarios.js?v=20261125pix2"></script>
   <script defer src="/central/launcher.js?v=20261124glass4"></script>
 </head>
 <body class="central-operational nh-scope-funcionarios">
@@ -21,12 +21,12 @@
       </a>
       <div class="nhf-right">
         <span class="nhf-live"><span></span>Contas + Vales</span>
-        <button type="button" id="managePix" class="nhf-btn" aria-expanded="false">Gerenciar Pix</button>
+        <a id="managePix" class="nhf-btn nhf-pix-nav" href="#pixPanel">Gerenciar Pix</a>
         <button type="button" id="refresh" class="nhf-btn">Atualizar</button>
       </div>
     </header>
     <main class="nhf-main">
-      <section class="nhf-intro">
+      <section id="staffTop" class="nhf-intro">
         <div>
           <h1>Funcionários</h1>
         </div>
@@ -35,10 +35,6 @@
         <div class="nhf-kpi"><span>Funcionários com valores em aberto</span><strong id="metricPeople">—</strong></div>
         <div class="nhf-kpi"><span>Saldo a pagar aos funcionários</span><strong id="metricTotal">—</strong></div>
         <div class="nhf-kpi"><span>Vales a descontar</span><strong id="metricVales">—</strong></div>
-      </section>
-      <section id="pixPanel" class="nhf-detail-section nhf-pix-panel" hidden>
-        <div class="nhf-detail-heading"><strong>Chaves Pix dos funcionários</strong><button id="closePix" type="button" class="nhf-mini">Fechar</button></div>
-        <div id="pixList"></div>
       </section>
       <section class="nhf-section">
         <div class="nhf-section-head">
@@ -56,6 +52,13 @@
         <div id="staffList" class="nhf-staff-list" aria-live="polite">
           <div class="nhf-loading">Carregando funcionários…</div>
         </div>
+      </section>
+      <section id="pixPanel" class="nhf-detail-section nhf-pix-panel" aria-labelledby="pixTitle">
+        <div class="nhf-detail-heading">
+          <h2 id="pixTitle">Gerenciar Pix dos funcionários</h2>
+          <a id="closePix" class="nhf-mini" href="#staffTop">Voltar aos saldos</a>
+        </div>
+        <div id="pixList" aria-live="polite"><p class="nhf-muted">Carregando chaves Pix…</p></div>
       </section>
     </main>
     <div id="toast" class="nhf-toast" role="status" aria-live="polite" hidden></div>
