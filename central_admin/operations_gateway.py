@@ -67,6 +67,8 @@ def adapt_legacy_script(backend, upstream_path, source):
         if backend == "contas":
             source = source.replace("function closeModal({saved=false}={})",
                                     "async function closeModal({saved=false}={})", 1)
+            source = source.replace("if(!saved&&$(\'accountForm\')&&!window.confirm(",
+                                    "if(!saved&&$(\'accountForm\')&&!window.NHDrafts?.isDiscarding()&&!window.confirm(", 1)
         def replace_confirmation(match):
             condition = match.group(0)
             if any(word in condition for word in ("Cadastrar \"", "ChatGPT", "com GPT")):
@@ -132,7 +134,7 @@ def rewrite_text(text, prefix, kind):
         # Script síncrono no HEAD: não mostrar o dashboard legado
         # antes de a rota real ser hidratada. Mantém CSP self sem inline JS.
         js = ('<script src="/central/route-preflight.js?v=20261123route1"></script>'
-              '<script defer src="/central/operations.js?v=20261123route1"></script>'
+              '<script defer src="/central/operations.js?v=20261125draft1"></script>'
               '<script defer src="/central/launcher.js?v=20261124glass4"></script>')
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
@@ -144,13 +146,15 @@ def rewrite_text(text, prefix, kind):
             css += '<link rel="stylesheet" href="/central/vales_holerites.css?v=20261121b">'
             js += '<script defer src="/central/vales_holerites.js?v=20261121b"></script>'
             css += '<link rel="stylesheet" href="/central/holerites_vales.css?v=20261121a">'
-            js += '<script defer src="/central/holerites_vales.js?v=20261125feedback2"></script>'
+            js += '<script defer src="/central/holerites_vales.js?v=20261125draft1"></script>'
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
         css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124neutral1">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
         # Antes dos scripts legados, inclusive os que capturam fetch na carga.
-        confirmation = ('<link rel="stylesheet" href="/central/confirm-actions.css?v=20261125feedback2">'
-                        '<script src="/central/confirm-actions.js?v=20261125feedback2"></script>')
+        confirmation = ('<link rel="stylesheet" href="/central/confirm-actions.css?v=20261125draft1">'
+                        '<script src="/central/confirm-actions.js?v=20261125draft1"></script>'
+                        '<link rel="stylesheet" href="/central/form-drafts.css?v=20261125draft1">'
+                        '<script src="/central/form-drafts.js?v=20261125draft1"></script>')
         text = re.sub(r"<head(?:\s[^>]*)?>", lambda m: m.group(0) + confirmation, text, count=1, flags=re.I)
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
