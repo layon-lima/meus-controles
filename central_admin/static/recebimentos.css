@@ -148,7 +148,7 @@ body.nh-scope-recebimentos .rx-actions{display:flex;flex-wrap:wrap;gap:7px;width
 body.nh-scope-recebimentos .rx-filterbar{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid #dce0e5}
 body.nh-scope-recebimentos .rx-filters{position:relative;flex:1;min-width:0;width:auto}
 body.nh-scope-recebimentos .rx-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#8190a1;pointer-events:none}
-body.nh-scope-recebimentos #rx-search{padding:7px 12px 7px 36px;min-height:38px;width:100%;font-size:12px}
+body.nh-scope-recebimentos #rx-search{padding:7px 12px 7px 36px;min-height:38px;width:100%;font-size:12px;border:1px solid #cdd2d9;border-radius:6px;background:#fff}
 body.nh-scope-recebimentos .rx-export{color:#18774c!important}
 body.nh-scope-recebimentos .rx-results{margin:0;padding:0 9px 9px;gap:0;min-height:0}
 body.nh-scope-recebimentos .rx-results .rx-group-table{border:1px solid #dce0e5!important;border-radius:7px;overflow:auto}
