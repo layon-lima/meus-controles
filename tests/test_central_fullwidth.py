@@ -42,7 +42,7 @@ class CentralFullWidthTest(unittest.TestCase):
         self.assertNotIn("max-width:1540px",css)
         self.assertIn("padding:0 clamp(14px,1.55vw,30px)",css)
         gateway=(ROOT/"operations_gateway.py").read_text(encoding="utf-8")
-        self.assertIn('operations.css?v=20261125list1',gateway)
+        self.assertIn('operations.css?v=20261125unified1',gateway)
         # Não modificar as páginas hospedadas fora do prefixo da Central.
         self.assertIn('body.central-operational',css)
 
