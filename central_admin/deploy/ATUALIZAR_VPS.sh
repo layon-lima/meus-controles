@@ -53,7 +53,7 @@ log "Criando backup integral do codigo e das configuracoes atuais..."
 cp -a "$APP" "$TMP/central_admin"
 log "Baixando o sistema unificado com modulos operacionais..."
 curl -fsSL --retry 2 \
-  "https://api.github.com/repos/layon-lima/meus-controles/tarball/feature%2Fcentral-administrativa-v1" \
+  "https://api.github.com/repos/layon-lima/meus-controles/tarball/${CENTRAL_SOURCE_REF:-feature%2Fcentral-administrativa-v1}" \
   -o "$TMP/central.tgz"
 mkdir "$TMP/extract"
 tar -xzf "$TMP/central.tgz" -C "$TMP/extract"
@@ -411,6 +411,28 @@ for asset in horizon-theme.css horizon-logo.svg; do
     || fail "Recurso HTTPS $asset nao corresponde ao novo arquivo."
 done
 echo "OK: tema e logotipo confirmados no endereco HTTPS de uso do navegador."
+# Conferir a tela de Pix realmente entregue ao navegador, não só o arquivo no disco.
+curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
+  "$PUBLIC/modules/funcionarios/?v=20261125pix2" -o "$TMP/pix-page" \
+  || fail "Pagina publica de Funcionarios indisponivel."
+grep -Fq 'href="#pixPanel"' "$TMP/pix-page" \
+  || fail "Atalho Gerenciar Pix ausente na pagina publica."
+grep -Fq 'id="pixTitle">Gerenciar Pix dos funcionários' "$TMP/pix-page" \
+  || fail "Painel permanente de Pix ausente na pagina publica."
+if grep -Eq '<section id="pixPanel"[^>]*[[:space:]]hidden([[:space:]>]|=)' "$TMP/pix-page"; then
+  fail "Painel Pix ainda esta oculto."
+fi
+for asset in funcionarios.js funcionarios.css; do
+  grep -Fq "/central/$asset?v=20261125pix2" "$TMP/pix-page" \
+    || fail "Pagina publica ainda utiliza recurso antigo de Funcionarios: $asset."
+  curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
+    "$PUBLIC/$asset?v=20261125pix2" -o "$TMP/pix-asset" \
+    || fail "Recurso Pix $asset indisponivel."
+  cmp -s "$APP/static/$asset" "$TMP/pix-asset" \
+    || fail "Recurso Pix $asset diverge da versao instalada."
+done
+echo "OK: painel permanente Gerenciar Pix e recursos novos confirmados no endereco publico."
+
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
 for asset in contas_batch.js contas_batch.css contas_pdf_review.js contas_pdf_review.css vales_holerites.js vales_holerites.css holerites_vales.js holerites_vales.css; do
