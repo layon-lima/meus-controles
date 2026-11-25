@@ -292,3 +292,8 @@ body.nh-scope-recebimentos .rx-xml-no-order input[type="checkbox"]{appearance:au
 body.nh-scope-recebimentos .rx-xml-item .rx-field[hidden]{display:none!important}
 
 body.nh-scope-recebimentos .rx-xml-no-order[hidden]{display:none!important}
+
+/* Conversão por unidade: somente quando não houver equivalência conhecida. */
+body.nh-scope-recebimentos .rx-xml-conversion>label{font-size:12px;font-weight:650;color:#48515c}
+body.nh-scope-recebimentos .rx-xml-conversion>small{font-variant-numeric:tabular-nums;color:#526476;font-weight:650}
+body.nh-scope-recebimentos .rx-xml-conversion>small:empty{display:none}
