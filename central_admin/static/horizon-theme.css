@@ -161,3 +161,172 @@ html.nh-route-boot body::before,html.nh-module-redirect body::before{background:
 body .nh-route-loading{background:#fff!important;border-color:var(--hz-line)!important;color:var(--hz-muted)!important}
 @media(max-width:720px){body .brand-mark,body .nhf-mark{width:36px!important;height:36px!important}}
 /* Cores semânticas de alerta, vencimento, pagamento e recebimento permanecem. */
+
+/* Sistema visual único — Contas é a referência. Os motores antigos continuam
+   responsáveis pela estrutura, pelos cálculos e pelas ações; só a pele muda. */
+:root{
+ --hz-font:Arial,Helvetica,sans-serif;
+ --hz-bg:#f5f6f8;--hz-surface:#fff;--hz-ink:#20242b;--hz-muted:#66717e;
+ --hz-line:#dce0e5;--hz-action:#303740;--hz-table-head:#eef0f2;
+ --hz-row-alt:#f8f9fa;--hz-hover:#eef0f2;--hz-radius:8px;--hz-field-radius:6px;
+ --hz-blue:#356aa0;--hz-good:#18774c;--hz-warn:#916414;--hz-bad:#b52c38;
+ --navy:#303740;--navy2:#404851;--white:#fff;--accentdark:#20252c;
+ --accentsoft:#eef0f2;--ios-radius:8px;--red:#b52c38;--redsoft:#fce8ea;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home){
+ font-family:var(--hz-font)!important;font-size:13px;line-height:1.45;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(button,input,select,textarea){font-family:inherit!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .panel,.surface,.card,.stat,.board-card,.control-card,.receiving-kpi,.debt-metric,
+ .open-debt-count,.ab-stats>div,.ab-balance,.open-debt-total,.debt-outstanding,
+ .vf-ledger,.vf-summary,.truck-workflow-metric,.truck-detail-card,.truck-columns .panel,
+ .receiving-import-stats>div,.receiving-supplier-card,.rpdf-document,.config-rule,.config-type,
+ .form-row-card,.field-card,.choice,.calc-preview,.nhf-staff,.nhf-open-only,.nhf-detail-section,
+ .nh-documents,.nh-report-actions,.nh-controls-workspace,.rx-workspace,.rx-summary-card
+){
+ background:#fff!important;border-color:var(--hz-line)!important;border-radius:var(--hz-radius)!important;
+ box-shadow:var(--hz-shadow)!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .truck-detail-card,.truck-detail-card.expense,.truck-detail-card.advance,.truck-detail-card.freight
+){--detail-accent:#64717e;--detail-soft:#f0f2f4;border-top-color:var(--hz-line)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .truck-detail-header,.receiving-supplier-toggle,.vf-table-head,.ab-row-head,.ab-summary-heading,
+ .panel-header,.rx-group-head,.nhf-detail-heading,.nhf-staff-summary
+){background:#fff!important;color:var(--hz-ink)!important;border-color:var(--hz-line)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .truck-detail-cards .truck-note,.truck-detail-cards .truck-due,.hint,.control-type-hint,
+ .calc-preview,.nh-pdf-review-hint,.nhf-vale-more,.nhf-history,.rx-help
+){background:#f5f6f8!important;color:var(--hz-muted)!important;border-color:var(--hz-line)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .control-icon,.folder-icon,.nhf-avatar,.vendor-avatar,.payroll-avatar,.nh-control-avatar
+){background:#eef0f2!important;color:#505963!important;box-shadow:none!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .ab-stats strong,.stat-value,.debt-metric strong,.receiving-kpi strong,
+ .open-debt-total strong,.debt-outstanding strong,.truck-workflow-metric strong
+){font-size:20px!important;font-weight:750!important;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .stat-kicker,.stat-foot,.control-desc,.control-bottom small,.field-help,.debt-form-hint,
+ .ab-stats small,.ab-row-head small,.nh-document-info small,.nh-document-badges,
+ .nhf-muted,.nhf-reference,.rx-help,.rx-dialog-head p,.modal-header p,.nh-module-count
+){color:var(--hz-muted)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .btn,.rx-button,.nhf-btn,.nhf-mini,.nhf-confirm,.header-button,.outline,.primary,
+ .nh-document-action,.mini-action,.truck-quick,.nhp-review-button,.nh-vales-action
+){font-size:12px!important;font-weight:650!important;border-radius:6px!important;box-shadow:none!important;letter-spacing:0!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .btn,.rx-button,.nhf-btn,.nhf-confirm,.header-button,.outline,.primary,.nh-document-action
+):not(.btn-sm):not(.rx-button-small){min-height:34px!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .btn-sm,.rx-button-small,.mini-action,.nhf-mini,.vf-detail-actions .btn,.vf-ledger-actions .btn,.vf-summary-actions .btn
+){min-height:28px!important;font-size:11px!important;padding:5px 9px!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .truck-quick,.control-card-edit,.icon-button,.close,.rx-close,.nhf-link-action,.back-button
+):not(.danger):not(.btn-primary):not(.primary){background:#fff!important;color:#414b56!important;border-color:#cdd2d9!important;box-shadow:none!important;border-radius:6px!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.btn-danger,.rx-button-danger,.danger){
+ color:var(--hz-bad)!important;border-color:#efd0d4!important;background:#fff5f6!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.choice.selected,.truck-tabs .active,.module-tabs .active,.nhf-view-tabs a[aria-current="page"]){
+ background:#e8eaed!important;border-color:#aeb5be!important;color:var(--hz-ink)!important;box-shadow:none!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .field label,.rx-field>span,.rx-xml-picker>label,.nhf-toolbar label,.vf-toolbar label
+){color:#48515c!important;font-size:12px!important;font-weight:650!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.field,.rx-field){
+ min-width:0;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(
+ .field>input:not([type=checkbox]):not([type=radio]),.field>select,.rx-field>input:not([type=checkbox]):not([type=radio]),
+ .rx-field>select,.nh-module-search,.nh-board-select,.nhf-toolbar input,.nhf-toolbar select
+){min-height:34px!important;font-size:12px!important;border-radius:6px!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) table:not(.calendar):not(.calendar-table){
+ font-variant-numeric:tabular-nums;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(table thead th,.table-header){
+ background:var(--hz-table-head)!important;color:#49515c!important;font-size:11px!important;font-weight:700!important;letter-spacing:0!important;border-color:var(--hz-line)!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(table tbody td){color:var(--hz-ink);border-color:var(--hz-line)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) tbody tr:nth-child(even){background:var(--hz-row-alt)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) tbody tr:hover{background:var(--hz-hover)!important}
+@media(min-width:721px){
+ body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.table-wrap,.table-scroll,.nh-controls-table-wrap,.rx-group-table,.vf-ledger,.vf-summary) table :is(th,td){
+  border-right:1px solid var(--hz-line)!important;border-bottom:1px solid var(--hz-line)!important;
+ }
+ body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.table-wrap,.table-scroll,.nh-controls-table-wrap,.rx-group-table,.vf-ledger,.vf-summary) table :is(th,td):last-child{border-right:0!important}
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-dialog,.dialog,#modalRoot .modal,.nh-confirm-dialog){
+ border-radius:10px!important;background:#fff!important;color:var(--hz-ink)!important;
+ border-color:var(--hz-line)!important;box-shadow:0 8px 24px #20242b26!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-dialog-head,.modal-header,.modal-footer,.rx-dialog-foot,.dialog-actions){
+ background:#fff!important;border-color:var(--hz-line)!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-dialog-head h2,.modal-header h2,#dialogTitle){
+ font-size:18px!important;font-weight:750!important;letter-spacing:-.25px!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-dialog-head,.modal-header){padding:16px 20px!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-dialog-foot,.modal-footer,.dialog-actions){padding:12px 16px!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.card-action-menu,.menu.visible,.search-results,.dropdown-menu,.popover){
+ background:#fff!important;border:1px solid var(--hz-line)!important;border-radius:8px!important;box-shadow:0 5px 20px #20242b20!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.card-action-menu button,.menu button){
+ background:#fff!important;box-shadow:none!important;border-radius:5px!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.card-action-menu button,.menu button):hover{background:var(--hz-hover)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-pill,.vf-status,.receiving-status,.badge,.chip,.pill,.nhf-pill){
+ border-radius:999px!important;font-size:11px!important;letter-spacing:0!important;
+}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-pill.complete,.vf-status.paid,.receiving-status.complete,.receiving-status.closed,.nhf-pill.good){background:#e3f4eb!important;color:var(--hz-good)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-pill.partial,.vf-status.partial,.receiving-status.partial,.nhf-pill.warn){background:#fff1d7!important;color:var(--hz-warn)!important}
+body:is(.central-operational,.nh-native-screen,.nh-central-home) :is(.rx-pill.pending,.vf-status.pending,.receiving-status.pending){background:#eaf0f5!important;color:#56687a!important}
+/* Espaçamento e títulos comuns também nas telas internas legadas. */
+body.central-operational:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-relatorios) .workspace>.topbar{
+ margin:10px 10px 0!important;min-height:64px!important;padding:10px 14px!important;border:1px solid var(--hz-line)!important;
+}
+body.central-operational:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-relatorios) .workspace>.topbar h1{font-size:18px!important;letter-spacing:-.3px!important}
+body.central-operational:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-relatorios) #main{padding:12px 10px 24px!important}
+body.central-operational :is(.debt-heading h2,.open-debt-heading h2,.truck-toolbar h2,.truck-workflow-head h2,.vf-heading h2,.ab-summary-heading h3,.panel-header h3){font-size:15px!important;letter-spacing:-.15px!important}
+body.central-operational :is(.stat,.debt-metric,.truck-workflow-metric,.ab-stats>div,.receiving-kpi,.open-debt-count){padding:10px 13px!important}
+body.central-operational :is(.panel-header,.truck-toolbar,.vf-table-head,.receipt-toolbar){padding:10px 12px!important}
+body.central-operational :is(.truck-tabs,.nhf-view-tabs){border-color:var(--hz-line)!important}
+body.central-operational .truck-entry-form .truck-free-date:focus-within{border-color:#8e98a3!important;box-shadow:0 0 0 2px #e2e5e9!important}
+body.central-operational .truck-entry-form .truck-date-picker-button:hover{background:var(--hz-hover)!important;color:var(--hz-ink)!important}
+/* Painel inicial e Funcionários: mesma escala de cabeçalho, KPIs e bordas. */
+body.nh-central-home .site-header{height:auto;min-height:66px;margin:10px 10px 0;padding:10px 14px!important;border:1px solid var(--hz-line)!important;border-radius:8px!important}
+body.nh-central-home .content{padding:12px 10px 24px!important}
+body.nh-central-home .intro{margin-bottom:12px!important;padding:10px 2px}
+body.nh-central-home :is(.intro h1,.detail-header h1){font-size:20px!important;letter-spacing:-.3px!important}
+body.nh-central-home .summary{gap:8px;margin-bottom:14px}
+body.nh-central-home .summary-item{padding:10px 13px;min-height:76px}
+body.nh-central-home .summary-item strong{font-size:20px;letter-spacing:0;margin:3px 0}
+body.nh-central-home .modules{gap:8px}
+body.nh-central-home .module-card{min-height:142px;padding:12px 13px;gap:3px}
+body.nh-central-home .module-icon{width:34px;height:34px;margin-bottom:5px}
+body.nh-central-home .module-icon svg{width:18px;height:18px}
+body.nh-central-home .module-name{font-size:13px}
+body.nh-central-home .module-description{font-size:11px}
+body.nh-scope-funcionarios .nhf-header{position:relative;margin:10px 10px 0;padding:10px 14px!important;min-height:64px;border:1px solid var(--hz-line)!important;border-radius:8px!important}
+body.nh-scope-funcionarios .nhf-back strong{font-size:18px!important}
+body.nh-scope-funcionarios .nhf-back small{font-size:10px!important}
+body.nh-scope-funcionarios .nhf-main{padding:12px 10px 24px!important}
+body.nh-scope-funcionarios .nhf-intro{display:none}
+body.nh-scope-funcionarios .nhf-view-tabs{margin:0 0 10px;padding:0;gap:6px;border:0}
+body.nh-scope-funcionarios .nhf-view-tabs a{min-height:34px;font-size:12px;padding:6px 12px}
+body.nh-scope-funcionarios .nhf-kpis{gap:8px;margin:0 0 12px}
+body.nh-scope-funcionarios .nhf-kpi{min-height:64px;padding:10px 13px;gap:2px}
+body.nh-scope-funcionarios .nhf-kpi strong{font-size:20px;letter-spacing:0}
+body.nh-scope-funcionarios .nhf-section{margin:0;border:1px solid var(--hz-line);border-radius:8px;background:#fff;padding:10px}
+body.nh-scope-funcionarios .nhf-section-head{padding:3px 2px 10px;margin:0;border-bottom:1px solid var(--hz-line)}
+body.nh-scope-funcionarios .nhf-section-head h2{font-size:15px!important}
+body.nh-scope-funcionarios .nhf-staff-list{gap:8px;margin-top:10px}
+body.nh-scope-funcionarios .nhf-staff-summary{padding:10px 12px!important}
+body.nh-scope-funcionarios #pixPanel{padding:12px!important}
+@media(max-width:720px){
+ body.nh-scope-funcionarios .nhf-header,body.nh-central-home .site-header{margin:6px 6px 0}
+ body.nh-scope-funcionarios .nhf-main,body.nh-central-home .content{padding:8px 6px 20px!important}
+ body.nh-scope-funcionarios .nhf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body.nh-scope-funcionarios .nhf-kpi strong{font-size:17px;overflow-wrap:anywhere}
+ body.nh-scope-funcionarios .nhf-section-head{align-items:stretch}
+ body.nh-central-home .module-card{min-height:132px}
+}
