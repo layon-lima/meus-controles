@@ -170,7 +170,7 @@ body.central-operational.nh-scope-transportadoras .model-advanced{display:none!i
   body.central-operational :is(.control-card,.panel,.surface,.stat){border-radius:15px!important}
   body.central-operational .kpis{gap:8px}
 }
-/* Superfícies opacas: não precisam de fallback de backdrop-filter. */
+/* Superfícies opacas: sem fallback de backdrop-filter. */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:0s!important;animation-duration:0s!important}
 }
