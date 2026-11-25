@@ -7,7 +7,7 @@ import os
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from . import access
 from .core import snapshot
@@ -126,8 +126,17 @@ class Handler(BaseHTTPRequestHandler):
                 if not access.redirect_navigation(self, "funcionarios"):
                     self.respond(401, {"ok":False,"erro":"Sessão não autorizada."})
                 return
-            body, compressed=static_payload("funcionarios.html",
-                "gzip" in self.headers.get("Accept-Encoding","").lower())
+            # A aba Pix tem URL própria; o servidor seleciona a vista antes da pintura.
+            pix_view = parse_qs(urlsplit(self.path).query).get("view") == ["pix"]
+            body, compressed=static_payload("funcionarios.html",False)
+            if pix_view:
+                body = body.replace(b'class="central-operational nh-scope-funcionarios"',
+                                    b'class="central-operational nh-scope-funcionarios nhf-view-pix"',1)
+                body = body.replace(b'id="managePix" href=',b'id="managePix" aria-current="page" href=',1)
+            else:
+                body = body.replace(b'id="staffTab" href=',b'id="staffTab" aria-current="page" href=',1)
+            if "gzip" in self.headers.get("Accept-Encoding","").lower():
+                body, compressed=gzip.compress(body,compresslevel=5),True
             self.respond(200,body,"text/html; charset=utf-8",
                 cache_control="no-store",encoded=compressed,
                 csp=("default-src 'none'; script-src 'self'; style-src 'self'; "
