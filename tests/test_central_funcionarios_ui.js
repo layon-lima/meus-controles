@@ -55,7 +55,6 @@ for(const id of ["refresh","staffList","search","statusFilter","metricPeople",
     "metricTotal","metricVales","listSubtitle","toast","managePix","closePix","pixPanel","pixList"]){
   const el=new E();el.id=id;nodes.set(id,el);
 }
-nodes.get("pixPanel").hidden=true;
 const find=(el,id)=>{
   if(el.id===id)return el;
   for(const child of el.children){const hit=find(child,id);if(hit)return hit}
@@ -152,15 +151,16 @@ vm.runInNewContext(src,context);
   assert.equal(text(paid.children[1]).includes("1.111,00"),false);
   assert.equal(requests.filter(x=>x.method==="POST").length,0,
     "Consultar nunca deve criar vínculo, baixa nem pagamento");
-  nodes.get("managePix").click();
+  assert.ok(html.includes('href="#pixPanel"'));
+  assert.ok(!/<section id="pixPanel"[^>]*\bhidden\b/.test(html));
   assert.equal(nodes.get("pixPanel").hidden,false);
   assert.equal(nodes.get("pixList").children.length,2,"Gerenciar todos os cadastrados, inclusive sem pendências");
   const pixRow=nodes.get("pixList").children.find(x=>x.children[0].textContent===person1.nome);
   assert.equal(pixRow.children[1].type,"password");
   pixRow.children[2].children[0].click();
   assert.equal(pixRow.children[1].type,"text");
-  nodes.get("closePix").click();
-  assert.equal(nodes.get("pixList").children.length,0);
+  assert.equal(nodes.get("pixList").children.length,2,"Painel permanente independe do filtro e do clique");
+  assert.ok(html.includes('href="#staffTop"'));
   console.log("OK: saldos globais em aberto, vales futuros e vencidos, nenhum pagamento antigo");
   console.log("OK: só leitura, sem busca/vínculo/abrir Contas, fichas sob demanda");
 })().catch(e=>{console.error(e);process.exitCode=1});
