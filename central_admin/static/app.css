@@ -51,7 +51,7 @@ body{
 .summary-item strong{color:#264c77}.summary-item small{color:#8296ab}
 .header-button{background:#fff;border-color:rgba(172,199,226,.61);box-shadow:inset 0 1px 1px #fff}
 .site-footer{border-color:#ffffffac}
-/* Superfícies opacas: não precisam de fallback de backdrop-filter. */
+/* Superfícies opacas: sem fallback de backdrop-filter. */
 @media(prefers-reduced-motion:reduce){.module-card{transition:none!important}.module-card:hover{transform:none}}
 
 
