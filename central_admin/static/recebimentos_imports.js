@@ -58,12 +58,39 @@ window.NHReceivingImports=(()=>{
     l:["volume",1],lt:["volume",1],litro:["volume",1],ml:["volume",.001],
     un:["count",1],und:["count",1],unid:["count",1]
   };
+  // Espelhar as conversões do motor, e reconhecer grafias usuais adicionais.
+  const unitKey=value=>words(value).replace(/ /g,"");
+  const aliases={litros:"l",ltrs:"l",ltr:"l",lts:"l",lit:"l",
+    quilo:"kg",quilos:"kg",quilograma:"kg",quilogramas:"kg",kgs:"kg",
+    toneladas:"t",tons:"t",toneladasmetricas:"t",grama:"g",gramas:"g",
+    mililitro:"ml",mililitros:"ml",unidade:"un",unidades:"un",unds:"un",unids:"un"};
+  function conversionFactor(from,to,extended=false){
+    const x=unitKey(from),y=unitKey(to);
+    if(!x||!y)return null;
+    if(words(from)===words(to))return 1;
+    const a=units[extended?(aliases[x]||x):x],b=units[extended?(aliases[y]||y):y];
+    return a&&b&&a[0]===b[0]?a[1]/b[1]:null;
+  }
   function xmlAmount(line,item){
-    const n=Number(line.quantity),from=words(line.unit).replace(/ /g,""),to=words(item.unit).replace(/ /g,"");
-    if(!from||!to||!Number.isFinite(n)||n<=0)return null;
-    if(from===to)return n;
-    const a=units[from],b=units[to];
-    return a&&b&&a[0]===b[0]?n*a[1]/b[1]:null;
+    const n=Number(line.quantity),factor=conversionFactor(line.unit,item.unit,true);
+    return Number.isFinite(n)&&n>0&&factor!==null?n*factor:null;
+  }
+  // O motor recebe o TOTAL convertido, não o fator. Multiplicar decimais
+  // exatamente, sem arredondar silenciosamente a quantidade de estoque.
+  function convertedTotal(quantity,factor){
+    function decimal(raw){
+      const v=String(raw??"").trim().replace(",",".");
+      if(!/^\d+(?:\.\d{1,12})?$/.test(v)||v.length>32)throw new Error("Informe uma equivalência positiva, sem separador de milhar (até 12 casas decimais).");
+      const [whole,fraction=""]=v.split(".");
+      return {value:BigInt(whole+fraction),scale:fraction.length};
+    }
+    const q=decimal(quantity),f=decimal(factor);
+    let n=q.value*f.value,scale=q.scale+f.scale;
+    if(n<=0n)throw new Error("Informe uma equivalência positiva.");
+    while(scale>0&&n%10n===0n){n/=10n;scale--;}
+    if(scale>3)throw new Error("O total convertido deve ter até três casas decimais. Confira a equivalência.");
+    const v=String(n).padStart(scale+1,"0");
+    return scale?v.slice(0,-scale)+"."+v.slice(-scale):v;
   }
   function historyMatch(report,line,receipt){
     let fiscal=receipt.fiscal_json||receipt.fiscal||{};
@@ -129,7 +156,7 @@ window.NHReceivingImports=(()=>{
         '" class="rx-xml-option'+(i===highlight?" is-highlighted":"")+'"'+(o.disabled?' disabled':'')+
         '><strong>'+esc(o.label)+'</strong>'+(o.info?'<small>'+esc(o.info)+'</small>':"")+'</button>').join("");
   }
-  function bindXMLPicker(view,choice,index,esc){
+  function bindXMLPicker(view,choice,index,esc,line){
     const search=view.mask.querySelector("#rx-xml-search-"+index),
       value=view.mask.querySelector("#rx-xml-choice-"+index),
       list=view.mask.querySelector("#rx-xml-list-"+index),
@@ -138,14 +165,37 @@ window.NHReceivingImports=(()=>{
       noOrderLabel=view.mask.querySelector("#rx-xml-no-order-label-"+index),
       picker=view.mask.querySelector("#rx-xml-picker-"+index),
       manualField=view.mask.querySelector("#rx-xml-manual-field-"+index),
-      manual=view.mask.querySelector("#rx-xml-manual-"+index);
+      manual=view.mask.querySelector("#rx-xml-manual-"+index),
+      question=view.mask.querySelector("#rx-xml-conversion-question-"+index),
+      total=view.mask.querySelector("#rx-xml-conversion-total-"+index);
     let previous=null;
     let query="",highlight=-1;
     const initial=choice.suggested;
     value.value=initial?String(initial.id):"";
     search.value=initial?orderLabel(initial):"";
     function updateNoOrder(){noOrderLabel.hidden=choice.hasCompatible||!!(value.value&&value.value!=="pending");noOrder.disabled=noOrderLabel.hidden;}
-    function updateManual(item){manual.required=!!item&&item.amount===null;}
+    let conversionItem=null;
+    function previewTotal(){
+      total.textContent="";
+      manual.setCustomValidity("");
+      if(!conversionItem||!manual.value.trim())return;
+      try{
+        const converted=convertedTotal(line.quantity,manual.value);
+        const format=x=>Number(x).toLocaleString("pt-BR",{maximumFractionDigits:3});
+        total.textContent=format(line.quantity)+" "+line.unit+" = "+format(converted)+" "+conversionItem.unit;
+        if(Number(converted)>Number(conversionItem.remaining_qty))throw new Error("Quantidade convertida superior ao saldo do pedido.");
+      }catch(error){manual.setCustomValidity(error.message);total.textContent=error.message;}
+    }
+    function updateManual(item){
+      const next=item&&item.amount===null&&!noOrder.checked?item:null;
+      if(conversionItem?.id!==next?.id)manual.value="";
+      conversionItem=next;
+      manualField.hidden=!next;manual.disabled=!next;manual.required=!!next;
+      question.textContent=next?"Quanto 1 "+line.unit+" equivale em "+next.unit+" do pedido?":"";
+      manual.placeholder=next?"Quantidade em "+next.unit:"";
+      previewTotal();
+    }
+    manual.addEventListener("input",previewTotal);
     updateNoOrder();updateManual(initial);
     function draw(){
       list.innerHTML=pickerHTML(choice,query,value.value,esc,index,highlight);
@@ -179,14 +229,14 @@ window.NHReceivingImports=(()=>{
         previous={value:value.value,text:search.value,hint:hint.textContent};
         value.value="pending";
         search.setCustomValidity("");
-        search.required=false;search.disabled=true;manual.disabled=true;manual.required=false;
-        picker.hidden=true;manualField.hidden=true;
+        search.required=false;search.disabled=true;
+        picker.hidden=true;updateManual(null);
       }else{
         value.value=previous?.value||"";
         search.value=previous?.text||"";
         hint.textContent=previous?.hint||"";
-        picker.hidden=false;manualField.hidden=false;
-        search.disabled=false;search.required=true;manual.disabled=false;
+        picker.hidden=false;
+        search.disabled=false;search.required=true;
         search.setCustomValidity(value.value?"":"Selecione um pedido da lista.");
         updateNoOrder();updateManual(choice.options.find(o=>String(o.id)===value.value));
       }
@@ -279,8 +329,10 @@ window.NHReceivingImports=(()=>{
           '<small class="rx-xml-suggestion" id="rx-xml-suggestion-'+index+'">'+
           (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":choice.suggested.needsEquivalence?"Produto identificado pelo nome · Informe a equivalência de unidade":"Sugestão por produto e saldo disponível"):(choice.hasCompatible?"Pedidos compatíveis encontrados. Selecione o correto.":""))+'</small></div>'+
           '<input type="hidden" id="rx-xml-choice-'+index+'" name="selection_'+index+'" value="'+esc(suggested)+'">'+
-          '<label id="rx-xml-manual-field-'+index+'" class="rx-field wide"><span>Quantidade equivalente no pedido (somente se a unidade não converter automaticamente)</span>'+
-          '<input id="rx-xml-manual-'+index+'" inputmode="decimal" name="manual_'+index+'" placeholder="Deixe vazio para conversão automática"></label>'+
+          '<div id="rx-xml-manual-field-'+index+'" class="rx-field wide rx-xml-conversion" hidden>'+
+          '<label id="rx-xml-conversion-question-'+index+'" for="rx-xml-manual-'+index+'"></label>'+
+          '<input id="rx-xml-manual-'+index+'" inputmode="decimal" name="manual_'+index+'" disabled autocomplete="off">'+
+          '<small id="rx-xml-conversion-total-'+index+'" aria-live="polite"></small></div>'+
           '</div></article>';
       });
       const summary='<div class="rx-preview">'+
@@ -300,10 +352,16 @@ window.NHReceivingImports=(()=>{
             return safeInt(value);
           });
           if(selections.some(x=>x===null))throw new Error("Selecione um pedido ou marque Sem pedido em todos os itens.");
-          const manual_quantities=report.lines.map((_,i)=>{
+          const manual_quantities=report.lines.map((line,i)=>{
             if(selections[i]==="pending")return null;
-            const raw=String(form.get("manual_"+i)||"").trim();
-            return raw?dec(raw):null;
+            const item=choices[i].options.find(o=>o.id===selections[i]&&!o.blocked);
+            if(!item)throw new Error("Selecione um pedido válido.");
+            if(conversionFactor(line.unit,item.unit)!==null)return null;
+            // Uma grafia adicional conhecida pode ser resolvida sem perguntar ao usuário.
+            const factor=conversionFactor(line.unit,item.unit,true);
+            const total=convertedTotal(line.quantity,factor===null?form.get("manual_"+i):factor.toFixed(12).replace(/0+$/,"").replace(/\.$/,""));
+            if(Number(total)>Number(item.remaining_qty))throw new Error("Quantidade convertida superior ao saldo do pedido: "+item.product);
+            return dec(total);
           });
           if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
           const result=await api(confirmPath,"POST",{xml,selections,manual_quantities});
@@ -311,7 +369,7 @@ window.NHReceivingImports=(()=>{
           const pending=Number(result.pending||0),inserted=Number(result.inserted||result.registered||result.imported||0);
           toast(pending?"XML registrado: "+pending+" item(ns) sem pedido"+(inserted?" e "+inserted+" recebimento(s) vinculado(s)":"")+".":"XML registrado com sucesso.");
         },"Confirmar XML");
-      choices.forEach((choice,index)=>bindXMLPicker(view,choice,index,esc));
+      choices.forEach((choice,index)=>bindXMLPicker(view,choice,index,esc,report.lines[index]));
     }catch(e){toast(e.message||"Falha ao conferir o XML.",true);}
     finally{app.setBusy(false);}
   }
