@@ -281,9 +281,81 @@
     main.replaceChildren(neutral);
     main.setAttribute("aria-busy","true");
   }
+  // Estrutura comum para TODAS as telas internas do motor de Controles.
+  // Move os nós existentes em vez de recriar HTML ou eventos do motor.
+  const detailLayouts={
+    acerto_ab:{root:".ab-view",heading:".ab-top",metrics:".ab-balance",actions:".ab-header-actions"},
+    divida:{heading:".debt-heading",metrics:".debt-summary",actions:".debt-heading-actions",extra:".debt-progress-wrap"},
+    divida_sem_valor:{heading:".open-debt-heading",metrics:".open-debt-total",actions:".open-debt-header-actions"},
+    vale_funcionarios:{root:".vf-page",heading:".vf-heading",actions:".vf-heading-actions"},
+    caminhao:{navigation:".truck-nav",actions:".truck-nav-actions",metrics:".truck-fast-summary"},
+    saldo:{heading:".intro",metrics:".stat-grid",actions:".actions-end"},
+    financeiro:{heading:".intro",metrics:".stat-grid",actions:".actions-end"},
+    calculo:{heading:".intro",metrics:".stat-grid",actions:".actions-end"}
+  };
+  function mountDetailLayout(app){
+    if(app.s.route!=="control"||!app.s.detail?.control)return;
+    const main=document.getElementById("main");
+    if(!main?.querySelector)return;
+    const mode=app.s.detail.control.mode,cfg=detailLayouts[mode];
+    if(!cfg)return;
+    const root=cfg.root?main.querySelector(cfg.root):main;
+    if(!root||root.querySelector(".nh-detail-header"))return;
+    const heading=cfg.heading?root.querySelector(cfg.heading):null;
+    const navigation=cfg.navigation?root.querySelector(cfg.navigation):null;
+    // Não montar sobre o estado de carregamento ou sobre uma mensagem de erro.
+    if(!heading&&!navigation)return;
+    const metrics=cfg.metrics?root.querySelector(cfg.metrics):null;
+    const actions=cfg.actions?(heading||navigation)?.querySelector(cfg.actions):null;
+    const extra=cfg.extra?root.querySelector(cfg.extra):null;
+    const header=document.createElement("section");
+    header.className="nh-detail-header nh-detail-"+mode;
+    header.setAttribute("aria-label","Resumo do controle");
+    if(heading){
+      heading.classList.add("nh-detail-heading");
+      header.append(heading);
+    }
+    if(metrics){
+      metrics.classList.add("nh-detail-metrics");
+      header.append(metrics);
+    }
+    if(actions){
+      actions.classList.add("nh-detail-actions");
+      header.append(actions);
+    }
+    if(extra){
+      extra.classList.add("nh-detail-extra");
+      header.append(extra);
+    }
+    const workspace=document.createElement("section");
+    workspace.className="nh-detail-workspace";
+    workspace.setAttribute("aria-label","Dados do controle");
+    while(root.firstChild)workspace.append(root.firstChild);
+    root.append(header,workspace);
+    root.classList.add("nh-detail-layout");
+  }
+  function installDetailLayout(app){
+    const main=document.getElementById("main");
+    if(!main?.querySelector)return;
+    const top=document.querySelector(".workspace > .topbar .top-left");
+    if(top&&!top.querySelector(".nh-detail-logo")){
+      const logo=document.createElement("img");
+      logo.className="nh-detail-logo";logo.src="/central/horizon-logo.svg?v=1";logo.alt="";
+      top.prepend(logo);
+    }
+    // O motor renderiza tanto de forma síncrona quanto depois das consultas.
+    // Observar apenas a área principal cobre trocas de aba, busca e reabertura.
+    if(typeof MutationObserver==="function"){
+      const observer=new MutationObserver(()=>mountDetailLayout(app));
+      observer.observe(main,{childList:true,subtree:true});
+    }
+    mountDetailLayout(app);
+  }
+
   function configureOriginalControls() {
     const app = nativeApp();
     if (!app) return;
+    installDetailLayout(app);
     const close = quietOldSidebar();
     app.toggleMenu = function () { close(); };
     const originalNavigate=app.navigate;
@@ -352,6 +424,7 @@
         return;
       }
       const rendered=originalRender.apply(this,arguments);
+      mountDetailLayout(this);
       close();
       releaseEntryAfterRealRender(this);
       return rendered;
