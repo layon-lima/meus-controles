@@ -301,7 +301,7 @@
       field("Fornecedor","supplier",item?.supplier||"",'maxlength="160"')+
       field("Produto","product",item?.product||"",'required maxlength="160"',true)+
       field("Quantidade pedida","ordered_qty",item?.ordered_qty||"",'required inputmode="decimal" placeholder="Ex.: 250,5"')+
-      select("Unidade","unit",["un","kg","t","L","sc","cx","pct","m","m²","m³"].map(x=>[x,x]),item?.unit||"un")+
+      field("Unidade","unit",item?.unit||"",'required maxlength="12" placeholder="Ex.: L, kg, DOS, un"')+
       '</div>'+
       (old?'<p class="rx-help">Produto com entregas registradas não pode ter quantidade menor que o já recebido.</p>':"");
     const view=dialog(old?"Editar produto do pedido":"Novo produto / pedido",
