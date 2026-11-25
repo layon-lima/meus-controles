@@ -86,19 +86,87 @@ window.NHReceivingImports=(()=>{
       return {options,suggested};
     });
   }
-  function pickerHTML(choice,query,selected,esc){
+  const pendingLabel="Sem pedido — vincular depois";
+  const orderLabel=o=>o.order_number+" · "+o.supplier+" · "+o.product;
+  function filterOrders(choice,query){
     const terms=words(query).split(" ").filter(Boolean);
-    const filtered=choice.options.filter(o=>terms.every(t=>words([o.order_number,o.supplier,o.product].join(" ")).includes(t)));
-    const visible=filtered.slice(0,terms.length?40:8);
-    const current=choice.options.find(o=>String(o.id)===String(selected));
-    if(current&&!visible.some(o=>o.id===current.id))visible.unshift(current);
-    const option=(value,label,disabled=false)=>'<option value="'+esc(value)+'"'+
-      (String(value)===String(selected)?' selected':'')+(disabled?' disabled':'')+'>'+esc(label)+'</option>';
-    return option("","Selecione o pedido")+option("pending","Sem pedido — vincular depois")+
-      visible.map(o=>option(o.id,(o.learned?"Histórico · ":"")+
-        o.order_number+" · "+o.supplier+" · "+o.product+" ("+
-        Number(o.remaining_qty).toLocaleString("pt-BR",{maximumFractionDigits:3})+" "+o.unit+" restantes)"+
-        (o.blocked?" — saldo insuficiente":o.amount===null?" — informar equivalência":""),o.blocked)).join("");
+    return choice.options.filter(o=>terms.every(t=>words(orderLabel(o)).includes(t)));
+  }
+  function pickerHTML(choice,query,selected,esc,index=0,highlight=-1){
+    const visible=filterOrders(choice,query);
+    const entries=[...visible.map(o=>({value:String(o.id),label:orderLabel(o),
+      info:(o.learned?"Histórico · ":"")+Number(o.remaining_qty).toLocaleString("pt-BR",{maximumFractionDigits:3})+
+        " "+o.unit+" restantes"+(o.blocked?" · saldo insuficiente":o.amount===null?" · informar equivalência":""),
+      disabled:o.blocked})),{value:"pending",label:pendingLabel,info:"",disabled:false}];
+    return (visible.length?"":'<div class="rx-xml-empty">Nenhum pedido encontrado</div>')+
+      entries.map((o,i)=>'<button type="button" role="option" id="rx-xml-opt-'+index+'-'+i+
+        '" data-xml-order="'+esc(o.value)+'" tabindex="-1" aria-selected="'+(String(selected)===o.value)+
+        '" class="rx-xml-option'+(i===highlight?" is-highlighted":"")+'"'+(o.disabled?' disabled':'')+
+        '><strong>'+esc(o.label)+'</strong>'+(o.info?'<small>'+esc(o.info)+'</small>':"")+'</button>').join("");
+  }
+  function bindXMLPicker(view,choice,index,esc){
+    const search=view.mask.querySelector("#rx-xml-search-"+index),
+      value=view.mask.querySelector("#rx-xml-choice-"+index),
+      list=view.mask.querySelector("#rx-xml-list-"+index),
+      hint=view.mask.querySelector("#rx-xml-suggestion-"+index);
+    let query="",highlight=-1;
+    const initial=choice.suggested;
+    value.value=initial?String(initial.id):"";
+    search.value=initial?orderLabel(initial):"";
+    function draw(){
+      list.innerHTML=pickerHTML(choice,query,value.value,esc,index,highlight);
+      if(highlight>=0)search.setAttribute("aria-activedescendant","rx-xml-opt-"+index+"-"+highlight);
+      else search.removeAttribute("aria-activedescendant");
+    }
+    function open(){
+      if(!list.hidden)return;
+      query=value.value?"":search.value;
+      highlight=-1;list.hidden=false;search.setAttribute("aria-expanded","true");draw();
+    }
+    function close(){
+      list.hidden=true;highlight=-1;search.setAttribute("aria-expanded","false");
+      search.removeAttribute("aria-activedescendant");
+    }
+    function choose(id){
+      const item=choice.options.find(o=>String(o.id)===id&&!o.blocked);
+      if(id!=="pending"&&!item)return;
+      value.value=id;
+      search.value=item?orderLabel(item):pendingLabel;
+      search.setCustomValidity("");
+      hint.textContent=item?"Pedido selecionado":"Vincular posteriormente";
+      close();
+    }
+    search.addEventListener("focus",()=>{open();if(value.value)search.select();});
+    search.addEventListener("click",open);
+    search.addEventListener("input",()=>{
+      value.value="";query=search.value;highlight=-1;
+      search.setCustomValidity("Selecione um pedido da lista ou Sem pedido.");
+      hint.textContent="";list.hidden=false;search.setAttribute("aria-expanded","true");draw();
+    });
+    search.addEventListener("blur",close);
+    // Manter o foco no campo enquanto o usuário escolhe com mouse/toque.
+    list.addEventListener("mousedown",e=>{if(e.target.closest("[data-xml-order]"))e.preventDefault();});
+    list.addEventListener("click",e=>{
+      const option=e.target.closest("[data-xml-order]");
+      if(option&&!option.disabled)choose(option.dataset.xmlOrder);
+    });
+    search.addEventListener("keydown",e=>{
+      if(e.key==="Escape"&&!list.hidden){e.preventDefault();e.stopPropagation();close();return;}
+      if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+        e.preventDefault();open();
+        const visible=filterOrders(choice,query);
+        const allowed=visible.map((o,i)=>o.blocked?-1:i).filter(i=>i>=0).concat(visible.length);
+        let n=allowed.indexOf(highlight);
+        n=n<0?(e.key==="ArrowDown"?0:allowed.length-1):(n+(e.key==="ArrowDown"?1:-1)+allowed.length)%allowed.length;
+        highlight=allowed[n];draw();
+        list.querySelector("#rx-xml-opt-"+index+"-"+highlight)?.scrollIntoView({block:"nearest"});
+      }else if(e.key==="Enter"&&!list.hidden){
+        e.preventDefault();
+        const visible=filterOrders(choice,query);
+        if(highlight>=0)choose(highlight===visible.length?"pending":String(visible[highlight]?.id));
+      }
+    });
+    close();
   }
 
   function selectFiles(accept,multiple,onFiles){
@@ -147,12 +215,12 @@ window.NHReceivingImports=(()=>{
           '<strong>'+esc(line.name||line.product||"Produto "+(index+1))+'</strong>'+
           '<small>'+esc(line.quantity)+" "+esc(line.unit)+" · "+esc(line.code||"")+'</small>'+
           '<div class="rx-form-grid">'+
-          '<div class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Pesquisar pedido</label>'+
-          '<input id="rx-xml-search-'+index+'" type="search" placeholder="Produto, fornecedor ou número do pedido" autocomplete="off">'+
-          '<label for="rx-xml-choice-'+index+'">Vincular ao pedido</label>'+
-          '<select id="rx-xml-choice-'+index+'" name="selection_'+index+'" required>'+pickerHTML(choice,"",suggested,esc)+'</select>'+
+          '<div class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Vincular ao pedido</label>'+
+          '<div class="rx-xml-combo"><input id="rx-xml-search-'+index+'" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rx-xml-list-'+index+'" placeholder="Pesquisar fornecedor, produto ou número do pedido" autocomplete="off" required value="'+esc(choice.suggested?orderLabel(choice.suggested):"")+'">'+
+          '<input type="hidden" id="rx-xml-choice-'+index+'" name="selection_'+index+'" value="'+esc(suggested)+'">'+
+          '<div id="rx-xml-list-'+index+'" class="rx-xml-list" role="listbox" hidden></div></div>'+
           '<small class="rx-xml-suggestion" id="rx-xml-suggestion-'+index+'">'+
-          (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":"Sugestão por produto e saldo disponível"):"Selecione ou pesquise um pedido")+'</small></div>'+
+          (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":"Sugestão por produto e saldo disponível"):"")+'</small></div>'+
           '<label class="rx-field wide"><span>Quantidade equivalente no pedido (somente se a unidade não converter automaticamente)</span>'+
           '<input inputmode="decimal" name="manual_'+index+'" placeholder="Deixe vazio para conversão automática"></label>'+
           '</div></article>';
@@ -181,16 +249,7 @@ window.NHReceivingImports=(()=>{
           closeDialog();await refresh();
           toast("XML processado: "+(result.registered||result.imported||"itens")+" conferidos.");
         },"Confirmar XML");
-      choices.forEach((choice,index)=>{
-        const search=view.mask.querySelector("#rx-xml-search-"+index),select=view.mask.querySelector("#rx-xml-choice-"+index);
-        const hint=view.mask.querySelector("#rx-xml-suggestion-"+index);
-        search.addEventListener("input",()=>{
-          const selected=select.value;
-          select.innerHTML=pickerHTML(choice,search.value,selected,esc);
-          select.value=selected;
-        });
-        select.addEventListener("change",()=>{hint.textContent=select.value==="pending"?"Vincular posteriormente":select.value?"Pedido selecionado":"Selecione ou pesquise um pedido";});
-      });
+      choices.forEach((choice,index)=>bindXMLPicker(view,choice,index,esc));
     }catch(e){toast(e.message||"Falha ao conferir o XML.",true);}
     finally{app.setBusy(false);}
   }
