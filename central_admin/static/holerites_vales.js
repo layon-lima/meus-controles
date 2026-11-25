@@ -239,9 +239,6 @@
     button.type="button";button.addEventListener("click",async()=>{
       const selected=allUnlinked.find(x=>Number(x.vale_employee_id)===Number(select.value));
       if(!selected)return;
-      if(!window.confirm("Confirmar que "+selected.nome+
-          " (Meus Controles) é a mesma pessoa do holerite de "+
-          person.nome+"?"))return;
       button.disabled=true;
       try{
         const response=await fetch(BASE+"vales-holerites/vincular",{
