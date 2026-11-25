@@ -96,25 +96,37 @@ window.NHReceivingImports=(()=>{
     finally{app.setBusy(false);}
   }
 
-  async function openPDF(app){
+  function openPDF(app){
+    if(!app.cid()){app.toast("Selecione um controle de recebimentos.",true);return}
+    selectFiles(".pdf,application/pdf",true,files=>importPDF(app,files));
+  }
+
+  // O mesmo importador atende ao seletor e ao arraste de pedidos PDF.
+  async function importPDF(app,files){
     const {api,route,toast,cid}=app;
-    if(!cid()){toast("Selecione um controle de recebimentos.",true);return}
-    selectFiles(".pdf,application/pdf",true,async files=>{
-      if(files.length>20)return toast("Selecione no máximo 20 PDFs por lote.",true);
-      const invalid=files.find(f=>!f.name.toLowerCase().endsWith(".pdf")||
-        f.size>7*1024*1024||f.size<5);
-      if(invalid)return toast("PDF inválido ou acima de 7 MB: "+invalid.name,true);
-      const docs=[],errors=[];
+    files=Array.from(files||[]);
+    if(!files.length)return;
+    if(!cid()||!app.canImportXML())return toast("Aguarde os recebimentos ou feche a janela aberta.",true);
+    if(files.length>20)return toast("Selecione no máximo 20 PDFs por lote.",true);
+    const invalid=files.find(f=>!/\.pdf$/i.test(f.name||"")||
+      f.size>7*1024*1024||f.size<5);
+    if(invalid)return toast("PDF inválido ou acima de 7 MB: "+invalid.name,true);
+    const control=cid(),basePath=route("");
+    const previewPath=route("/pdf/preview");
+    app.setBusy(true);
+    try{
+      const docs=[],errors=[],fingerprints=new Set();
       for(let i=0;i<files.length;i++){
         const file=files[i];
         toast("Lendo pedido "+(i+1)+"/"+files.length+": "+file.name);
         try{
           const base64=await readFile(file);
-          const report=await api(route("/pdf/preview"),"POST",{filename:file.name,base64});
-          if(report.already_imported){
+          const report=await api(previewPath,"POST",{filename:file.name,base64});
+          if(report.already_imported||(report.fingerprint&&fingerprints.has(report.fingerprint))){
             errors.push(file.name+": já importado.");
             continue;
           }
+          if(report.fingerprint)fingerprints.add(report.fingerprint);
           docs.push({...report,base64,items:(report.items||[]).map((item,index)=>({
             index,enabled:true,order_number:item.order_number||report.order_number||"",
             supplier:item.supplier||report.supplier||"",product:item.product||"",
@@ -125,11 +137,14 @@ window.NHReceivingImports=(()=>{
         }catch(e){errors.push(file.name+": "+e.message)}
       }
       if(errors.length)toast(errors.join(" | "),true);
-      if(docs.length)renderPDFReview(app,docs);
-    });
+      if(cid()!==control)throw new Error("O controle mudou. Importe novamente os PDFs.");
+      if(docs.length)renderPDFReview({...app,route:part=>basePath+part},docs,control);
+
+    }catch(e){toast(e.message||"Falha ao conferir PDFs.",true);}
+    finally{app.setBusy(false);}
   }
 
-  function renderPDFReview(app,docs){
+  function renderPDFReview(app,docs,control=app.cid()){
     const {api,route,dialog,toast,refresh,esc,closeDialog,dec}=app;
     const units=["un","kg","t","L","sc","cx","pct","m","m²","m³"];
     const grids=docs.map((doc,fi)=>'<section class="rx-preview-item">'+
@@ -170,6 +185,7 @@ window.NHReceivingImports=(()=>{
         if(!files.length)throw new Error("Selecione pelo menos um produto para importar.");
         if(files.some(file=>file.items.some(item=>!item.order_number||!item.supplier||!item.product)))
           throw new Error("Confira pedido, fornecedor e produto de todas as linhas selecionadas.");
+        if(app.cid()!==control)throw new Error("O controle mudou. Importe novamente os PDFs.");
         const result=await api(route("/pdf/confirm"),"POST",{files});
         closeDialog();await refresh();
         toast((result.imported||0)+" produto(s) importado(s) de "+files.length+" PDF(s).");
@@ -376,5 +392,5 @@ window.NHReceivingImports=(()=>{
     });
   }
 
-  return {openXML,importXML,openPDF,openJSON,restoreIssuer,readFiscalPDF};
+  return {openXML,importXML,openPDF,importPDF,openJSON,restoreIssuer,readFiscalPDF};
 })();
