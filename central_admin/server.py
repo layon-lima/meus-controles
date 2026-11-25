@@ -15,6 +15,7 @@ from .performance import cached_snapshot
 from .operations_gateway import proxy
 from .vales_holerites import handle as handle_vales_holerites
 from .funcionarios import handle as handle_funcionarios
+from .recebimentos_export import export_summary
 
 STATIC = Path(__file__).with_name("static")
 ASSETS = {
@@ -185,6 +186,8 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(404, {"ok": False, "erro": "Rota inexistente."})
 
     def do_POST(self):
+        if self.command == "POST" and urlsplit(self.path).path == "/api/recebimentos/resumo.xlsx":
+            return export_summary(self)
         if self.command == "POST" and urlsplit(self.path).path == "/api/pair":
             return self.pair()
         if handle_funcionarios(self):
