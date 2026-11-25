@@ -255,3 +255,13 @@ h1{font-size:28px;margin:0;letter-spacing:-.95px;line-height:1.2}
 .nhf-pix-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid #e4e7eb}
 .nhf-pix-row strong{font-size:12px;color:#303740}.nhf-pix-input{width:100%;min-width:0;padding:8px 10px;border:1px solid #cdd2d9;border-radius:6px;font:inherit}.nhf-pix-actions{display:flex;gap:6px;flex-wrap:wrap}.nhf-pix-actions [hidden]{display:none!important}
 @media(max-width:720px){.nhf-pix-row{grid-template-columns:1fr}.nhf-pix-actions{justify-content:flex-start}}
+
+/* Painel permanente, com acesso por âncora, sem popup ou estado oculto. */
+#staffTop,#pixPanel{scroll-margin-top:100px}
+#pixPanel{display:block!important;margin-top:24px;padding:18px;min-width:0}
+#pixTitle{font-size:17px;margin:0}
+.nhf-pix-nav{display:inline-flex!important;align-items:center;justify-content:center;white-space:nowrap;text-decoration:none}
+#pixPanel .nhf-detail-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#pixPanel .nhf-mini{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+#pixPanel .nhf-pix-actions [hidden]{display:none!important}
+@media(max-width:720px){.nhf-right{flex-wrap:wrap;justify-content:flex-end}.nhf-pix-nav{min-height:36px!important}#pixPanel{padding:12px;scroll-margin-top:135px}}
