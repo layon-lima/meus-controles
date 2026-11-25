@@ -162,6 +162,7 @@
   }
   let pixSaving=false;
   function pixFeedback(message,error=false){
+    if(window.NHFeedback){window.NHFeedback.notify(message,error);return;}
     const toast=$("toast");
     toast.hidden=false;toast.textContent=message;
     toast.classList.toggle("error",error);
