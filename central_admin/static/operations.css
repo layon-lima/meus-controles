@@ -284,39 +284,60 @@ html.nh-route-boot body::before{
 }
 
 /* Meus Controles: mesma hierarquia compacta de Contas, sem alterar outros módulos. */
-body.central-operational.nh-scope-controles.nh-module-list #main{padding:12px 10px 24px!important}
-body.nh-scope-controles .nh-controls-compact-head{display:grid;grid-template-columns:minmax(205px,auto) minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 12px!important;margin:0 0 12px;background:#fff;border:1px solid #dce0e5;border-radius:8px;box-shadow:0 1px 3px #20242b0f}
-body.nh-scope-controles .nh-controls-brand{display:flex;align-items:center;gap:10px;min-width:0}
-body.nh-scope-controles .nh-controls-brand img{display:block;width:40px;height:40px;object-fit:contain;flex:none}
-body.nh-scope-controles .nh-controls-brand h2{font-size:18px;line-height:1.2;letter-spacing:-.3px;margin:0 0 4px}
-body.nh-scope-controles .nh-controls-brand p{font-size:10px;color:#606873;margin:0}
-body.nh-scope-controles .nh-controls-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}
-body.nh-scope-controles .nh-controls-metric{display:flex;align-items:center;gap:9px;min-width:0;padding:8px 12px;min-height:54px;background:#fff;border:1px solid #dce0e5;border-radius:7px;box-shadow:0 1px 3px #20242b0f}
-body.nh-scope-controles .nh-controls-metric-icon{display:flex;color:#526476;flex:none}
-body.nh-scope-controles .nh-controls-metric small{display:block;font-size:10px;font-weight:750;text-transform:uppercase;color:#606873}
-body.nh-scope-controles .nh-controls-metric strong{display:block;font-size:18px;line-height:1.25;font-variant-numeric:tabular-nums}
-body.nh-scope-controles .nh-controls-compact-head .nh-add{min-height:36px;padding:7px 13px!important;font-size:12px;width:auto}
-body.nh-scope-controles .nh-controls-workspace{min-width:0;background:#fff;border:1px solid #dce0e5;border-radius:8px;box-shadow:0 1px 3px #20242b0f}
-body.nh-scope-controles .nh-controls-section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #dce0e5;min-height:48px}
-body.nh-scope-controles .nh-controls-section-head h3{font-size:15px;margin:0}
-body.nh-scope-controles .nh-controls-section-head .nh-module-count{background:#eef0f2;border-radius:14px;padding:4px 9px;color:#526476;font-weight:650}
-body.nh-scope-controles .nh-controls-workspace .nh-module-toolbar{margin:0;padding:10px 12px;border:0!important;box-shadow:none!important;border-radius:0!important;gap:9px}
-body.nh-scope-controles .nh-controls-workspace .nh-board-select{height:36px;min-width:145px;max-width:220px;font-size:12px;padding:6px 9px}
-body.nh-scope-controles .nh-controls-workspace .nh-module-search{height:36px;padding:7px 12px;font-size:12px}
-body.nh-scope-controles .nh-controls-table-wrap{margin:0 9px 10px;border:1px solid #dce0e5;border-radius:7px;overflow:auto;min-width:0}
-body.nh-scope-controles .nh-controls-table{width:100%;min-width:800px;table-layout:fixed;border-collapse:collapse;font-size:12px}
-body.nh-scope-controles .nh-controls-table th,body.nh-scope-controles .nh-controls-table td{padding:9px 12px;border:0;border-bottom:1px solid #dce0e5;border-right:1px solid #dce0e5;vertical-align:middle;line-height:1.35;text-align:left}
-body.nh-scope-controles .nh-controls-table th{height:38px;font-size:11px;font-weight:700;letter-spacing:0}
-body.nh-scope-controles .nh-controls-table td{height:47px;cursor:pointer}
-body.nh-scope-controles .nh-controls-table tr:last-child td{border-bottom:0}
-body.nh-scope-controles .nh-controls-table :is(th,td):last-child{border-right:0;text-align:center;padding-inline:4px}
-body.nh-scope-controles .nh-controls-table td small{display:block;font-size:10px;color:#606873;margin-top:3px}
-body.nh-scope-controles .nh-controls-table .nh-control-open{display:flex;align-items:center;gap:10px;text-align:left;min-width:0;width:100%;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;color:#20242b!important;font-size:12px;cursor:pointer}
-body.nh-scope-controles .nh-control-open strong{min-width:0;overflow-wrap:anywhere;font-weight:700}
-body.nh-scope-controles .nh-control-avatar{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#eef0f2;color:#454d57;font-size:10px;font-weight:750;flex:none}
-body.nh-scope-controles .nh-control-balance strong{font-variant-numeric:tabular-nums;font-weight:700;overflow-wrap:anywhere}
-body.nh-scope-controles .nh-controls-table .control-card-edit{width:30px;height:30px;padding:5px;background:#fff!important;color:#526476!important;border:1px solid #dce0e5!important;border-radius:6px!important;box-shadow:none!important}
-body.nh-scope-controles .nh-controls-table .card-action-menu{position:fixed;max-height:calc(100dvh - 16px);overflow:auto;text-align:left}
-body.nh-scope-controles .nh-controls-table .nh-controls-empty{text-align:center;padding:32px 12px;color:#606873;cursor:default}
-@media(max-width:850px){body.nh-scope-controles .nh-controls-compact-head{grid-template-columns:minmax(0,1fr) auto}body.nh-scope-controles .nh-controls-metrics{grid-row:2;grid-column:1/-1}body.nh-scope-controles .nh-controls-compact-head .nh-add{grid-column:2;grid-row:1}}
-@media(max-width:520px){body.central-operational.nh-scope-controles.nh-module-list #main{padding:6px!important}body.nh-scope-controles .nh-controls-brand h2{font-size:16px}body.nh-scope-controles .nh-controls-brand p{display:none}body.nh-scope-controles .nh-controls-brand img{width:32px;height:32px}body.nh-scope-controles .nh-controls-metric{gap:5px;padding:6px;min-height:48px}body.nh-scope-controles .nh-controls-metric-icon svg{width:16px;height:16px}body.nh-scope-controles .nh-controls-metric small{font-size:9px}body.nh-scope-controles .nh-controls-workspace .nh-module-toolbar{flex-wrap:wrap}body.nh-scope-controles .nh-controls-workspace .nh-module-search{flex:1 1 100%;order:2}body.nh-scope-controles .nh-controls-table-wrap{margin:0 5px 5px}}
+body.central-operational:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-relatorios).nh-module-list #main{padding:12px 10px 24px!important}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-compact-head{display:grid;grid-template-columns:minmax(205px,auto) minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 12px!important;margin:0 0 12px;background:#fff;border:1px solid #dce0e5;border-radius:8px;box-shadow:0 1px 3px #20242b0f}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand{display:flex;align-items:center;gap:10px;min-width:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand img{display:block;width:40px;height:40px;object-fit:contain;flex:none}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand h2{font-size:18px;line-height:1.2;letter-spacing:-.3px;margin:0 0 4px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand p{font-size:10px;color:#606873;margin:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric{display:flex;align-items:center;gap:9px;min-width:0;padding:8px 12px;min-height:54px;background:#fff;border:1px solid #dce0e5;border-radius:7px;box-shadow:0 1px 3px #20242b0f}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric-icon{display:flex;color:#526476;flex:none}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric small{display:block;font-size:10px;font-weight:750;text-transform:uppercase;color:#606873}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric strong{display:block;font-size:18px;line-height:1.25;font-variant-numeric:tabular-nums}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-compact-head .nh-add{min-height:36px;padding:7px 13px!important;font-size:12px;width:auto}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-workspace{min-width:0;background:#fff;border:1px solid #dce0e5;border-radius:8px;box-shadow:0 1px 3px #20242b0f}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #dce0e5;min-height:48px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-section-head h3{font-size:15px;margin:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-section-head .nh-module-count{background:#eef0f2;border-radius:14px;padding:4px 9px;color:#526476;font-weight:650}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-workspace .nh-module-toolbar{margin:0;padding:10px 12px;border:0!important;box-shadow:none!important;border-radius:0!important;gap:9px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-workspace .nh-board-select{height:36px;min-width:145px;max-width:220px;font-size:12px;padding:6px 9px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-workspace .nh-module-search{height:36px;padding:7px 12px;font-size:12px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table-wrap{margin:0 9px 10px;border:1px solid #dce0e5;border-radius:7px;overflow:auto;min-width:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table{width:100%;min-width:800px;table-layout:fixed;border-collapse:collapse;font-size:12px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table th,body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table td{padding:9px 12px;border:0;border-bottom:1px solid #dce0e5;border-right:1px solid #dce0e5;vertical-align:middle;line-height:1.35;text-align:left}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table th{height:38px;font-size:11px;font-weight:700;letter-spacing:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table td{height:47px;cursor:pointer}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table tr:last-child td{border-bottom:0}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table :is(th,td):last-child{border-right:0;text-align:center;padding-inline:4px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table td small{display:block;font-size:10px;color:#606873;margin-top:3px}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table .nh-control-open{display:flex;align-items:center;gap:10px;text-align:left;min-width:0;width:100%;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;color:#20242b!important;font-size:12px;cursor:pointer}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-control-open strong{min-width:0;overflow-wrap:anywhere;font-weight:700}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-control-avatar{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#eef0f2;color:#454d57;font-size:10px;font-weight:750;flex:none}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-control-balance strong{font-variant-numeric:tabular-nums;font-weight:700;overflow-wrap:anywhere}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table .control-card-edit{width:30px;height:30px;padding:5px;background:#fff!important;color:#526476!important;border:1px solid #dce0e5!important;border-radius:6px!important;box-shadow:none!important}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table .card-action-menu{position:fixed;max-height:calc(100dvh - 16px);overflow:auto;text-align:left}
+body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table .nh-controls-empty{text-align:center;padding:32px 12px;color:#606873;cursor:default}
+@media(max-width:850px){body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-compact-head{grid-template-columns:minmax(0,1fr) auto}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metrics{grid-row:2;grid-column:1/-1}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-compact-head .nh-add{grid-column:2;grid-row:1}}
+@media(max-width:520px){body.central-operational:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-relatorios).nh-module-list #main{padding:6px!important}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand h2{font-size:16px}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand p{display:none}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-brand img{width:32px;height:32px}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric{gap:5px;padding:6px;min-height:48px}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric-icon svg{width:16px;height:16px}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-metric small{font-size:9px}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-workspace .nh-module-toolbar{flex-wrap:wrap}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-workspace .nh-module-search{flex:1 1 100%;order:2}body:is(.nh-scope-controles,.nh-scope-transportadoras,.nh-scope-documentos,.nh-scope-relatorios) .nh-controls-table-wrap{margin:0 5px 5px}}
+
+/* Documentos e relatórios usam a mesma moldura das listagens de Contas. */
+body.nh-scope-documentos .nh-documents{padding:12px 10px 24px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+body.nh-scope-documentos .nh-document-head{grid-template-columns:minmax(0,1fr) auto;padding:10px 12px!important}
+body.nh-scope-documentos .nh-documents .nh-module-toolbar{margin:0;padding:10px 12px;border-radius:8px 8px 0 0!important}
+body.nh-scope-documentos .nh-documents-table-wrap{display:block;overflow:auto;background:#fff;border:1px solid #dce0e5;border-top:0;border-radius:0 0 8px 8px}
+body.nh-scope-documentos .nh-documents-table{width:100%;min-width:730px;table-layout:fixed;border-collapse:collapse;font-size:12px}
+body.nh-scope-documentos .nh-documents-table th:nth-child(1){width:31%}
+body.nh-scope-documentos .nh-documents-table th:nth-child(2){width:29%}
+body.nh-scope-documentos .nh-documents-table th:nth-child(3){width:16%}
+body.nh-scope-documentos .nh-documents-table th:nth-child(4){width:24%}
+body.nh-scope-documentos .nh-documents-table :is(th,td){padding:9px 12px;border-bottom:1px solid #dce0e5;border-right:1px solid #dce0e5;text-align:left;vertical-align:middle;overflow-wrap:anywhere}
+body.nh-scope-documentos .nh-documents-table th{height:38px}
+body.nh-scope-documentos .nh-documents-table td{height:46px}
+body.nh-scope-documentos .nh-documents-table tr:last-child td{border-bottom:0}
+body.nh-scope-documentos .nh-documents-table :is(th,td):last-child{border-right:0}
+body.nh-scope-documentos .nh-documents-table .nh-document-badges{display:table-cell;margin:0;font-weight:650}
+body.nh-scope-documentos .nh-documents-table .nh-document-actions{justify-content:flex-start;gap:5px}
+body.nh-scope-documentos .nh-documents-table .nh-document-action{padding:5px 8px!important;min-height:28px!important;font-size:11px!important}
+body.nh-scope-relatorios .nh-report-head{grid-template-columns:minmax(0,1fr)}
+@media(max-width:720px){body.nh-scope-documentos .nh-documents{padding:6px!important}body.nh-scope-documentos .nh-document-head{grid-template-columns:minmax(0,1fr) auto}}
