@@ -389,7 +389,7 @@ const test=async()=>{
     api:async(path,method,payload)=>{
       pdfCalls.push({path,method,payload});
       return {filename:payload.filename,fingerprint:"hash-pedido",order_number:"1001",supplier:"Agrex",
-        items:[{product:"KCL",ordered_qty:"40",unit:"t"}]};
+        items:[{product:"KCL",ordered_qty:"40",unit:"DOS"}]};
     },
     dialog:(title,subtitle,body,submit)=>{
       dialogBody=body;onSubmit=submit;return {form:{addEventListener(){}}};
@@ -400,12 +400,14 @@ const test=async()=>{
   assert.ok(pdfCalls.every(c=>c.path.endsWith("/pdf/preview")));
   assert.equal((dialogBody.match(/name="enabled_/g)||[]).length,1,"Mesmo fingerprint não duplica o pedido");
   assert.ok(dialogBody.includes("KCL"));
+  assert.ok(dialogBody.includes('name="unit_0_0" maxlength="12" value="DOS"'),"Preservar unidade original fora da antiga lista");
   assert.equal(busy,false);
-  await onSubmit({has:key=>key==="enabled_0_0",get:key=>({"order_0_0":"1001","supplier_0_0":"Agrex","product_0_0":"KCL","qty_0_0":"40","unit_0_0":"t"})[key]});
+  await onSubmit({has:key=>key==="enabled_0_0",get:key=>({"order_0_0":"1001","supplier_0_0":"Agrex","product_0_0":"KCL","qty_0_0":"40","unit_0_0":"DOS"})[key]});
   assert.equal(pdfCalls.length,3);
   assert.ok(pdfCalls[2].path.endsWith("/pdf/confirm"));
   assert.equal(pdfCalls[2].payload.files.length,1);
   assert.equal(pdfCalls[2].payload.files[0].items[0].product,"KCL");
+  assert.equal(pdfCalls[2].payload.files[0].items[0].unit,"DOS");
   console.log("OK: arrastar PDF usa OCR/prévia e confirmação, sem duplicar arquivo");
   console.log("OK: arrastar XML usa a prévia real, com sugestão e confirmação explícita");
   console.log("OK: Recebimentos aparece diretamente, sem renderizar outros modelos antes");
