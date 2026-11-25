@@ -112,16 +112,18 @@
   // O diálogo permanece exclusivamente para decisões específicas existentes
   // (descartar formulário, escolha de fornecedor, consentimento), não para cada POST.
   window.NHConfirm={ask,operation};
-  window.NHFeedback={notify};
+  let activeWrites=0;
+  window.NHFeedback={notify,isWriting:()=>activeWrites>0};
   window.fetch=async function(input,init){
     let op=null;
     try{op=operation(input,init);}catch{}
     let response;
-    try{response=await originalFetch(input,init);}
+    if(op)activeWrites++;
+    try{response=await originalFetch(input,init); }
     catch(error){
       if(op)notify("Não foi possível verificar o resultado da operação. Atualize a lista antes de tentar novamente.",true,{fallback:true});
       throw error;
-    }
+    }finally{if(op)activeWrites--;}
     if(!op)return response;
     // Não consumir o corpo usado pelo módulo. Uma resposta 2xx com ok:false
     // ou error também é falha. Não afirmar sucesso com HTML/login ou JSON inválido.
