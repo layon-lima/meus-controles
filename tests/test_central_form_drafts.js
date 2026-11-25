@@ -58,9 +58,14 @@ function fixture(kind){
   for(const kind of ["rx","contas","legacy","pix"]){
     const x=fixture(kind),{win,root,field,file,save,cancel,outside,state,fire}=x;
     assert.equal(win.NHDrafts.hasDraft(),true,kind);
-    assert.equal(fire("click",outside).stopped,true,"Clique fora é protegido");
-    assert.equal(state.closed,0);
+    assert.equal(x.doc.querySelector("[data-nh-draft-minimize]"),null,"Sem botão extra");
     state.pending=true;assert.equal(win.NHDrafts.minimize(),false);state.pending=false;
+    const noticeCount=x.messages.length;
+    assert.equal(fire("click",outside).stopped,true,"Clique fora minimiza sem acionar outra operação");
+    assert.equal(root.classList.contains("nh-draft-minimized"),true);
+    assert.equal(x.messages.length,noticeCount,"Minimizar não gera aviso");
+    assert.equal(state.closed,0);
+    x.doc.querySelector(".nh-draft-reopen").click();
     const oldFile=file.files[0];field.focus();cancel.click();
     assert.equal(root.classList.contains("nh-draft-minimized"),true);
     assert.equal(root.isConnected,true,"O nó original continua vivo");
