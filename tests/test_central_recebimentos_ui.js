@@ -39,6 +39,8 @@ class Element{
   append(){}
   remove(){}
   replaceChildren(){this.innerHTML=""}
+  querySelector(selector){return get(selector)}
+  focus(){}
   removeAttribute(){}
   setAttribute(){}
 }
@@ -167,6 +169,20 @@ const test=async()=>{
   assert.equal(posted.length,1,"GFARM deve receber uma única solicitação por nota");
   assert.deepEqual(posted[0].receipt_ids,[51,52],
     "Todos os itens da mesma NF-e precisam ir ao GFARM");
+  // Abrir o resumo pela ação real; não usar a tabela larga da tela principal.
+  const summaryClick={dataset:{action:"quick-summary"}};
+  document.listeners.click({target:{closest:selector=>selector==="[data-action]"?summaryClick:null}});
+  const summary=get("#rx-dialog-layer").innerHTML;
+  assert.ok(summary.includes('class="rx-dialog rx-dialog-summary"'));
+  assert.ok(summary.includes('class="rx-summary-table"'));
+  assert.ok(summary.includes("KCL")&&summary.includes("40 t")&&summary.includes("10 t")&&summary.includes("30 t"));
+  assert.ok(!summary.includes(">S9<"),"Resumo contém somente produtos com entrega registrada");
+  assert.ok(!summary.includes('class="rx-table"'),"Não herdar largura mínima da tabela principal");
+  assert.ok(summary.includes(">Fechar</button>"));
+  const style=fs.readFileSync("central_admin/static/recebimentos.css","utf8");
+  assert.match(style,/\.rx-summary-table\{\s*width:100%;min-width:0;max-width:100%;table-layout:fixed/);
+  assert.match(style,/\.rx-dialog>\.rx-form\{[^}]*min-height:0/);
+  console.log("OK: resumo rápido com tabelas próprias e quantidades preservadas");
   // Testar o importador real: largar o arquivo abre a prévia, não o POST de confirmação.
   const impWin={};
   const calls=[];
