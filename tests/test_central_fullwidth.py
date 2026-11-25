@@ -15,9 +15,9 @@ class CentralFullWidthTest(unittest.TestCase):
 
     def test_recebimentos_uses_all_available_width(self):
         self.check_selector("recebimentos.css",
-            r"\.rx-app\s*\{[^}]*width:100%;[^}]*max-width:none;[^}]*padding:44px clamp\(14px,1\.55vw,30px\)")
+            r"\.rx-app\s*\{[^}]*width:100%;[^}]*max-width:none;[^}]*padding:10px 16px 64px")
         html=(ROOT/"static"/"recebimentos.html").read_text(encoding="utf-8")
-        self.assertIn('recebimentos.css?v=20261124xml2',html)
+        self.assertIn('recebimentos.css?v=20261125compact1',html)
 
     def test_funcionarios_width_and_aligned_header(self):
         self.check_selector("funcionarios.css",
