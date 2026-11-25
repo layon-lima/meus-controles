@@ -80,6 +80,7 @@ jobs:
           node tests/test_central_vales_holerites_ui.js
           node --check tests/test_central_modulos_ui.js
           node tests/test_central_modulos_ui.js
+          node tests/test_central_detail_layout.js
           node --check central_admin/static/route-preflight.js
           node --check tests/test_central_route_ui.js
           node tests/test_central_route_ui.js
