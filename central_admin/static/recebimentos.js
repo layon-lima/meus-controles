@@ -660,7 +660,7 @@
   }
   const canImportXML=()=>!!cid()&&!!store.data&&!store.busy&&!modal;
   const ui={api,toast,dialog,closeDialog,refresh,cid,route,items,receipts,esc,qty,dec,field,select,today,setBusy,canImportXML};
-  // A tela inteira de Recebimentos aceita um XML de NF-e, como no motor antigo.
+  // A tela inteira aceita pedidos PDF ou NF-e XML, sem gravar no arraste.
   // Evita que o navegador abra o arquivo e abandone o aplicativo.
   const fileDrag=e=>Array.from(e.dataTransfer?.types||[]).includes("Files");
   const dragHint=$("#rx-xml-drop");
@@ -688,8 +688,17 @@
     e.preventDefault();hideDrop();
     if(!files.length)return;
     if(!canImportXML())return toast("Aguarde o carregamento ou feche a janela aberta.",true);
-    if(files.length!==1)return toast("Solte um XML de NF-e por vez.",true);
-    const task=window.NHReceivingImports.importXML(ui,files[0]);
+    const allPDF=files.every(f=>/\.pdf$/i.test(f.name||""));
+    const allXML=files.every(f=>/\.xml$/i.test(f.name||""));
+    let task;
+    if(allPDF){
+      task=window.NHReceivingImports.importPDF(ui,files);
+    }else if(allXML){
+      if(files.length!==1)return toast("Solte um XML de NF-e por vez.",true);
+      task=window.NHReceivingImports.importXML(ui,files[0]);
+    }else{
+      return toast("Solte somente PDFs de pedido ou um XML de NF-e. Não misture os formatos.",true);
+    }
     if(task?.catch)task.catch(err=>toast(err.message,true));
   });
   document.addEventListener("dragend",hideDrop);
