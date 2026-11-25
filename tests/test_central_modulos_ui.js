@@ -76,7 +76,10 @@ for(const [module,allowed,forbidden,newMode] of [
   ["controles",["Dívida","Acerto"],["Pedido de Fertilizantes","Frete da Soja"],"financeiro"]
 ]){
   const {elements,app,body}=boot(module,testControls);
-  const results=elements.get("main").children.find(x=>x.className==="control-grid nh-filtered-results");
+  const main=elements.get("main");
+  const compact=module==="controles";
+  const results=compact?main.children.find(x=>x.className==="nh-controls-workspace").children[2]:main.children.find(x=>x.className==="control-grid nh-filtered-results");
+  if(compact){assert.ok(results.innerHTML.includes("nh-controls-table"));assert.ok(results.innerHTML.includes("Restante da dívida"));assert.ok(results.innerHTML.includes("Saldo compensado"));assert.ok(results.innerHTML.includes("Excluir controle"));assert.ok(main.children[0].children[0].children[0].src.includes("horizon-logo.svg"));assert.equal(main.children[0].children[1].children.length,3);}
   assert.ok(results,"Lista do módulo deve estar presente: "+module);
   for(const name of allowed)assert.ok(results.innerHTML.includes(name),module+" deveria mostrar "+name);
   for(const name of forbidden)assert.ok(!results.innerHTML.includes(name),module+" não deve mostrar "+name);
@@ -85,12 +88,30 @@ for(const [module,allowed,forbidden,newMode] of [
   app.toggleMenu(true);
   assert.equal(elements.get("sidebar").classList.contains("open"),false,
     "A navegação nunca deve reabrir o menu lateral");
-  const add=elements.get("main").children.find(x=>x.className==="nh-module-head").children[1];
+  const head=main.children.find(x=>x.className.startsWith("nh-module-head"));
+  const add=head.children[head.children.length-1];
   add.click();
   assert.equal(app.s.modal,"builder");
   if(newMode)assert.equal(app.s.draft.mode,newMode,"O botão novo deve abrir o modelo da área");
   console.log("OK:",module,"lista isolada e menu lateral fechado");
 }
+const list=boot("controles",[
+ {name:"Acerto de teste",mode:"acerto_ab",summary:{count:6,settlement:{debtor:"FULANO",amount:15000}}},
+ {name:"Vale de teste",mode:"vale_funcionarios",board_id:5,summary:{count:11,employees:18,balance:8990}},
+ {name:"Dívida de teste",mode:"divida",summary:{count:30,balance:351813.71}},
+ {name:"Outro",mode:"recebimento",summary:{count:100}}
+]);
+const workspace=list.elements.get("main").children[1],toolbar=workspace.children[1],results=workspace.children[2];
+assert.match(results.innerHTML,/FULANO deve R\$\s*15\.000,00/);
+assert.match(results.innerHTML,/R\$\s*8\.990,00/);
+assert.match(results.innerHTML,/18 funcionário\(s\)/);
+assert.match(results.innerHTML,/R\$\s*351\.813,71/);
+assert.ok(!results.innerHTML.includes("Outro"));
+const search=toolbar.children[1];search.value="insumos";search.listeners.input();
+assert.ok(results.innerHTML.includes("Vale de teste")&&!results.innerHTML.includes("Acerto de teste"));
+search.value="";search.listeners.input();
+const board=toolbar.children[0];board.value="5";board.listeners.change();
+assert.ok(results.innerHTML.includes("Vale de teste")&&!results.innerHTML.includes("Dívida de teste"));
 const docs=boot("documentos",testControls);
 const before=docs.elements.get("contasView").beforeNodes||[];
 assert.equal(before.length,1,"Documentos deve ter uma tela dedicada");
