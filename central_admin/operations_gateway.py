@@ -59,6 +59,24 @@ def destination(path):
 
 def adapt_legacy_script(backend, upstream_path, source):
     """Executa as telas completas no celular, apenas dentro da Central."""
+    # A confirmação de gravações passa pela camada fetch comum. Remover
+    # apenas os antigos avisos redundantes de gravação. Decisões de
+    # descarte e escolha de fornecedor permanecem, em diálogo próprio.
+    if ((backend == "controles" and upstream_path.startswith("/static/") and upstream_path.endswith(".js"))
+            or (backend == "contas" and upstream_path == "/app.js")):
+        if backend == "contas":
+            source = source.replace("function closeModal({saved=false}={})",
+                                    "async function closeModal({saved=false}={})", 1)
+        def replace_confirmation(match):
+            condition = match.group(0)
+            if any(word in condition for word in ("Cadastrar \"", "ChatGPT", "com GPT")):
+                return re.sub(r'(?<![\w.])(?:window\.)?confirm\s*\(', 'await window.NHConfirm.ask(', condition)
+            return ""
+        source = re.sub(
+            r'(?m)^[ \t]*if\s*\(!\s*(?:window\.)?confirm\s*\([\s\S]*?\)\s*\)\s*return\s*;',
+            replace_confirmation, source)
+        # As decisões que não são uma gravação continuam pedindo resposta.
+        source = re.sub(r'(?<![\w.])(?:window\.)?confirm\s*\(', 'await window.NHConfirm.ask(', source)
     if backend != "controles":
         return source
     if upstream_path == "/static/receiving_mobile.js":
@@ -127,6 +145,10 @@ def rewrite_text(text, prefix, kind):
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
         css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124neutral1">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
+        # Antes dos scripts legados, inclusive os que capturam fetch na carga.
+        confirmation = ('<link rel="stylesheet" href="/central/confirm-actions.css?v=20261125confirm1">'
+                        '<script src="/central/confirm-actions.js?v=20261125confirm1"></script>')
+        text = re.sub(r"<head(?:\s[^>]*)?>", lambda m: m.group(0) + confirmation, text, count=1, flags=re.I)
         if "</head>" in text:
             text = text.replace("</head>", css + js + "</head>", 1)
     return text
