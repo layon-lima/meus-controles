@@ -38,7 +38,6 @@
     if(draft){
       draft.root.classList.remove("nh-draft-minimized");
       draft.root.removeAttribute("inert");
-      draft.root.querySelector("[data-nh-draft-minimize]")?.remove();
     }
     draft=null;
   }
@@ -48,13 +47,6 @@
     if(!found||!found.panel)return null;
     if(!draft)draft={...found,minimized:false,href:location.href,history:window.history.state,controlValue:$("#rx-control")?.value};
     draft.head=found.head;
-    if(!draft.root.querySelector("[data-nh-draft-minimize]")){
-      const button=document.createElement("button");button.type="button";
-      button.className="nh-draft-minimize";button.setAttribute("data-nh-draft-minimize","");
-      button.setAttribute("aria-label","Minimizar formulário");button.title="Minimizar sem perder os dados";button.textContent="−";
-      if(draft.kind==="contas"&&draft.head)draft.head.after(button);
-      else (draft.head||draft.panel).append(button);
-    }
     return draft;
   }
   function button(label,cls,handler){
@@ -121,7 +113,7 @@
     if(discarding||isDecision(e.target))return;
     const d=current();if(!d)return;
     if(d.panel.contains(e.target)){
-      if(e.target.closest("[data-nh-draft-minimize],"+d.close)){
+      if(e.target.closest(d.close)){
         stop(e);minimize();
       }
       return;
@@ -131,7 +123,7 @@
     if(!d.minimized||e.target.closest?.("a,button,input,select,textarea,[onclick],[role=button],[role=link]")){
       stop(e);
       if(d.minimized)info("Reabra ou descarte o formulário minimizado antes de iniciar outra operação.");
-      else if(d.kind!=="pix")info("Formulário protegido. Use o botão − para minimizar sem perder os dados.");
+      else minimize();
     }
   },true);
   window.addEventListener("keydown",e=>{
