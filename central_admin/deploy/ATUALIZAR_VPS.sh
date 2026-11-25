@@ -451,10 +451,12 @@ for view in staff pix; do
       || fail "Aba de saldos nao esta selecionada."
   fi
   for asset in funcionarios.js funcionarios.css; do
-    grep -Fq "/central/$asset?v=20261125draft2" "$TMP/pix-page" \
+    VERSION=20261125draft2
+    [[ "$asset" != *.css ]] || VERSION=20261125detail2
+    grep -Fq "/central/$asset?v=$VERSION" "$TMP/pix-page" \
       || fail "Pagina usa recurso antigo: $asset."
     curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-      "$PUBLIC/$asset?v=20261125draft2" -o "$TMP/pix-asset" \
+      "$PUBLIC/$asset?v=$VERSION" -o "$TMP/pix-asset" \
       || fail "Recurso Pix $asset indisponivel."
     cmp -s "$APP/static/$asset" "$TMP/pix-asset" \
       || fail "Recurso Pix $asset diverge da versao instalada."
@@ -466,10 +468,12 @@ curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
   || fail "Recebimentos indisponivel no HTTPS."
 grep -Fq 'rx-compact-header' "$TMP/rx-page" || fail "Cabecalho antigo de Recebimentos no HTTPS."
 for asset in recebimentos.js recebimentos.css recebimentos_imports.js; do
-  grep -Fq "/central/$asset?v=20261125draft2" "$TMP/rx-page" \
+  VERSION=20261125draft2
+  [[ "$asset" != *.css ]] || VERSION=20261125detail2
+  grep -Fq "/central/$asset?v=$VERSION" "$TMP/rx-page" \
     || fail "Recebimentos usa recurso antigo: $asset."
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-    "$PUBLIC/$asset?v=20261125draft2" -o "$TMP/rx-asset" \
+    "$PUBLIC/$asset?v=$VERSION" -o "$TMP/rx-asset" \
     || fail "Recurso de Recebimentos indisponivel: $asset."
   cmp -s "$APP/static/$asset" "$TMP/rx-asset" \
     || fail "Recurso de Recebimentos diverge do arquivo instalado."
