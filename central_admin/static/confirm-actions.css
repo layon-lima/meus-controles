@@ -1,0 +1,10 @@
+/* Janela de confirmação neutra, comum a todos os módulos. */
+dialog.nh-confirm-dialog{box-sizing:border-box;width:min(440px,calc(100vw - 32px));max-width:100%;padding:22px;border:1px solid #dce0e5!important;border-radius:10px!important;background:#fff!important;color:#20242b!important;box-shadow:0 10px 36px #20242b30!important;font:14px/1.5 system-ui,sans-serif;text-align:left;overflow-wrap:anywhere}
+dialog.nh-confirm-dialog::backdrop{background:rgba(24,30,38,.46)!important;backdrop-filter:none!important}
+dialog.nh-confirm-dialog h2{font-size:18px!important;font-weight:700!important;margin:0 0 9px!important;color:#20242b!important}
+dialog.nh-confirm-dialog p{font:14px/1.5 system-ui,sans-serif!important;color:#606873!important;margin:0 0 22px!important;white-space:pre-wrap}
+dialog.nh-confirm-dialog .nh-confirm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+dialog.nh-confirm-dialog button{appearance:none;min-height:38px;padding:8px 15px;font:600 13px system-ui,sans-serif;border:1px solid #cdd2d9!important;border-radius:6px!important;cursor:pointer;box-shadow:none!important;background:#fff!important;color:#303740!important}
+dialog.nh-confirm-dialog button.nh-confirm-approve{background:#303740!important;color:#fff!important;border-color:#303740!important}
+dialog.nh-confirm-dialog button.nh-confirm-danger{background:#b52c38!important;border-color:#b52c38!important}
+dialog.nh-confirm-dialog button:focus-visible{outline:2px solid #8593a4;outline-offset:2px}
