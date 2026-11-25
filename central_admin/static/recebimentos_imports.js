@@ -408,7 +408,7 @@ window.NHReceivingImports=(()=>{
           docs.push({...report,base64,items:(report.items||[]).map((item,index)=>({
             index,enabled:true,order_number:item.order_number||report.order_number||"",
             supplier:item.supplier||report.supplier||"",product:item.product||"",
-            ordered_qty:String(item.ordered_qty||""),unit:item.unit||"un",
+            ordered_qty:String(item.ordered_qty||""),unit:item.unit||"",
             source_page:Number.isInteger(item.source_page)?item.source_page:0,
             source_line:item.source_line||""
           }))});
@@ -424,7 +424,6 @@ window.NHReceivingImports=(()=>{
 
   function renderPDFReview(app,docs,control=app.cid()){
     const {api,route,dialog,toast,refresh,esc,closeDialog,dec}=app;
-    const units=["un","kg","t","L","sc","cx","pct","m","m²","m³"];
     const grids=docs.map((doc,fi)=>'<section class="rx-preview-item">'+
       '<div class="rx-overlay-actions"><div><strong>'+esc(doc.filename)+'</strong>'+
       '<small>'+doc.items.length+' produto(s) encontrados'+
@@ -437,9 +436,7 @@ window.NHReceivingImports=(()=>{
       '<label class="rx-col-span-3"><span>Fornecedor</span><input name="supplier_'+fi+'_'+ri+'" value="'+esc(item.supplier)+'"></label>'+
       '<label class="rx-col-span-3"><span>Produto</span><input name="product_'+fi+'_'+ri+'" value="'+esc(item.product)+'"></label>'+
       '<label><span>Quantidade</span><input name="qty_'+fi+'_'+ri+'" value="'+esc(item.ordered_qty)+'" inputmode="decimal"></label>'+
-      '<label class="rx-col-span-2"><span>Unidade</span><select name="unit_'+fi+'_'+ri+'">'+
-      units.map(u=>'<option value="'+esc(u)+'" '+(u===item.unit?"selected":"")+'>'+esc(u)+'</option>').join("")+
-      '</select></label></div>').join("")+'</div>'+
+      '<label class="rx-col-span-2"><span>Unidade</span><input name="unit_'+fi+'_'+ri+'" maxlength="12" value="'+esc(item.unit||"")+'" placeholder="Ex.: L, kg, DOS"></label></div>').join("")+'</div>'+
       '<button type="button" class="rx-button rx-button-small" data-pdf-add="'+fi+'">+ Inserir linha</button>'+
       '</section>').join("");
     const instance=dialog("Importação de pedidos (PDF)",
@@ -455,14 +452,14 @@ window.NHReceivingImports=(()=>{
               supplier:String(f.get("supplier_"+fi+"_"+ri)||"").trim(),
               product:String(f.get("product_"+fi+"_"+ri)||"").trim(),
               ordered_qty:dec(f.get("qty_"+fi+"_"+ri)),
-              unit:f.get("unit_"+fi+"_"+ri)||"un",
+              unit:String(f.get("unit_"+fi+"_"+ri)||"").trim(),
               source_line:item.source_line||""
             };
           }).filter(Boolean)
         })).filter(x=>x.items.length);
         if(!files.length)throw new Error("Selecione pelo menos um produto para importar.");
-        if(files.some(file=>file.items.some(item=>!item.order_number||!item.supplier||!item.product)))
-          throw new Error("Confira pedido, fornecedor e produto de todas as linhas selecionadas.");
+        if(files.some(file=>file.items.some(item=>!item.order_number||!item.supplier||!item.product||!item.unit)))
+          throw new Error("Confira pedido, fornecedor, produto e unidade de todas as linhas selecionadas.");
         if(app.cid()!==control)throw new Error("O controle mudou. Importe novamente os PDFs.");
         const result=await api(route("/pdf/confirm"),"POST",{files});
         closeDialog();await refresh();
@@ -476,7 +473,7 @@ window.NHReceivingImports=(()=>{
         item.supplier=String(f.get("supplier_"+fi+"_"+ri)||"");
         item.product=String(f.get("product_"+fi+"_"+ri)||"");
         item.ordered_qty=String(f.get("qty_"+fi+"_"+ri)||"");
-        item.unit=String(f.get("unit_"+fi+"_"+ri)||"un");
+        item.unit=String(f.get("unit_"+fi+"_"+ri)||"");
       }));
     };
     instance.form.addEventListener("click",e=>{
@@ -491,7 +488,7 @@ window.NHReceivingImports=(()=>{
         doc.items.push({index:doc.items.length,enabled:true,
           order_number:first.order_number||doc.order_number||"",
           supplier:first.supplier||doc.supplier||"",product:"",
-          unit:"un",ordered_qty:"",source_page:0,source_line:""});
+          unit:"",ordered_qty:"",source_page:0,source_line:""});
         renderPDFReview(app,docs);
       }
     });
@@ -588,7 +585,7 @@ window.NHReceivingImports=(()=>{
         const fresh=selection.items.map(item=>({
           enabled:true,order_number:item.order_number||doc.order_number||"",
           supplier:item.supplier||doc.supplier||"",product:item.product||"",
-          ordered_qty:String(item.ordered_qty||""),unit:item.unit||"un",
+          ordered_qty:String(item.ordered_qty||""),unit:item.unit||"",
           source_page:page,source_line:item.source_line||""
         }));
         if(kept.length+fresh.length>150)return toast("O arquivo excede 150 itens.",true);
