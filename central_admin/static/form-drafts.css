@@ -1,0 +1,14 @@
+/* Proteção de formulários: manter a janela viva, apenas escondê-la. */
+body .nh-draft-minimized{display:none!important}
+body .nh-draft-minimize{appearance:none;display:inline-grid!important;place-items:center;flex:0 0 32px;width:32px;height:32px;min-width:32px;padding:0!important;margin:0 4px;border:1px solid #cdd2d9!important;border-radius:6px!important;background:#fff!important;color:#303740!important;box-shadow:none!important;font:700 20px/1 system-ui,sans-serif;cursor:pointer}
+body #backdrop .nh-draft-minimize{position:absolute;top:12px;right:12px}
+body #backdrop .dialog:has(.nh-draft-minimize){position:relative}
+body #backdrop #dialogTitle{padding-right:44px}
+#nh-draft-dock{position:fixed!important;left:16px!important;bottom:16px!important;z-index:2147483646!important;display:flex!important;align-items:center;gap:8px;width:min(340px,calc(100vw - 32px));padding:9px!important;background:#fff!important;color:#20242b!important;border:1px solid #cdd2d9!important;border-left:4px solid #64748b!important;border-radius:8px!important;box-shadow:0 4px 20px #20242b22!important}
+#nh-draft-dock button{appearance:none;background:#fff!important;border:0!important;box-shadow:none!important;color:#303740!important;cursor:pointer;font:13px/1.4 system-ui,sans-serif}
+#nh-draft-dock .nh-draft-reopen{flex:1;min-width:0;display:grid;gap:3px;text-align:left;padding:6px 8px}
+#nh-draft-dock strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+#nh-draft-dock span{color:#606873!important;font-size:11px}
+#nh-draft-dock .nh-draft-discard{flex:0 0 32px;height:32px;font-size:22px;border:1px solid #dce0e5!important;border-radius:6px!important}
+#nh-draft-dock button:hover,body .nh-draft-minimize:hover{background:#eef0f2!important}
+#nh-draft-dock button:focus-visible,body .nh-draft-minimize:focus-visible{outline:2px solid #8593a4;outline-offset:2px}
