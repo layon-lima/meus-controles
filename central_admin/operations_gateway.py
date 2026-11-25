@@ -129,12 +129,12 @@ def rewrite_text(text, prefix, kind):
                 r'<link\b(?=[^>]*\brel\s*=\s*["\x27](?:shortcut\s+)?icon["\x27])[^>]*>',
                 '', text, flags=re.I)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
-        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261125list1">'
+        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261125unified1">'
                '<link rel="stylesheet" href="/central/launcher.css?v=20261120g">')
         # Script síncrono no HEAD: não mostrar o dashboard legado
         # antes de a rota real ser hidratada. Mantém CSP self sem inline JS.
         js = ('<script src="/central/route-preflight.js?v=20261123route1"></script>'
-              '<script defer src="/central/operations.js?v=20261125list1"></script>'
+              '<script defer src="/central/operations.js?v=20261125unified1"></script>'
               '<script defer src="/central/launcher.js?v=20261124glass4"></script>')
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
@@ -148,7 +148,7 @@ def rewrite_text(text, prefix, kind):
             css += '<link rel="stylesheet" href="/central/holerites_vales.css?v=20261121a">'
             js += '<script defer src="/central/holerites_vales.js?v=20261125draft2"></script>'
         # O tema final deve vir DEPOIS de todas as folhas legadas e do módulo.
-        css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261124neutral1">'
+        css += '<link rel="stylesheet" href="/central/horizon-theme.css?v=20261125unified1">'
         css += '<link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">'
         # Antes dos scripts legados, inclusive os que capturam fetch na carga.
         confirmation = ('<link rel="stylesheet" href="/central/confirm-actions.css?v=20261125draft2">'
