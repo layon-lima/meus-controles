@@ -336,3 +336,140 @@ body.nh-scope-funcionarios #pixPanel{padding:12px!important}
  body.nh-scope-funcionarios .nhf-section-head{align-items:stretch}
  body.nh-central-home .module-card{min-height:132px}
 }
+
+/* Telas internas reais: cabeçalho e área de trabalho únicos, como Contas.
+   A especificidade inclui app-shell/#main para superar desktop_compact
+   e os estilos por tipo do motor original, inclusive os de estado ativo. */
+body.central-operational .app-shell .workspace>.topbar{
+  box-sizing:border-box;width:auto!important;margin:10px 10px 0!important;
+  min-height:64px!important;padding:10px 12px!important;border:1px solid var(--hz-line)!important;
+  border-radius:8px!important;background:#fff!important;box-shadow:var(--hz-shadow)!important;
+}
+body.central-operational .app-shell .topbar .top-left{gap:10px!important;min-width:0}
+body.central-operational .app-shell .topbar .nh-detail-logo{width:38px;height:38px;object-fit:contain;flex:0 0 38px;display:block}
+body.central-operational .app-shell .topbar .breadcrumbs{font-size:10px!important;color:var(--hz-muted)!important;letter-spacing:0!important}
+body.central-operational .app-shell .topbar h1{font-size:18px!important;line-height:1.25!important;letter-spacing:-.3px!important}
+body.central-operational .app-shell .page-nav-arrow{
+  background:#fff!important;color:var(--hz-muted)!important;border:1px solid #cdd2d9!important;border-radius:6px!important;box-shadow:none!important;
+}
+body.central-operational .app-shell .page-nav-arrow:hover:not(:disabled){background:var(--hz-hover)!important;color:var(--hz-ink)!important}
+body.central-operational .app-shell .workspace>footer{display:none!important}
+body.central-operational .app-shell #main{padding:10px 10px 24px!important}
+body.central-operational .app-shell #main .nh-detail-layout:has(>.nh-detail-header),
+body.central-operational .app-shell #main.nh-detail-layout:has(>.nh-detail-header){
+ display:flex;flex-direction:column;gap:10px!important;min-width:0;
+}
+body.central-operational .app-shell #main .nh-detail-header{
+ display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 12px!important;
+ margin:0!important;min-width:0;background:#fff!important;border:1px solid var(--hz-line)!important;
+ border-radius:8px!important;box-shadow:var(--hz-shadow)!important;
+}
+body.central-operational .app-shell #main .nh-detail-heading{
+ flex:0 1 210px;min-width:0;display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;
+}
+body.central-operational .app-shell #main .nh-detail-heading .eyebrow{
+ font-size:10px!important;line-height:1.3!important;font-weight:700!important;color:var(--hz-muted)!important;letter-spacing:0!important;margin:0 0 4px!important;
+}
+body.central-operational .app-shell #main .nh-detail-heading h2{
+ font-size:16px!important;line-height:1.3!important;margin:0!important;letter-spacing:0!important;overflow-wrap:anywhere;
+}
+body.central-operational .app-shell #main .nh-detail-heading p{font-size:11px!important;color:var(--hz-muted)!important;margin:4px 0 0!important}
+body.central-operational .app-shell #main .nh-detail-heading h2 span{color:var(--hz-muted)!important;font-size:14px!important}
+body.central-operational .app-shell #main .nh-detail-metrics{flex:1 1 320px;min-width:0;max-width:100%;margin:0!important;gap:8px!important}
+body.central-operational .app-shell #main .nh-detail-actions{
+ display:flex!important;justify-content:flex-end!important;align-items:center;flex-wrap:wrap;gap:6px!important;margin:0 0 0 auto!important;width:auto!important;
+}
+body.central-operational .app-shell #main .nh-detail-extra{flex:1 0 100%;margin:0!important}
+body.central-operational .app-shell #main .nh-detail-workspace{
+ display:flex;flex-direction:column;gap:0!important;min-width:0;margin:0!important;
+ border:1px solid var(--hz-line)!important;border-radius:8px!important;background:#fff!important;box-shadow:var(--hz-shadow)!important;
+}
+body.central-operational .app-shell #main .nh-detail-workspace>:is(.ab-row-head,.ab-summary-heading,.vf-toolbar,.truck-action-filter-row,.truck-details-filter,.truck-workflow-head){
+ padding:10px 12px!important;margin:0!important;background:#fff!important;border-bottom:1px solid var(--hz-line)!important;border-radius:0!important;
+}
+body.central-operational .app-shell #main .nh-detail-workspace>:is(.ab-row-head,.ab-summary-heading) h3,
+body.central-operational .app-shell #main .nh-detail-workspace .panel-header h3{font-size:15px!important;line-height:1.3!important}
+body.central-operational .app-shell #main .nh-detail-workspace>.panel{margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+body.central-operational .app-shell #main .nh-detail-workspace>.panel:last-child{border-radius:0 0 8px 8px!important}
+body.central-operational .app-shell #main .nh-detail-workspace :is(.ab-close-section,.ab-summary-section,.truck-view,.truck-workflow-view,.details-layout){padding:10px!important;margin:0!important;gap:10px!important}
+body.central-operational .app-shell #main .nh-detail-workspace>.ab-summary-section>.ab-summary-heading{margin:0 0 5px!important}
+body.central-operational .app-shell #main .nh-detail-workspace :is(.ab-tabs,.vf-tabs,.truck-nav){
+ display:flex!important;align-items:center;flex-wrap:wrap;gap:6px!important;margin:0!important;padding:9px 12px!important;
+ border:0!important;border-bottom:1px solid var(--hz-line)!important;background:#fff!important;border-radius:8px 8px 0 0!important;box-shadow:none!important;
+}
+body.central-operational .app-shell #main .truck-tablist{gap:6px!important;flex-wrap:wrap}
+body.central-operational .app-shell :is(.ab-tabs .ab-tab,.vf-tabs button,.truck-tablist .truck-tab,.truck-tabs button,.receiving-tabs button){
+ min-height:32px!important;line-height:1.3!important;font-size:12px!important;font-weight:650!important;letter-spacing:0!important;
+ padding:6px 11px!important;margin:0!important;background:#fff!important;color:#4b5561!important;
+ border:1px solid #dce0e5!important;border-radius:6px!important;box-shadow:none!important;white-space:normal!important;
+}
+body.central-operational .app-shell :is(.ab-tabs .ab-tab,.vf-tabs button,.truck-tablist .truck-tab,.truck-tabs button,.receiving-tabs button):is(.active,[aria-selected="true"]){
+ background:#e8eaed!important;color:#20242b!important;border-color:#cdd2d9!important;box-shadow:none!important;
+}
+body.central-operational .app-shell :is(.ab-tabs .ab-tab,.vf-tabs button,.truck-tablist .truck-tab,.truck-tabs button,.receiving-tabs button):hover{background:#eef0f2!important;color:#20242b!important}
+body.central-operational .app-shell #main :is(.ab-balance,.open-debt-total){
+ background:#fff!important;border:1px solid var(--hz-line)!important;border-radius:7px!important;box-shadow:var(--hz-shadow)!important;
+ padding:10px 12px!important;gap:10px!important;min-height:58px!important;
+}
+body.central-operational .app-shell #main :is(.ab-balance,.open-debt-total)>div:first-child{gap:3px!important}
+body.central-operational .app-shell #main :is(.ab-balance small,.open-debt-total small,.debt-metric span,.truck-fast-total span){
+ color:var(--hz-muted)!important;font-size:10px!important;letter-spacing:0!important;text-transform:uppercase;font-weight:700!important;
+}
+body.central-operational .app-shell #main :is(.ab-balance p,.open-debt-total p){font-size:12px!important;color:var(--hz-ink)!important;line-height:1.4!important}
+body.central-operational .app-shell #main :is(.ab-balance>strong,.open-debt-total strong,.truck-fast-total strong,.debt-metric strong){
+ color:var(--hz-ink)!important;font-size:20px!important;font-weight:750!important;line-height:1.2!important;letter-spacing:0!important;
+}
+body.central-operational .app-shell #main .ab-balance>div>span{display:none}
+body.central-operational .app-shell #main .open-debt-total>div>p{display:none}
+body.central-operational .app-shell #main :is(.debt-metric,.truck-fast-total,.open-debt-count,.stat,.ab-stats>div){
+ background:#fff!important;border:1px solid var(--hz-line)!important;border-radius:7px!important;box-shadow:var(--hz-shadow)!important;padding:10px 12px!important;
+}
+body.central-operational .app-shell #main .nh-detail-header .stat-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))!important}
+body.central-operational .app-shell #main .nh-detail-header .stat{min-height:58px!important}
+body.central-operational .app-shell #main .nh-detail-header .stat-foot{font-size:10px!important}
+body.central-operational .app-shell #main .debt-progress-wrap{color:var(--hz-muted)!important}
+body.central-operational .app-shell #main .debt-progress{background:#eef0f2!important}
+body.central-operational .app-shell #main .debt-progress>span{background:#18774c!important}
+body.central-operational .app-shell #main .empty-state{
+ background:#fff!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:var(--hz-muted)!important;padding:24px 12px!important;
+}
+body.central-operational .app-shell #main .empty-state strong{font-size:13px!important;color:var(--hz-ink)!important}
+body.central-operational .app-shell #main .empty-state p{font-size:12px!important;color:var(--hz-muted)!important}
+body.central-operational .app-shell #main :is(.ab-arrow,.truck-detail-symbol,.truck-category-count,.truck-category-title){color:var(--hz-muted)!important}
+body.central-operational .app-shell #main :is(.ab-kind-debt,.ab-kind-neutral,.truck-category-count,.truck-review-group th,.truck-review-group.expense th,.truck-review-group.advance th,.truck-review-group.freight th){
+ background:#eef0f2!important;color:#4b5561!important;border-color:var(--hz-line)!important;
+}
+body.central-operational .app-shell #main .ab-kind-payment{background:#e3f4eb!important;color:var(--hz-good)!important;border-color:#cce7d7!important}
+body.central-operational .app-shell :is(.ab-hint,.ab-bits span,.ab-import-preview,.ab-financial-dates,.debt-import-facts>div,.truck-category-settings,.vf-detail-debt,.vf-plan-editor,.rpdf-doc-title){
+ background:#f5f6f8!important;color:var(--hz-muted)!important;border-color:var(--hz-line)!important;border-radius:7px!important;
+}
+body.central-operational .app-shell #main .nh-detail-workspace :is(.table-wrap,.vf-month-grid){margin:0!important;border-radius:0!important}
+@media(min-width:721px){
+ body.central-operational .app-shell #main .nh-detail-workspace table{font-size:12px!important;table-layout:fixed;width:100%}
+ body.central-operational .app-shell #main .nh-detail-workspace table :is(th,td){padding:9px 12px!important;line-height:1.35!important;vertical-align:middle}
+ body.central-operational .app-shell #main .nh-detail-workspace table th{height:38px!important}
+ body.central-operational .app-shell #main .nh-detail-workspace table td{height:43px}
+ body.central-operational .app-shell #main .nh-detail-workspace table :is(th,td):not(:last-child){border-right:1px solid var(--hz-line)!important}
+ body.central-operational .app-shell #main .nh-detail-workspace table td{border-bottom:1px solid var(--hz-line)!important}
+ body.central-operational .app-shell #main .nh-detail-workspace table tbody tr:nth-child(odd) td{background:#fff}
+ body.central-operational .app-shell #main .nh-detail-workspace table tbody tr:nth-child(even) td{background:#f8f9fa}
+ body.central-operational .app-shell #main .nh-detail-workspace table tbody tr:hover td{background:#eef0f2}
+}
+@media(max-width:900px){
+ body.central-operational .app-shell #main .nh-detail-heading{flex:1 1 100px}
+ body.central-operational .app-shell #main .nh-detail-metrics{flex:1 1 100%;order:3}
+ body.central-operational .app-shell #main .nh-detail-extra{order:4}
+ body.central-operational .app-shell #main .nh-detail-header .debt-summary{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))!important}
+ body.central-operational .app-shell #main .nh-detail-header .debt-outstanding{grid-column:auto}
+}
+@media(max-width:590px){
+ body.central-operational .app-shell .workspace>.topbar{margin:6px 6px 0!important;gap:8px}
+ body.central-operational .app-shell #main{padding:8px 6px 20px!important}
+ body.central-operational .app-shell .topbar .nh-detail-logo{width:32px;height:32px;flex-basis:32px}
+ body.central-operational .app-shell .topbar h1{font-size:16px!important}
+ body.central-operational .app-shell #main .nh-detail-header{padding:8px!important;gap:8px}
+ body.central-operational .app-shell #main .nh-detail-actions{justify-content:flex-start!important;margin:0!important;flex:1 1 100%}
+ body.central-operational .app-shell #main .nh-detail-metrics :is(strong,.stat-value){font-size:17px!important}
+ body.central-operational .app-shell #main .nh-detail-workspace :is(.ab-tabs,.vf-tabs,.truck-nav){padding:8px!important}
+}
