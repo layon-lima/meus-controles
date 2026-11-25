@@ -243,7 +243,6 @@ window.NHReceivingImports=(()=>{
             const raw=String(form.get("manual_"+i)||"").trim();
             return raw?dec(raw):null;
           });
-          if(!confirm("Registrar "+selections.length+" item(ns) da NF-e "+report.invoice_number+"?"))return;
           if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
           const result=await api(confirmPath,"POST",{xml,selections,manual_quantities});
           closeDialog();await refresh();
