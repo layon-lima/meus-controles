@@ -264,13 +264,24 @@ const test=async()=>{
   assert.equal(calls.length,3);
   assert.ok(calls[2].path.endsWith("/xml/confirm"));
   assert.equal(calls[2].payload.selections[0],11);
-  // Sem pedido deve funcionar sem selecionar um pedido, preservando a seleção se desmarcado.
-  await impWin.NHReceivingImports.importXML(app,xmlFile);
-  const noOrder=get("#rx-xml-no-order-0"),pickerBox=get("#rx-xml-picker-0");
-  const manual=get("#rx-xml-manual-0"),manualField=get("#rx-xml-manual-field-0");
-  assert.ok(dialogBody.includes('type="checkbox" id="rx-xml-no-order-0"'));
+  // Sem pedido só aparece quando não há produto compatível.
+  const noOrder=get("#rx-xml-no-order-0"),noOrderLabel=get("#rx-xml-no-order-label-0");
+  const pickerBox=get("#rx-xml-picker-0"),manual=get("#rx-xml-manual-0"),manualField=get("#rx-xml-manual-field-0");
+  assert.equal(noOrderLabel.hidden,true,"Pedido compatível oculta marcador");
+  assert.equal(noOrder.disabled,true);
+  noOrder.checked=true;noOrder.listeners.change();
+  assert.equal(xmlChoice.value,"11","Não permitir Sem pedido se há pedido compatível");
   assert.equal(noOrder.checked,false);
-  assert.equal(xmlChoice.value,"11");
+  const unmatchedApp={...app,api:async(path,method,payload)=>{
+    calls.push({path,method,payload});
+    if(method==="GET")return orders;
+    return {invoice_number:"43",supplier:"Outro",lines:[{name:"PRODUTO INEXISTENTE",quantity:10,unit:"t"}]};
+  }};
+  await impWin.NHReceivingImports.importXML(unmatchedApp,xmlFile);
+  assert.ok(dialogBody.includes('type="checkbox" id="rx-xml-no-order-0"'));
+  assert.equal(noOrderLabel.hidden,false);
+  assert.equal(noOrder.checked,false);
+  assert.equal(xmlChoice.value,"");
   manual.value="42";
   noOrder.checked=true;noOrder.listeners.change();
   assert.equal(xmlChoice.value,"pending");
@@ -280,7 +291,7 @@ const test=async()=>{
   assert.equal(manual.disabled,true);
   assert.equal(manualField.hidden,true);
   noOrder.checked=false;noOrder.listeners.change();
-  assert.equal(xmlChoice.value,"11");
+  assert.equal(xmlChoice.value,"");
   assert.equal(xmlSearch.required,true);
   assert.equal(xmlSearch.disabled,false);
   assert.equal(pickerBox.hidden,false);
@@ -319,6 +330,20 @@ const test=async()=>{
   assert.ok(picker(choices[0],"ped-22","",x=>String(x)).includes('data-xml-order="22"'));
   assert.ok(!picker(choices[0],"ped-22","",x=>String(x)).includes('data-xml-order="21"'));
   assert.ok(dialogBody.includes('id="rx-xml-search-0"'));
+  const onsuva={supplier:"KOTHE LOGISTICA LTDA",lines:[{name:"ONSUVA10LBR",quantity:20,unit:"LT",options:[{id:31,product_score:.81,supplier_score:0}]}]};
+  const fmc={id:31,order_number:"0045022014",supplier:"FMC",product:"ONSUVA_10L_BR",unit:"un",remaining_qty:360,closed:false};
+  const unrelated={...fmc,id:32,product:"TALISMAN_20L_BR"};
+  const otherPack={...fmc,id:33,product:"ONSUVA_20L_BR",unit:"L"};
+  const proposed=match(onsuva,[unrelated,fmc,otherPack],[])[0];
+  assert.equal(proposed.suggested.id,31,"Mesmo nome com sublinhados, emitente logístico e unidade diferente");
+  assert.equal(proposed.suggested.productScore,1);
+  assert.equal(proposed.suggested.needsEquivalence,true);
+  assert.equal(proposed.hasCompatible,true);
+  assert.ok(picker(proposed,"ONSUVA10LBR","",String).includes('data-xml-order="31"'));
+  assert.equal(match(onsuva,[otherPack],[])[0].hasCompatible,false,"Não confundir embalagens numéricas");
+  assert.equal(match(onsuva,[{...fmc,unit:"L",remaining_qty:19}],[])[0].hasCompatible,false,"Saldo conhecido insuficiente");
+  assert.equal(match(onsuva,[{...fmc,unit:"L",remaining_qty:20}],[])[0].suggested.id,31);
+  assert.equal(match(onsuva,[{...fmc,unit:"L"},{...fmc,id:35,unit:"L"}],[])[0].hasCompatible,true,"Ambiguidade não libera Sem pedido");
   const pdfCalls=[];
   const pdfFile={name:"pedido.pdf",size:30,arrayBuffer:async()=>Uint8Array.from(Buffer.from("%PDF-1.4 teste")).buffer};
   const pdfApp={...app,
