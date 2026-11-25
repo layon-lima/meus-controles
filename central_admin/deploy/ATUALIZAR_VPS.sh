@@ -304,9 +304,9 @@ fi
 # Recebimentos: composição compacta, sem alterar contratos de importação.
 grep -Fq 'rx-compact-header' "$APP/static/recebimentos.html" \
   || fail "Cabecalho compacto de Recebimentos ausente."
-grep -Fq 'rx-orders-table' "$APP/static/recebimentos.js" \
-  || fail "Tabela unificada de Recebimentos ausente."
-grep -Fq '/central/recebimentos.css?v=20261125compact1' "$APP/static/recebimentos.html" \
+grep -Fq 'rx-supplier-card' "$APP/static/recebimentos.js" \
+  || fail "Cards individuais de fornecedores ausentes."
+grep -Fq '/central/recebimentos.css?v=20261125cards1' "$APP/static/recebimentos.html" \
   || fail "Versao compacta do CSS nao carregada."
 # Recebimentos: arrastar XML e selecionar arquivo usam a mesma previa.
 grep -Fq 'id="rx-xml-drop"' "$APP/static/recebimentos.html" \
@@ -450,19 +450,20 @@ for view in staff pix; do
 done
 echo "OK: abas Valores em aberto e Gerenciar Pix confirmadas no endereco publico."
 curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
-  "$PUBLIC/modules/recebimentos/?v=20261125compact1" -o "$TMP/rx-page" \
+  "$PUBLIC/modules/recebimentos/?v=20261125cards1" -o "$TMP/rx-page" \
   || fail "Recebimentos indisponivel no HTTPS."
 grep -Fq 'rx-compact-header' "$TMP/rx-page" || fail "Cabecalho antigo de Recebimentos no HTTPS."
 for asset in recebimentos.js recebimentos.css; do
-  grep -Fq "/central/$asset?v=20261125compact1" "$TMP/rx-page" \
+  grep -Fq "/central/$asset?v=20261125cards1" "$TMP/rx-page" \
     || fail "Recebimentos usa recurso antigo: $asset."
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-    "$PUBLIC/$asset?v=20261125compact1" -o "$TMP/rx-asset" \
+    "$PUBLIC/$asset?v=20261125cards1" -o "$TMP/rx-asset" \
     || fail "Recurso de Recebimentos indisponivel: $asset."
   cmp -s "$APP/static/$asset" "$TMP/rx-asset" \
     || fail "Recurso de Recebimentos diverge do arquivo instalado."
 done
-echo "OK: interface compacta de Recebimentos confirmada no endereco publico."
+grep -Fq 'rx-supplier-card' "$APP/static/recebimentos.css" || fail "Estilo dos cards de fornecedor ausente."
+echo "OK: interface compacta e cards de fornecedores confirmados no endereco publico."
 
 # Testa recursos da importação de contas em lote, sem cadastrar nem
 # modificar nenhuma conta. Mantém R2, holerites e duplicidades no motor atual.
