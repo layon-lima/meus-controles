@@ -311,7 +311,7 @@ grep -Fq 'rx-compact-header' "$APP/static/recebimentos.html" \
   || fail "Cabecalho compacto de Recebimentos ausente."
 grep -Fq 'rx-supplier-card' "$APP/static/recebimentos.js" \
   || fail "Cards individuais de fornecedores ausentes."
-grep -Fq '/central/recebimentos.css?v=20261125detail3' "$APP/static/recebimentos.html" \
+grep -Fq '/central/recebimentos.css?v=20261125nop1' "$APP/static/recebimentos.html" \
   || fail "Versao compacta do CSS nao carregada."
 # Recebimentos: arrastar XML e selecionar arquivo usam a mesma previa.
 grep -Fq 'id="rx-xml-drop"' "$APP/static/recebimentos.html" \
@@ -328,6 +328,7 @@ grep -Fq 'function buildXMLChoices' "$APP/static/recebimentos_imports.js" || fai
 grep -Fq 'function historyMatch' "$APP/static/recebimentos_imports.js" || fail "Historico de identificacao XML ausente."
 grep -Fq 'role="combobox"' "$APP/static/recebimentos_imports.js" || fail "Seletor pesquisavel unico ausente."
 grep -Fq 'function bindXMLPicker' "$APP/static/recebimentos_imports.js" || fail "Selecao de pedidos XML ausente."
+grep -Fq 'rx-xml-no-order-' "$APP/static/recebimentos_imports.js" || fail "Marcador Sem pedido ausente."
 echo "OK: arrastar PDFs/XML, sugestao por historico/produto/saldo e pesquisa de pedidos; gravacao somente apos confirmacao."
 # Gerenciamento Pix separado; não executar operação de escrita no deploy.
 grep -Fq 'id="managePix"' "$APP/static/funcionarios.html" \
@@ -472,7 +473,7 @@ curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
 grep -Fq 'rx-compact-header' "$TMP/rx-page" || fail "Cabecalho antigo de Recebimentos no HTTPS."
 for asset in recebimentos.js recebimentos.css recebimentos_imports.js; do
   VERSION=20261125draft2
-  [[ "$asset" != *.css ]] || VERSION=20261125detail3
+  [[ "$asset" == recebimentos.js ]] || VERSION=20261125nop1
   grep -Fq "/central/$asset?v=$VERSION" "$TMP/rx-page" \
     || fail "Recebimentos usa recurso antigo: $asset."
   curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
