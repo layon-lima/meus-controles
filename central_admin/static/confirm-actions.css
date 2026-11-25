@@ -17,3 +17,6 @@ dialog.nh-confirm-dialog button:focus-visible{outline:2px solid #8593a4;outline-
 #nh-operation-notices .is-error .nh-operation-mark{background:#fce8ea!important;color:#b52c38!important}
 #nh-operation-notices .nh-operation-text{flex:1;min-width:0;overflow-wrap:anywhere;color:#20242b!important}
 #nh-operation-notices button{appearance:none;border:0!important;background:transparent!important;color:#606873!important;box-shadow:none!important;flex:0 0 28px;height:28px;cursor:pointer;font:20px/1 system-ui,sans-serif;padding:0}
+
+#nh-operation-notices .nh-operation-notice.is-info{border-left-color:#718096!important}
+#nh-operation-notices .is-info .nh-operation-mark{background:#eef1f4!important;color:#526476!important}
