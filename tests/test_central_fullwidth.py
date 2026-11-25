@@ -25,7 +25,7 @@ class CentralFullWidthTest(unittest.TestCase):
         css=(ROOT/"static"/"funcionarios.css").read_text(encoding="utf-8")
         self.assertIn("padding:14px clamp(14px,1.55vw,30px);",css)
         self.assertIn("@media(max-width:720px)",css)
-        self.assertIn('funcionarios.css?v=20261124pix1',
+        self.assertIn('funcionarios.css?v=20261125pix2',
             (ROOT/"static"/"funcionarios.html").read_text(encoding="utf-8"))
 
     def test_central_home_full_width(self):
