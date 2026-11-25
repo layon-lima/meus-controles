@@ -17,7 +17,7 @@ class CentralFullWidthTest(unittest.TestCase):
         self.check_selector("recebimentos.css",
             r"\.rx-app\s*\{[^}]*width:100%;[^}]*max-width:none;[^}]*padding:10px 16px 64px")
         html=(ROOT/"static"/"recebimentos.html").read_text(encoding="utf-8")
-        self.assertIn('recebimentos.css?v=20261125drop3',html)
+        self.assertIn('recebimentos.css?v=20261125xmlmatch1',html)
 
     def test_funcionarios_width_and_aligned_header(self):
         self.check_selector("funcionarios.css",
