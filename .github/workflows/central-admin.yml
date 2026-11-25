@@ -59,6 +59,8 @@ jobs:
         run: |
           node --check central_admin/static/confirm-actions.js
           node tests/test_central_confirm_actions.js
+          node --check central_admin/static/form-drafts.js
+          node tests/test_central_form_drafts.js
           node --check central_admin/static/app.js
           node --check central_admin/static/operations.js
           node --check central_admin/static/launcher.js
