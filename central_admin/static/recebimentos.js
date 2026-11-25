@@ -142,11 +142,16 @@
     el.disabled=!receiving.length;
   }
   function renderMetrics(){
-    const t=store.data?.totals||{items:0,complete:0,partial:0,pending:0,receipts:0};
-    const entries=[["Produtos",t.items],["Pendentes",t.pending],
-      ["Parciais",t.partial],["Concluídos",t.complete],["Entregas",t.receipts]];
-    $("#rx-metrics").innerHTML=entries.map(([name,value])=>
-      '<article class="rx-metric"><span>'+name+'</span><strong>'+qty(value)+'</strong></article>').join("");
+    const t=store.data?.totals;
+    const entries=[
+      ["Produtos",t?.items,"products",'<path d="M3 7 12 2l9 5v10l-9 5-9-5zM3 7l9 5 9-5M12 12v10M7.5 4.5l9 5"/>'],
+      ["Pendentes",t?.pending,"pending",'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'],
+      ["Parciais",t?.partial,"partial",'<circle cx="12" cy="12" r="9"/><path d="M12 3v9h9"/>'],
+      ["Concluídos",t?.complete,"complete",'<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10zM8 12l3 3 5-6"/>'],
+      ["Entregas",t?.receipts,"deliveries",'<path d="M3 5h12v12H3zM15 9h4l3 4v4h-7M7 17v1M18 17v1"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>']
+    ];
+    $("#rx-metrics").innerHTML=entries.map(([name,value,kind,icon])=>
+      '<article class="rx-metric rx-metric-'+kind+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icon+'</svg><span>'+name+'</span><strong>'+(value==null?"—":qty(value))+'</strong></article>').join("");
   }
   function renderOrders(){
     let rows=items().filter(p=>normal([p.order_number,p.supplier,p.product].join(" ")).includes(normal(store.search)));
@@ -157,17 +162,17 @@
       if(!groups.has(key))groups.set(key,{name:row.supplier||"Fornecedor não informado",rows:[]});
       groups.get(key).rows.push(row);
     }
-    return [...groups.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"pt-BR"))
+    // Uma tabela, um cabeçalho e colunas alinhadas para todos os fornecedores.
+    // As linhas de fornecedor preservam o recolhimento e a expansão existentes.
+    const body=[...groups.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"pt-BR"))
       .map(([key,group])=>{
         const expanded=!store.collapsed.has(key);
-        return '<article class="rx-group '+(expanded?"is-open":"")+'">'+
+        return '<tbody class="rx-order-group '+(expanded?"is-open":"")+'">'+
+          '<tr class="rx-supplier-row"><td colspan="7">'+
           '<button type="button" class="rx-group-head" data-group="'+esc(key)+'" aria-expanded="'+expanded+'">'+
           '<span><strong>'+esc(group.name)+'</strong><small>'+group.rows.length+' produto(s)</small></span>'+
-          '<span class="rx-group-icon" aria-hidden="true">›</span></button>'+
-          (expanded?'<div class="rx-group-table"><table class="rx-table"><thead><tr>'+
-            '<th>Pedido</th><th>Produto</th><th class="rx-number">Pedido</th>'+
-            '<th class="rx-number">Recebido</th><th class="rx-number">Falta</th><th>Situação</th><th></th>'+
-            '</tr></thead><tbody>'+group.rows.map(p=>'<tr>'+
+          '<span class="rx-group-icon" aria-hidden="true">›</span></button></td></tr>'+
+          (expanded?group.rows.map(p=>'<tr class="rx-order-line">'+
             '<td><strong>'+esc(p.order_number)+'</strong></td>'+
             '<td><strong>'+esc(p.product)+'</strong><small>'+esc(p.unit)+'</small></td>'+
             '<td class="rx-number">'+qty(p.ordered_qty)+'</td>'+
@@ -179,9 +184,12 @@
             '<td><div class="rx-inline-actions">'+
             (!p.closed&&Number(p.remaining_qty)>0?'<button class="rx-button rx-button-small" data-action="receive" data-id="'+p.id+'">Receber</button>':"")+
             '<button class="rx-button rx-button-small" data-action="edit-item" data-id="'+p.id+'">Editar</button>'+
-            '</div></td></tr>').join("")+'</tbody></table></div>':"")+
-          '</article>';
+            '</div></td></tr>').join(""):"")+'</tbody>';
       }).join("");
+    return '<div class="rx-group-table rx-orders-table"><table class="rx-table">'+
+      '<colgroup><col class="rx-col-order"><col class="rx-col-product"><col class="rx-col-qty"><col class="rx-col-qty"><col class="rx-col-qty"><col class="rx-col-status"><col class="rx-col-actions"></colgroup>'+
+      '<thead><tr><th scope="col">Pedido</th><th scope="col">Produto</th><th scope="col" class="rx-number">Qtd. pedida</th>'+
+      '<th scope="col" class="rx-number">Recebido</th><th scope="col" class="rx-number">Falta</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>'+body+'</table></div>';
   }
   function renderNotes(){
     const data=receipts().filter(r=>normal([r.invoice_number,r.access_key,r.product,r.supplier,r.order_number].join(" ")).includes(normal(store.search)));
@@ -233,6 +241,7 @@
   async function loadAll(preferred){
     const ticket=++store.revision;
     store.data=null;store.pending=[];$("#rx-content").hidden=true;
+    renderMetrics();
     loading();
     try{
       const state=await api("/api/state");
