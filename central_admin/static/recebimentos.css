@@ -168,11 +168,9 @@ body.nh-scope-recebimentos .rx-col-product{width:26%}
 body.nh-scope-recebimentos .rx-col-qty{width:10%}
 body.nh-scope-recebimentos .rx-col-status{width:11%}
 body.nh-scope-recebimentos .rx-col-actions{width:11%;min-width:128px}
-body.nh-scope-recebimentos .rx-table .rx-supplier-row>td{height:35px;padding:0;background:#eef1f4;border-bottom:1px solid #dce0e5}
 body.nh-scope-recebimentos .rx-group-head{padding:7px 12px;gap:8px;line-height:1.4}
 body.nh-scope-recebimentos .rx-group-head strong{font-size:12px}
 body.nh-scope-recebimentos .rx-group-head small{font-size:10px;margin-left:8px}
-body.nh-scope-recebimentos .rx-order-group.is-open .rx-group-icon{transform:rotate(90deg)}
 body.nh-scope-recebimentos .rx-inline-actions{gap:5px;flex-wrap:wrap}
 body.nh-scope-recebimentos .rx-button-small{font-size:10px;min-height:27px;padding:3px 7px}
 body.nh-scope-recebimentos .rx-pill{padding:4px 8px;font-size:10px}
@@ -191,4 +189,22 @@ body.nh-scope-recebimentos .rx-pill{padding:4px 8px;font-size:10px}
   body.nh-scope-recebimentos .rx-tabs{width:100%;overflow-x:auto}
   body.nh-scope-recebimentos .rx-filterbar{gap:6px;flex-wrap:wrap}
   body.nh-scope-recebimentos .rx-filters{flex:1 1 180px}
+}
+
+/* Cards independentes sem alterar a densidade da tabela. */
+body.nh-scope-recebimentos #rx-results:has(>.rx-supplier-card){
+  padding:10px;gap:10px;background:#f5f6f8;border-radius:0 0 8px 8px;
+}
+body.nh-scope-recebimentos #rx-results>.rx-supplier-card{
+  min-width:0;background:#fff!important;border:1px solid #cdd2d9!important;
+  border-radius:8px!important;box-shadow:0 1px 2px #20242b0a!important;overflow:hidden;
+}
+body.nh-scope-recebimentos #rx-results>.rx-supplier-card>.rx-group-head{
+  min-height:39px;padding:8px 12px;background:#fff!important;
+}
+body.nh-scope-recebimentos #rx-results>.rx-supplier-card>.rx-group-head:hover{background:#f4f6f8!important}
+body.nh-scope-recebimentos .rx-supplier-label{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;min-width:0}
+body.nh-scope-recebimentos .rx-supplier-label small{margin:0;white-space:nowrap}
+body.nh-scope-recebimentos #rx-results>.rx-supplier-card>.rx-orders-table{
+  border:0!important;border-top:1px solid #dce0e5!important;border-radius:0!important;
 }
