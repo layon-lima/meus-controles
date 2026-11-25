@@ -14,6 +14,93 @@ window.NHReceivingImports=(()=>{
   const normalize=value=>String(value??"").normalize("NFD")
     .replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
 
+  // Histórico real: só recebimentos gravados no mesmo controle ensinam um vínculo.
+  // Não usar fornecedor do pedido como se fosse o emitente da NF-e.
+  const words=value=>normalize(value).replace(/[^a-z0-9]+/g," ").trim();
+  const productWords=value=>words(value).replace(/\bkcl\b/g,"cloreto potassio")
+    .replace(/\b(?:de|da|do)\b/g," ").replace(/\s+/g," ").trim();
+  const docNumber=value=>String(value??"").replace(/\D/g,"");
+  function nameScore(a,b,product=false){
+    a=(product?productWords:words)(a);b=(product?productWords:words)(b);
+    if(!a||!b)return 0;
+    if(a===b)return 1;
+    const short=a.length<=b.length?a:b,long=a.length<=b.length?b:a;
+    if(short.length>=4&&long.startsWith(short+" "))return .96;
+    const x=new Set(a.split(" ")),y=new Set(b.split(" "));
+    return [...x].filter(v=>y.has(v)).length/Math.max(x.size,y.size);
+  }
+  const units={
+    kg:["mass",1],kgm:["mass",1],t:["mass",1000],to:["mass",1000],ton:["mass",1000],tonelada:["mass",1000],g:["mass",.001],gr:["mass",.001],
+    l:["volume",1],lt:["volume",1],litro:["volume",1],ml:["volume",.001],
+    un:["count",1],und:["count",1],unid:["count",1]
+  };
+  function xmlAmount(line,item){
+    const n=Number(line.quantity),from=words(line.unit).replace(/ /g,""),to=words(item.unit).replace(/ /g,"");
+    if(!from||!to||!Number.isFinite(n)||n<=0)return null;
+    if(from===to)return n;
+    const a=units[from],b=units[to];
+    return a&&b&&a[0]===b[0]?n*a[1]/b[1]:null;
+  }
+  function historyMatch(report,line,receipt){
+    let fiscal=receipt.fiscal_json||receipt.fiscal||{};
+    if(typeof fiscal==="string"){try{fiscal=JSON.parse(fiscal)}catch{return false}}
+    if(!fiscal||typeof fiscal!=="object")return false;
+    const doc=docNumber(report.cnpj),previous=docNumber(receipt.invoice_issuer_document||fiscal.documento_fornecedor);
+    const issuer=receipt.invoice_issuer||fiscal.fornecedor||receipt.supplier;
+    const sameIssuer=doc&&previous?doc===previous:!!words(report.supplier)&&words(report.supplier)===words(issuer);
+    if(!sameIssuer)return false;
+    const code=normalize(line.code),oldCode=normalize(fiscal.codigo_produto||receipt.product_code);
+    if(code&&oldCode)return code===oldCode;
+    const description=productWords(line.name||line.product),oldDescription=productWords(fiscal.descricao_xml);
+    return !!description&&description===oldDescription;
+  }
+  function buildXMLChoices(report,orders,history){
+    const active=orders.filter(p=>!p.closed&&Number(p.remaining_qty)>0);
+    const reserved=new Map();
+    return report.lines.map(line=>{
+      const learned=new Set(history.filter(r=>historyMatch(report,line,r)).map(r=>Number(r.item_id)));
+      const ranked=new Map((line.options||[]).map(o=>[Number(o.id),o]));
+      const options=active.map(item=>{
+        const id=Number(item.id),server=ranked.get(id),amount=xmlAmount(line,item);
+        const remaining=Number(item.remaining_qty),available=remaining-(reserved.get(id)||0);
+        const product=Number.isFinite(Number(server?.product_score))&&server?.product_score!=null
+          ?Number(server.product_score):nameScore(line.name||line.product,item.product,true);
+        const supplier=Number.isFinite(Number(server?.supplier_score))&&server?.supplier_score!=null
+          ?Number(server.supplier_score):nameScore(report.supplier,item.supplier);
+        const sufficient=amount!==null&&amount<=available+1e-9;
+        return {...item,id,amount,productScore:product,supplierScore:supplier,
+          learned:learned.has(id),sufficient,score:.85*product+.15*supplier,
+          blocked:amount!==null&&amount>remaining+1e-9};
+      }).sort((a,b)=>Number(b.sufficient)-Number(a.sufficient)||
+        Number(b.learned)-Number(a.learned)||b.score-a.score||a.id-b.id);
+      const valid=options.filter(o=>o.sufficient);
+      const known=valid.filter(o=>o.learned);
+      // Se houver dois pedidos históricos válidos, não adivinhar qual deles.
+      let suggested=known.length===1?known[0]:null;
+      if(!known.length){
+        const top=valid[0],next=valid[1];
+        if(top&&(top.productScore>=.94||(top.productScore>=.83&&top.supplierScore>=.72))&&
+          (!next||top.score-next.score>=.065))suggested=top;
+      }
+      if(suggested)reserved.set(suggested.id,(reserved.get(suggested.id)||0)+suggested.amount);
+      return {options,suggested};
+    });
+  }
+  function pickerHTML(choice,query,selected,esc){
+    const terms=words(query).split(" ").filter(Boolean);
+    const filtered=choice.options.filter(o=>terms.every(t=>words([o.order_number,o.supplier,o.product].join(" ")).includes(t)));
+    const visible=filtered.slice(0,terms.length?40:8);
+    const current=choice.options.find(o=>String(o.id)===String(selected));
+    if(current&&!visible.some(o=>o.id===current.id))visible.unshift(current);
+    const option=(value,label,disabled=false)=>'<option value="'+esc(value)+'"'+
+      (String(value)===String(selected)?' selected':'')+(disabled?' disabled':'')+'>'+esc(label)+'</option>';
+    return option("","Selecione o pedido")+option("pending","Sem pedido — vincular depois")+
+      visible.map(o=>option(o.id,(o.learned?"Histórico · ":"")+
+        o.order_number+" · "+o.supplier+" · "+o.product+" ("+
+        Number(o.remaining_qty).toLocaleString("pt-BR",{maximumFractionDigits:3})+" "+o.unit+" restantes)"+
+        (o.blocked?" — saldo insuficiente":o.amount===null?" — informar equivalência":""),o.blocked)).join("");
+  }
+
   function selectFiles(accept,multiple,onFiles){
     const input=document.createElement("input");
     input.type="file";input.accept=accept;input.multiple=multiple;
@@ -49,21 +136,23 @@ window.NHReceivingImports=(()=>{
       const report=await api(previewPath,"POST",{xml});
       if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
       if(!report.lines?.length){toast("XML sem itens para conferir.",true);return}
-      const active=items().filter(x=>!x.closed&&Number(x.remaining_qty)>0);
+      // Reconsultar o saldo e o histórico após a prévia. O motor original continua
+      // responsável pela duplicidade, conversões e validação final da gravação.
+      const current=await api(route(""),"GET");
+      if(cid()!==control)throw new Error("O controle mudou. Importe novamente o XML.");
+      const choices=buildXMLChoices(report,current.items||[],current.receipts||[]);
       const rows=report.lines.map((line,index)=>{
-        const suggested=line.suggested_id||"";
-        const options=[["","Selecione o pedido"],["pending","Sem pedido — vincular depois"],
-          ...active.map(p=>[p.id,p.order_number+" · "+p.supplier+" · "+p.product+
-            " ("+p.remaining_qty+" "+p.unit+" restantes)"])];
-        const optionsHTML=options.map(([value,label])=>
-          '<option value="'+esc(value)+'" '+(String(value)===String(suggested)?"selected":"")+'>'+
-          esc(label)+'</option>').join("");
-        return '<article class="rx-preview-item">'+
+        const choice=choices[index],suggested=choice.suggested?.id||"";
+        return '<article class="rx-preview-item rx-xml-item">'+
           '<strong>'+esc(line.name||line.product||"Produto "+(index+1))+'</strong>'+
           '<small>'+esc(line.quantity)+" "+esc(line.unit)+" · "+esc(line.code||"")+'</small>'+
           '<div class="rx-form-grid">'+
-          '<label class="rx-field wide"><span>Vincular ao pedido</span>'+
-          '<select name="selection_'+index+'" required>'+optionsHTML+'</select></label>'+
+          '<div class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Pesquisar pedido</label>'+
+          '<input id="rx-xml-search-'+index+'" type="search" placeholder="Produto, fornecedor ou número do pedido" autocomplete="off">'+
+          '<label for="rx-xml-choice-'+index+'">Vincular ao pedido</label>'+
+          '<select id="rx-xml-choice-'+index+'" name="selection_'+index+'" required>'+pickerHTML(choice,"",suggested,esc)+'</select>'+
+          '<small class="rx-xml-suggestion" id="rx-xml-suggestion-'+index+'">'+
+          (choice.suggested?(choice.suggested.learned?"Sugestão pelo histórico de NF-e confirmadas":"Sugestão por produto e saldo disponível"):"Selecione ou pesquise um pedido")+'</small></div>'+
           '<label class="rx-field wide"><span>Quantidade equivalente no pedido (somente se a unidade não converter automaticamente)</span>'+
           '<input inputmode="decimal" name="manual_'+index+'" placeholder="Deixe vazio para conversão automática"></label>'+
           '</div></article>';
@@ -73,7 +162,7 @@ window.NHReceivingImports=(()=>{
         '<small>'+esc(report.supplier||"")+" · "+esc(report.cnpj||"")+
         ' · Chave: '+esc(report.access_key||"não encontrada")+'</small></div>'+
         rows.join("")+'</div>';
-      dialog("Conferência de NF-e (XML)",
+      const view=dialog("Conferência de NF-e (XML)",
         "Revise cada item e o pedido de destino antes de gravar. Nada é lançado automaticamente.",
         summary,async form=>{
           const selections=report.lines.map((_,i)=>{
@@ -92,6 +181,16 @@ window.NHReceivingImports=(()=>{
           closeDialog();await refresh();
           toast("XML processado: "+(result.registered||result.imported||"itens")+" conferidos.");
         },"Confirmar XML");
+      choices.forEach((choice,index)=>{
+        const search=view.mask.querySelector("#rx-xml-search-"+index),select=view.mask.querySelector("#rx-xml-choice-"+index);
+        const hint=view.mask.querySelector("#rx-xml-suggestion-"+index);
+        search.addEventListener("input",()=>{
+          const selected=select.value;
+          select.innerHTML=pickerHTML(choice,search.value,selected,esc);
+          select.value=selected;
+        });
+        select.addEventListener("change",()=>{hint.textContent=select.value==="pending"?"Vincular posteriormente":select.value?"Pedido selecionado":"Selecione ou pesquise um pedido";});
+      });
     }catch(e){toast(e.message||"Falha ao conferir o XML.",true);}
     finally{app.setBusy(false);}
   }
@@ -392,5 +491,5 @@ window.NHReceivingImports=(()=>{
     });
   }
 
-  return {openXML,importXML,openPDF,importPDF,openJSON,restoreIssuer,readFiscalPDF};
+  return {openXML,importXML,openPDF,importPDF,openJSON,restoreIssuer,readFiscalPDF,buildXMLChoices,pickerHTML};
 })();
