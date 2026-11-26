@@ -213,6 +213,8 @@ def dashboard(month=None):
                 reserved_by_installment[int(d["parcela_id"])]+=amount(d["valor"])
         linked_res=sum((amount(d["valor"]) for d in person["descontos"]
                          if d["competencia"]==month and d["status"] in ("reserved","error")),ZERO)
+        person["quantidade_vales"]=len({item.get("debt_id",item["id"]) for vid in person["vales_ids"]
+            for item in pending_by_employee.get(vid,[])})
         scheduled=ZERO
         overdue=ZERO
         for vale_id in person["vales_ids"]:
