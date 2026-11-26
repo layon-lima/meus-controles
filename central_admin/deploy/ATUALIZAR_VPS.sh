@@ -3,6 +3,7 @@
 # Preserva tokens internos, bancos, R2, Caddy, GFARM e demais apps.
 set -Eeuo pipefail
 umask 077
+printf 'Instalador Central: vales-funcionarios-20261126-r3\n'
 
 BASE="/opt/apps/central-novo-horizonte"
 APP="$BASE/central_admin"
@@ -446,7 +447,7 @@ done
 echo "OK: tema e logotipo confirmados no endereco HTTPS de uso do navegador."
 # Verificar as duas abas reais no HTTPS, sem modificar chaves Pix.
 for view in staff pix; do
-  QUERY='v=20261125draft2'
+  QUERY="v=20261126vales3-$(date +%s)-$RANDOM"
   [[ "$view" != pix ]] || QUERY="$QUERY&view=pix"
   curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
     "$PUBLIC/modules/funcionarios/?$QUERY" -o "$TMP/pix-page" \
@@ -456,6 +457,7 @@ for view in staff pix; do
   grep -Fq 'id="pixTitle">Gerenciar Pix dos funcionários' "$TMP/pix-page" \
     || fail "Painel Pix ausente."
   grep -Fq 'id="addVale"' "$TMP/pix-page" || fail "Botao de vale nao chegou ao HTTPS."
+  grep -Fq 'value="valeHistory"' "$TMP/pix-page" || fail "Historico de vales nao chegou ao HTTPS."
   if [[ "$view" == pix ]]; then
     grep -Fq 'class="central-operational nh-scope-funcionarios nhf-view-pix"' "$TMP/pix-page" \
       || fail "Servidor nao abriu a aba Pix diretamente."
@@ -479,7 +481,7 @@ print(matches[0])
 PY
 )" || fail "Referencia local invalida: $asset."
     grep -Fq "$ASSET_URL" "$TMP/pix-page" \
-      || fail "Pagina usa recurso antigo: $asset."
+      || fail "HTML HTTPS diverge da revisao instalada: $asset; esperado $ASSET_URL."
     curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
       "$PUBLIC/${ASSET_URL#/central/}" -o "$TMP/pix-asset" \
       || fail "Recurso Pix $asset indisponivel."
@@ -487,7 +489,7 @@ PY
       || fail "Recurso Pix $asset diverge da versao instalada."
   done
 done
-echo "OK: abas Valores em aberto e Gerenciar Pix confirmadas no endereco publico."
+echo "OK: adicionar vale, historico e abas de Funcionarios confirmados no HTTPS."
 curl -fsS --max-time 20 -H "Cookie: $COOKIE" -H 'Cache-Control: no-cache' \
   "$PUBLIC/modules/recebimentos/?v=20261125draft2" -o "$TMP/rx-page" \
   || fail "Recebimentos indisponivel no HTTPS."
@@ -580,6 +582,26 @@ for key in ("funcionarios_com_pagamentos","total_a_pagar","vales_a_descontar",
         raise SystemExit("Indicador não encontrado: "+key)
 print("OK: Funcionários reúne holerites, contas e vales no modo leitura.")
 PY
+# Conferir a nova rota de detalhes usando um cadastro real, somente leitura.
+VALE_PERSON="$(python3 - "$TMP/funcionarios-painel" <<'PY'
+import json,sys
+with open(sys.argv[1],encoding="utf-8") as file:
+    people=json.load(file)["funcionarios"]
+print(next((p["id"] for p in people if p.get("vales_ids")),""))
+PY
+)"
+if [[ -n "$VALE_PERSON" ]]; then
+  HTTP="$(curl -sS --max-time 45 -o "$TMP/vale-detail" -w '%{http_code}' \
+    -H "Cookie: $COOKIE" "http://127.0.0.1:18771/api/funcionarios/vales?funcionario_id=$VALE_PERSON")"
+  [[ "$HTTP" == 200 ]] || fail "Historico individual de vales nao respondeu (HTTP $HTTP)."
+  python3 - "$TMP/vale-detail" <<'PY'
+import json,sys
+with open(sys.argv[1],encoding="utf-8") as file: data=json.load(file)
+assert data.get("ok") and data["cadastros"], "Historico individual sem cadastro original"
+assert all(isinstance(p.get("payments"),list) and isinstance(p.get("debts"),list) for p in data["cadastros"]), "Historico de vales incompleto"
+print("OK: historico individual de vales e descontos consultado no motor original.")
+PY
+fi
 # Paridade completa: TODO cadastro de Vales e TODA parcela com saldo devem
 # aparecer na ficha de algum funcionário da Central, inclusive sem holerite.
 # Nenhuma escrita em pagamentos, fichas originais ou reservas.
