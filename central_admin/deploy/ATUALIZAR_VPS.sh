@@ -455,6 +455,7 @@ for view in staff pix; do
     || fail "Aba Gerenciar Pix ausente."
   grep -Fq 'id="pixTitle">Gerenciar Pix dos funcionários' "$TMP/pix-page" \
     || fail "Painel Pix ausente."
+  grep -Fq 'id="addVale"' "$TMP/pix-page" || fail "Botao de vale nao chegou ao HTTPS."
   if [[ "$view" == pix ]]; then
     grep -Fq 'class="central-operational nh-scope-funcionarios nhf-view-pix"' "$TMP/pix-page" \
       || fail "Servidor nao abriu a aba Pix diretamente."
@@ -465,12 +466,22 @@ for view in staff pix; do
       || fail "Aba de saldos nao esta selecionada."
   fi
   for asset in funcionarios.js funcionarios.css; do
-    VERSION=20261125draft2
-    [[ "$asset" != *.css ]] || VERSION=20261125detail3
-    grep -Fq "/central/$asset?v=$VERSION" "$TMP/pix-page" \
+    # A referencia esperada vem do HTML instalado nesta mesma revisao,
+    # nao de uma versao fixa de outro dia. Continua conferindo HTML e bytes HTTPS.
+    ASSET_URL="$(python3 - "$APP/static/funcionarios.html" "$asset" <<'PY'
+import re,sys
+from pathlib import Path
+html=Path(sys.argv[1]).read_text(encoding="utf-8")
+matches=re.findall(r'["\x27](/central/'+re.escape(sys.argv[2])+r'\?v=[A-Za-z0-9_-]+)["\x27]',html)
+if len(matches)!=1:
+    raise SystemExit("Referencia versionada ausente ou duplicada: "+sys.argv[2])
+print(matches[0])
+PY
+)" || fail "Referencia local invalida: $asset."
+    grep -Fq "$ASSET_URL" "$TMP/pix-page" \
       || fail "Pagina usa recurso antigo: $asset."
     curl -fsS --max-time 15 -H 'Cache-Control: no-cache' \
-      "$PUBLIC/$asset?v=$VERSION" -o "$TMP/pix-asset" \
+      "$PUBLIC/${ASSET_URL#/central/}" -o "$TMP/pix-asset" \
       || fail "Recurso Pix $asset indisponivel."
     cmp -s "$APP/static/$asset" "$TMP/pix-asset" \
       || fail "Recurso Pix $asset diverge da versao instalada."
