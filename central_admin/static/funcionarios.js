@@ -209,7 +209,11 @@
       state.openId=result.funcionario_id;
       pixFeedback("Vale atualizado com sucesso.");
       await refresh();
-    }catch(err){pixFeedback(err.message,true);}
+    }catch(err){
+      let feedback=dialog.querySelector(".nhf-vale-error");
+      if(!feedback){feedback=e("p","nhf-failed nhf-vale-error");dialog.querySelector(".nhf-vale-body").append(feedback);}
+      feedback.textContent=err.message;
+    }
     finally{valeBusy=false;button.disabled=false;}
   }
   function addVale(preselected){
@@ -351,7 +355,7 @@
     const loadDetails=()=>{
       if(detail.dataset.loaded==="1")return;
       const controls=e("div","nhf-vale-actions");
-      controls.append(valeButton("+ Adicionar vale",()=>addVale(person.id)),valeButton("Gerenciar vales",()=>manageVales(person)));
+      controls.append(valeButton("+ Adicionar vale",()=>addVale(person.id)),valeButton("Gerenciar vales ("+Number(person.quantidade_vales||0)+")",()=>manageVales(person)));
       detail.append(controls,makeTable(person),makeHistory(person));
       detail.dataset.loaded="1";
     };
@@ -372,6 +376,7 @@
     card.dataset.pagar=String(balance.pagar);
     card.dataset.vales=String(balance.descontar);
     card.dataset.paid=String(paidRows(person).length);
+    card.dataset.valeCount=String(person.quantidade_vales||0);
     state.cards.set(person.id,card);
     return card;
   }
@@ -388,7 +393,8 @@
         (status==="pending"&&(amount>0||vales>0))||
         (status==="payable"&&amount>0)||
         (status==="vales"&&vales>0)||
-        (status==="paid"&&Number(card.dataset.paid)>0);
+        (status==="paid"&&Number(card.dataset.paid)>0)||
+        (status==="valeHistory"&&Number(card.dataset.valeCount)>0);
       card.hidden=!(matchName&&matchStatus);
       if(!card.hidden)shown++;
     }
