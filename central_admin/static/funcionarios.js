@@ -132,6 +132,199 @@
     table.append(body);section.append(table);
     return section;
   }
+  // Operações no mesmo motor original, sem uma segunda carteira de vales.
+  let valeBusy=false;
+  async function valeApi(payload,id){
+    const response=await fetch("/central/api/funcionarios/vales"+(payload?"":"?funcionario_id="+encodeURIComponent(id)),{
+      method:payload?"POST":"GET",credentials:"same-origin",cache:"no-store",
+      headers:{"Accept":"application/json","Content-Type":"application/json"},
+      ...(payload?{body:JSON.stringify(payload)}:{})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok)throw new Error(data.erro||"Não foi possível operar os vales.");
+    return data;
+  }
+  const currentMonth=()=>new Date().toLocaleDateString("sv-SE",{year:"numeric",month:"2-digit",timeZone:"America/Sao_Paulo"});
+  const moneyInput=value=>{
+    let raw=String(value??"").trim().replace(/\s/g,"");
+    if(raw.includes(","))raw=raw.replace(/\./g,"").replace(",",".");
+    if(!/^\d+(?:\.\d{1,2})?$/.test(raw)||Number(raw)<=0||Number(raw)>1e9)throw new Error("Informe um valor positivo com até duas casas decimais.");
+    return Number(raw).toFixed(2);
+  };
+  function valeButton(label,fn,cls="nhf-mini"){
+    const b=e("button",cls,label);b.type="button";b.addEventListener("click",fn);return b;
+  }
+  function valeDialog(title){
+    const old=$("nhfValeDialog");if(old){old.close();old.remove();}
+    const dialog=e("dialog","nhf-vale-dialog");dialog.id="nhfValeDialog";
+    const head=e("div","nhf-detail-heading"),body=e("div","nhf-vale-body");
+    head.append(e("strong","",title),valeButton("Fechar",()=>{if(!valeBusy)dialog.close();}));
+    dialog.append(head,body);document.body.append(dialog);
+    dialog.addEventListener("cancel",event=>{if(valeBusy)event.preventDefault();});
+    dialog.addEventListener("close",()=>dialog.remove());
+    dialog.showModal();return {dialog,body};
+  }
+  function field(form,label,name,type="text",value="",required=true){
+    const wrap=e("label","nhf-vale-field"),input=e("input","");
+    input.name=name;input.type=type;input.value=String(value??"");input.required=required;
+    if(type==="text"&&(name==="amount"||name==="each"))input.inputMode="decimal";
+    wrap.append(e("span","",label),input);form.append(wrap);return input;
+  }
+  function planEditor(form,principal,initial){
+    const box=e("div","nhf-vale-plan");form.append(box);
+    const plan=initial.map(p=>({...p}));
+    function paint(){
+      box.replaceChildren();
+      for(const [idx,p] of plan.entries()){
+        const line=e("div","nhf-vale-plan-row");
+        const m=e("input",""),v=e("input","");m.type="month";m.required=true;m.value=p.month;v.type="text";v.required=true;v.inputMode="decimal";v.value=p.amount;
+        m.addEventListener("input",()=>p.month=m.value);v.addEventListener("input",()=>p.amount=v.value);
+        line.append(e("span","",String(idx+1)),m,v,valeButton("−",()=>{if(plan.length>1){plan.splice(idx,1);paint();}}));
+        box.append(line);
+      }
+      box.append(valeButton("+ Parcela",()=>{if(plan.length<120){plan.push({month:nextMonth(plan.at(-1).month),amount:""});paint();}}));
+    }
+    paint();
+    return ()=>{const rows=plan.map(p=>({month:p.month,amount:moneyInput(p.amount)}));
+      if(rows.reduce((n,p)=>n+Math.round(Number(p.amount)*100),0)!==Math.round(Number(principal)*100))throw new Error("A soma das parcelas precisa ser igual ao valor do vale.");
+      return rows;};
+  }
+  function nextMonth(month,step=1){
+    const [y,m]=month.split("-").map(Number),index=y*12+m-1+step;
+    return String(Math.floor(index/12)).padStart(4,"0")+"-"+String(index%12+1).padStart(2,"0");
+  }
+  function splitPlan(amount,month,count){
+    const cents=Math.round(Number(amount)*100),base=Math.floor(cents/count),rest=cents%count;
+    if(!Number.isInteger(count)||count<1||count>120||base<1)throw new Error("Quantidade de parcelas inválida.");
+    return Array.from({length:count},(_,i)=>({month:nextMonth(month,i),amount:((base+(i<rest?1:0))/100).toFixed(2)}));
+  }
+  async function saveVale(dialog,payload,button){
+    if(valeBusy)return;
+    valeBusy=true;button.disabled=true;
+    try{
+      const result=await valeApi(payload);
+      dialog.close();
+      state.filters.q="";$("search").value="";
+      state.filters.status="all";$("statusFilter").value="all";
+      state.openId=result.funcionario_id;
+      pixFeedback("Vale atualizado com sucesso.");
+      await refresh();
+    }catch(err){pixFeedback(err.message,true);}
+    finally{valeBusy=false;button.disabled=false;}
+  }
+  function addVale(preselected){
+    if(!state.data)return pixFeedback("Carregue os funcionários primeiro.",true);
+    const {dialog,body}=valeDialog("Adicionar vale");
+    const form=e("form","nhf-vale-form");body.append(form);
+    const select=e("select",""),wrap=e("label","nhf-vale-field");
+    select.required=true;select.name="funcionario_id";
+    const none=e("option","","Selecione o funcionário");none.value="";select.append(none);
+    for(const person of state.data.funcionarios.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"))){
+      const opt=e("option","",person.nome);opt.value=String(person.id);select.append(opt);
+    }
+    if(preselected)select.value=String(preselected);
+    wrap.append(e("span","","Funcionário"),select);form.append(wrap);
+    const title=field(form,"Título do vale","title","text","Vale");
+    title.maxLength=160;
+    const desc=field(form,"Observação (opcional)","description","text","",false);desc.maxLength=500;
+    const amount=field(form,"Valor (R$)","amount"),first=field(form,"Primeiro desconto","first_month","month",currentMonth());
+    const count=field(form,"Número de parcelas","count","number","1");count.min="1";count.max="120";count.step="1";
+    const preview=e("div","nhf-vale-plan-preview"),generate=valeButton("Conferir / ajustar parcelas",()=>{
+      try{preview.replaceChildren();const principal=moneyInput(amount.value);
+        form._plan=planEditor(preview,principal,splitPlan(principal,first.value,Number(count.value)));
+      }catch(err){pixFeedback(err.message,true);}
+    });
+    const reset=()=>{preview.replaceChildren();form._plan=null;};
+    for(const input of [amount,first,count])input.addEventListener("input",reset);
+    form.append(generate,preview);
+    const save=e("button","nhf-btn","Salvar vale");save.type="submit";form.append(save);
+    form.addEventListener("submit",event=>{
+      event.preventDefault();
+      try{
+        const principal=moneyInput(amount.value),n=Number(count.value);
+        const payload={action:"add",funcionario_id:Number(select.value),title:title.value,description:desc.value,amount:principal,first_month:first.value,count:n};
+        if(form._plan)payload.installments=form._plan();
+        else splitPlan(principal,first.value,n);
+        saveVale(dialog,payload,save);
+      }catch(err){pixFeedback(err.message,true);}
+    });
+  }
+  function registerValeEmployee(){
+    const {dialog,body}=valeDialog("Cadastrar funcionário para vales"),form=e("form","nhf-vale-form");body.append(form);
+    const name=field(form,"Nome completo","name");name.maxLength=160;
+    const save=e("button","nhf-btn","Cadastrar");save.type="submit";form.append(save);
+    form.addEventListener("submit",event=>{event.preventDefault();saveVale(dialog,{action:"register",name:name.value},save);});
+  }
+  async function confirmVale(message){
+    return window.NHConfirm?.ask?await window.NHConfirm.ask(message,"Confirmar operação"):window.confirm(message);
+  }
+  async function manageVales(person){
+    const {dialog,body}=valeDialog("Vales · "+person.nome);
+    body.append(e("p","nhf-muted","Consultando lançamentos…"));
+    try{
+      const data=await valeApi(null,person.id);if(!dialog.open)return;
+      body.replaceChildren(valeButton("+ Adicionar vale",()=>addVale(person.id),"nhf-btn"));
+      const mutate=async(payload,b,message)=>{
+        if(message&&!(await confirmVale(message)))return;
+        saveVale(dialog,{funcionario_id:person.id,...payload},b);
+      };
+      function editForm(action,record,title,build){
+        const next=valeDialog(title),form=e("form","nhf-vale-form");next.body.append(form);
+        const get=build(form);const save=e("button","nhf-btn","Salvar");save.type="submit";form.append(save);
+        form.addEventListener("submit",event=>{event.preventDefault();try{
+          saveVale(next.dialog,{action,id:record.id,funcionario_id:person.id,...get()},save);
+        }catch(err){pixFeedback(err.message,true);}});
+      }
+      if(!data.cadastros.length)body.append(e("p","nhf-muted","Nenhum vale cadastrado. Adicione o primeiro."));
+      for(const record of data.cadastros){
+        const status=e("div","nhf-vale-actions");
+        status.append(e("strong","",record.active?"Cadastro ativo":"Cadastro arquivado"),
+          valeButton(record.active?"Arquivar cadastro":"Reativar cadastro",event=>mutate({action:"active",id:record.id,active:!record.active},event.currentTarget,"Alterar status deste cadastro de vales?")));
+        body.append(status);
+        for(const debt of record.debts){
+          const section=e("section","nhf-vale-record");
+          section.append(e("strong","",debt.title||"Vale"),e("p","nhf-muted",safeDate(debt.created_at)+" · Valor "+br(debt.amount)+" · Descontado "+br(debt.paid)+" · Saldo "+br(debt.remaining)));
+          if(debt.description)section.append(e("p","",debt.description));
+          const actions=e("div","nhf-vale-actions");
+          actions.append(valeButton("Editar descrição",()=>editForm("edit",debt,"Editar vale",form=>{
+            const t=field(form,"Título","title","text",debt.title),d=field(form,"Observação","description","text",debt.description,false);
+            return ()=>({title:t.value,description:d.value});
+          })));
+          const reserved=debt.installments.some(i=>number(i.reservado)>0);
+          if(!reserved&&!number(debt.paid)){
+            actions.append(valeButton("Ajustar parcelas",()=>editForm("plan",debt,"Ajustar parcelas",form=>{
+              const read=planEditor(form,debt.amount,debt.installments.map(i=>({month:i.due_month,amount:i.amount})));
+              return ()=>({installments:read()});
+            })));
+            actions.append(valeButton("Excluir vale",event=>mutate({action:"delete",id:debt.id},event.currentTarget,"Excluir este vale sem descontos registrados?")));
+          }
+          if(!reserved&&number(debt.remaining))actions.append(valeButton("Quitar vale",()=>editForm("settle",debt,"Quitar vale",form=>{
+            const m=field(form,"Competência da quitação","month","month",currentMonth());return ()=>({month:m.value});
+          })));
+          section.append(actions);
+          for(const i of debt.installments){
+            const line=e("div","nhf-vale-installment");
+            const available=Math.max(0,number(i.remaining)-number(i.reservado));
+            line.append(e("span","","Parcela "+i.installment_number+" · "+monthLabel(i.due_month)+" · "+br(i.amount)+" · Saldo "+br(i.remaining)+(number(i.reservado)?" · Reservado "+br(i.reservado):"")));
+            if(available>0)line.append(valeButton("Registrar desconto",()=>editForm("payment",i,"Registrar desconto",form=>{
+              const a=field(form,"Valor do desconto","amount","text",available.toFixed(2)),m=field(form,"Competência","month","month",currentMonth()),n=field(form,"Observação","notes","text","",false);
+              return ()=>({amount:moneyInput(a.value),month:m.value,notes:n.value});
+            })));
+            section.append(line);
+          }
+          body.append(section);
+        }
+        if(record.payments.length){
+          const history=e("section","nhf-vale-record");history.append(e("strong","","Histórico de descontos"));
+          for(const p of record.payments){
+            const line=e("div","nhf-vale-installment");line.append(e("span","",p.title+" · "+monthLabel(p.payment_month)+" · "+br(p.amount)+(p.notes?" · "+p.notes:"")));
+            if(!p.protegido)line.append(valeButton("Estornar",event=>mutate({action:"undo",id:p.id},event.currentTarget,"Estornar este desconto?")));
+            history.append(line);
+          }body.append(history);
+        }
+      }
+    }catch(err){body.replaceChildren(e("p","nhf-failed",err.message));}
+  }
   function createStaffCard(person){
     const balance=openAmounts(person);
     const card=e("article","nhf-staff");
@@ -157,7 +350,9 @@
     detail.hidden=true;
     const loadDetails=()=>{
       if(detail.dataset.loaded==="1")return;
-      detail.append(makeTable(person),makeHistory(person));
+      const controls=e("div","nhf-vale-actions");
+      controls.append(valeButton("+ Adicionar vale",()=>addVale(person.id)),valeButton("Gerenciar vales",()=>manageVales(person)));
+      detail.append(controls,makeTable(person),makeHistory(person));
       detail.dataset.loaded="1";
     };
     header.addEventListener("click",()=>{
@@ -329,6 +524,8 @@
     state.filters.status="paid";
     applyFilters();
   });
+  $("addVale").addEventListener("click",()=>addVale());
+  $("registerValeEmployee").addEventListener("click",registerValeEmployee);
   $("refresh").addEventListener("click",refresh);
   refresh();
 })();
