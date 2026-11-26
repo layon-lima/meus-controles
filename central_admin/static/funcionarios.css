@@ -289,3 +289,13 @@ body.nhf-view-pix #pixPanel{display:block!important;margin-top:0}
 .nhf-vale-installment{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #edf0f3;font-size:13px}
 .nhf-vale-dialog .nhf-btn[type=submit]{align-self:flex-end;min-width:130px;background:#303740!important;color:#fff!important}
 @media(max-width:540px){.nhf-vale-dialog{padding:12px}.nhf-vale-dialog .nhf-btn[type=submit]{align-self:stretch}.nhf-vale-plan-row{grid-template-columns:18px minmax(0,1fr) minmax(0,1fr) auto}}
+
+/* Créditos e descontos: cores sem alterar valores nem os saldos. */
+body.central-operational .nhf-open-table tr.nhf-row-credit > td,
+body.central-operational .nhf-open-table tr.nhf-row-credit > td *{color:#16803d!important}
+body.central-operational .nhf-open-table tr.nhf-row-deduction > td,
+body.central-operational .nhf-open-table tr.nhf-row-deduction > td *{color:#b42323!important}
+body.central-operational .nhf-staff-summary .nhf-stat.payable strong,
+body.central-operational #metricTotal{color:#16803d!important}
+body.central-operational .nhf-staff-summary .nhf-stat.deduct strong,
+body.central-operational #metricVales{color:#b42323!important}
