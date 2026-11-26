@@ -271,3 +271,21 @@ body:not(.nhf-view-pix) #staffTab,body.nhf-view-pix #managePix{background:#30374
 body:not(.nhf-view-pix) #pixPanel{display:none!important}
 body.nhf-view-pix #staffView{display:none!important}
 body.nhf-view-pix #pixPanel{display:block!important;margin-top:0}
+
+
+/* Lançamentos e gestão de vales dentro do módulo Funcionários. */
+.nhf-add-vale{white-space:nowrap;background:#303740!important;color:#fff!important;border-color:#303740!important}
+.nhf-vale-dialog{box-sizing:border-box;width:min(660px,calc(100vw - 24px));max-height:calc(100dvh - 28px);padding:16px;border:1px solid #dce0e5;border-radius:12px;background:#fff;color:#303740;box-shadow:0 14px 45px #17212d33;overflow:auto}
+.nhf-vale-dialog::backdrop{background:#17212d55}
+.nhf-vale-body{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.nhf-vale-form{display:flex;flex-direction:column;gap:12px}
+.nhf-vale-field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}
+.nhf-vale-dialog input,.nhf-vale-dialog select{box-sizing:border-box;width:100%;min-width:0;height:40px;border:1px solid #dce0e5;border-radius:7px;padding:7px 10px;background:#fff;color:#303740;font:inherit}
+.nhf-vale-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}
+.nhf-vale-record{border:1px solid #dce0e5;border-radius:9px;padding:12px}
+.nhf-vale-record p{margin:5px 0;font-size:13px}
+.nhf-vale-plan{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.nhf-vale-plan-row{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr) auto;gap:7px;align-items:center}
+.nhf-vale-installment{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid #edf0f3;font-size:13px}
+.nhf-vale-dialog .nhf-btn[type=submit]{align-self:flex-end;min-width:130px;background:#303740!important;color:#fff!important}
+@media(max-width:540px){.nhf-vale-dialog{padding:12px}.nhf-vale-dialog .nhf-btn[type=submit]{align-self:stretch}.nhf-vale-plan-row{grid-template-columns:18px minmax(0,1fr) minmax(0,1fr) auto}}
