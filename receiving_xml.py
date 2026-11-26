@@ -124,7 +124,11 @@ def parse(raw):
         amount=val(prod,"qCom")
         unit=val(prod,"uCom")
         if not name or not amount or not unit:raise ValueError("Item da NF-e sem produto, unidade ou quantidade.")
-        quantity=receiving.qty(amount)
+        # qCom é decimal sem agrupamento de milhares. Aceitar vírgula
+        # decimal isolada por tolerância, nunca remover separadores.
+        if not re.fullmatch(r"[0-9]+(?:[.,][0-9]+)?",amount):
+            raise ValueError("Quantidade qCom inválida no XML da NF-e.")
+        quantity=receiving.qty(Decimal(amount.replace(",",".")))
         rastro=child(prod,"rastro")
         lines.append({"index":len(lines),"name":name,"code":val(prod,"cProd"),
                       "quantity":receiving.display(quantity),"unit":unit,
