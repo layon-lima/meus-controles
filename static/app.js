@@ -194,7 +194,7 @@ const App = {
     if(!parsed.active||!data){panel.hidden=true;panel.innerHTML="";input.setAttribute("aria-expanded","false");return}
     const items=parsed.kind==="board"
       ?data.boards.filter(b=>normalizeSearch(b.name).includes(parsed.term))
-      :(this.s.route==="history"?(data.archived_controls||[]):data.controls).filter(c=>normalizeSearch(c.name).includes(parsed.term));
+      :(this.s.route==="history"?(data.archived_controls||[]).filter(c=>!this.archiveModeFilter||this.archiveModeFilter(c)):data.controls).filter(c=>normalizeSearch(c.name).includes(parsed.term));
     const label=parsed.kind==="board"?"Pastas":"Controles";
     const hint=parsed.kind==="board"?"Buscando somente pastas":"Buscando controles em todas as pastas";
     panel.innerHTML='<div class="search-results-header"><strong>'+label+'</strong><span>'+items.length+' encontrado(s)</span></div>'+
@@ -277,8 +277,8 @@ const App = {
     document.getElementById("crumb").textContent=crumb;
     const main=document.getElementById("main");
     if(this.s.route==="history"){
-      const archived=(st.archived_controls||[]).slice().sort((a,b)=>String(b.closed_at).localeCompare(String(a.closed_at)));
-      main.innerHTML='<div class="section-heading"><h2>Controles encerrados</h2><span class="secondary-text">'+archived.length+' controle(s) · somente consulta</span></div>'+
+      const archived=(st.archived_controls||[]).filter(c=>!this.archiveModeFilter||this.archiveModeFilter(c)).sort((a,b)=>String(b.closed_at).localeCompare(String(a.closed_at)));
+      main.innerHTML='<div class="section-heading"><h2>Controles encerrados</h2><div class="actions-end"><span class="secondary-text">'+archived.length+' controle(s) · somente consulta</span><button class="btn btn-sm" onclick="App.navigate(\'home\')">Voltar aos ativos</button></div></div>'+
         (archived.length?'<div class="control-grid">'+archived.map(controlCard).join("")+'</div>':
         '<div class="empty-state"><strong>Nenhum controle encerrado</strong><p>Os controles encerrados ficam disponíveis aqui.</p></div>');
     } else if(this.s.route==="home"){
@@ -546,7 +546,9 @@ const App = {
   async closeControl(id){
     const c=this.s.state?.controls?.find(x=>Number(x.id)===Number(id));
     if(!c||c.closed_at)return;
-    if(!confirm('Encerrar "'+c.name+'"? Todos os lançamentos serão preservados no histórico, somente para consulta.'))return;
+    const message='Encerrar "'+c.name+'"? Todos os lançamentos serão preservados no histórico, somente para consulta.';
+    const approved=window.NHConfirm?.ask?await window.NHConfirm.ask(message,"Encerrar controle"):window["confirm"](message);
+    if(!approved)return;
     try{
       await this.api("/api/controls/"+id+"/close","POST",{});
       await this.load();
