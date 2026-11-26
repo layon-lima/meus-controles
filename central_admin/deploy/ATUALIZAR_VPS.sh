@@ -340,8 +340,7 @@ grep -Fq '/central/api/funcionarios/pix' "$APP/static/funcionarios.js" \
 grep -Fq 'def update_pix(payload):' "$APP/funcionarios.py" \
   || fail "Integração de cadastro Pix ausente."
 echo "OK: gerenciamento Pix usa cadastro original do Contas; nenhuma chave alterada pelo instalador."
-# Garante que a ficha de funcionários publicada é apenas de valores em
-# aberto. Não reintroduzir links de pagamento, busca de vínculo ou histórico.
+# Saldos pendentes e histórico pago ficam separados; sem ações de vínculo manual.
 grep -Fq 'function openAmounts(person)' "$APP/static/funcionarios.js" \
   || fail "Painel de Funcionários antigo: cálculo de pendências não instalado."
 grep -Fq 'class="nhf-open-table"' "$APP/static/funcionarios.html" >/dev/null 2>&1 \
@@ -354,7 +353,10 @@ done
 if grep -Fq 'id="unlinkedSection"' "$APP/static/funcionarios.html"; then
   fail "Painel de Funcionários ainda tem lista manual de vínculos."
 fi
-echo "OK: Funcionários mostra somente saldos pendentes; sem busca de contas, vínculos ou histórico pago."
+grep -Fq 'function makeHistory(person)' "$APP/static/funcionarios.js" || fail "Historico de pagamentos ausente."
+grep -Fq 'id="historyFilter"' "$APP/static/funcionarios.html" || fail "Acesso ao historico ausente."
+grep -Fq 'AS data_pagamento' "$APP/funcionarios.py" || fail "Data de pagamento ausente."
+echo "OK: Funcionários mostra saldos em aberto e histórico pago separadamente; sem vínculos manuais."
 # Todas as paginas da Central usam largura fluida; não publicar só
 # Recebimentos deixando as outras telas com faixas laterais vazias.
 grep -Fq '.rx-app{width:100%;max-width:none;' "$APP/static/recebimentos.css" \
