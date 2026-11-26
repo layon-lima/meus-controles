@@ -9,6 +9,7 @@ RUN apt-get update \
 COPY . /srv/app
 RUN python -m compileall -q /srv/app \
     && python -m unittest discover -s tests -p test_pg_compat.py -v \
+    && python -m unittest discover -s tests -p test_control_archive.py -v \
     && python -m unittest discover -s tests -p test_pwa.py -v \
     && python -m unittest discover -s tests -p test_receiving_mobile.py -v \
     && python -m unittest discover -s tests -p test_desktop_compact.py -v \
