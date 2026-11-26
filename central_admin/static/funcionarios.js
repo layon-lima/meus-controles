@@ -1,6 +1,6 @@
 "use strict";
-/* Central / Funcionários: quadro exclusivamente de valores em aberto.
- * Sem vínculos ou histórico pago. Gerenciamento de Pix separado.
+/* Central / Funcionários: saldos em aberto e histórico de pagamentos separado.
+ * Sem vínculos manuais nesta tela. Gerenciamento de Pix separado.
  * A consulta lê os motores originais e nunca cria descontos/pagamentos.
  */
 (() => {
@@ -36,7 +36,7 @@
     return match?match[2]+"/"+match[1]:"—";
   }
   function openAmounts(person){
-    // Nunca trazer para a tela contas, holerites ou vales já quitados.
+    // Não incluir contas, holerites ou vales quitados nos saldos em aberto.
     // Os descontos reservados já estão no líquido do holerite e não
     // podem ser somados novamente a "Vales a descontar".
     const holerites=(person.holerites||[]).filter(a=>!a.paga&&number(a.valor)>0);
@@ -94,6 +94,44 @@
     table.append(body);section.append(table);
     return section;
   }
+  function paidRows(person){
+    const result=[];
+    for(const [tipo,accounts] of [["Holerite",person.holerites||[]],["Conta",person.outras_contas||[]]]){
+      for(const a of accounts){
+        if(!a.paga)continue;
+        result.push({tipo,descricao:tipo==="Holerite"?"Holerite · "+monthLabel(a.competencia):
+          a.documento||a.referencia||a.fornecedor||"Conta do funcionário",
+          data:a.data_pagamento||"",valor:number(a.valor),id:a.id});
+      }
+    }
+    return result.sort((a,b)=>b.data.localeCompare(a.data)||Number(b.id)-Number(a.id));
+  }
+  function makeHistory(person){
+    const data=paidRows(person);
+    const section=e("section","nhf-detail-section nhf-open-only");
+    const head=e("div","nhf-detail-heading");
+    head.append(e("strong","","Histórico de pagamentos"),
+      e("span","nhf-section-count",data.length+" lançamento(s) quitado(s)"));
+    section.append(head);
+    if(!data.length){
+      section.append(e("p","nhf-muted","Nenhum pagamento registrado para este funcionário."));
+      return section;
+    }
+    const table=e("table","nhf-open-table"),thead=e("thead"),heading=e("tr");
+    for(const title of ["Tipo","Descrição","Data do pagamento","Valor quitado"]){
+      heading.append(e("th","",title));
+    }
+    thead.append(heading);table.append(thead);
+    const body=e("tbody");
+    for(const item of data){
+      const tr=e("tr");
+      tr.append(e("td","nhf-type",item.tipo),e("td","",item.descricao),
+        e("td","nhf-reference",safeDate(item.data)),e("td","nhf-value",br(item.valor)));
+      body.append(tr);
+    }
+    table.append(body);section.append(table);
+    return section;
+  }
   function createStaffCard(person){
     const balance=openAmounts(person);
     const card=e("article","nhf-staff");
@@ -119,7 +157,7 @@
     detail.hidden=true;
     const loadDetails=()=>{
       if(detail.dataset.loaded==="1")return;
-      detail.append(makeTable(person));
+      detail.append(makeTable(person),makeHistory(person));
       detail.dataset.loaded="1";
     };
     header.addEventListener("click",()=>{
@@ -138,6 +176,7 @@
     }
     card.dataset.pagar=String(balance.pagar);
     card.dataset.vales=String(balance.descontar);
+    card.dataset.paid=String(paidRows(person).length);
     state.cards.set(person.id,card);
     return card;
   }
@@ -153,7 +192,8 @@
       const matchStatus=status==="all"||
         (status==="pending"&&(amount>0||vales>0))||
         (status==="payable"&&amount>0)||
-        (status==="vales"&&vales>0);
+        (status==="vales"&&vales>0)||
+        (status==="paid"&&Number(card.dataset.paid)>0);
       card.hidden=!(matchName&&matchStatus);
       if(!card.hidden)shown++;
     }
@@ -252,7 +292,7 @@
     setText("metricPeople",pendingPeople);
     setText("metricTotal",br(totalPay));
     setText("metricVales",br(totalVale));
-    const empty=e("p","nhf-empty","Nenhum funcionário com valores em aberto neste filtro.");
+    const empty=e("p","nhf-empty","Nenhum funcionário corresponde a este filtro.");
     empty.id="emptyFiltered";empty.hidden=true;list.append(empty);
     applyFilters();
   }
@@ -283,6 +323,11 @@
   });
   $("statusFilter").addEventListener("change",event=>{
     state.filters.status=event.target.value;applyFilters();
+  });
+  $("historyFilter").addEventListener("click",()=>{
+    $("statusFilter").value="paid";
+    state.filters.status="paid";
+    applyFilters();
   });
   $("refresh").addEventListener("click",refresh);
   refresh();
