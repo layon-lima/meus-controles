@@ -237,7 +237,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261126popup1' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261126vales1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -359,6 +359,9 @@ fi
 grep -Fq 'function makeHistory(person)' "$APP/static/funcionarios.js" || fail "Historico de pagamentos ausente."
 grep -Fq 'id="historyFilter"' "$APP/static/funcionarios.html" || fail "Acesso ao historico ausente."
 grep -Fq 'AS data_pagamento' "$APP/funcionarios.py" || fail "Data de pagamento ausente."
+grep -Fq 'id="addVale"' "$APP/static/funcionarios.html" || fail "Botao adicionar vale ausente."
+grep -Fq 'def vale_action(payload)' "$APP/funcionarios.py" || fail "Motor de operacao de vales ausente."
+grep -Fq 'function manageVales(person)' "$APP/static/funcionarios.js" || fail "Gestao individual de vales ausente."
 echo "OK: Funcionários mostra saldos em aberto e histórico pago separadamente; sem vínculos manuais."
 # Todas as paginas da Central usam largura fluida; não publicar só
 # Recebimentos deixando as outras telas com faixas laterais vazias.
