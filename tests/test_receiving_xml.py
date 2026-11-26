@@ -37,6 +37,28 @@ class XMLTests(unittest.TestCase):
         self.assertEqual(receiving_xml.converted("48","TO","t"),48)
         self.assertEqual(receiving_xml.converted("48","TO","kg"),48000)
         self.assertIsNone(receiving_xml.converted("20","sc","t"))
+    def test_xml_quantity_decimal_separator_never_changes_scale(self):
+        for raw,expected in (
+            ("1.0000","1.000"),("1,00","1.000"),("15.0000","15.000"),
+            ("70.0000","70.000"),("150.5000","150.500"),
+            ("1500.0000","1500.000"),("0.2500","0.250"),
+            ("0,25","0.250"),("1500,50","1500.500"),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(receiving_xml.parse(sample(q=raw))["lines"][0]["quantity"],expected)
+        for raw in ("1.000,00","1,000.00","1.2.3","0.0001"):
+            with self.subTest(raw=raw),self.assertRaises(ValueError):
+                receiving_xml.parse(sample(q=raw))
+
+    def test_decimal_quantity_preview_and_confirm_use_same_scale(self):
+        raw=base64.b64encode(sample(q="1.5000",u="t")).decode()
+        with app.db() as con:
+            preview=receiving_xml.preview(con,self.cid,{"xml":raw})
+            self.assertEqual(preview["lines"][0]["quantity"],"1.500")
+            self.assertEqual(preview["lines"][0]["options"][0]["quantity"],"1.500")
+            receiving_xml.confirm(con,self.cid,{"xml":raw,"selections":[self.iid]})
+            self.assertEqual(receiving.summary(con,self.cid)["items"][0]["remaining_qty"],"23.500")
+
     def test_strict_supplier_product_and_open_capacity(self):
         with app.db() as con:
             report=receiving_xml.preview(con,self.cid,{"xml":base64.b64encode(sample()).decode()})
