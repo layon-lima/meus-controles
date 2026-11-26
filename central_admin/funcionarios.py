@@ -391,6 +391,153 @@ def update_pix(payload):
         conn.close()
 
 
+def _vale_context(employee_id):
+    """Resolve o perfil pelo mesmo vínculo usado no painel e nos holerites."""
+    try:
+        eid=int(employee_id)
+    except (ValueError,TypeError):
+        raise bridge.BridgeError("Selecione um funcionário.") from None
+    people=bridge.read_staff()
+    staff,_=bridge.read_controls()
+    with closing(bridge.journal()) as con:
+        links=bridge.unique_name_links(staff,people,bridge.linked(con))
+    if eid<0:
+        owned=[v for v in staff if int(v["id"])==-eid and int(v["id"]) not in links]
+        name=owned[0]["name"] if owned else ""
+    else:
+        person=next((p for p in people if int(p["id"])==eid),None)
+        name=person["nome"] if person else ""
+        owned=[v for v in staff if links.get(int(v["id"]))==eid]
+    if not name:
+        raise bridge.BridgeError("Funcionário não encontrado. Atualize o painel.")
+    return eid,name,owned,staff,people,links
+
+
+def _vale_records(owned):
+    result=[]
+    for cid in sorted({int(v["control_id"]) for v in owned}):
+        report=bridge._control_request("GET",f"/api/controls/{cid}/vales")
+        ids={int(v["id"]) for v in owned}
+        result.extend({**p,"control_id":cid} for p in report["employees"] if int(p["id"]) in ids)
+    return result
+
+
+def vale_details(employee_id):
+    with bridge.LOCK:
+        eid,name,owned,*_=_vale_context(employee_id)
+        records=_vale_records(owned)
+        with closing(bridge.journal()) as con:
+            reserved=bridge.available_allocations(con)
+            locked_payments={int(r[0]) for r in con.execute(
+                "SELECT vale_payment_id FROM discounts WHERE vale_payment_id IS NOT NULL")}
+        for person in records:
+            ids={int(i["id"]) for d in person["debts"] for i in d["installments"]}
+            history=bridge._control_request("GET",f"/api/controls/{person['control_id']}/vales/payments")
+            person["payments"]=[{**p,"protegido":int(p["id"]) in locked_payments}
+                for p in history if int(p["installment_id"]) in ids]
+            for debt in person["debts"]:
+                for i in debt["installments"]:
+                    i["reservado"]=serial(reserved.get(int(i["id"]),ZERO))
+        return {"ok":True,"funcionario_id":eid,"nome":name,"cadastros":records}
+
+
+def _new_vale_control():
+    catalog=bridge._control_request("GET","/api/state")
+    choices=[c for c in catalog["controls"] if c.get("mode")=="vale_funcionarios" and not c.get("closed_at")]
+    if len(choices)!=1:
+        raise bridge.BridgeError("É necessário um único controle ativo de Vales para cadastrar funcionários.")
+    return int(choices[0]["id"])
+
+
+def _vale_payload(payload):
+    principal=bridge.dec(payload.get("amount"))
+    if principal<=ZERO:raise bridge.BridgeError("Informe um valor positivo.")
+    title=str(payload.get("title") or "").strip()
+    description=str(payload.get("description") or "").strip()
+    if not title or len(title)>160 or len(description)>500:
+        raise bridge.BridgeError("Informe um título válido (até 160 caracteres) e descrição de até 500.")
+    first=bridge.valid_month(payload.get("first_month"))
+    count=payload.get("count",1)
+    if type(count) is not int or not 1<=count<=120:
+        raise bridge.BridgeError("Informe entre 1 e 120 parcelas.")
+    result={"amount":bridge.money(principal),"title":title,"description":description,
+            "first_month":first,"count":count}
+    if payload.get("each") not in (None,""):
+        result["each"]=bridge.money(bridge.dec(payload["each"]))
+    if "installments" in payload:
+        result["installments"]=payload["installments"]
+    return result
+
+
+def vale_action(payload):
+    action=payload.get("action")
+    with bridge.LOCK:
+        if action=="register":
+            name=str(payload.get("name") or "").strip()
+            if not name or len(name)>160:raise bridge.BridgeError("Informe o nome completo.")
+            staff,_=bridge.read_controls()
+            people=bridge.read_staff()
+            if any(bridge._same_employee_name(v["name"],name) for v in staff) or any(
+                bridge._same_employee_name(p["nome"],name) for p in people):
+                raise bridge.BridgeError("Funcionário já existente ou nome semelhante. Use o cadastro existente.")
+            result=bridge._control_request("POST",f"/api/controls/{_new_vale_control()}/vales/employees",{"name":name})
+            return {"ok":True,"funcionario_id":-int(result["id"])}
+        eid,name,owned,staff,people,links=_vale_context(payload.get("funcionario_id"))
+        if action=="add":
+            data=_vale_payload(payload)
+            if not owned:
+                if any(bridge._same_employee_name(v["name"],name) for v in staff) or sum(
+                    bridge.name_key(p["nome"])==bridge.name_key(name) for p in people)!=1:
+                    raise bridge.BridgeError("Cadastro ambíguo de funcionário. Confira os nomes antes de lançar.")
+                vid=bridge.positive_id(bridge._control_request("POST",
+                    f"/api/controls/{_new_vale_control()}/vales/employees",{"name":name})["id"])
+                # Fixar o vínculo ao perfil selecionado, sem criar conta ou holerite.
+                with closing(bridge.journal()) as con:
+                    con.execute("INSERT INTO staff_links(vale_employee_id,contas_employee_id) VALUES(?,?)",(vid,eid))
+                    con.commit()
+            else:
+                active=[v for v in owned if v.get("active",True)]
+                if len(active)!=1:
+                    raise bridge.BridgeError("Selecione um cadastro ativo de Vales; reative-o se necessário.")
+                vid=int(active[0]["id"])
+            result=bridge._control_request("POST",f"/api/vales-employees/{vid}/debts",data)
+            return {"ok":True,"id":result["id"],"funcionario_id":eid}
+        details=vale_details(eid)["cadastros"]
+        by_employee={int(p["id"]):p for p in details}
+        debts={int(d["id"]):d for p in details for d in p["debts"]}
+        installments={int(i["id"]):i for d in debts.values() for i in d["installments"]}
+        payments={int(p["id"]):p for v in details for p in v["payments"]}
+        rid=bridge.positive_id(payload.get("id"))
+        if action=="active" and rid in by_employee:
+            if type(payload.get("active")) is not bool:raise bridge.BridgeError("Status inválido.")
+            bridge._control_request("PATCH",f"/api/vales-employees/{rid}",{"active":payload["active"]})
+        elif action=="edit" and rid in debts:
+            bridge._control_request("PATCH",f"/api/vales-debts/{rid}",{
+                "title":payload.get("title"),"description":payload.get("description","")})
+        elif action in ("plan","settle","delete") and rid in debts:
+            if any(amount(i["reservado"])>ZERO for i in debts[rid]["installments"]):
+                raise bridge.BridgeError("Vale reservado em holerite. Não altere enquanto houver desconto reservado.")
+            base=f"/api/vales-debts/{rid}"
+            if action=="plan":bridge._control_request("PUT",base+"/plan",{"installments":payload.get("installments")})
+            elif action=="settle":bridge._control_request("POST",base+"/pay",{"month":bridge.valid_month(payload.get("month"))})
+            else:bridge._control_request("DELETE",base)
+        elif action=="payment" and rid in installments:
+            i=installments[rid]
+            payment=bridge.dec(payload.get("amount"))
+            if payment<=ZERO or payment>amount(i["remaining"])-amount(i["reservado"]):
+                raise bridge.BridgeError("Desconto supera o saldo disponível da parcela.")
+            bridge._control_request("POST",f"/api/vales-installments/{rid}/payments",{
+                "month":bridge.valid_month(payload.get("month")),"amount":bridge.money(payment),
+                "notes":payload.get("notes","")})
+        elif action=="undo" and rid in payments:
+            if payments[rid]["protegido"]:
+                raise bridge.BridgeError("Desconto vinculado ao holerite. Não pode ser estornado por aqui.")
+            bridge._control_request("DELETE",f"/api/vales-payments/{rid}")
+        else:
+            raise bridge.BridgeError("Operação ou registro não pertence ao funcionário selecionado.")
+        return {"ok":True,"funcionario_id":eid}
+
+
 def handle(handler):
     uri=urlsplit(handler.path)
     path=uri.path
@@ -409,6 +556,10 @@ def handle(handler):
         elif handler.command=="GET" and path=="/api/funcionarios/buscar-contas":
             query=parse_qs(uri.query).get("q",[""])[0]
             result=find_account_candidates(query)
+        elif handler.command=="GET" and path=="/api/funcionarios/vales":
+            result=vale_details(parse_qs(uri.query).get("funcionario_id",[""])[0])
+        elif handler.command=="POST" and path=="/api/funcionarios/vales":
+            result=vale_action(bridge.read_body(handler))
         elif handler.command=="POST" and path=="/api/funcionarios/pix":
             result=update_pix(bridge.read_body(handler))
         elif handler.command=="POST" and path=="/api/funcionarios/vincular-conta":
