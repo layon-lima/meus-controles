@@ -123,6 +123,8 @@ def initialize():
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
         CREATE INDEX IF NOT EXISTS idx_entries_control ON entries(control_id, id DESC);
         """)
+        if "closed_at" not in {r["name"] for r in con.execute("PRAGMA table_info(controls)")}:
+            con.execute("ALTER TABLE controls ADD COLUMN closed_at TEXT")
         truck.init(con)
         debt.initialize(con)
         vales.initialize(con)
@@ -511,13 +513,54 @@ def state(con):
             rows = con.execute("SELECT amount,direction,category,type_label FROM entries WHERE control_id=?",
                                (c["id"],)).fetchall()
             c["summary"] = summarize(rows)
-    return {"boards":boards,"controls":controls}
+    return {"boards":boards,"controls":[c for c in controls if not c.get("closed_at")],
+            "archived_controls":[c for c in controls if c.get("closed_at")]}
 
 def detail(con, cid):
     control = get_control(con,cid)
     entries = [entry_data(e) for e in con.execute(
         "SELECT * FROM entries WHERE control_id=? ORDER BY id DESC",(cid,))]
     return {"control":control,"entries":entries,"summary":summarize(entries)}
+
+# Resolve every existing mutation route to its owning control, including child IDs.
+_ARCHIVE_OWNERS = {
+    "entries":"SELECT control_id FROM entries WHERE id=?",
+    "truck-entries":"SELECT control_id FROM truck_entries WHERE id=?",
+    "truck-checks":"SELECT control_id FROM truck_reviews WHERE id=?",
+    "truck-closures":"SELECT control_id FROM truck_closures WHERE id=?",
+    "debt-payments":"SELECT control_id FROM debt_payments WHERE id=?",
+    "open-debt-payments":"SELECT control_id FROM debt_payments WHERE id=?",
+    "pair-entries":"SELECT control_id FROM pair_entries WHERE id=?",
+    "pair-closures":"SELECT control_id FROM pair_closures WHERE id=?",
+    "pair-records":"SELECT control_id FROM pair_records WHERE id=?",
+    "receiving-items":"SELECT control_id FROM purchase_items WHERE id=?",
+    "receiving-receipts":"SELECT i.control_id FROM purchase_receipts r JOIN purchase_items i ON i.id=r.item_id WHERE r.id=?",
+    "vales-employees":"SELECT control_id FROM vale_employees WHERE id=?",
+    "vales-debts":"SELECT control_id FROM vale_debts WHERE id=?",
+    "vales-installments":"SELECT d.control_id FROM vale_installments i JOIN vale_debts d ON d.id=i.debt_id WHERE i.id=?",
+    "vales-payments":"SELECT d.control_id FROM vale_payments p JOIN vale_installments i ON i.id=p.installment_id JOIN vale_debts d ON d.id=i.debt_id WHERE p.id=?",
+}
+def ensure_active_control(con,cid):
+    if get_control(con,cid).get("closed_at"):
+        raise ValueError("Controle encerrado. Disponível somente para consulta no histórico.")
+
+def guard_archive_write(con,method,url):
+    if method=="GET":
+        return
+    root=re.match(r"^/api/controls/(\d+)(?:/|$)",url)
+    if root:
+        # Exportações por POST são consultas e não alteram o controle.
+        if method=="POST" and url.endswith(("/pair/entries.xlsx","/receiving/invoices.xlsx")):
+            return
+        ensure_active_control(con,int(root[1]))
+        return
+    child=re.match(r"^/api/([a-z-]+)/(\d+)(?:/|$)",url)
+    if child and child[1] in _ARCHIVE_OWNERS:
+        owner=con.execute(_ARCHIVE_OWNERS[child[1]],(int(child[2]),)).fetchone()
+        if owner:
+            ensure_active_control(con,owner["control_id"])
+
+_ARCHIVE_WRITE_LOCK=threading.RLock()
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "CentralControles/1.0"
@@ -668,6 +711,13 @@ class Handler(BaseHTTPRequestHandler):
             if method=="GET" and url=="/api/health":
                 return self.send({"ok":True,"app":"Central de Controles","app_id":"br.com.layon.meus-controles","version":"1.0","release":"20261027-pedidos-pdf-ocr-dbfix-v12","import_formats":["central-pair-financial-v1","central-pair-records-v1","central-pair-mixed-v1"]})
             with db() as con:
+                guard_archive_write(con,method,url)
+                archive_route=re.fullmatch(r"/api/controls/(\d+)/close",url)
+                if method=="POST" and archive_route:
+                    cid=int(archive_route[1])
+                    con.execute("UPDATE controls SET closed_at=CURRENT_TIMESTAMP WHERE id=?",(cid,))
+                    con.commit()
+                    return self.send({"ok":True,"id":cid})
                 pair_excel_route=re.fullmatch(
                     r"/api/controls/(\d+)/pair/entries\.xlsx",url)
                 if method=="POST" and pair_excel_route:
@@ -905,10 +955,18 @@ class Handler(BaseHTTPRequestHandler):
             traceback.print_exc()
             return self.send({"error":"Falha interna. Consulte o log do painel."},500)
     def do_GET(self): self.route()
-    def do_POST(self): self.route()
-    def do_PATCH(self): self.route()
-    def do_PUT(self): self.route()
-    def do_DELETE(self): self.route()
+    def do_POST(self):
+        with _ARCHIVE_WRITE_LOCK:
+            self.route()
+    def do_PATCH(self):
+        with _ARCHIVE_WRITE_LOCK:
+            self.route()
+    def do_PUT(self):
+        with _ARCHIVE_WRITE_LOCK:
+            self.route()
+    def do_DELETE(self):
+        with _ARCHIVE_WRITE_LOCK:
+            self.route()
 
 def ensure_windows_desktop_shortcut():
     """O app recem-atualizado instala automaticamente o atalho no Windows.
