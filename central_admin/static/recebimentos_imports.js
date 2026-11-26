@@ -10,6 +10,8 @@ window.NHReceivingImports=(()=>{
       text+=String.fromCharCode(...bytes.subarray(i,i+16384));
     return btoa(text);
   };
+  // A API envia decimal canônico (ponto); formatar só na interface.
+  const formatXMLQuantity=value=>Number(value).toLocaleString("pt-BR",{maximumFractionDigits:3});
   const safeInt=value=>Number.isSafeInteger(Number(value))&&Number(value)>0?Number(value):null;
   const normalize=value=>String(value??"").normalize("NFD")
     .replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
@@ -320,7 +322,7 @@ window.NHReceivingImports=(()=>{
         const choice=choices[index],suggested=choice.suggested?.id||"";
         return '<article class="rx-preview-item rx-xml-item">'+
           '<strong>'+esc(line.name||line.product||"Produto "+(index+1))+'</strong>'+
-          '<small>'+esc(line.quantity)+" "+esc(line.unit)+" · "+esc(line.code||"")+'</small>'+
+          '<small>'+esc(formatXMLQuantity(line.quantity))+" "+esc(line.unit)+" · "+esc(line.code||"")+'</small>'+
           '<div class="rx-form-grid">'+
           '<label id="rx-xml-no-order-label-'+index+'" class="rx-xml-no-order wide"'+(choice.hasCompatible?' hidden':'')+'><input type="checkbox" id="rx-xml-no-order-'+index+'"'+(choice.hasCompatible?' disabled':'')+'><span>Sem pedido</span></label>'+
           '<div id="rx-xml-picker-'+index+'" class="rx-field wide rx-xml-picker"><label for="rx-xml-search-'+index+'">Vincular ao pedido</label>'+
