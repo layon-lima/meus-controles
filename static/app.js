@@ -877,6 +877,52 @@ function controlCard(c){
 function empty(title,desc,action,label){
   return '<div class="empty-state"><strong>'+E(title)+'</strong><p>'+E(desc)+'</p><button class="btn btn-primary" onclick="'+action+'">'+icon("plus")+' '+E(label)+'</button></div>';
 }
+// Os módulos originais continuam disponíveis para consulta, com ações de
+// escrita ocultas. O servidor também rejeita alterações, mesmo por API.
+const archivedReadActions=new Set([
+  "exportCsv","truckSetMonth","truckSetTab","truckExport","truckShowClosure",
+  "truckExportClosure","truckHideClosure","pairSelectTab","pairToggleHistory",
+  "pairExportExcel","pairViewClosure","pairExportClose","pairHideClosure",
+  "valesEmployeeDetails","valesSwitchTab","valesSelectEmployee","debtExport","openDebtExport",
+  "receivingFocusItem","receivingToggleSupplier","receivingSwitchTab","receivingFilter",
+  "receivingExportInvoices","renderReceiving","receivingQuickSummary","closeModal"
+]);
+function archivedView(){
+  return App.s.route==="control"&&!!App.s.detail?.control?.closed_at;
+}
+function archivedAllowed(node){
+  const action=node.getAttribute("onclick")||node.getAttribute("onchange")||node.getAttribute("oninput")||"";
+  const match=action.match(/App\.([A-Za-z0-9_]+)/);
+  if(match)return archivedReadActions.has(match[1]);
+  return node.matches('input[type="search"], summary, a[href*="export"], select:not([onchange])');
+}
+function restrictArchivedView(){
+  if(!archivedView())return;
+  const main=document.getElementById("main");
+  if(!main)return;
+  for(const node of main.querySelectorAll("button,input,select,textarea,[onclick],[onchange],[oninput]")){
+    if(!archivedAllowed(node)){
+      node.hidden=true;
+      if("disabled" in node)node.disabled=true;
+    }
+  }
+}
+const archiveMain=document.getElementById("main");
+if(archiveMain){
+  new MutationObserver(restrictArchivedView).observe(archiveMain,{childList:true,subtree:true});
+  for(const eventName of ["click","change","input","submit","drop","dragover"]){
+    archiveMain.addEventListener(eventName,event=>{
+      if(!archivedView())return;
+      if(["submit","drop","dragover"].includes(eventName)){
+        event.preventDefault();event.stopImmediatePropagation();return;
+      }
+      const action=event.target.closest?.("button,input,select,textarea,[onclick],[onchange],[oninput]");
+      if(action&&!archivedAllowed(action)){
+        event.preventDefault();event.stopImmediatePropagation();
+      }
+    },true);
+  }
+}
 // Escape não descarta formulários em edição; fecha somente menus contextuais.
 document.addEventListener("keydown",e=>{if(e.key==="Escape")App.closeControlMenus()});
 document.addEventListener("click",e=>{
