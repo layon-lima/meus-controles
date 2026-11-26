@@ -68,7 +68,10 @@ def read_contas():
                  CASE WHEN EXISTS(
                     SELECT 1 FROM pagamentos p
                     WHERE p.conta_id=c.id AND p.data_pagamento IS NOT NULL
-                    AND TRIM(p.data_pagamento)!='') THEN 1 ELSE 0 END AS paga
+                    AND TRIM(p.data_pagamento)!='') THEN 1 ELSE 0 END AS paga,
+                 (SELECT MAX(p.data_pagamento) FROM pagamentos p
+                    WHERE p.conta_id=c.id AND p.data_pagamento IS NOT NULL
+                    AND TRIM(p.data_pagamento)!='') AS data_pagamento
           FROM contas c
           LEFT JOIN holerite_lancamentos h ON h.conta_id=c.id
           ORDER BY c.vencimento,c.id DESC
@@ -150,6 +153,7 @@ def dashboard(month=None):
           "competencia":str(a.get("competencia") or ""),
           "valor":serial(amount(a["valor"])),
           "paga":bool(a["paga"]),
+          "data_pagamento":str(a.get("data_pagamento") or ""),
           "origem_vinculo":"holerite" if employee_id else "confirmado",
         }
         if employee_id in rows:
