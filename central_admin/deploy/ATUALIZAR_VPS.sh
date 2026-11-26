@@ -237,7 +237,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261125detail3' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261126popup1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -264,6 +264,9 @@ for asset in recebimentos.js recebimentos_imports.js recebimentos.css funcionari
   [[ "$HTTP" == 200 ]] || fail "Recurso nativo $asset indisponível."
 done
 # A navegação da Central nunca deve exibir a Home antiga ao abrir controle.
+grep -Fq 'document.body.append(popup)' "$APP/static/operations.js" || fail "Popup do lapis nao instalado."
+grep -Fq 'Encerrar controle' "$APP/static/operations.js" || fail "Acao encerrar ausente."
+grep -Fq '.nh-control-popup' "$APP/static/operations.css" || fail "Estilo do popup ausente."
 grep -Fq 'function paintTargetWhileLoading(' "$APP/static/operations.js" \
   || fail "Navegação ainda deixa a tela anterior visível ao abrir controle."
 grep -Fq 'function releaseEntryAfterRealRender(' "$APP/static/operations.js" \
@@ -369,7 +372,7 @@ grep -Fq 'body.central-operational #main{max-width:none!important;' "$APP/static
   || fail "Modulos operacionais continuam com largura limitada."
 grep -Fq '.nh-documents{width:100%;max-width:none;' "$APP/static/operations.css" \
   || fail "Modulo Documentos ainda possui limite de largura fixo."
-grep -Fq 'operations.css?v=20261125detail3' "$APP/operations_gateway.py" \
+grep -Fq 'operations.css?v=20261126popup1' "$APP/operations_gateway.py" \
   || fail "Modulo legado nao recebe CSS atualizado de largura fluida."
 echo "OK: paginas da Central preparadas para ocupar a largura do monitor."
 # Verifica se o motor de origem continua a responder no mesmo banco.
