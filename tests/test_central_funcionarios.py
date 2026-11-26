@@ -116,6 +116,18 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(pedro["totais"]["vales_previstos"],"40.00")
         self.assertFalse(report["vales_sem_vinculo"])
 
+    def test_paid_history_preserves_payment_dates_without_changing_open_totals(self):
+        report=f.dashboard("2026-11")
+        people={p["id"]:p for p in report["funcionarios"]}
+        joao=next(h for h in people[1]["holerites"] if h["paga"])
+        maria=next(h for h in people[2]["holerites"] if h["paga"])
+        self.assertEqual((joao["competencia"],joao["data_pagamento"],joao["valor"]),
+                         ("2026-10","2026-11-01","1800.00"))
+        self.assertEqual((maria["data_pagamento"],maria["valor"]),("2026-11-11","1600.00"))
+        self.assertEqual(report["indicadores"]["total_a_pagar"],"4650.00")
+        self.assertTrue(all(not h["data_pagamento"] for p in people.values()
+                            for h in p["holerites"] if not h["paga"]))
+
     def test_other_account_needs_confirmation(self):
         before=f.dashboard("2026-11")
         self.assertEqual(before["indicadores"]["total_a_pagar"],"4650.00")
