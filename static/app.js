@@ -74,6 +74,7 @@ const App = {
   // Cada pasta e controle possui URL própria; o navegador registra Voltar/Avançar.
   navRouteFromUrl(){
     const hash=window.location.hash||"";
+    if(hash==="#/history")return {route:"history",id:null};
     const m=hash.match(/^#\/(board|control)\/([1-9]\d*)$/);
     if(!m)return {route:"home",id:null};
     const id=Number(m[2]);
@@ -81,7 +82,7 @@ const App = {
   },
   navUrl(route,id){
     const base=window.location.pathname+window.location.search;
-    return base+(route==="home"?"":"#/"+route+"/"+id);
+    return base+(route==="home"?"":route==="history"?"#/history":"#/"+route+"/"+id);
   },
   initNavigation(){
     const state=window.history.state;
@@ -144,10 +145,10 @@ const App = {
     }
   },
   navigate(route,id,options={}){
-    const valid=["home","board","control"].includes(route);
+    const valid=["home","board","control","history"].includes(route);
     let nextRoute=valid?route:"home";
-    let nextId=nextRoute==="home"?null:Number(id);
-    if(nextRoute!=="home"&&(!Number.isSafeInteger(nextId)||nextId<=0)){
+    let nextId=["home","history"].includes(nextRoute)?null:Number(id);
+    if(!["home","history"].includes(nextRoute)&&(!Number.isSafeInteger(nextId)||nextId<=0)){
       nextRoute="home";nextId=null;
     }
     const changed=this.s.route!==nextRoute||this.s.id!==nextId;
@@ -193,7 +194,7 @@ const App = {
     if(!parsed.active||!data){panel.hidden=true;panel.innerHTML="";input.setAttribute("aria-expanded","false");return}
     const items=parsed.kind==="board"
       ?data.boards.filter(b=>normalizeSearch(b.name).includes(parsed.term))
-      :data.controls.filter(c=>normalizeSearch(c.name).includes(parsed.term));
+      :(this.s.route==="history"?(data.archived_controls||[]):data.controls).filter(c=>normalizeSearch(c.name).includes(parsed.term));
     const label=parsed.kind==="board"?"Pastas":"Controles";
     const hint=parsed.kind==="board"?"Buscando somente pastas":"Buscando controles em todas as pastas";
     panel.innerHTML='<div class="search-results-header"><strong>'+label+'</strong><span>'+items.length+' encontrado(s)</span></div>'+
@@ -245,9 +246,15 @@ const App = {
     document.getElementById("sideBoards").innerHTML=boards.map(b=>
       '<button class="board-link '+(this.s.route==="board"&&this.s.id===b.id?"active":"")+'" onclick="App.navigate(\'board\','+b.id+')">'+icon("folder")+'<span>'+E(b.name)+'</span><span class="count">'+controls.filter(c=>c.board_id===b.id).length+'</span></button>').join("");
     const moveBtn=document.getElementById("moveCurrentControl");
-    if(moveBtn)moveBtn.hidden=this.s.route!=="control";
+    const closed=this.s.route==="control"&&!!this.s.detail?.control?.closed_at;
+    if(moveBtn)moveBtn.hidden=this.s.route!=="control"||closed;
     const typeBtn=document.getElementById("changeCurrentControlType");
-    if(typeBtn)typeBtn.hidden=this.s.route!=="control";
+    if(typeBtn)typeBtn.hidden=this.s.route!=="control"||closed;
+    const closeBtn=document.getElementById("closeCurrentControl");
+    if(closeBtn)closeBtn.hidden=this.s.route!=="control"||closed;
+    document.getElementById("historyLink")?.classList.toggle("active",this.s.route==="history");
+    const notice=document.getElementById("archivedNotice");
+    if(notice){notice.hidden=!closed;if(closed)notice.textContent="Controle encerrado em "+this.s.detail.control.closed_at.slice(0,10).split("-").reverse().join("/")+" · Somente consulta";}
     this.renderMain();
     this.renderSearchResults();
     this.updateNavigationButtons();
@@ -256,6 +263,7 @@ const App = {
     const st=this.s.state;if(!st)return;
     const {boards,controls}=st;
     let title="Visão geral",crumb="CENTRAL / VISÃO GERAL";
+    if(this.s.route==="history"){title="Histórico";crumb="CENTRAL / CONTROLES ENCERRADOS";}
     if(this.s.route==="board"){
       const b=boards.find(x=>x.id===this.s.id);if(!b)return this.navigate("home",null,{replace:true});
       title=b.name;crumb="CENTRAL / PASTAS";
@@ -268,7 +276,12 @@ const App = {
     document.getElementById("pageTitle").textContent=title;
     document.getElementById("crumb").textContent=crumb;
     const main=document.getElementById("main");
-    if(this.s.route==="home"){
+    if(this.s.route==="history"){
+      const archived=(st.archived_controls||[]).slice().sort((a,b)=>String(b.closed_at).localeCompare(String(a.closed_at)));
+      main.innerHTML='<div class="section-heading"><h2>Controles encerrados</h2><span class="secondary-text">'+archived.length+' controle(s) · somente consulta</span></div>'+
+        (archived.length?'<div class="control-grid">'+archived.map(controlCard).join("")+'</div>':
+        '<div class="empty-state"><strong>Nenhum controle encerrado</strong><p>Os controles encerrados ficam disponíveis aqui.</p></div>');
+    } else if(this.s.route==="home"){
       main.innerHTML='<div class="section-heading boards-home-heading"><h2>Suas pastas</h2>'+
         '<div class="boards-home-actions"><span class="secondary-text">'+boards.length+' pasta(s)</span>'+
         '<button type="button" class="btn btn-sm" onclick="App.reportExcelOpen()">'+icon("file-spreadsheet")+' Relatório Excel</button>'+
@@ -530,6 +543,17 @@ const App = {
   async duplicateControl(id){
     try{await this.api("/api/controls/"+id+"/duplicate","POST",{});await this.load();this.toast("Cópia criada na mesma pasta, sem copiar lançamentos.")}catch(e){this.toast(e.message,true)}
   },
+  async closeControl(id){
+    const c=this.s.state?.controls?.find(x=>Number(x.id)===Number(id));
+    if(!c||c.closed_at)return;
+    if(!confirm('Encerrar "'+c.name+'"? Todos os lançamentos serão preservados no histórico, somente para consulta.'))return;
+    try{
+      await this.api("/api/controls/"+id+"/close","POST",{});
+      await this.load();
+      this.navigate("history");
+      this.toast("Controle encerrado. Disponível no histórico.");
+    }catch(e){this.toast(e.message,true)}
+  },
   async deleteControl(id){
     if(!confirm("Excluir o controle e TODOS os lançamentos dele? Esta ação não pode ser desfeita."))return;
     const boardOrigin=this.s.route==="board"?this.s.id:null;
@@ -591,6 +615,7 @@ const App = {
     if(action==="type")return this.changeControlTypeForm(id);
     if(action==="move")return this.moveControlForm(id);
     if(action==="duplicate")return this.duplicateControl(id);
+    if(action==="close")return this.closeControl(id);
     if(action==="delete")return this.deleteControl(id);
   },
   updateDraft(prop,value){this.s.draft[prop]=value},
@@ -841,11 +866,12 @@ function controlCard(c){
    '<button type="button" onclick="App.controlMenuAction(event,\'type\','+c.id+')">'+icon("settings")+' Alterar tipo de controle</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'move\','+c.id+')">'+icon("folder")+' Mover para pasta</button>'+
    '<button type="button" onclick="App.controlMenuAction(event,\'duplicate\','+c.id+')">'+icon("copy")+' Duplicar controle</button>'+
+   '<button type="button" onclick="App.controlMenuAction(event,\'close\','+c.id+')">Encerrar controle</button>'+
    '<button type="button" class="danger" onclick="App.controlMenuAction(event,\'delete\','+c.id+')">'+icon("trash")+' Excluir controle</button></div>';
   return '<div class="control-card" tabindex="0" role="link" aria-label="Abrir '+E(c.name)+'" onclick="App.navigate(\'control\','+c.id+')" onkeydown="if(event.target===this && event.key===\'Enter\')App.navigate(\'control\','+c.id+')">'+
    '<div class="title-line"><span class="control-icon">'+icon(controlIcon)+'</span><h3>'+E(c.name)+'</h3>'+
-   '<button type="button" class="control-card-edit" title="Editar e configurar controle" aria-label="Ações de '+E(c.name)+'" aria-haspopup="true" aria-expanded="false" onclick="App.toggleControlMenu(event,'+c.id+')" onkeydown="event.stopPropagation()">'+icon("edit")+'</button>'+
-   menu+'</div><p class="control-desc">'+(c.mode==="recebimento"?c.summary.item_total+' produto(s) · '+c.summary.count+' entrega(s)':c.mode==="vale_funcionarios"?c.summary.employees+' funcionário(s) · '+c.summary.count+' vale(s)':c.summary.count+' lançamento(s)'+(c.mode==="divida"||c.mode==="divida_sem_valor"?" · Pagamentos com descrição":" · "+c.fields.length+" campos"))+'</p>'+
+   (c.closed_at?'<span class="chip">Encerrado</span>':
+   '<button type="button" class="control-card-edit" title="Editar e configurar controle" aria-label="Ações de '+E(c.name)+'" aria-haspopup="true" aria-expanded="false" onclick="App.toggleControlMenu(event,'+c.id+')" onkeydown="event.stopPropagation()">'+icon("edit")+'</button>'+menu)+'</div><p class="control-desc">'+(c.mode==="recebimento"?c.summary.item_total+' produto(s) · '+c.summary.count+' entrega(s)':c.mode==="vale_funcionarios"?c.summary.employees+' funcionário(s) · '+c.summary.count+' vale(s)':c.summary.count+' lançamento(s)'+(c.mode==="divida"||c.mode==="divida_sem_valor"?" · Pagamentos com descrição":" · "+c.fields.length+" campos"))+'</p>'+(c.closed_at?'<p class="secondary-text">Encerrado em '+E(c.closed_at.slice(0,10).split('-').reverse().join('/'))+' · '+E(App.s.state?.boards?.find(b=>b.id===c.board_id)?.name||'')+'</p>':'')+
    '<div class="control-bottom"><span><small>'+(c.mode==="acerto_ab"?"Saldo compensado":c.mode==="vale_funcionarios"?"Total a descontar":c.mode==="recebimento"?"Produtos concluídos":c.mode==="divida"?"Restante da dívida":c.mode==="divida_sem_valor"?"Total acumulado":"Saldo do controle")+'</small><strong>'+(c.mode==="acerto_ab"?(c.summary.settlement?.debtor?E(c.summary.settlement.debtor)+' deve '+currency(c.summary.settlement.amount):currency(0)):c.mode==="recebimento"?c.summary.complete+' de '+c.summary.item_total:currency(c.summary.balance))+'</strong></span><span class="card-arrow">'+icon("arrow-right")+'</span></div></div>';
 }
 function empty(title,desc,action,label){
