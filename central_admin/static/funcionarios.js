@@ -63,7 +63,8 @@
         referencia:"Parcela "+v.parcela+" · "+monthLabel(v.competencia),
         valor:number(v.saldo_a_descontar),order:v.competencia||""});
     }
-    result.sort((a,b)=>a.order.localeCompare(b.order)||a.tipo.localeCompare(b.tipo,"pt-BR"));
+    const priority={Holerite:0,Conta:1,Vale:2};
+    result.sort((a,b)=>priority[a.tipo]-priority[b.tipo]||a.order.localeCompare(b.order));
     return result;
   }
   function makeTable(person){
@@ -84,7 +85,7 @@
     thead.append(heading);table.append(thead);
     const body=e("tbody");
     for(const item of data){
-      const tr=e("tr");
+      const tr=e("tr",item.tipo==="Holerite"?"nhf-row-credit":item.tipo==="Vale"?"nhf-row-deduction":"");
       tr.append(e("td","nhf-type",item.tipo),
         e("td","",item.descricao),
         e("td","nhf-reference",item.referencia),
@@ -124,7 +125,7 @@
     thead.append(heading);table.append(thead);
     const body=e("tbody");
     for(const item of data){
-      const tr=e("tr");
+      const tr=e("tr",item.tipo==="Holerite"?"nhf-row-credit":item.tipo==="Vale"?"nhf-row-deduction":"");
       tr.append(e("td","nhf-type",item.tipo),e("td","",item.descricao),
         e("td","nhf-reference",safeDate(item.data)),e("td","nhf-value",br(item.valor)));
       body.append(tr);
