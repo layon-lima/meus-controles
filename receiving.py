@@ -136,7 +136,7 @@ def ensure_singleton_in_recebimentos(con,board_id,exclude_id=None):
     if not board or " ".join(board["name"].casefold().split())!="recebimentos":
         return
     existing=con.execute("""SELECT id FROM controls
-         WHERE board_id=? AND mode='recebimento' ORDER BY id""",(board_id,)).fetchall()
+         WHERE board_id=? AND mode='recebimento' AND closed_at IS NULL ORDER BY id""",(board_id,)).fetchall()
     if any(r["id"]!=exclude_id for r in existing):
         raise ValueError(
             "A pasta RECEBIMENTOS já possui a central RECEBIMENTO DE PRODUTOS. "
