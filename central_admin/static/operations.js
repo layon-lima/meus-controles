@@ -77,7 +77,7 @@
     const count=vales?e(summary.count||0)+" vale(s)":e(summary.count||0)+" lançamento(s)";
     const detail=vales?e(summary.employees||0)+" funcionário(s)":c.mode==="divida"||c.mode==="divida_sem_valor"?"Pagamentos com descrição":e(c.fields?.length||0)+" campo(s)";
     const symbol=(String(c.name||"").trim().split(/\s+/).slice(0,2).map(x=>x[0]).join("")||"C").toUpperCase();
-    const menu=[["rename","Renomear"],["configure","Configurar / editar"],["type","Alterar tipo de controle"],["move","Mover para pasta"],["duplicate","Duplicar controle"],["delete","Excluir controle"]].map(([action,name])=>
+    const menu=[["rename","Renomear"],["configure","Configurar / editar"],["type","Alterar tipo de controle"],["move","Mover para pasta"],["duplicate","Duplicar controle"],["close","Encerrar controle"],["delete","Excluir controle"]].map(([action,name])=>
       '<button type="button"'+(action==="delete"?' class="danger"':'')+' onclick="App.controlMenuAction(event,\''+action+'\','+id+')">'+name+'</button>').join("");
     return '<tr data-control-id="'+id+'" onclick="App.navigate(\'control\','+id+')">'+
       '<td><button type="button" class="nh-control-open" onclick="event.stopPropagation();App.navigate(\'control\','+id+')" aria-label="Abrir '+e(c.name)+'">'+
@@ -134,6 +134,10 @@
       transportadoras:"+ Nova transportadora"
     }[active] || "+ Novo controle";
     add.addEventListener("click",()=>newNativeControl(app));
+    const history=document.createElement("button");
+    history.type="button";history.className="btn btn-sm";
+    history.textContent="Histórico";
+    history.addEventListener("click",()=>app.navigate("history"));
     if(compact){
       head.className+=" nh-controls-compact-head";
       intro.className="nh-controls-brand";
@@ -185,8 +189,8 @@
       const section=document.createElement("div");section.className="nh-controls-section-head";
       const title=document.createElement("h3");title.textContent="Visão geral";
       section.append(title,counter);workspace.append(section);main.append(workspace);
-      toolbar.append(board,search);
-    }else toolbar.append(search,board,counter);
+      toolbar.append(board,search,history);
+    }else toolbar.append(search,board,counter,history);
     workspace.append(toolbar);
 
     const results = document.createElement("div");
@@ -268,7 +272,7 @@
         (app.s.route==="control" && Number(app.s.id)===Number(id) && app.s.detail)) return;
     const main=document.getElementById("main");
     if (!main) return;
-    const selected=(app.s.state?.controls||[]).find(c=>Number(c.id)===Number(id));
+    const selected=[...(app.s.state?.controls||[]),...(app.s.state?.archived_controls||[])].find(c=>Number(c.id)===Number(id));
     const heading=document.getElementById("pageTitle");
     if (heading) heading.textContent=selected?.name||"Abrindo controle";
     const crumb=document.getElementById("crumb");
@@ -401,6 +405,7 @@
       }
       return;
     }
+    app.archiveModeFilter=modeFilters[active] || (()=>true);
     const originalRenderMain = app.renderMain;
     app.renderMain = function () {
       if (this.s.route === "home" && this.s.state) {
