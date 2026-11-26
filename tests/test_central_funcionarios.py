@@ -128,6 +128,30 @@ class DashboardTest(unittest.TestCase):
         self.assertTrue(all(not h["data_pagamento"] for p in people.values()
                             for h in p["holerites"] if not h["paga"]))
 
+    def test_new_vale_uses_existing_employee_and_original_motor(self):
+        with patch.object(v,"_control_request",return_value={"id":902}) as request:
+            result=f.vale_action({"action":"add","funcionario_id":1,"title":"Novo vale",
+              "description":"Compra","amount":"150.00","first_month":"2026-11","count":3})
+        self.assertEqual(result,{"ok":True,"id":902,"funcionario_id":1})
+        request.assert_called_once_with("POST","/api/vales-employees/10/debts",
+            {"amount":"150.00","title":"Novo vale","description":"Compra",
+             "first_month":"2026-11","count":3})
+
+    def test_vale_details_protect_reserved_installment_and_other_employee(self):
+        details={"employees":[{"id":10,"active":True,"debts":[{"id":201,
+            "installments":[{"id":101,"remaining":"300.00","paid":"0.00"}]}]}]}
+        def request(method,path,payload=None):
+            if method!="GET":raise AssertionError("No write allowed")
+            return [] if path.endswith("/payments") else details
+        with patch.object(v,"_control_request",side_effect=request):
+            row=f.vale_details(1)["cadastros"][0]["debts"][0]["installments"][0]
+            self.assertEqual(row["reservado"],"300.00")
+            with self.assertRaises(v.BridgeError):
+                f.vale_action({"action":"payment","funcionario_id":1,"id":101,
+                  "month":"2026-11","amount":"10.00"})
+            with self.assertRaises(v.BridgeError):
+                f.vale_action({"action":"delete","funcionario_id":1,"id":999})
+
     def test_other_account_needs_confirmation(self):
         before=f.dashboard("2026-11")
         self.assertEqual(before["indicadores"]["total_a_pagar"],"4650.00")
