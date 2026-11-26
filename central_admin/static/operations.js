@@ -417,10 +417,42 @@
     // O motor renderiza tanto de forma síncrona quanto depois das consultas.
     // Observar apenas a área principal cobre trocas de aba, busca e reabertura.
     if(typeof MutationObserver==="function"){
-      const observer=new MutationObserver(()=>mountDetailLayout(app));
+      const observer=new MutationObserver(()=>{mountDetailLayout(app);mountFreightSwitch(app);});
       observer.observe(main,{childList:true,subtree:true});
     }
     mountDetailLayout(app);
+  }
+
+  // Transportadoras é o próprio livro de fretes. Resolver o controle pelo
+  // catálogo real, sem fixar ID, duplicar registros ou exibir a lista intermediária.
+  function defaultFreightControl(state){
+    const available=(state?.controls||[]).filter(c=>c.mode==="caminhao"&&!c.closed_at);
+    return available.find(c=>String(c.name||"").trim().toLocaleLowerCase("pt-BR")==="controle de fretes")||
+      available.slice().sort((a,b)=>Number(a.id)-Number(b.id))[0]||null;
+  }
+  function mountFreightSwitch(app){
+    if(active!=="transportadoras"||app.s.route!=="control")return;
+    const header=document.querySelector("#main .nh-detail-header");
+    if(!header||header.querySelector(".nh-freight-switch"))return;
+    const available=(app.s.state?.controls||[]).filter(c=>c.mode==="caminhao"&&!c.closed_at);
+    const history=(app.s.state?.archived_controls||[]).some(c=>c.mode==="caminhao");
+    if(available.length<=1&&!history)return;
+    const bar=document.createElement("div");bar.className="nh-freight-switch nh-detail-actions";
+    if(available.length>1){
+      const select=document.createElement("select");select.className="nh-board-select";
+      select.setAttribute("aria-label","Selecionar controle de fretes");
+      for(const c of available){
+        const opt=document.createElement("option");opt.value=String(c.id);opt.textContent=c.name;select.append(opt);
+      }
+      select.value=String(app.s.id);
+      select.addEventListener("change",()=>app.navigate("control",Number(select.value)));
+      bar.append(select);
+    }
+    if(history){
+      const btn=document.createElement("button");btn.type="button";btn.className="btn btn-sm";
+      btn.textContent="Histórico";btn.addEventListener("click",()=>app.navigate("history"));bar.append(btn);
+    }
+    header.append(bar);
   }
 
   function configureOriginalControls() {
@@ -489,7 +521,21 @@
       return out;
     };
     const originalRender = app.render;
+    let freightOpening=null;
     app.render = function () {
+      if(active==="transportadoras"&&this.s.route==="home"&&this.s.state){
+        const target=defaultFreightControl(this.s.state);
+        if(target&&freightOpening!==Number(target.id)){
+          freightOpening=Number(target.id);
+          document.body.classList.remove("nh-module-list");
+          this.navigate("control",freightOpening,{replace:true});
+          return;
+        }
+        // Se a consulta falhar, não repetir indefinidamente.
+        // A lista original só serve de contingência para recuperação.
+      }else if(active==="transportadoras"&&this.s.route==="control"&&this.s.detail?.control){
+        freightOpening=null;
+      }
       document.body.classList.toggle("nh-module-list",this.s.route === "home");
       const detail = this.s.detail && this.s.detail.control;
       if(this.s.route==="control"&&detail?.mode==="vale_funcionarios"&&active==="controles"){
@@ -501,6 +547,7 @@
       }
       const rendered=originalRender.apply(this,arguments);
       mountDetailLayout(this);
+      mountFreightSwitch(this);
       close();
       releaseEntryAfterRealRender(this);
       return rendered;
