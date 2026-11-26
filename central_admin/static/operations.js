@@ -22,7 +22,7 @@
   const modeFilters = {
     recebimentos: c => c.mode === "recebimento",
     transportadoras: c => c.mode === "caminhao",
-    controles: c => !["recebimento","caminhao"].includes(c.mode)
+    controles: c => !["recebimento","caminhao","vale_funcionarios"].includes(c.mode)
   };
   const suggestedMode = {controles:"financeiro",recebimentos:"recebimento", transportadoras:"caminhao"};
   let selectedBoard = "all";
@@ -492,6 +492,9 @@
     app.render = function () {
       document.body.classList.toggle("nh-module-list",this.s.route === "home");
       const detail = this.s.detail && this.s.detail.control;
+      if(this.s.route==="control"&&detail?.mode==="vale_funcionarios"&&active==="controles"){
+        location.assign("/central/modules/funcionarios/");return;
+      }
       if (this.s.route === "control" && detail && !modeFilters[active](detail)) {
         this.navigate("home",null,{replace:true});
         return;
