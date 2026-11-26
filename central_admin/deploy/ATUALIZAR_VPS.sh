@@ -238,7 +238,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261126vales1' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261126fretes1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -268,6 +268,8 @@ done
 grep -Fq 'document.body.append(popup)' "$APP/static/operations.js" || fail "Popup do lapis nao instalado."
 grep -Fq 'Encerrar controle' "$APP/static/operations.js" || fail "Acao encerrar ausente."
 grep -Fq '.nh-control-popup' "$APP/static/operations.css" || fail "Estilo do popup ausente."
+grep -Fq 'function defaultFreightControl(state)' "$APP/static/operations.js" || fail "Entrada direta de Transportadoras ausente."
+grep -Fq 'this.navigate("control",freightOpening,{replace:true})' "$APP/static/operations.js" || fail "Transportadoras ainda depende da lista de controles."
 grep -Fq 'function paintTargetWhileLoading(' "$APP/static/operations.js" \
   || fail "Navegação ainda deixa a tela anterior visível ao abrir controle."
 grep -Fq 'function releaseEntryAfterRealRender(' "$APP/static/operations.js" \
