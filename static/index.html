@@ -37,6 +37,7 @@
       </div>
       <div class="sidebar-section-label">GERENCIAMENTO</div>
       <button class="nav-link active" id="homeLink" onclick="App.navigate('home')"><span class="nav-icon"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#dashboard"></use></svg></span> Visão geral</button>
+      <button class="nav-link" id="historyLink" onclick="App.navigate('history')"><span class="nav-icon"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#clipboard"></use></svg></span> Histórico</button>
       <div class="sidebar-section-label">MINHAS PASTAS</div>
       <button type="button" class="sidebar-create-board" onclick="App.newBoard()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> Nova pasta</button>
       <div id="sideBoards" class="sidebar-items"></div>
@@ -57,12 +58,14 @@
         </div>
         <div class="top-actions">
           <div class="search-wrap"><label class="search"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg><input type="search" autocomplete="off" spellcheck="false" aria-label="Pesquisar controles ou pastas com P" aria-controls="searchResults" aria-expanded="false" id="search" placeholder="Controle ou P pasta..." onfocus="App.search(this.value)" oninput="App.search(this.value)" onkeydown="App.searchKeydown(event)"></label><div id="searchResults" class="search-results" aria-label="Resultados da pesquisa" onkeydown="App.searchResultKeydown(event)" hidden></div></div>
+          <button id="closeCurrentControl" type="button" class="btn btn-quiet btn-sm" onclick="App.closeControl(App.s.id)" hidden>Encerrar controle</button>
           <button id="changeCurrentControlType" type="button" class="btn btn-quiet btn-sm" onclick="App.changeControlTypeForm(App.s.id)" hidden><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#settings"></use></svg><span class="hide-small">Alterar tipo</span></button>
           <button id="moveCurrentControl" type="button" class="btn btn-quiet btn-sm" onclick="App.moveControlForm(App.s.id)" hidden><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#folder"></use></svg><span class="hide-small">Mover para pasta</span></button>
           <button class="btn btn-primary" onclick="App.newControl()"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg> <span class="hide-small">Novo controle</span></button>
         </div>
       </header>
       <div id="connectionStatus" class="connection-status" role="status" hidden></div>
+      <div id="archivedNotice" role="status" class="connection-status" hidden></div>
       <main id="main" class="main"><div class="empty-state">Carregando controles...</div></main>
       <footer>Central de Controles · Dados salvos no servidor configurado · <span id="footerClock"></span></footer>
     </div>
@@ -88,7 +91,7 @@
   </div>
   <div id="modalRoot"></div>
   <div id="toastRoot" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=20261113-recebimentos-mobile-v1" defer></script>
+  <script src="/static/app.js?v=20261126-historico-v1" defer></script>
   <script src="/static/truck.js?v=20261030-vale-comissao-v9" defer></script>
   <script src="/static/truck_workflow.js?v=20261022-conferencia-1" defer></script>
   <script src="/static/debt.js?v=20261022-conferencia-1" defer></script>
