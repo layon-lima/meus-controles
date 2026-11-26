@@ -77,18 +77,84 @@
     const count=vales?e(summary.count||0)+" vale(s)":e(summary.count||0)+" lançamento(s)";
     const detail=vales?e(summary.employees||0)+" funcionário(s)":c.mode==="divida"||c.mode==="divida_sem_valor"?"Pagamentos com descrição":e(c.fields?.length||0)+" campo(s)";
     const symbol=(String(c.name||"").trim().split(/\s+/).slice(0,2).map(x=>x[0]).join("")||"C").toUpperCase();
-    const menu=[["rename","Renomear"],["configure","Configurar / editar"],["type","Alterar tipo de controle"],["move","Mover para pasta"],["duplicate","Duplicar controle"],["close","Encerrar controle"],["delete","Excluir controle"]].map(([action,name])=>
-      '<button type="button"'+(action==="delete"?' class="danger"':'')+' onclick="App.controlMenuAction(event,\''+action+'\','+id+')">'+name+'</button>').join("");
     return '<tr data-control-id="'+id+'" onclick="App.navigate(\'control\','+id+')">'+
       '<td><button type="button" class="nh-control-open" onclick="event.stopPropagation();App.navigate(\'control\','+id+')" aria-label="Abrir '+e(c.name)+'">'+
       '<span class="nh-control-avatar">'+e(symbol)+'</span><strong>'+e(c.name)+'</strong></button></td>'+
       '<td>'+e(folder||"—")+'</td><td>'+e(controlTypes[c.mode]||c.mode||"—")+'</td>'+
       '<td>'+count+'<small>'+detail+'</small></td><td class="nh-control-balance"><strong>'+balance+'</strong><small>'+label+'</small></td>'+
-      '<td class="nh-control-actions"><button type="button" class="control-card-edit" data-nh-table-menu="'+id+'" aria-label="Ações de '+e(c.name)+'" title="Editar e configurar" aria-haspopup="true" aria-expanded="false" onclick="App.toggleControlMenu(event,'+id+')">'+
+      '<td class="nh-control-actions"><button type="button" class="control-card-edit" data-nh-table-menu="'+id+'" aria-label="Ações de '+e(c.name)+'" title="Editar e configurar" aria-haspopup="true" aria-expanded="false">'+
       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12-4-4L4 15z"/></svg></button>'+
-      '<div class="card-action-menu" id="controlMenu-'+id+'" role="group" aria-label="Ações do controle" hidden onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">'+menu+'</div></td></tr>';
+      '</td></tr>';
   }
+  // Popup em document.body: nunca fica recortado pelo overflow da tabela.
+  let controlPopup=null,controlPopupAnchor=null;
+  function closeTableControlPopup(restoreFocus=false){
+    const anchor=controlPopupAnchor;
+    controlPopup?.remove();
+    controlPopup=null;controlPopupAnchor=null;
+    if(anchor){anchor.setAttribute("aria-expanded","false");if(restoreFocus&&anchor.isConnected)anchor.focus();}
+  }
+  function openTableControlPopup(app,button){
+    if(controlPopupAnchor===button){closeTableControlPopup(true);return;}
+    closeTableControlPopup();
+    const id=Number(button.dataset.nhTableMenu);
+    const control=(app.s.state?.controls||[]).find(c=>Number(c.id)===id);
+    if(!control||control.closed_at)return;
+    const actions=[
+      ["rename","Renomear","pencil"],["configure","Configurar / editar","settings"],
+      ["type","Alterar tipo de controle","settings"],["move","Mover para pasta","folder"],
+      ["duplicate","Duplicar controle","copy"],["close","Encerrar controle","archive"],
+      ["delete","Excluir controle","trash"]
+    ];
+    const popup=document.createElement("div");
+    popup.className="nh-control-popup";
+    popup.id="nh-control-popup";
+    popup.setAttribute("role","group");
+    popup.setAttribute("aria-label","Ações de "+control.name);
+    for(const [action,label,symbol] of actions){
+      const item=document.createElement("button");
+      item.type="button";
+      if(action==="delete")item.className="danger";
+      const glyph=document.createElement("span");glyph.className="nh-control-popup-icon";
+      const marks={pencil:"✎",settings:"⚙",folder:"▱",copy:"▣",archive:"✓",trash:"×"};
+      glyph.textContent=marks[symbol];glyph.setAttribute("aria-hidden","true");
+      item.append(glyph,document.createTextNode(label));
+      item.addEventListener("click",event=>{
+        event.stopPropagation();
+        closeTableControlPopup();
+        if(action==="close"&&typeof app.closeControl!=="function"){
+          app.toast("Atualize o motor do Meus Controles antes de encerrar.",true);return;
+        }
+        app.controlMenuAction(event,action,id);
+      });
+      popup.append(item);
+    }
+    document.body.append(popup);
+    controlPopup=popup;controlPopupAnchor=button;
+    button.setAttribute("aria-expanded","true");
+    button.setAttribute("aria-controls",popup.id);
+    const rect=button.getBoundingClientRect(),size=popup.getBoundingClientRect();
+    const top=rect.bottom+6+size.height<=window.innerHeight-8?rect.bottom+6:rect.top-size.height-6;
+    popup.style.left=Math.max(8,Math.min(rect.right-size.width,window.innerWidth-size.width-8))+"px";
+    popup.style.top=Math.max(8,Math.min(top,window.innerHeight-size.height-8))+"px";
+    popup.querySelector("button")?.focus({preventScroll:true});
+  }
+  document.addEventListener("pointerdown",event=>{
+    if(controlPopup&&!controlPopup.contains(event.target)&&!controlPopupAnchor?.contains(event.target))closeTableControlPopup();
+  },true);
+  document.addEventListener("keydown",event=>{
+    if(!controlPopup)return;
+    if(event.key==="Escape"){event.preventDefault();closeTableControlPopup(true);return;}
+    if(event.key==="ArrowDown"||event.key==="ArrowUp"){
+      event.preventDefault();
+      const items=[...controlPopup.querySelectorAll("button")];
+      const index=items.indexOf(document.activeElement);
+      items[(index+(event.key==="ArrowDown"?1:items.length-1))%items.length]?.focus();
+    }
+  });
+  window.addEventListener("resize",()=>closeTableControlPopup());
   function buildModuleHome(app) {
+    closeTableControlPopup();
     const main = document.getElementById("main");
     const pageTitle = document.getElementById("pageTitle");
     const crumb = document.getElementById("crumb");
@@ -135,7 +201,7 @@
     }[active] || "+ Novo controle";
     add.addEventListener("click",()=>newNativeControl(app));
     const history=document.createElement("button");
-    history.type="button";history.className="btn btn-sm";
+    history.type="button";history.className="btn btn-sm nh-controls-history";
     history.textContent="Histórico";
     history.addEventListener("click",()=>app.navigate("history"));
     if(compact){
@@ -189,13 +255,15 @@
       const section=document.createElement("div");section.className="nh-controls-section-head";
       const title=document.createElement("h3");title.textContent="Visão geral";
       section.append(title,counter);workspace.append(section);main.append(workspace);
-      toolbar.append(board,search,history);
+      section.append(history);
+      toolbar.append(board,search);
     }else toolbar.append(search,board,counter,history);
     workspace.append(toolbar);
 
     const results = document.createElement("div");
     results.className = compact?"nh-controls-table-wrap nh-filtered-results":"control-grid nh-filtered-results";
     function renderResults() {
+      closeTableControlPopup();
       const query = normalize(typedSearch).trim();
       const visible = all.filter(item =>
         (selectedBoard === "all" || item.board === selectedBoard)
@@ -237,17 +305,13 @@
     search.addEventListener("input",()=>{typedSearch=search.value;scheduleResults();});
     board.addEventListener("change",()=>{selectedBoard=board.value;scheduleResults();});
     if(compact){
-      // O menu original conserva as ações; posicionamento fixo evita cortes no scroll.
       results.addEventListener("click",event=>{
         const button=event.target.closest?.("[data-nh-table-menu]");
         if(!button)return;
-        const menu=document.getElementById("controlMenu-"+button.dataset.nhTableMenu);
-        if(!menu)return;
-        const box=button.getBoundingClientRect();
-        menu.style.left=Math.max(8,box.right-216)+"px";
-        menu.style.right="auto";menu.style.top=Math.max(8,Math.min(box.bottom+4,window.innerHeight-290))+"px";
+        event.preventDefault();event.stopPropagation();
+        openTableControlPopup(app,button);
       },true);
-      results.addEventListener("scroll",()=>app.closeControlMenus?.(),{passive:true});
+      results.addEventListener("scroll",()=>closeTableControlPopup(),{passive:true});
     }
     workspace.append(results);
     renderResults();
@@ -368,6 +432,7 @@
     const originalNavigate=app.navigate;
     app.navigate=function (route,id,options) {
       if((this.s.route!==route||Number(this.s.id||0)!==Number(id||0))&&window.NHDrafts?.blockNavigation())return;
+      closeTableControlPopup();
       // Vale também para Voltar/Avançar, que usam navigate(fromHistory).
       paintTargetWhileLoading(this,route,id);
       return originalNavigate.apply(this,arguments);
