@@ -90,6 +90,9 @@ def rows_in_range(con,cid,start,end):
 def fingerprint(rows):
     payload=[{key:r[key] for key in ("id","event_date","kind","category","description","weight_kg",
               "price_tonne","commission_pct","amount","commission_amount","notes")} for r in rows]
+    # Preserve fingerprints of old reviews when no entries are excluded.
+    for item,row in zip(payload,rows):
+        if row.get("exclude_totals"):item["exclude_totals"]=1
     return hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False,
                                     separators=(",",":")).encode("utf-8")).hexdigest()
 
@@ -214,6 +217,7 @@ def calc_totals(con,cid,start,end):
     rows=rows_in_range(con,cid,start,end)
     freight=expenses=advances=commission=Decimal("0")
     for row in rows:
+        if row.get("exclude_totals"):continue
         value=Decimal(row["amount"])
         if row["kind"]=="freight":
             freight+=value;commission+=Decimal(row["commission_amount"])
@@ -221,7 +225,7 @@ def calc_totals(con,cid,start,end):
             expenses+=value
         else:advances+=value
     base=truck.settings(con,cid)
-    historic=con.execute("SELECT kind,amount,commission_amount FROM truck_entries WHERE control_id=? AND event_date<=?",(cid,end)).fetchall()
+    historic=con.execute("SELECT kind,amount,commission_amount FROM truck_entries WHERE control_id=? AND event_date<=? AND exclude_totals=0",(cid,end)).fetchall()
     due=Decimal(base["opening_commission"])
     for row in historic:
         if row["kind"]=="freight":due+=Decimal(row["commission_amount"])
@@ -312,10 +316,10 @@ def export_csv(con,closure_id):
     writer.writerow(["Entradas",data["totals"]["freight"],"Saídas",data["totals"]["cash_out"]])
     writer.writerow(["Resultado",data["totals"]["operating_result"],"Comissão acumulada",data["totals"]["driver_due_at_close"]])
     writer.writerow([])
-    writer.writerow(["ID","Data","Tipo","Categoria","Descrição","Peso kg","Preço/t","Valor R$","Comissão R$","Observações"])
+    writer.writerow(["ID","Data","Tipo","Categoria","Descrição","Peso kg","Preço/t","Valor R$","Comissão R$","Observações","Não somar"])
     for row in data["entries"]:
         writer.writerow([row[x] for x in ("id","event_date","kind","category","description","weight_kg",
-                           "price_tonne","amount","commission_amount","notes")])
+                           "price_tonne","amount","commission_amount","notes")]+["Sim" if row.get("exclude_totals") else "Não"])
     return ("\ufeff"+writer_stream.getvalue()).encode("utf-8")
 
 def handle(handler,con,method,path):
