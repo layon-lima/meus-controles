@@ -9,6 +9,15 @@ import truck
 import truck_workflow
 
 
+def legacy_entry(con,cid,payload):
+    # Simula dados gravados antes da regra de comissão por categoria.
+    values=list(truck.compute_entry(con,cid,payload))
+    pct=Decimal(truck.settings(con,cid)['commission_pct'])
+    values[7]=str(pct)
+    values[9]=truck.money(Decimal(values[8])*pct/100)
+    return tuple(values)
+
+
 class FreightsV2Tests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
@@ -58,7 +67,7 @@ class FreightsV2Tests(unittest.TestCase):
             for name in ("Frete Normal","Frete Jonas"):
                 vals=truck.compute_entry(con,cid,{**base,"category":name,"weight_kg":"1000","price_tonne":"1800"})
                 self.assertEqual(vals[8],"1800.00")
-                self.assertEqual(vals[9],"234.00")
+                self.assertEqual(vals[9],"234.00" if name=="Frete Normal" else "0.00")
                 con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
                     description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
                     VALUES(?,?,?,?,?,?,?,?,?,?,?)""",vals)
@@ -80,10 +89,33 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertNotIn("Vale motorista",[row["name"] for row in report["by_expense"]])
             self.assertEqual(sum(float(row["total"]) for row in report["by_expense"]),250.00)
             self.assertEqual(report["totals"]["cash_balance"],"3250.00")
-            self.assertEqual(report["totals"]["commission_earned"],"468.00")
+            self.assertEqual(report["totals"]["commission_earned"],"234.00")
             preview=truck_workflow.review_preview(con,cid,"2026-10-01","2026-10-10")
             self.assertEqual(preview["count"],8)
             self.assertEqual(len(preview["entries"]),8)
+
+    def test_commission_only_normal_and_dead_freight_even_with_old_stored_values(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            settings=truck.settings(con,cid)
+            truck.save_settings(con,cid,{**settings,"freight_types":["Frete Normal","Frete Jonas","Frete Morto"]})
+            for category,amount,excluded in [
+                ("Frete Normal","10000.00",0),("Frete Morto","2000.00",0),
+                ("Frete Jonas","60000.00",0),("Frete Normal","30000.00",1)]:
+                vals=truck.compute_entry(con,cid,{"date":"2026-11-27","description":"Teste",
+                    "kind":"freight","category":category,"weight_kg":"1000","price_tonne":amount})
+                self.assertEqual(vals[9],truck.money(Decimal(amount)*Decimal("0.13")) if category!="Frete Jonas" else "0.00")
+                con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,description,
+                    weight_kg,price_tonne,commission_pct,amount,commission_amount,notes,exclude_totals)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",(*vals[:9],"9999.00",vals[10],excluded))
+            report=truck.summary(con,cid,month="2026-11")
+            self.assertEqual(report["totals"]["commission_base"],"12000.00")
+            self.assertEqual(report["totals"]["commission_earned"],"1560.00")
+            self.assertEqual(report["totals"]["driver_due_period"],"1560.00")
+            self.assertEqual(report["totals"]["freight"],"72000.00")
+            self.assertEqual(sum(Decimal(r["commission_amount"]) for r in report["entries"]),Decimal("1560.00"))
+            _,close=truck_workflow.calc_totals(con,cid,"2026-11-01","2026-11-30")
+            self.assertEqual(close["commission_earned"],"1560.00")
 
     def test_commission_panel_uses_same_period_as_freights(self):
         cid=self.upgraded()
@@ -189,7 +221,7 @@ class FreightsV2Tests(unittest.TestCase):
         cid=self.upgraded()
         with app.db() as con:
             con.execute("UPDATE truck_settings SET commission_pct='10',price_basis='kg' WHERE control_id=?",(cid,))
-            old=truck.compute_entry(con,cid,{
+            old=legacy_entry(con,cid,{
                 "date":"2026-10-02","kind":"freight","category":"Frete Jonas",
                 "description":"Frete antigo, comissão original 10%",
                 "weight_kg":"1000","price_kg":"2","notes":""})
@@ -230,7 +262,7 @@ class FreightsV2Tests(unittest.TestCase):
             con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
             original={}
             for day,weight,amount,commission in expected:
-                values=truck.compute_entry(con,cid,{"date":day,"kind":"freight",
+                values=legacy_entry(con,cid,{"date":day,"kind":"freight",
                     "category":"Frete Jonas","description":"CALCARIO JONAS",
                     "weight_kg":weight,"price_kg":"215"})
                 record=con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
@@ -260,7 +292,7 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(len(__import__("json").loads(audit["value"])),3)
             totals=truck.summary(con,cid)["totals"]
             self.assertEqual(totals["freight"],"30742.85")
-            self.assertEqual(totals["commission_earned"],"3996.57")
+            self.assertEqual(totals["commission_earned"],"0.00")
 
     def test_fix_still_runs_if_previous_version_already_switched_to_tonnes(self):
         cid=self.upgraded()
@@ -268,7 +300,7 @@ class FreightsV2Tests(unittest.TestCase):
             # Versão v1 pode ter alterado settings ou gravado marcador,
             # sem efetivamente retificar os lançamentos financeiros.
             con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
-            wrong=truck.compute_entry(con,cid,{"date":"2026-10-15",
+            wrong=legacy_entry(con,cid,{"date":"2026-10-15",
                 "kind":"freight","category":"Frete Jonas",
                 "description":"CALCARIO JONAS",
                 "weight_kg":"47000","price_kg":"215"})
@@ -293,7 +325,7 @@ class FreightsV2Tests(unittest.TestCase):
         cid=self.upgraded()
         with app.db() as con:
             con.execute("UPDATE truck_settings SET price_basis='kg' WHERE control_id=?",(cid,))
-            values=truck.compute_entry(con,cid,{"date":"2026-10-06","kind":"freight",
+            values=legacy_entry(con,cid,{"date":"2026-10-06","kind":"freight",
                 "category":"Frete Jonas","description":"CALCARIO JONAS",
                 "weight_kg":"48380","price_kg":"215"})
             con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
