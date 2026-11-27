@@ -38,7 +38,7 @@ fi
 # Saneamento de pedidos e uma tarefa separada, nao parte do deploy visual.
 # Nao executar alteracoes no banco em cada atualizacao de interface.
 echo "Verificando que o contêiner executa os MESMOS arquivos publicados..."
-for file in app.py receiving.py receiving_pdf.py static/receiving.js static/receiving.css static/receiving_pdf.js static/receiving_pdf.css; do
+for file in app.py receiving.py receiving_pdf.py static/receiving.js static/receiving.css static/receiving_pdf.js static/receiving_pdf.css truck.py truck_workflow.py static/truck.js static/truck.css static/truck_workflow.js; do
   expected="$(sha256sum "$ROOT/$file" | awk '{print $1}')"
   running="$("${COMPOSE[@]}" exec -T app sha256sum "/srv/app/$file" | awk '{print $1}')"
   if [[ "$expected" != "$running" ]]; then
