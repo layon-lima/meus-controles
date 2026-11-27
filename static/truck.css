@@ -344,3 +344,10 @@
   .truck-entry-form .truck-free-date #truckDateText{min-height:40px;height:40px;font-size:14px}
   .truck-entry-form .truck-date-picker-button{width:40px;flex-basis:40px}
 }
+
+/* Registro informativo: permanece legível, sem participar dos cálculos. */
+.truck-exclude-label{display:inline-flex;gap:6px;align-items:center;white-space:nowrap;font-size:12px;cursor:pointer}
+.truck-exclude-label input{margin:0;accent-color:#475569;width:16px;height:16px;cursor:pointer}
+.truck-exclude-label:has(input:disabled){cursor:default}
+.truck-ledger tr.truck-excluded-row td{color:#687482!important;background:#edf0f3!important}
+.truck-ledger tr.truck-excluded-row .numeric{color:#687482!important;text-decoration:line-through}
