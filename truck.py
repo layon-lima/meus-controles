@@ -379,6 +379,7 @@ def summary(con,cid,month="",scope=None):
         "cash_balance":money(cash),
         "commission_earned":money(commission),
         "operating_result":money(profit),
+        "driver_due_period":money(commission-advances),
         "driver_due":money(driver_due),
         "driver_earned_all":money(lifetime_earned),
         "driver_paid_all":money(lifetime_paid),
