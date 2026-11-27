@@ -129,12 +129,12 @@ def rewrite_text(text, prefix, kind):
                 r'<link\b(?=[^>]*\brel\s*=\s*["\x27](?:shortcut\s+)?icon["\x27])[^>]*>',
                 '', text, flags=re.I)
         # CSP do Contas permite scripts/estilos carregados da mesma origem.
-        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261126popup1">'
+        css = ('<link rel="stylesheet" href="/central/operations.css?v=20261127fretesmodal1">'
                '<link rel="stylesheet" href="/central/launcher.css?v=20261120g">')
         # Script síncrono no HEAD: não mostrar o dashboard legado
         # antes de a rota real ser hidratada. Mantém CSP self sem inline JS.
         js = ('<script src="/central/route-preflight.js?v=20261123route1"></script>'
-              '<script defer src="/central/operations.js?v=20261126fretes1"></script>'
+              '<script defer src="/central/operations.js?v=20261127fretesmodal1"></script>'
               '<script defer src="/central/launcher.js?v=20261124glass4"></script>')
         if module == "contas":
             # A fila apenas coordena as PRÓPRIAS funções/validações do CONTAS 4.
