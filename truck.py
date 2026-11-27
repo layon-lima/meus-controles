@@ -16,6 +16,22 @@ CATEGORIES = ["Manutenção", "Abastecimento", "Seguro do caminhão",
               "Pedágio", "Salário motorista", "Outros gastos"]
 FREIGHT_CATEGORIES = ("Frete Normal", "Frete Morto")
 ADVANCE_CATEGORIES = ("Vale motorista", "Acerto motorista")
+DRIVER_COMMISSION_PCT = Decimal("13")
+
+def freight_commission_pct(category):
+    return DRIVER_COMMISSION_PCT if " ".join(str(category).split()).casefold() in ("frete normal","frete morto","fretes normais","fretes mortos") else Decimal("0")
+
+def effective_commission(row):
+    """Recalcular pela regra atual, nunca confiar em comissao antiga gravada."""
+    if row["kind"]!="freight" or dict(row).get("exclude_totals"):
+        return Decimal("0.00")
+    return (Decimal(row["amount"])*freight_commission_pct(row["category"])/Decimal("100")).quantize(CENT,rounding=ROUND_HALF_UP)
+
+def commission_view(row):
+    result=dict(row)
+    result["commission_pct"]=str(freight_commission_pct(result["category"]) if result["kind"]=="freight" and not result.get("exclude_totals") else 0)
+    result["commission_amount"]=money(effective_commission(result))
+    return result
 
 def num(value, label, positive=False, maximum=MAX):
     if value is None or isinstance(value, bool):
@@ -307,8 +323,8 @@ def compute_entry(con, cid, payload):
         amount=(weight/Decimal("1000")*price).quantize(CENT,rounding=ROUND_HALF_UP)
         if amount>MAX:
             raise ValueError("Valor total do frete acima do limite.")
-        # A comissão aplicada no lançamento é gravada para preservar o histórico.
-        pct=num(config["commission_pct"],"a comissão",maximum=Decimal("100"))
+        # Apenas frete normal e morto geram 13% de comissão.
+        pct=freight_commission_pct(category)
         commission=(amount*pct/Decimal("100")).quantize(CENT, rounding=ROUND_HALF_UP)
     else:
         category=safe_text(payload.get("category",""),"a categoria",90,True)
@@ -348,7 +364,7 @@ def summary(con,cid,month="",scope=None):
         value=Decimal(r["amount"])
         if r["kind"]=="freight":
             gross+=value
-            commission+=Decimal(r["commission_amount"])
+            commission+=effective_commission(r)
             by_freight[r["category"]]=by_freight.get(r["category"],Decimal("0"))+value
             freight_counts[r["category"]]=freight_counts.get(r["category"],0)+1
         elif r["kind"]=="expense":
@@ -359,7 +375,7 @@ def summary(con,cid,month="",scope=None):
             # Adiantamentos/acertos liquidam a comissão e afetam o caixa;
             # não são despesas operacionais e não devem aparecer em GASTOS.
             advances+=value
-    lifetime_earned=sum((Decimal(r["commission_amount"]) for r in all_rows if r["kind"]=="freight" and not r.get("exclude_totals")),Decimal("0"))
+    lifetime_earned=sum((effective_commission(r) for r in all_rows),Decimal("0"))
     lifetime_paid=sum((Decimal(r["amount"]) for r in all_rows if r["kind"]=="advance" and not r.get("exclude_totals")),Decimal("0"))
     # O vale reduz o caixa, porém não entra nas despesas do resultado novamente.
     cash=(gross-expenses-advances+(Decimal(conf["opening_cash"]) if not month and not cutoff else Decimal("0")))
@@ -369,7 +385,7 @@ def summary(con,cid,month="",scope=None):
       "period":month,
       "scope":"current" if current else ("month" if month else "all"),
       "workflow":workflow,
-      "entries":period,
+      "entries":[commission_view(r) for r in period],
       "settings":conf,
       "totals":{
         "freight":money(gross),
@@ -378,6 +394,7 @@ def summary(con,cid,month="",scope=None):
         "cash_out":money(expenses+advances),
         "cash_balance":money(cash),
         "commission_earned":money(commission),
+        "commission_base":money(sum((Decimal(r["amount"]) for r in period if r["kind"]=="freight" and not r.get("exclude_totals") and freight_commission_pct(r["category"])),Decimal("0"))),
         "operating_result":money(profit),
         "driver_due_period":money(commission-advances),
         "driver_due":money(driver_due),
