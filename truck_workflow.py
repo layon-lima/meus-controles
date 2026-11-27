@@ -220,15 +220,15 @@ def calc_totals(con,cid,start,end):
         if row.get("exclude_totals"):continue
         value=Decimal(row["amount"])
         if row["kind"]=="freight":
-            freight+=value;commission+=Decimal(row["commission_amount"])
+            freight+=value;commission+=truck.effective_commission(row)
         elif row["kind"]=="expense":
             expenses+=value
         else:advances+=value
     base=truck.settings(con,cid)
-    historic=con.execute("SELECT kind,amount,commission_amount FROM truck_entries WHERE control_id=? AND event_date<=? AND exclude_totals=0",(cid,end)).fetchall()
+    historic=con.execute("SELECT kind,category,amount,commission_amount FROM truck_entries WHERE control_id=? AND event_date<=? AND exclude_totals=0",(cid,end)).fetchall()
     due=Decimal(base["opening_commission"])
     for row in historic:
-        if row["kind"]=="freight":due+=Decimal(row["commission_amount"])
+        if row["kind"]=="freight":due+=truck.effective_commission(row)
         elif row["kind"]=="advance":due-=Decimal(row["amount"])
     return rows,{
       "freight":truck.money(freight),
@@ -292,7 +292,7 @@ def confirm_close(con,cid,payload):
         raise ValueError("O conteúdo mudou desde a prévia. Recarregue o fechamento.")
     archive={
       "start_date":start,"end_date":end,
-      "totals":report["totals"],"entries":report["entries"],
+      "totals":report["totals"],"entries":[truck.commission_view(r) for r in report["entries"]],
       "reviews":report["reviews"]
     }
     saved=con.execute("""INSERT INTO truck_closures(control_id,start_date,end_date,entry_count,snapshot_json)
