@@ -85,6 +85,32 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(preview["count"],8)
             self.assertEqual(len(preview["entries"]),8)
 
+    def test_commission_panel_uses_same_period_as_freights(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            rows=[
+                ("2026-10-01","freight","Frete Normal","50000","0"),
+                ("2026-11-01","freight","Frete Normal","10000","0"),
+                ("2026-10-02","advance","Vale motorista","0","990.50"),
+                ("2026-11-02","advance","Vale motorista","0","300"),
+            ]
+            for day,kind,category,freight,advance in rows:
+                p={"date":day,"kind":kind,"category":category,"description":"Teste",
+                   "weight_kg":"1000","price_tonne":freight,"amount":advance}
+                vals=truck.compute_entry(con,cid,p)
+                con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                    description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)""",vals)
+            con.commit()
+            current=truck.summary(con,cid,month="2026-11")["totals"]
+            self.assertEqual(current["commission_earned"],"1300.00")
+            self.assertEqual(current["driver_advances"],"300.00")
+            self.assertEqual(current["driver_due_period"],"1000.00")
+            self.assertEqual(current["driver_earned_all"],"7800.00")
+            self.assertEqual(current["driver_due"],"6509.50")
+            whole=truck.summary(con,cid,scope="all")["totals"]
+            self.assertEqual(whole["driver_due_period"],"6509.50")
+
     def test_exclude_totals_keeps_record_and_recalculates_every_balance(self):
         cid=self.upgraded()
         with app.db() as con:
