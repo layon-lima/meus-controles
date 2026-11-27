@@ -145,7 +145,7 @@ Object.assign(App,{
     }else{
       body='<div id="truck-panel-details" class="truck-view truck-details-view" role="tabpanel" aria-labelledby="truck-tab-details">'+
         '<div class="truck-details-filter">'+monthFilter+
-        '<span class="secondary-text">Comissão padrão '+E(r.settings.commission_pct)+'%'+(r.settings.driver_name?' · '+E(r.settings.driver_name):"")+'</span></div>'+
+        '<span class="secondary-text">Comissão de 13% · Frete Normal e Frete Morto'+(r.settings.driver_name?' · '+E(r.settings.driver_name):"")+'</span></div>'+
         '<div class="truck-columns truck-detail-cards">'+
         '<section class="panel truck-detail-card truck-detail-freights"><div class="panel-header truck-detail-header">'+
         '<span class="truck-detail-symbol">'+icon("truck")+'</span><h3>FRETES</h3></div>'+
@@ -156,7 +156,8 @@ Object.assign(App,{
         '<div class="info-row truck-commission-expense"><span>Comissão gerada no período</span><strong>'+truckMoney(t.commission_earned)+'</strong></div></div></section>'+
         '<section class="panel truck-detail-card truck-detail-commission"><div class="panel-header truck-detail-header">'+
         '<span class="truck-detail-symbol">'+icon("coin")+'</span><h3>COMISSÃO MOTORISTA</h3></div><div class="panel-body">'+
-        '<div class="info-row"><span>Comissão gerada no período</span><strong>'+truckMoney(t.commission_earned)+'</strong></div>'+
+        '<div class="info-row"><span>Base de comissão (Normal + Morto)</span><strong>'+truckMoney(t.commission_base)+'</strong></div>'+
+        '<div class="info-row"><span>Comissão gerada (13%)</span><strong>'+truckMoney(t.commission_earned)+'</strong></div>'+
         '<div class="info-row"><span>Vales e acertos no período</span><strong>'+truckMoney(t.driver_advances)+'</strong></div>'+
         '<div class="info-row truck-due"><span>Saldo de comissão do período</span><strong>'+truckMoney(t.driver_due_period??(Number(t.commission_earned)-Number(t.driver_advances)))+'</strong></div>'+
         (r.scope==="all"?'<div class="info-row"><span>Saldo anterior cadastrado</span><strong>'+truckMoney(t.outstanding_opening)+'</strong></div>'+
@@ -444,9 +445,10 @@ Object.assign(App,{
       const kg=truckNum(f.get("weight_kg"));
       const pt=truckNum(f.get(ctx.settings.price_basis==="kg"?"price_kg":"price_tonne"));
       const total=Math.round(kg*(ctx.settings.price_basis==="kg"?pt:pt/1000)*100)/100;
-      const commission=Math.round(total*truckNum(ctx.settings.commission_pct)/100*100)/100;
+      const pct=["frete normal","frete morto","fretes normais","fretes mortos"].includes(String(ctx.category||"").trim().replace(/\s+/g," ").toLocaleLowerCase("pt-BR"))?13:0;
+      const commission=Math.round(total*pct)/100;
       title="Cálculo do frete";
-      lines=[["Total do frete",total],["Comissão do motorista ("+ctx.settings.commission_pct+"%)",commission],
+      lines=[["Total do frete",total],["Comissão do motorista ("+pct+"%)",commission],
              ["Resultado antes de outras despesas",total-commission]];
     }else{
       const amount=truckNum(f.get("amount"));
@@ -594,7 +596,7 @@ Object.assign(App,{
       '<div class="modal-body"><form id="truckSettingsForm" onsubmit="event.preventDefault();App.truckSaveSettings()">'+
       '<div class="form-grid">'+truckField("Nome do controle",truckInput("name",ctx.source.name,'required maxlength="150"'))+
       truckField("Nome do motorista (opcional)",truckInput("driver_name",conf.driver_name,'maxlength="100"'))+
-      truckField("Comissão padrão (%)",truckInput("commission_pct",conf.commission_pct,'required inputmode="decimal"'))+
+      truckField("Comissão (%) — Normal e Morto",truckInput("commission_pct","13",'readonly'))+
       truckField("Comissão anterior a pagar (R$)",truckInput("opening_commission",conf.opening_commission,'required inputmode="decimal"'))+
       truckField("Saldo inicial do caixa (R$)",truckInput("opening_cash",conf.opening_cash,'required inputmode="decimal"'))+
       '</div><section class="truck-category-settings"><div class="truck-category-settings-head"><div><h3>Tipos de frete</h3>'+
@@ -607,7 +609,7 @@ Object.assign(App,{
       '<button class="btn btn-sm" type="button" onclick="App.truckAddCategory()">'+icon("plus")+' Adicionar categoria</button></div>'+
       '<div class="truck-category-list">'+categories+'</div>'+
       '<p class="truck-category-help">Renomear uma categoria também atualiza seu nome nos lançamentos anteriores, sem alterar os valores. Categorias em uso não podem ser excluídas.</p></section></form>'+
-      '<div class="hint" style="margin-top:18px">Alterar a porcentagem vale para novos fretes e lançamentos editados. Fretes antigos mantêm a comissão original.</div></div>'+
+      '<div class="hint" style="margin-top:18px">Somente Frete Normal e Frete Morto geram 13% de comissão. Outros fretes não geram comissão.</div></div>'+
       '<div class="modal-footer"><button class="btn" onclick="App.closeModal()">Cancelar</button>'+
       '<button class="btn btn-primary" onclick="App.truckSaveSettings()">Salvar ajustes</button></div></div></div>';
   },
