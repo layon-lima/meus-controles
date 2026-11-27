@@ -75,6 +75,8 @@ def init(con):
     CREATE INDEX IF NOT EXISTS idx_truck_entry_control_date
       ON truck_entries(control_id,event_date,id);
     """)
+    if "exclude_totals" not in {row["name"] for row in con.execute("PRAGMA table_info(truck_entries)")}:
+        con.execute("ALTER TABLE truck_entries ADD COLUMN exclude_totals INTEGER NOT NULL DEFAULT 0")
     existing = {row["name"] for row in con.execute("PRAGMA table_info(truck_settings)")}
     if "categories_json" not in existing:
         con.execute("ALTER TABLE truck_settings ADD COLUMN categories_json TEXT NOT NULL DEFAULT ''")
@@ -342,6 +344,7 @@ def summary(con,cid,month="",scope=None):
     expense_counts={}
     freight_counts={}
     for r in period:
+        if r.get("exclude_totals"):continue
         value=Decimal(r["amount"])
         if r["kind"]=="freight":
             gross+=value
@@ -356,8 +359,8 @@ def summary(con,cid,month="",scope=None):
             # Adiantamentos/acertos liquidam a comissão e afetam o caixa;
             # não são despesas operacionais e não devem aparecer em GASTOS.
             advances+=value
-    lifetime_earned=sum((Decimal(r["commission_amount"]) for r in all_rows if r["kind"]=="freight"),Decimal("0"))
-    lifetime_paid=sum((Decimal(r["amount"]) for r in all_rows if r["kind"]=="advance"),Decimal("0"))
+    lifetime_earned=sum((Decimal(r["commission_amount"]) for r in all_rows if r["kind"]=="freight" and not r.get("exclude_totals")),Decimal("0"))
+    lifetime_paid=sum((Decimal(r["amount"]) for r in all_rows if r["kind"]=="advance" and not r.get("exclude_totals")),Decimal("0"))
     # O vale reduz o caixa, porém não entra nas despesas do resultado novamente.
     cash=(gross-expenses-advances+(Decimal(conf["opening_cash"]) if not month and not cutoff else Decimal("0")))
     profit=gross-expenses-commission
@@ -380,7 +383,8 @@ def summary(con,cid,month="",scope=None):
         "driver_earned_all":money(lifetime_earned),
         "driver_paid_all":money(lifetime_paid),
         "outstanding_opening":money(conf["opening_commission"]),
-        "count":len(period)
+        "count":len(period),
+        "excluded_count":sum(bool(r.get("exclude_totals")) for r in period)
       },
       "by_freight":[{"name":k,"total":money(v),"count":freight_counts[k]} for k,v in sorted(by_freight.items())],
       "by_expense":[{"name":k,"total":money(v),"count":expense_counts[k]} for k,v in sorted(by_expense.items())],
@@ -404,11 +408,11 @@ def handle(handler,con,method,path):
             output=io.StringIO()
             writer=csv.writer(output,delimiter=";")
             writer.writerow(["ID","Data","Tipo","Categoria","Descrição","Peso kg",
-                             "Preço por tonelada","Total R$","Comissão %","Comissão R$","Observações"])
+                             "Preço por tonelada","Total R$","Comissão %","Comissão R$","Observações","Não somar"])
             for r in data["entries"]:
                 writer.writerow([r["id"],r["event_date"],r["kind"],r["category"],r["description"],
                                  r["weight_kg"],r["price_tonne"],r["amount"],r["commission_pct"],
-                                 r["commission_amount"],r["notes"]])
+                                 r["commission_amount"],r["notes"],"Sim" if r.get("exclude_totals") else "Não"])
             return handler.send(("\ufeff"+output.getvalue()).encode("utf-8"),
                                 mime="text/csv; charset=utf-8")
         if method=="PUT" and action=="settings":
@@ -441,6 +445,12 @@ def handle(handler,con,method,path):
     if method=="DELETE":
         truck_workflow.assert_entry_editable(con,cid,old_date)
         con.execute("DELETE FROM truck_entries WHERE id=?",(eid,))
+    elif method=="PATCH":
+        p=handler.input()
+        flag=p.get("exclude_totals")
+        if type(flag) is not bool:raise ValueError("Informe se o lançamento deve ficar fora dos cálculos.")
+        truck_workflow.assert_entry_editable(con,cid,old_date)
+        con.execute("UPDATE truck_entries SET exclude_totals=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",(int(flag),eid))
     elif method=="PUT":
         p=handler.input()
         values=compute_entry(con,cid,p)
