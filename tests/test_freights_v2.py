@@ -85,6 +85,62 @@ class FreightsV2Tests(unittest.TestCase):
             self.assertEqual(preview["count"],8)
             self.assertEqual(len(preview["entries"]),8)
 
+    def test_exclude_totals_keeps_record_and_recalculates_every_balance(self):
+        cid=self.upgraded()
+        with app.db() as con:
+            items=[
+                {"kind":"freight","category":"Frete Normal","weight_kg":"1000","price_tonne":"1000"},
+                {"kind":"freight","category":"Frete Normal","weight_kg":"1000","price_tonne":"2000"},
+                {"kind":"expense","category":"Abastecimento","amount":"100"},
+                {"kind":"advance","category":"Vale motorista","amount":"50"},
+            ]
+            ids=[]
+            for p in items:
+                vals=truck.compute_entry(con,cid,{"date":"2026-10-01","description":"Registro",**p})
+                cur=con.execute("""INSERT INTO truck_entries(control_id,event_date,kind,category,
+                    description,weight_kg,price_tonne,commission_pct,amount,commission_amount,notes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)""",vals)
+                ids.append(cur.lastrowid)
+            con.commit()
+            before=truck_workflow.review_preview(con,cid,"2026-10-01","2026-10-02")
+            class Handler:
+                def __init__(self,flag):self.flag=flag
+                def input(self):return {"exclude_totals":self.flag}
+                def send(self,payload,*args,**kwargs):return payload
+            for eid in ids[1:]:
+                truck.handle(Handler(True),con,"PATCH","/api/truck-entries/"+str(eid))
+            result=truck.summary(con,cid,scope="all")
+            self.assertEqual(len(result["entries"]),4)
+            self.assertEqual(result["totals"]["excluded_count"],3)
+            self.assertEqual(result["totals"]["freight"],"1000.00")
+            self.assertEqual(result["totals"]["operating_expenses"],"0.00")
+            self.assertEqual(result["totals"]["driver_advances"],"0.00")
+            self.assertEqual(result["totals"]["commission_earned"],"130.00")
+            self.assertEqual(result["totals"]["driver_due"],"130.00")
+            self.assertEqual(result["totals"]["cash_balance"],"1000.00")
+            self.assertEqual(result["totals"]["operating_result"],"870.00")
+            self.assertEqual(result["by_freight"][0]["count"],1)
+            self.assertEqual(result["by_expense"],[])
+            rows,totals=truck_workflow.calc_totals(con,cid,"2026-10-01","2026-10-02")
+            self.assertEqual(len(rows),4)
+            self.assertEqual(totals["freight"],"1000.00")
+            self.assertEqual(totals["driver_due_at_close"],"130.00")
+            self.assertNotEqual(truck_workflow.fingerprint(rows),before["fingerprint"])
+            for eid in ids[1:]:
+                truck.handle(Handler(False),con,"PATCH","/api/truck-entries/"+str(eid))
+            restored=truck.summary(con,cid,scope="all")["totals"]
+            self.assertEqual(restored["freight"],"3000.00")
+            self.assertEqual(restored["cash_out"],"150.00")
+            self.assertEqual(restored["driver_due"],"340.00")
+            self.assertEqual(restored["excluded_count"],0)
+            after=truck_workflow.review_preview(con,cid,"2026-10-01","2026-10-02")
+            self.assertEqual(after["fingerprint"],before["fingerprint"])
+            truck_workflow.confirm_review(con,cid,{"start":"2026-10-01","end":"2026-10-02",
+                "checked_ids":ids,"fingerprint":after["fingerprint"]})
+            with self.assertRaises(ValueError):
+                truck.handle(Handler(True),con,"PATCH","/api/truck-entries/"+str(ids[0]))
+            con.rollback()
+
     def test_add_new_category_without_changing_existing_entries(self):
         cid=self.upgraded()
         with app.db() as con:
