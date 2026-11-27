@@ -124,10 +124,11 @@ def collect(con,control):
                 ident="pair_records:"+str(e["id"]))
 
     elif mode=="caminhao":
+        import truck
         labels={"freight":"Frete","expense":"Gasto operacional",
                 "advance":"Vale motorista (abatimento da comissão)"}
         for row in con.execute("SELECT * FROM truck_entries WHERE control_id=? ORDER BY id",(cid,)):
-            e=dict(row)
+            e=truck.commission_view(row)
             more=details({"peso_kg":e["weight_kg"],"preço_tonelada":e["price_tonne"],
                           "comissão_%":e["commission_pct"],
                           "comissão_gerada":e["commission_amount"]})
