@@ -3,7 +3,7 @@
 # Preserva tokens internos, bancos, R2, Caddy, GFARM e demais apps.
 set -Eeuo pipefail
 umask 077
-printf 'Instalador Central: vales-funcionarios-20261126-r3\n'
+printf 'Instalador Central: fretes-modal-20261127-r1\n'
 
 BASE="/opt/apps/central-novo-horizonte"
 APP="$BASE/central_admin"
@@ -238,7 +238,7 @@ for entry in 'api/resumo' \
       # devem bloquear a Home intermediaria ANTES dos scripts do motor.
       grep -Fq '/central/route-preflight.js?v=20261123route1' "$TMP/response" \
         || fail "Modulo $entry ainda monta Home antiga antes do controle."
-      grep -Fq '/central/operations.js?v=20261126fretes1' "$TMP/response" \
+      grep -Fq '/central/operations.js?v=20261127fretesmodal1' "$TMP/response" \
         || fail "Modulo $entry sem navegador direto atualizado."
     fi
     grep -Fq '/central/launcher.js' "$TMP/response" \
@@ -269,6 +269,9 @@ grep -Fq 'document.body.append(popup)' "$APP/static/operations.js" || fail "Popu
 grep -Fq 'Encerrar controle' "$APP/static/operations.js" || fail "Acao encerrar ausente."
 grep -Fq '.nh-control-popup' "$APP/static/operations.css" || fail "Estilo do popup ausente."
 grep -Fq 'function defaultFreightControl(state)' "$APP/static/operations.js" || fail "Entrada direta de Transportadoras ausente."
+grep -Fq 'function installFreightWindow(app)' "$APP/static/operations.js" || fail "Janela flutuante de fretes ausente."
+grep -Fq 'function freightWindowPosition(' "$APP/static/operations.js" || fail "Limites de arraste ausentes."
+grep -Fq '.truck-entry-form.nh-freight-floating' "$APP/static/operations.css" || fail "Estilo da janela de fretes ausente."
 grep -Fq 'this.navigate("control",freightOpening,{replace:true})' "$APP/static/operations.js" || fail "Transportadoras ainda depende da lista de controles."
 grep -Fq 'function paintTargetWhileLoading(' "$APP/static/operations.js" \
   || fail "Navegação ainda deixa a tela anterior visível ao abrir controle."
@@ -378,7 +381,7 @@ grep -Fq 'body.central-operational #main{max-width:none!important;' "$APP/static
   || fail "Modulos operacionais continuam com largura limitada."
 grep -Fq '.nh-documents{width:100%;max-width:none;' "$APP/static/operations.css" \
   || fail "Modulo Documentos ainda possui limite de largura fixo."
-grep -Fq 'operations.css?v=20261126popup1' "$APP/operations_gateway.py" \
+grep -Fq 'operations.css?v=20261127fretesmodal1' "$APP/operations_gateway.py" \
   || fail "Modulo legado nao recebe CSS atualizado de largura fluida."
 echo "OK: paginas da Central preparadas para ocupar a largura do monitor."
 # Verifica se o motor de origem continua a responder no mesmo banco.
