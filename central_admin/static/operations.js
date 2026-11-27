@@ -455,10 +455,101 @@
     header.append(bar);
   }
 
+  // Janela de lançamento de fretes: usa o rascunho original da Central.
+  // Coordenadas limitadas ao viewport, inclusive após zoom, resize e troca de tipo.
+  function freightWindowPosition(view,width,height,left,top,margin=8){
+    const padX=Math.min(margin,Math.max(0,(view.width-width)/2));
+    const padY=Math.min(margin,Math.max(0,(view.height-height)/2));
+    const minX=view.left+padX,minY=view.top+padY;
+    const maxX=Math.max(minX,view.left+view.width-width-padX);
+    const maxY=Math.max(minY,view.top+view.height-height-padY);
+    return {left:Math.min(maxX,Math.max(minX,left??view.left+(view.width-width)/2)),
+            top:Math.min(maxY,Math.max(minY,top??view.top+(view.height-height)/2))};
+  }
+  function installFreightWindow(app){
+    if(active!=="transportadoras"||typeof app.renderTruckForm!=="function")return;
+    const original=app.renderTruckForm;
+    let context=null,position=null,detach=()=>{};
+    app.renderTruckForm=function(){
+      const ctx=this.s.modalContext;
+      if(context!==ctx){context=ctx;position=null;}
+      detach();
+      const out=original.apply(this,arguments);
+      const panel=document.querySelector("#modalRoot .truck-entry-form");
+      const head=panel?.querySelector(".modal-header");
+      const backdrop=panel?.closest(".modal-backdrop");
+      if(!panel||!head||!backdrop)return out;
+      backdrop.classList.add("nh-freight-floating-root");
+      panel.classList.add("nh-freight-floating");
+      head.title="Arraste para mover a janela";
+      const visual=window.visualViewport;
+      let drag=null;
+      function viewport(){
+        return {left:visual?.offsetLeft||0,top:visual?.offsetTop||0,
+          width:visual?.width||document.documentElement.clientWidth,
+          height:visual?.height||document.documentElement.clientHeight};
+      }
+      function fit(){
+        if(!panel.isConnected||backdrop.classList.contains("nh-draft-minimized"))return;
+        const v=viewport(),margin=8;
+        const maxWidth=Math.max(1,v.width-2*margin),maxHeight=Math.max(1,v.height-2*margin);
+        panel.style.setProperty("--nh-freight-max-w",maxWidth+"px");
+        panel.style.setProperty("--nh-freight-max-h",maxHeight+"px");
+        const rect=panel.getBoundingClientRect();
+        if(!rect.width||!rect.height)return;
+        position=freightWindowPosition(v,rect.width,rect.height,position?.left,position?.top,margin);
+        panel.style.left=position.left+"px";panel.style.top=position.top+"px";
+      }
+      function down(event){
+        if(!event.isPrimary||event.button!==0||event.target.closest("button,input,select,textarea,a,[role=button]"))return;
+        const rect=panel.getBoundingClientRect();
+        drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:rect.left,top:rect.top};
+        head.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+      }
+      function move(event){
+        if(!drag||drag.id!==event.pointerId)return;
+        position={left:drag.left+event.clientX-drag.x,top:drag.top+event.clientY-drag.y};
+        fit();
+      }
+      function up(event){
+        if(drag?.id!==event.pointerId)return;
+        drag=null;
+        if(head.hasPointerCapture?.(event.pointerId))head.releasePointerCapture(event.pointerId);
+      }
+      head.addEventListener("pointerdown",down);
+      head.addEventListener("pointermove",move);
+      head.addEventListener("pointerup",up);
+      head.addEventListener("pointercancel",up);
+      head.addEventListener("lostpointercapture",up);
+      window.addEventListener("resize",fit);
+      visual?.addEventListener("resize",fit);visual?.addEventListener("scroll",fit);
+      const size=typeof ResizeObserver==="function"?new ResizeObserver(fit):null;
+      size?.observe(panel);
+      const life=new MutationObserver(()=>{
+        if(!panel.isConnected){detach();return;}
+        if(!backdrop.classList.contains("nh-draft-minimized"))fit();
+      });
+      life.observe(backdrop,{attributes:true,attributeFilter:["class"]});
+      life.observe(document.getElementById("modalRoot"),{childList:true});
+      detach=()=>{
+        size?.disconnect();life.disconnect();
+        window.removeEventListener("resize",fit);
+        visual?.removeEventListener("resize",fit);visual?.removeEventListener("scroll",fit);
+        head.removeEventListener("pointerdown",down);head.removeEventListener("pointermove",move);
+        head.removeEventListener("pointerup",up);head.removeEventListener("pointercancel",up);
+        head.removeEventListener("lostpointercapture",up);drag=null;
+      };
+      fit();
+      return out;
+    };
+  }
+
   function configureOriginalControls() {
     const app = nativeApp();
     if (!app) return;
     installDetailLayout(app);
+    installFreightWindow(app);
     const close = quietOldSidebar();
     app.toggleMenu = function () { close(); };
     const originalNavigate=app.navigate;
