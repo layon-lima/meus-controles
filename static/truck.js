@@ -156,10 +156,11 @@ Object.assign(App,{
         '<div class="info-row truck-commission-expense"><span>Comissão gerada no período</span><strong>'+truckMoney(t.commission_earned)+'</strong></div></div></section>'+
         '<section class="panel truck-detail-card truck-detail-commission"><div class="panel-header truck-detail-header">'+
         '<span class="truck-detail-symbol">'+icon("coin")+'</span><h3>COMISSÃO MOTORISTA</h3></div><div class="panel-body">'+
-        '<div class="info-row"><span>Comissão gerada</span><strong>'+truckMoney(t.driver_earned_all)+'</strong></div>'+
-        '<div class="info-row"><span>Vales e acertos neste período</span><strong>'+truckMoney(t.driver_advances)+'</strong></div>'+
-        '<div class="info-row"><span>Comissão paga</span><strong>'+truckMoney(t.driver_paid_all)+'</strong></div>'+
-        '<div class="info-row truck-due"><span>Comissão em aberto</span><strong>'+truckMoney(t.driver_due)+'</strong></div>'+
+        '<div class="info-row"><span>Comissão gerada no período</span><strong>'+truckMoney(t.commission_earned)+'</strong></div>'+
+        '<div class="info-row"><span>Vales e acertos no período</span><strong>'+truckMoney(t.driver_advances)+'</strong></div>'+
+        '<div class="info-row truck-due"><span>Saldo de comissão do período</span><strong>'+truckMoney(t.driver_due_period??(Number(t.commission_earned)-Number(t.driver_advances)))+'</strong></div>'+
+        (r.scope==="all"?'<div class="info-row"><span>Saldo anterior cadastrado</span><strong>'+truckMoney(t.outstanding_opening)+'</strong></div>'+
+        '<div class="info-row"><span>Comissão em aberto acumulada</span><strong>'+truckMoney(t.driver_due)+'</strong></div>':"")+
         '</div></section></div></div>';
     }
     document.getElementById("main").innerHTML=nav+body;
