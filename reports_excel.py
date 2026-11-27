@@ -131,8 +131,10 @@ def collect(con,control):
             more=details({"peso_kg":e["weight_kg"],"preço_tonelada":e["price_tonne"],
                           "comissão_%":e["commission_pct"],
                           "comissão_gerada":e["commission_amount"]})
-            add(e["event_date"],labels.get(e["kind"],e["kind"]),e["category"],
-                e["description"],"", "",e["amount"],None,
+            kind=labels.get(e["kind"],e["kind"])
+            if e.get("exclude_totals"):kind+=" (Não somar)"
+            add(e["event_date"],kind,e["category"],
+                e["description"],"", "",e["amount"],0 if e.get("exclude_totals") else None,
                 notes=e["notes"],extra=more,ident="truck_entries:"+str(e["id"]))
 
     elif mode in ("divida","divida_sem_valor"):
@@ -341,7 +343,7 @@ def block_totals(rows,mode):
     if mode=="caminhao":
         freight=sum_amount(lambda r:r[4]=="Frete")
         expenses=sum_amount(lambda r:r[4]=="Gasto operacional")
-        advances=sum_amount(lambda r:r[4].startswith("Vale motorista"))
+        advances=sum_amount(lambda r:r[4]=="Vale motorista (abatimento da comissão)")
         commission=round(sum((money(re.search(
             r"(?:^| \| )comissão_gerada: ([^|]+)",r[14] or ""
         ).group(1)) or 0) if re.search(
