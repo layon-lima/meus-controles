@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <link rel="stylesheet" href="/central/confirm-actions.css?v=20261125draft2">
+  <script src="/central/confirm-actions.js?v=20261125draft2"></script>
+  <link rel="stylesheet" href="/central/form-drafts.css?v=20261125draft2">
+  <script src="/central/form-drafts.js?v=20261125draft2"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Funcionários · Central Novo Horizonte</title>
+  <link rel="stylesheet" href="/central/funcionarios.css?v=20261126cores1">
+  <link rel="stylesheet" href="/central/launcher.css?v=20261120g">
+  <link rel="stylesheet" href="/central/horizon-theme.css?v=20261125detail3">
+  <link rel="icon" type="image/svg+xml" href="/central/horizon-logo.svg?v=1">
+  <script defer src="/central/funcionarios.js?v=20261126cores1"></script>
+  <script defer src="/central/launcher.js?v=20261124glass4"></script>
+</head>
+<body class="central-operational nh-scope-funcionarios">
+  <div class="nhf-page">
+    <header class="nhf-header">
+      <a class="nhf-back" href="/central/" aria-label="Voltar à Central">
+        <span class="nhf-mark"><img src="/central/horizon-logo.svg?v=1" alt="" width="41" height="41"></span>
+        <span><strong>Funcionários</strong><small>Holerites, vales e Pix</small></span>
+      </a>
+      <div class="nhf-right">
+        <span class="nhf-live"><span></span>Contas + Vales</span>
+        <button type="button" id="refresh" class="nhf-btn">Atualizar</button>
+      </div>
+    </header>
+    <main class="nhf-main">
+      <section id="staffTop" class="nhf-intro">
+        <div>
+          <h1>Funcionários</h1>
+        </div>
+      </section>
+      <nav class="nhf-view-tabs" aria-label="Áreas de funcionários">
+        <a id="staffTab" href="/central/modules/funcionarios/">Valores em aberto</a>
+        <a id="managePix" href="/central/modules/funcionarios/?view=pix">Gerenciar Pix</a>
+      </nav>
+      <div id="staffView">
+      <section class="nhf-kpis" aria-label="Resumo de valores em aberto">
+        <div class="nhf-kpi"><span>Funcionários com valores em aberto</span><strong id="metricPeople">—</strong></div>
+        <div class="nhf-kpi"><span>Saldo a pagar aos funcionários</span><strong id="metricTotal">—</strong></div>
+        <div class="nhf-kpi"><span>Vales a descontar</span><strong id="metricVales">—</strong></div>
+      </section>
+      <section class="nhf-section">
+        <div class="nhf-section-head">
+          <div><h2>Funcionários</h2><p id="listSubtitle">Buscando valores em aberto…</p></div>
+          <div class="nhf-toolbar">
+            <button type="button" id="addVale" class="nhf-btn nhf-add-vale">+ Adicionar vale</button>
+            <button type="button" id="registerValeEmployee" class="nhf-mini">Cadastrar funcionário</button>
+            <input id="search" type="search" autocomplete="off" placeholder="Pesquisar funcionário…" aria-label="Pesquisar funcionário">
+            <select id="statusFilter" aria-label="Filtrar funcionários">
+              <option value="pending" selected>Com valores em aberto</option>
+              <option value="payable">Com saldo a pagar</option>
+              <option value="vales">Com vales a descontar</option>
+              <option value="valeHistory">Com histórico de vales</option>
+              <option value="paid">Com pagamentos realizados</option>
+              <option value="all">Todos os funcionários</option>
+            </select>
+            <button type="button" id="historyFilter" class="nhf-mini">Histórico de pagamentos</button>
+          </div>
+        </div>
+        <div id="staffList" class="nhf-staff-list" aria-live="polite">
+          <div class="nhf-loading">Carregando funcionários…</div>
+        </div>
+      </section>
+      </div>
+      <section id="pixPanel" class="nhf-detail-section nhf-pix-panel" aria-labelledby="pixTitle">
+        <div class="nhf-detail-heading">
+          <h2 id="pixTitle">Gerenciar Pix dos funcionários</h2>
+          <a id="closePix" class="nhf-mini" href="/central/modules/funcionarios/">Voltar aos saldos</a>
+        </div>
+        <div id="pixList" aria-live="polite"><p class="nhf-muted">Carregando chaves Pix…</p></div>
+      </section>
+    </main>
+    <div id="toast" class="nhf-toast" role="status" aria-live="polite" hidden></div>
+  </div>
+</body>
+</html>

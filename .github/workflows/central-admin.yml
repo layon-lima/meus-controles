@@ -1,0 +1,105 @@
+name: Validar Central Administrativa
+on:
+  pull_request:
+    paths:
+      - "central_admin/**"
+      - "tests/test_central_admin.py"
+      - "tests/test_central_operacoes.py"
+      - "tests/test_central_performance.py tests/test_central_native_recebimentos.py"
+      - "tests/test_central_modulos_ui.js"
+      - "tests/test_central_route_ui.js"
+      - "tests/test_central_launcher_ui.js"
+      - "tests/test_central_entry_ui.js"
+      - "tests/test_central_recebimentos_ui.js"
+      - "tests/test_central_native_recebimentos.py"
+      - "tests/test_central_vales_holerites.py"
+      - "tests/test_central_vales_api.py"
+      - "tests/test_central_funcionarios.py"
+      - "tests/test_central_fullwidth.py"
+      - "tests/test_central_brand.py"
+      - "tests/test_central_funcionarios_ui.js"
+      - "tests/test_central_holerites_vales_ui.js"
+      - "tests/test_central_vales_holerites_ui.js"
+      - "tests/test_central_contas_batch_ui.js"
+      - "tests/test_central_contas_pdf_review_ui.js"
+      - ".github/workflows/central-admin.yml"
+  push:
+    branches: [main, feature/central-administrativa-v1]
+    paths:
+      - "central_admin/**"
+      - "tests/test_central_*.py"
+      - "tests/test_central_*.js"
+      - ".github/workflows/central-admin.yml"
+
+jobs:
+  central-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Conferir sintaxe Python
+        run: python -m compileall -q central_admin tests/test_central_admin.py tests/test_central_operacoes.py tests/test_central_performance.py
+      - name: Testes de não regressão da Central
+        run: |
+          python -m unittest discover -s tests -p "test_central_admin.py" -v
+          python -m unittest discover -s tests -p "test_central_operacoes.py" -v
+          python -m unittest discover -s tests -p "test_central_performance.py" -v
+          python -m unittest discover -s tests -p "test_central_native_recebimentos.py" -v
+          python -m unittest discover -s tests -p "test_central_vales_holerites.py" -v
+          python -m unittest discover -s tests -p "test_central_vales_api.py" -v
+          python -m unittest discover -s tests -p "test_central_funcionarios.py" -v
+          python -m unittest discover -s tests -p "test_central_fullwidth.py" -v
+          python -m unittest discover -s tests -p "test_central_brand.py" -v
+      - name: Conferir JavaScript
+        run: |
+          node --check central_admin/static/confirm-actions.js
+          node tests/test_central_confirm_actions.js
+          node --check central_admin/static/form-drafts.js
+          node tests/test_central_form_drafts.js
+          node --check central_admin/static/app.js
+          node --check central_admin/static/operations.js
+          node --check central_admin/static/launcher.js
+          node --check central_admin/static/entry-preflight.js
+          node --check central_admin/static/recebimentos.js
+          node --check central_admin/static/recebimentos_imports.js
+          node --check central_admin/static/contas_batch.js
+          node --check central_admin/static/contas_pdf_review.js
+          node --check central_admin/static/vales_holerites.js
+          node --check central_admin/static/funcionarios.js
+          node --check central_admin/static/holerites_vales.js
+          node --check tests/test_central_holerites_vales_ui.js
+          node tests/test_central_holerites_vales_ui.js
+          node --check tests/test_central_funcionarios_ui.js
+          node tests/test_central_funcionarios_ui.js
+          node --check tests/test_central_vales_holerites_ui.js
+          node tests/test_central_vales_holerites_ui.js
+          node --check tests/test_central_modulos_ui.js
+          node tests/test_central_modulos_ui.js
+          node tests/test_central_detail_layout.js
+          node --check central_admin/static/route-preflight.js
+          node --check tests/test_central_route_ui.js
+          node tests/test_central_route_ui.js
+          node --check tests/test_central_launcher_ui.js
+          node tests/test_central_launcher_ui.js
+          node --check tests/test_central_entry_ui.js
+          node tests/test_central_entry_ui.js
+          node --check tests/test_central_recebimentos_ui.js
+          node tests/test_central_recebimentos_ui.js
+          node --check tests/test_central_contas_batch_ui.js
+          node tests/test_central_contas_batch_ui.js
+          node --check tests/test_central_contas_pdf_review_ui.js
+          node tests/test_central_contas_pdf_review_ui.js
+      - name: Conferir instalador da VPS
+        run: |
+          bash -n central_admin/deploy/INSTALAR_VPS.sh
+          bash -n central_admin/deploy/ATUALIZAR_VPS.sh
+      - name: Validar Compose isolado
+        run: |
+          printf 'CENTRAL_TOKEN=chave_temporaria_apenas_para_sintaxe_de_configuracao_0123456789\nCENTRAL_CONTROLES_DSN=postgresql://central_nh_ro:exemplo@db/meus_controles\n' > central_admin/deploy/.env.production
+          docker compose -f central_admin/deploy/compose.yml config --quiet
+          rm -f central_admin/deploy/.env.production

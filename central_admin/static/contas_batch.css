@@ -1,0 +1,78 @@
+/* Cabeçalho enxuto: as ações escondidas continuam no DOM exclusivamente
+ * para os eventos e a sessão do CONTAS 4. A interface não as apresenta.
+ * ChatGPT conectado permanece autenticado; não fazer logout. */
+body.central-operational.nh-scope-contas #aiConnect,
+body.central-operational.nh-scope-contas #mobileBtn,
+body.central-operational.nh-scope-contas #pdfImport{
+  display:none!important;
+}
+/* Feedback nativo: aparece quando PDFs entram no navegador, mesmo
+ * quando o painel flutuante está aberto. Não captura ponteiros, para o
+ * evento alcançar o coordenador de arquivos na janela. */
+html.nh-contas-dragging-files body.central-operational.nh-scope-contas #dropZone{
+  display:flex!important;pointer-events:none!important;
+  z-index:50000!important;
+  border:2px dashed rgba(69,135,206,.8)!important;
+  background:rgba(231,243,255,.91)!important;
+  backdrop-filter:blur(9px)!important;
+  -webkit-backdrop-filter:blur(9px)!important;
+}
+.nh-batch-dock{
+  position:fixed!important;left:20px!important;bottom:20px!important;
+  right:auto!important;top:auto!important;z-index:72!important;
+  width:min(420px,calc(100vw - 30px))!important;
+  max-height:min(300px,calc(100dvh - 30px));
+  display:flex;flex-direction:column;gap:7px;
+  overflow:hidden!important;
+  padding:17px 18px 14px!important;
+  border-radius:18px!important;
+  border:1px solid rgba(255,255,255,.97)!important;
+  color:#214263!important;
+  background:linear-gradient(138deg,rgba(250,253,255,.97),rgba(225,240,255,.93))!important;
+  box-shadow:0 15px 55px rgba(28,71,114,.22),inset 0 1px 0 #fff!important;
+  backdrop-filter:blur(18px) saturate(145%);
+  -webkit-backdrop-filter:blur(18px) saturate(145%);
+}
+.nh-batch-dock[hidden]{display:none!important}
+/* Durante a revisão, o formulário de Contas fica acima da fila.
+ * Nunca esconder os botões Salvar/Cancelar nem o conteúdo do PDF. */
+.nh-batch-dock[data-phase="review"]{z-index:50!important}
+.nh-batch-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.nh-batch-head strong{font-size:13px;font-weight:820;letter-spacing:-.18px}
+#nh-batch-counter{font-size:11px;color:#497cac;font-weight:750;white-space:nowrap}
+.nh-batch-file{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;font-weight:750;color:#305575
+}
+#nh-batch-message{margin:0;font-size:11px;line-height:1.4;color:#66819d;min-height:15px;max-height:46px;overflow:hidden}
+.nh-batch-progress-track{
+  width:100%;height:5px;flex:none;
+  background:#bdd5ee86;border-radius:99px;overflow:hidden
+}
+#nh-batch-progress{
+  height:100%;width:0;background:linear-gradient(90deg,#438bc9,#2172bd);
+  border-radius:99px;transition:width .2s ease
+}
+#nh-batch-summary{margin:1px 0 0;color:#7791a8;font-size:10.5px}
+.nh-batch-controls{display:flex;flex-wrap:wrap;gap:7px;padding-top:4px}
+.nh-batch-controls button{
+  min-height:31px;border:1px solid #bfd7ed!important;
+  color:#336d9e!important;background:rgba(255,255,255,.85)!important;
+  border-radius:9px!important;padding:6px 10px!important;
+  font-size:11px!important;font-weight:760!important;cursor:pointer
+}
+.nh-batch-controls button:hover{background:#fff!important}
+.nh-batch-controls button[hidden]{display:none!important}
+#nh-batch-state[data-phase="error"]~*{color:#b54450}
+@media(max-width:700px){
+  .nh-batch-dock{
+    left:8px!important;bottom:8px!important;
+    width:min(365px,calc(100vw - 16px))!important;
+    padding:12px 13px!important;max-height:calc(100dvh - 16px)!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  #nh-batch-progress{transition:none}
+}

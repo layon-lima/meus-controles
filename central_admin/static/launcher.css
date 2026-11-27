@@ -1,0 +1,225 @@
+/* Central Novo Horizonte — uma superfície que vira janela.
+ * Fechada: botão. Aberta: o MESMO elemento, sem popup separado.
+ * Dimensões fixas de 600 × 455 no desktop, 360 × 510 no mobile.
+ * Quando a viewport é menor, a superfície toda é reduzida proporcionalmente.
+ * Nunca há scrollbar interno nem recorte de conteúdo.
+ */
+body.central-operational .nh-start-menu{
+  position:fixed!important;right:auto!important;bottom:auto!important;
+  z-index:45000!important;box-sizing:border-box!important;
+  display:block!important;padding:0!important;
+  margin:0!important;overflow:hidden!important;
+  border-radius:21px!important;border:1px solid rgba(255,255,255,.97)!important;
+  background:linear-gradient(142deg,rgba(255,255,255,.94),rgba(224,238,253,.90))!important;
+  color:#213e5e!important;
+  box-shadow:0 18px 55px rgba(29,60,103,.19),inset 0 1px 0 #fff!important;
+  backdrop-filter:blur(21px) saturate(150%);
+  -webkit-backdrop-filter:blur(21px) saturate(150%);
+  transform-origin:top left;
+  transform:scale(var(--nh-surface-scale,1));
+  transition:background .22s ease,border-radius .22s ease,box-shadow .18s ease!important;
+  isolation:isolate;
+  contain:layout style;
+}
+body.central-operational .nh-start-menu:not(.nh-start-open){
+  background:linear-gradient(145deg,#4f93d4,#2462a2)!important;
+  border-radius:20px!important;
+  box-shadow:0 10px 26px rgba(28,74,128,.24),inset 0 1px 0 #ffffff79!important;
+}
+body.central-operational .nh-start-menu.nh-start-moving{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  transition:none!important;
+  box-shadow:0 12px 30px rgba(28,74,128,.15)!important;
+}
+body.central-operational .nh-start-menu *,
+body.central-operational .nh-start-menu *::before{box-sizing:border-box}
+body.central-operational .nh-start-trigger{
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  margin:0!important;padding:0!important;display:grid!important;place-items:center!important;
+  background:transparent!important;border:0!important;border-radius:inherit!important;
+  box-shadow:none!important;color:white!important;
+  cursor:grab!important;touch-action:none!important;user-select:none!important;
+  -webkit-user-select:none!important;
+  opacity:1;visibility:visible;z-index:2;
+}
+body.central-operational .nh-start-trigger:hover{background:rgba(255,255,255,.065)!important}
+body.central-operational .nh-start-trigger:active{cursor:grabbing!important}
+body.central-operational .nh-start-trigger:focus-visible{outline:3px solid #9bd2ff;outline-offset:-4px}
+.nh-start-icon{
+  width:22px;height:22px;display:block;flex:none;
+  fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.nh-start-trigger>.nh-start-icon{width:39%;height:39%}
+body.central-operational .nh-start-menu.nh-start-open .nh-start-trigger{
+  visibility:hidden;opacity:0;pointer-events:none!important;
+}
+.nh-start-panel{
+  position:absolute;inset:0;z-index:1;
+  width:100%;height:100%;display:flex;flex-direction:column;
+  min-width:0;min-height:0;
+  padding:0;overflow:hidden!important;
+  pointer-events:none;visibility:hidden;
+}
+.nh-start-menu.nh-start-open .nh-start-panel{
+  pointer-events:auto;visibility:visible;
+}
+.nh-start-panel>*{opacity:0;pointer-events:none}
+.nh-start-menu.nh-start-open.nh-start-ready .nh-start-panel>*{
+  opacity:1;pointer-events:auto;
+  transition:opacity .16s cubic-bezier(.2,.7,.3,1);
+}
+.nh-start-menu.nh-start-expanding{
+  view-transition-name:nh-central-expand;
+  pointer-events:none!important;
+}
+.nh-start-menu.nh-start-expanding > *{
+  opacity:0!important;transition:none!important;
+}
+.nh-start-top{
+  min-height:54px;height:54px;flex:none;
+  display:flex;justify-content:flex-end;align-items:center;gap:8px;
+  padding:9px 16px;
+  border-bottom:1px solid rgba(255,255,255,.79);
+  background:rgba(255,255,255,.12);
+  cursor:grab;touch-action:none;user-select:none;
+  -webkit-user-select:none;
+}
+.nh-start-menu.nh-start-moving .nh-start-top{cursor:grabbing}
+body.central-operational .nh-start-close,
+body.central-operational .nh-start-expand{
+  display:grid!important;place-items:center!important;
+  width:34px!important;height:34px!important;min-width:34px!important;
+  padding:0!important;border-radius:10px!important;
+  border:1px solid rgba(255,255,255,.92)!important;
+  background:rgba(255,255,255,.70)!important;
+  color:#6986a1!important;text-decoration:none!important;
+  font-size:23px!important;font-weight:400!important;line-height:1!important;
+  box-shadow:inset 0 1px 0 #fff!important;
+  cursor:pointer!important;
+}
+body.central-operational .nh-start-close:hover,
+body.central-operational .nh-start-expand:hover{
+  background:white!important;color:#296baa!important
+}
+.nh-start-expand>.nh-start-icon{width:17px;height:17px}
+.nh-start-search{
+  margin:12px 18px 7px;min-height:43px;height:43px;flex:none;
+  display:flex;align-items:center;gap:9px;padding:0 12px;
+  background:rgba(255,255,255,.83);
+  border:1px solid rgba(172,200,230,.62);
+  border-radius:11px;box-shadow:inset 0 1px 0 #fff;
+}
+.nh-start-search>.nh-start-icon{width:17px;height:17px;color:#7392b4}
+/* Input do menu sem anéis sobrepostos do tema de Contas/Controles.
+ * Uma única borda leve e contínua permanece mesmo ao digitar. */
+body.central-operational .nh-start-search,
+body.central-operational .nh-start-search:focus-within{
+  border:1px solid rgba(171,196,221,.65)!important;
+  outline:0!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9)!important;
+  background:rgba(255,255,255,.77)!important;
+}
+body.central-operational .nh-start-search .nh-start-search-input,
+body.central-operational .nh-start-search .nh-start-search-input:focus,
+body.central-operational .nh-start-search .nh-start-search-input:focus-visible{
+  border:0!important;outline:0!important;outline-offset:0!important;
+  box-shadow:none!important;background:transparent!important;
+  -webkit-appearance:none;appearance:none;
+}
+
+body.central-operational .nh-start-search-input{
+  border:none!important;outline:0!important;box-shadow:none!important;
+  background:transparent!important;color:#27496a!important;
+  width:100%!important;min-width:0!important;height:39px!important;
+  min-height:39px!important;margin:0!important;padding:0!important;
+  font-size:12px!important;font-weight:400!important;
+}
+.nh-start-scroll{
+  flex:1;min-height:0;width:100%;padding:5px 18px 16px;
+  overflow:hidden!important;
+  scrollbar-width:none;
+}
+.nh-start-section-title{
+  height:42px;min-height:42px;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 3px 10px;
+}
+.nh-start-section-title strong{font-size:12px;color:#376182;font-weight:780}
+.nh-start-section-title small{font-size:11px;color:#8d9eb2}
+.nh-start-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-rows:repeat(2,125px);
+  gap:10px;
+}
+.nh-start-tile{
+  min-width:0;min-height:0;display:flex;flex-direction:column;
+  justify-content:flex-start;align-items:center;text-align:center;
+  text-decoration:none!important;
+  border-radius:15px;border:1px solid rgba(255,255,255,.94);
+  background:linear-gradient(145deg,rgba(255,255,255,.83),rgba(233,244,255,.58));
+  padding:14px 6px 9px;
+  box-shadow:inset 0 1px 0 #fff,0 4px 13px rgba(34,74,119,.04);
+  transition:background .12s ease,border-color .12s ease;
+}
+.nh-start-tile:hover{
+  background:linear-gradient(145deg,#fff,#e4f1fc);
+  border-color:#b8d5ef;
+}
+.nh-start-tile[aria-current="page"]{background:#dcebfbe6;border-color:#a7cbed}
+.nh-start-tile[hidden]{display:none!important}
+.nh-start-tile:focus-visible{outline:3px solid #90bde9;outline-offset:2px}
+.nh-start-tile-icon{
+  width:38px;height:38px;margin-bottom:10px;flex:none;
+  display:grid;place-items:center;border-radius:12px;
+  background:linear-gradient(145deg,#fff,#deefff);
+  border:1px solid #fff;color:#3f7fbd;
+  box-shadow:0 4px 12px rgba(49,94,145,.09),inset 0 1px 0 #fff;
+}
+.nh-start-tile-icon>.nh-start-icon{width:21px;height:21px}
+.nh-start-tile-name{font-size:11px;font-weight:760;color:#294c70;line-height:1.35}
+.nh-start-tile-subtitle{
+  font-size:10px;color:#8199b1;line-height:1.25;margin-top:5px;
+}
+.nh-start-empty{
+  margin:12px 0;color:#7790a9;text-align:center;
+  font-size:12px;padding:14px;
+}
+/* View Transition entre o menu ampliado e a página inicial real. */
+@view-transition{navigation:auto}
+::view-transition-group(nh-central-expand){
+  animation-duration:420ms;
+  animation-timing-function:cubic-bezier(.22,.84,.23,1);
+}
+::view-transition-old(nh-central-expand){animation:nh-leave .21s ease-in both}
+::view-transition-new(nh-central-expand){animation:nh-arrive .35s ease-out both}
+::view-transition-old(root){animation:nh-leave .19s ease-in both}
+::view-transition-new(root){animation:nh-arrive .35s ease-out both}
+@keyframes nh-leave{from{opacity:1}to{opacity:0}}
+@keyframes nh-arrive{from{opacity:0}to{opacity:1}}
+@media(max-width:700px){
+  .nh-start-top{height:48px;min-height:48px;padding:7px 13px}
+  .nh-start-search{margin:10px 13px 6px;height:42px;min-height:42px}
+  .nh-start-scroll{padding:5px 12px 13px}
+  .nh-start-grid{grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(3,108px);gap:8px}
+  .nh-start-section-title{height:40px;min-height:40px}
+  .nh-start-tile{padding:12px 6px 8px}
+  .nh-start-tile-icon{width:36px;height:36px;margin-bottom:8px}
+  .nh-start-tile-name{font-size:11px}
+  .nh-start-tile-subtitle{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+  ::view-transition-group(nh-central-expand),
+  ::view-transition-old(nh-central-expand),
+  ::view-transition-new(nh-central-expand),
+  ::view-transition-old(root),::view-transition-new(root){
+    animation-duration:.01ms!important
+  }
+  .nh-start-tile{transition:none}
+}
+@supports not (backdrop-filter:blur(2px)){
+  body.central-operational .nh-start-menu{background:#f2f8ff!important}
+}

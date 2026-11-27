@@ -1,0 +1,22 @@
+/* Janela de confirmação neutra, comum a todos os módulos. */
+dialog.nh-confirm-dialog{box-sizing:border-box;width:min(440px,calc(100vw - 32px));max-width:100%;padding:22px;border:1px solid #dce0e5!important;border-radius:10px!important;background:#fff!important;color:#20242b!important;box-shadow:0 10px 36px #20242b30!important;font:14px/1.5 system-ui,sans-serif;text-align:left;overflow-wrap:anywhere}
+dialog.nh-confirm-dialog::backdrop{background:rgba(24,30,38,.46)!important;backdrop-filter:none!important}
+dialog.nh-confirm-dialog h2{font-size:18px!important;font-weight:700!important;margin:0 0 9px!important;color:#20242b!important}
+dialog.nh-confirm-dialog p{font:14px/1.5 system-ui,sans-serif!important;color:#606873!important;margin:0 0 22px!important;white-space:pre-wrap}
+dialog.nh-confirm-dialog .nh-confirm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+dialog.nh-confirm-dialog button{appearance:none;min-height:38px;padding:8px 15px;font:600 13px system-ui,sans-serif;border:1px solid #cdd2d9!important;border-radius:6px!important;cursor:pointer;box-shadow:none!important;background:#fff!important;color:#303740!important}
+dialog.nh-confirm-dialog button.nh-confirm-approve{background:#303740!important;color:#fff!important;border-color:#303740!important}
+dialog.nh-confirm-dialog button.nh-confirm-danger{background:#b52c38!important;border-color:#b52c38!important}
+dialog.nh-confirm-dialog button:focus-visible{outline:2px solid #8593a4;outline-offset:2px}
+
+/* Aviso de resultado: independente das janelas e dos containers de cada módulo. */
+#nh-operation-notices{position:fixed!important;top:16px!important;right:16px!important;z-index:2147483647!important;display:flex!important;flex-direction:column;gap:8px;width:min(400px,calc(100vw - 32px));pointer-events:none;margin:0;padding:0}
+#nh-operation-notices .nh-operation-notice{display:flex!important;align-items:center;gap:12px;padding:13px 14px!important;background:#fff!important;color:#20242b!important;border:1px solid #dce0e5!important;border-left:4px solid #21835a!important;border-radius:8px!important;box-shadow:0 5px 22px #20242b24!important;pointer-events:auto;font:600 13px/1.45 system-ui,sans-serif;min-width:0}
+#nh-operation-notices .nh-operation-notice.is-error{border-left-color:#b52c38!important}
+#nh-operation-notices .nh-operation-mark{display:grid;place-items:center;flex:0 0 26px;height:26px;background:#e3f4eb!important;color:#18774c!important;border-radius:50%;font-size:17px;font-weight:700}
+#nh-operation-notices .is-error .nh-operation-mark{background:#fce8ea!important;color:#b52c38!important}
+#nh-operation-notices .nh-operation-text{flex:1;min-width:0;overflow-wrap:anywhere;color:#20242b!important}
+#nh-operation-notices button{appearance:none;border:0!important;background:transparent!important;color:#606873!important;box-shadow:none!important;flex:0 0 28px;height:28px;cursor:pointer;font:20px/1 system-ui,sans-serif;padding:0}
+
+#nh-operation-notices .nh-operation-notice.is-info{border-left-color:#718096!important}
+#nh-operation-notices .is-info .nh-operation-mark{background:#eef1f4!important;color:#526476!important}

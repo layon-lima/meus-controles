@@ -1,0 +1,68 @@
+/* Vales diretamente nos cards de Holerites, sem sidebar ou nova janela. */
+body.central-operational.nh-scope-contas #holeritesView .nhp-vales-inline{
+  display:flex;flex-wrap:wrap;align-items:center;gap:9px 20px;
+  padding:12px 15px;border-top:1px solid #d9e9f8;
+  background:linear-gradient(125deg,rgba(233,245,255,.91),rgba(250,253,255,.96));
+  color:#365f85;
+}
+#holeritesView .nhp-vale-head{display:flex;flex-wrap:wrap;align-items:center;
+  justify-content:space-between;gap:8px 18px;width:100%}
+#holeritesView .nhp-vale-label{display:grid;gap:2px;min-width:120px}
+#holeritesView .nhp-vale-label strong,#holeritesView .nhp-link-heading strong{
+  color:#315d86;font-size:12px;font-weight:810}
+#holeritesView .nhp-vale-label small,#holeritesView .nhp-link-heading small{
+  color:#7f99b2;font-size:10px;line-height:1.5}
+#holeritesView .nhp-vale-badges{display:flex;gap:7px;flex-wrap:wrap}
+#holeritesView .nhp-valebadge{display:grid;gap:3px;padding:7px 10px;
+  background:#fffd;border:1px solid #fff;border-radius:10px;
+  box-shadow:inset 0 1px #fff,0 3px 8px #5488b111}
+#holeritesView .nhp-valebadge small{font-size:9px;color:#8197ad}
+#holeritesView .nhp-valebadge strong{font-size:12px;font-weight:830;
+  color:#315e88;font-variant-numeric:tabular-nums}
+#holeritesView .nhp-valebadge.pending strong{color:#a57a2a}
+#holeritesView .nhp-valebadge.reserved strong{color:#4087ba}
+#holeritesView .nhp-valebadge.late strong{color:#b36052}
+#holeritesView .nhp-vales-details{width:100%;border-top:1px solid #dae9f7;
+  padding-top:7px;margin-top:2px}
+#holeritesView .nhp-vales-details summary{font-size:10px;color:#376e9e;
+  font-weight:740;cursor:pointer;padding:5px 0}
+#holeritesView .nhp-vales-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;padding:9px 0 4px}
+#holeritesView .nhp-vales-group{border:1px solid #fff;background:#ffffffb0;
+  border-radius:12px;padding:11px;min-width:0}
+#holeritesView .nhp-vales-group h4{font-size:11px;color:#315a80;margin:0 0 8px}
+#holeritesView .nhp-valerow{display:flex;gap:10px;justify-content:space-between;
+  border-top:1px solid #e7f0f9;padding:8px 0}
+#holeritesView .nhp-valerow-left{display:grid;gap:3px;min-width:0}
+#holeritesView .nhp-valerow-left strong{font-size:10px;color:#3e6082;overflow-wrap:anywhere}
+#holeritesView .nhp-valerow-left small{font-size:9px;color:#849db3}
+#holeritesView .nhp-valerow b{font-size:11px;color:#2b638d;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+#holeritesView .nhp-valerow.late b{color:#b26b52}
+#holeritesView .nhp-empty{font-size:10px;color:#92a5b6;margin:6px 0}
+#holeritesView .nhp-link-heading{display:grid;gap:3px}
+#holeritesView .nhp-link-controls{display:flex;flex:1;gap:8px;flex-wrap:wrap;
+  align-items:center}
+#holeritesView .nhp-link-select{flex:1;min-width:190px;border:1px solid #bfd8ed;
+  border-radius:9px;background:#fff;padding:8px;color:#37618b;font-size:10px}
+#holeritesView .nhp-confirm-link,#holeritesView .nhp-review-button{font-size:10px;
+  font-weight:770;padding:7px 9px;border:1px solid #bcd4eb;
+  border-radius:8px;background:#f6fbff;color:#3775a9;cursor:pointer}
+#holeritesView .nhp-confirm-link:disabled{opacity:.5;cursor:wait}
+#holeritesView .payroll-month .amount{display:grid;gap:3px}
+#holeritesView .nhp-discount-applied,#holeritesView .nhp-discount-not-applied,
+#holeritesView .nhp-alert-text{font-size:9px;font-weight:560;color:#49876d;
+  white-space:normal;line-height:1.35}
+#holeritesView .nhp-discount-not-applied{color:#b07c2f}
+#holeritesView .nhp-alert-text{color:#bd665d}
+#holeritesView .nhp-review-button{margin-right:6px}
+#holeritesView .nhp-vale-error{border:1px solid #f3cabc;background:#fff5f0;
+  border-radius:11px;padding:10px 13px;margin:10px 15px;color:#9d5947;font-size:11px}
+@media(max-width:740px){
+  #holeritesView .nhp-vales-body{grid-template-columns:1fr}
+  #holeritesView .nhp-vales-inline{padding:10px}
+  #holeritesView .nhp-valebadge{padding:6px 8px}
+}
+@media(prefers-reduced-motion:reduce){
+  #holeritesView .nhp-vales-inline{transition:none!important}
+}
