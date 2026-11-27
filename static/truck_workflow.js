@@ -47,11 +47,11 @@ Object.assign(App,{
       };
       return getOrder(a)-getOrder(b)||a.category.localeCompare(b.category,"pt-BR");
     });
-    const totals=groups.reduce((s,g)=>s+g.rows.reduce((n,row)=>n+Number(row.amount||0),0),0);
+    const totals=groups.reduce((s,g)=>s+g.rows.reduce((n,row)=>n+(row.exclude_totals?0:Number(row.amount||0)),0),0);
     const who=this.s.truckReport?.settings?.driver_name||"—";
     const groupHtml=groups.map(group=>{
       const name=group.category;
-      const subtotal=group.rows.reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const subtotal=group.rows.reduce((sum,row)=>sum+(row.exclude_totals?0:Number(row.amount||0)),0);
       const categoryType=group.kind==="freight"?"freight":group.kind==="advance"?"advance":"expense";
       const groupLabel=name==="Vale motorista"?"Vale Motorista":name;
       const header='<tr class="truck-review-group '+categoryType+'" data-review-category="'+E(name)+'">'+
@@ -65,7 +65,7 @@ Object.assign(App,{
           '<td class="truck-review-check"><input type="checkbox" aria-label="Conferir lançamento '+item.id+'" data-review-id="'+item.id+'" onchange="App.truckToggleReview('+item.id+',this.checked)" '+(checked?"checked":"")+'></td>'+
           '<td>'+workflowDate(item.event_date)+'</td>'+
           '<td>'+E(type)+'</td>'+
-          '<td class="truck-review-description"><strong>'+E(item.description)+'</strong>'+
+          '<td class="truck-review-description"><strong>'+E(item.description)+'</strong>'+(item.exclude_totals?'<small>Não somar</small>':"")+
           (item.notes?'<small>'+E(item.notes)+'</small>':"")+'</td>'+
           '<td>'+E(item.category)+'</td>'+
           '<td>'+E(who)+'</td>'+
@@ -149,7 +149,7 @@ Object.assign(App,{
         workflowMetric("Saídas",details.totals.cash_out)+workflowMetric("Comissão no fechamento",details.totals.driver_due_at_close)+'</div>'+
         '<div class="truck-workflow-snapshot">'+details.entries.map(e=>
         '<div class="truck-workflow-history-row"><div><strong>'+E(e.description)+'</strong><small>'+
-        workflowDate(e.event_date)+' · '+E(e.category)+'</small></div><strong>'+truckMoney(e.amount)+'</strong></div>').join("")+
+        workflowDate(e.event_date)+' · '+E(e.category)+(e.exclude_totals?' · Não somar':'')+'</small></div><strong>'+truckMoney(e.amount)+'</strong></div>').join("")+
         '</div></div></section>':"";
     return '<section id="truck-panel-closures" role="tabpanel" aria-labelledby="truck-tab-closures" class="truck-workflow-view">'+
       '<div class="truck-workflow-head"><div><h2>Fechamentos por período</h2>'+
