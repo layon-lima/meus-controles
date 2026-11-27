@@ -353,3 +353,28 @@ body.central-operational > .nh-control-popup > button:is(:hover,:focus-visible){
 body.central-operational > .nh-control-popup > button.danger{color:#b42330!important;border-top:1px solid #e6e8eb!important;border-radius:0 0 6px 6px!important}
 .nh-control-popup-icon{width:17px;flex:none;text-align:center;font-size:15px;color:inherit}
 body.central-operational .nh-controls-history{flex:none;white-space:nowrap;min-width:88px}
+
+
+/* Somente o lançamento de fretes: janela flutuante, sem sair do viewport. */
+body.central-operational #modalRoot .modal-backdrop.nh-freight-floating-root{
+  padding:0!important;align-items:center!important;justify-content:center!important;
+  pointer-events:none;
+}
+body.central-operational #modalRoot .truck-entry-form.nh-freight-floating{
+  position:fixed!important;inset:auto;transform:none!important;margin:0!important;
+  box-sizing:border-box!important;width:min(760px,var(--nh-freight-max-w,calc(100vw - 16px)))!important;
+  max-width:var(--nh-freight-max-w,calc(100vw - 16px))!important;
+  max-height:var(--nh-freight-max-h,calc(100dvh - 16px))!important;
+  min-width:0!important;min-height:0!important;
+  display:flex;flex-direction:column;overflow:auto!important;pointer-events:auto;
+  overscroll-behavior:contain;
+}
+body.central-operational #modalRoot .nh-freight-floating .modal-header{
+  cursor:grab;touch-action:none;user-select:none;flex-shrink:0;
+}
+body.central-operational #modalRoot .nh-freight-floating .modal-header:active{cursor:grabbing}
+body.central-operational #modalRoot .nh-freight-floating .modal-header button{cursor:pointer;touch-action:auto}
+body.central-operational #modalRoot .nh-freight-floating .modal-body{
+  min-height:0;min-width:0;flex:1 1 auto;overflow:auto;overscroll-behavior:contain;
+}
+body.central-operational #modalRoot .nh-freight-floating .modal-footer{flex-shrink:0;flex-wrap:wrap}
