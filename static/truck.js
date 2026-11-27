@@ -113,17 +113,20 @@ Object.assign(App,{
       const sign=isFreight?"+":"−";
       const lockStatus=this.truckEntryStatus(x.event_date);
       const subtitle=isFreight?'<span class="secondary-text">'+number(x.weight_kg)+' kg × '+truckMoney(r.settings.price_basis==="kg"?Number(x.price_tonne)/1000:x.price_tonne)+(r.settings.price_basis==="kg"?"/kg":"/t")+' · comissão '+truckMoney(x.commission_amount)+'</span>':"";
-      return '<tr><td>'+E(stamp)+'</td><td><b>'+E(x.description)+'</b>'+subtitle+'</td><td><span class="chip">'+E(x.category)+'</span></td>'+
+      const excluded=!!x.exclude_totals;
+      const readonly=!!lockStatus||!!control.closed_at;
+      return '<tr'+(excluded?' class="truck-excluded-row"':'')+'><td>'+E(stamp)+'</td><td><b>'+E(x.description)+'</b>'+subtitle+'</td><td><span class="chip">'+E(x.category)+'</span></td>'+
         '<td class="numeric '+(isFreight?"positive":"negative")+'">'+sign+truckMoney(x.amount)+'</td>'+
+        '<td><label class="truck-exclude-label"><input type="checkbox" aria-label="Não somar lançamento '+x.id+'" onchange="App.truckExclude('+x.id+',this)" '+(excluded?'checked ':'')+(readonly?'disabled ':'')+'> Não somar</label></td>'+
         '<td><div class="table-actions">'+(lockStatus?'<span class="truck-record-lock">'+icon("lock")+' '+E(lockStatus)+'</span>':
         '<button class="mini-action" onclick="App.truckForm(null,'+x.id+')">'+icon("edit")+' Editar</button>'+
         '<button class="mini-action" onclick="App.truckDelete('+x.id+')">'+icon("trash")+' Excluir</button>')+'</div></td></tr>';
     }).join("");
     const ledger='<section class="panel truck-ledger"><div class="panel-header"><h3>Todos os lançamentos</h3>'+
-      '<div class="actions-end"><span class="secondary-text">'+t.count+' registros</span>'+
+      '<div class="actions-end"><span class="secondary-text">'+t.count+' registros'+(t.excluded_count?' · '+t.excluded_count+' fora dos cálculos':'')+'</span>'+
       '<button class="btn btn-sm" onclick="App.truckExport('+control.id+')">'+icon("download")+' Exportar CSV</button></div></div>'+
       (r.entries.length?'<div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th>'+
-      '<th style="text-align:right">Valor</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
+      '<th style="text-align:right">Valor</th><th>Não somar</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>':
       '<div class="empty-state truck-empty"><strong>Nenhum lançamento neste período</strong>'+
       '<p>Utilize Novo lançamento no topo para começar.</p>'+
       '</div>')+'</section>';
@@ -476,6 +479,21 @@ Object.assign(App,{
       await this.load();
       this.toast(entryId?"Lançamento atualizado.":"Lançamento registrado.");
     }catch(e){this.toast(e.message,true)}
+  },
+  async truckExclude(id,input){
+    const record=this.s.truckReport?.entries.find(x=>Number(x.id)===Number(id));
+    if(!record||input.disabled)return;
+    const before=!!record.exclude_totals,flag=input.checked;
+    input.disabled=true;
+    try{
+      await this.api("/api/truck-entries/"+id,"PATCH",{exclude_totals:flag});
+    }catch(e){
+      input.checked=before;input.disabled=false;this.toast(e.message,true);return;
+    }
+    record.exclude_totals=flag?1:0;
+    this.s.truckReviewPreview=null;this.s.truckClosePreview=null;
+    await this.load();
+    this.toast(flag?"Lançamento fora dos cálculos.":"Lançamento voltou aos cálculos.");
   },
   async truckDelete(id){
     if(!confirm("Excluir este lançamento? Os saldos serão recalculados automaticamente."))return;
